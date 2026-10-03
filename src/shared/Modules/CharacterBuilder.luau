@@ -400,7 +400,7 @@ local function hairTones(c: Color3, look): (Color3, Color3)
 		under = c:Lerp(Color3.fromRGB(140, 155, 195), 0.5)
 		shine = WHITE
 	else
-		under = c:Lerp(Color3.fromRGB(70, 30, 45), 0.32)
+		under = c:Lerp(Color3.fromRGB(150, 70, 40), 0.3)
 		shine = c:Lerp(WHITE, 0.55)
 	end
 	return look.hairUnder or under, look.hairShine or shine
@@ -415,7 +415,8 @@ local function mass(ctx, under: Color3, o)
 	ctx.ball("Head", "HairMass", Vector3.new(HEAD_W + grow, h, HEAD_D + grow), CFrame.new(0, TOP - 0.1 + (opts.lift or 0), 0.05), under)
 	if opts.back ~= false then
 		local length = opts.backLength or 1.1
-		ctx.ball("Head", "HairMassBack", Vector3.new(HEAD_W + 0.1, length, 0.9), CFrame.new(0, TOP - 0.55 - (length - 1.1) / 2, BACK - 0.3), under)
+		-- Grand ellipsoïde qui enveloppe toute la moitié arrière du crâne (nuque et côtés)
+		ctx.ball("Head", "HairMassBack", Vector3.new(HEAD_W + 0.42, length * 1.2, 1.3), CFrame.new(0, TOP - 0.52 - (length - 1.1) / 2, 0.2), under)
 	end
 end
 
@@ -591,7 +592,9 @@ end
 HAIR.slick_up = function(ctx, c, look)
 	-- Cheveux dressés vers le haut et l'arrière, côtés rasés plus sombres (fléau, prince guerrier)
 	local under, shine = hairTones(c, look)
-	mass(ctx, under, { grow = 0.3, height = 0.9 })
+	mass(ctx, c, { grow = 0.3, height = 0.9, back = false })
+	-- Côtés et nuque rasés, plus sombres
+	ctx.ball("Head", "HairMassBack", Vector3.new(HEAD_W + 0.38, 1.2, 1.3), CFrame.new(0, TOP - 0.5, 0.2), under)
 	for _, p in { { -0.4, -0.3 }, { 0, -0.38 }, { 0.4, -0.3 }, { -0.25, 0.1 }, { 0.25, 0.1 }, { 0, 0.32 } } do
 		ctx.spike("Head", c, Vector3.new(p[1], TOP + 0.08, p[2]), Vector3.new(p[1] * 0.5, 1, 0.35 + p[2] * 0.3), 1.2, 0.84, look.hairTip, p[2] < 0 and shine or nil)
 	end

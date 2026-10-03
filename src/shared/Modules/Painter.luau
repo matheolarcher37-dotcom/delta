@@ -1274,7 +1274,7 @@ OUTFITS.jacket = function(S, look, c)
 	band(S, 0.9, 0.06, shade(top, 0.08), 4)
 	zipper(S, 0.5, 0.06, 0.93, top, 5)
 	if look.collar == "fur" then
-		furTrim(S, 0.06, 0.12, look.collarColor or Color3.fromRGB(240, 238, 230), 8)
+		furTrim(S, 0.075, 0.15, look.collarColor or Color3.fromRGB(240, 238, 230), 8)
 	else
 		S:oval(0.5, 0.02, 0.56, 0.24, yoke, { stroke = inkOf(yoke), strokeThickness = 1, z = 6 })
 		S:oval(0.5, 0.0, 0.36, 0.14, shade(yoke, 0.55), { z = 7 })
@@ -1655,7 +1655,7 @@ local function torsoBack(S, look, c)
 			castShadow(S, 0.4, 0.1, c.top, 1)
 			band(S, 0.9, 0.06, shade(c.top, 0.08), 4)
 			if look.collar == "fur" then
-				furTrim(S, 0.05, 0.1, look.collarColor or Color3.fromRGB(240, 238, 230), 8)
+				furTrim(S, 0.06, 0.12, look.collarColor or Color3.fromRGB(240, 238, 230), 8)
 			end
 		end
 	elseif outfit == "gi" then

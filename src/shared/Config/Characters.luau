@@ -7,6 +7,15 @@
 --   top, topAccent?, bottom, shoes?, outfit? (voir Painter.luau : "jacket", "uniform", "gi", "suit"...),
 --   logo? = { kind = "spiral" | "kanji" | "fan" | "circle", color, bg?, text?, back? },
 --   eyeShadow?, blush?, bigBrows?, accessories = { ... }, accColor?, sleeveless?, shirtless?
+--   Tenue peinte (v3, toutes les faces du torse, des bras et des jambes ; voir Painter.dress) :
+--   shoulders? (épaules / empiècement), collar? ("fur"), collarColor?, sleeves? ("long" | "short" |
+--   "skin" | "wide"), sleeveColor?, sleeveEnd?, cuffColor?, hemColor?, armWarmers?, armWarmerStraps?,
+--   armband?, shoulderMark? (symbole sur l'épaule), shoulderMarkLeft?, waistband? (ceinture d'étoffe),
+--   pants? ("long" | "shorts" | "kimono"), shortsLength?, hemBottom?, legWraps? (bandes des tibias),
+--   legWrapTop?, legWrapStraps?, holster? (bandage + étui sur la cuisse), footwear? ("shoes" |
+--   "sandals" | "zori" | "boots" | "barefoot"), bootTop?, bootTrim?, bootLace?, frontZip?,
+--   collarButton?, chestScar?, pattern? ("asanoha"), patternColor?, obiCord?, obiBow?,
+--   hairTilt?, hairUnder? (dessous des cheveux), hairShine? (reflets)
 -- }
 -- Pour utiliser de vrais objets du catalogue Roblox (cheveux, vêtements, visage) : voir Config/Avatars.luau
 -- attack = { kind = "punch" | "orb" | "beam" | "slash" | "lightning" | "flame" | "shadow" | "stretch" | "ice", color, name }
