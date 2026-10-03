@@ -38,6 +38,14 @@ Le fichier contient le jeu **déjà construit**. Dans l'*Explorateur* de Studio 
 | `Workspace › GaleriePersos` | **Les 40 persos (et leurs évolutions) + les 20 ennemis**, posés sur des socles, au sud de l'île | Le jeu **reprend ces modèles** pour tout le monde : retouche une couleur, un accessoire, une coiffure… et c'est appliqué en jeu |
 
 Astuces :
+- Le plus simple pour avoir un **vrai perso de la Boîte à outils** (ex. « Kid Naruto ») : dans Studio,
+  ouvre la **Boîte à outils**, cherche le perso, **clique dessus** pour l'insérer, puis
+  **Fichier › Enregistrer**. C'est tout : pas besoin de le déplacer ni de le renommer. Au lancement,
+  le jeu reconnaît le nom d'origine (Naruto → Maruto, Goku → Goko…) et l'utilise à la place du perso
+  intégré. « Naruto Sage » / « Naruto Kurama » remplacent les évolutions ★★ / ★★★. Les scripts des
+  modèles gratuits sont supprimés automatiquement. La liste des noms reconnus est dans
+  `src/shared/Config/NomsOriginaux.luau`. Prends de préférence un modèle **R6** (les animations du jeu
+  sont en R6).
 - Pour remplacer un perso par **ton propre modèle** (fait dans Studio ou avec des objets du catalogue) :
   mets un rig **R6** (avec `HumanoidRootPart`, `Torso`, `Head`, `Left Arm`…) dans
   `GaleriePersos › ModelesPersos` et nomme-le comme le perso : `ninja_maruto`, ou `ninja_maruto_2` /
@@ -207,6 +215,7 @@ Bonus : **auras** (Foudre, Givre, Flamme, Néant, Doré, Arc-en-ciel) et **évé
 |---|---|
 | Renommer un perso, changer ses couleurs, sa coiffure, sa tenue, ses accessoires, ses évolutions | `src/shared/Config/Characters.luau` |
 | Donner à un perso des objets du catalogue Roblox (cheveux, vêtements, visage) | `src/shared/Config/Avatars.luau` |
+| Ajouter un nom reconnu pour les modèles de la Boîte à outils | `src/shared/Config/NomsOriginaux.luau` |
 | Changer les épées du Forgeron | `src/shared/Config/Swords.luau` |
 | Changer les traits | `src/shared/Config/Traits.luau` |
 | Changer les univers, reliques, ennemis, ambiance lumineuse | `src/shared/Config/Universes.luau` |

@@ -516,6 +516,76 @@ test("Décors d'univers échangés sans perdre les retouches", function()
 	assert(zone.Decor:GetAttribute("Retouche"), "retouche perdue")
 end)
 
+test("Noms d'origine : les modèles de la Boîte à outils sont reconnus", function()
+	local Shared = Harness.find("ReplicatedStorage.Shared")
+	local Noms = Harness.require(Shared.Config.NomsOriginaux)
+	local Characters = Harness.require(Shared.Config.Characters)
+	for _, entry in Noms.List do
+		assert(Characters.get(entry.id) or Characters.Enemies[entry.id], "id inconnu : " .. entry.id)
+	end
+	local cases = {
+		["Kid Naruto"] = "ninja_maruto",
+		["Naruto Sage Mode"] = "ninja_maruto_2",
+		["Naruto Kurama Mode"] = "ninja_maruto_3",
+		["Kurama"] = "ninja_kourama",
+		["Itachi_Uchiha"] = "ninja_itochi",
+		["Goku Ultra Instinct"] = "sai_goko_3",
+		["Monkey D. Luffy Gear 5"] = "oce_loffy_3",
+		["Cell Jr."] = "sai_celjr",
+		["Frieza Soldier"] = "sai_soldat",
+		["Gojo Satoru"] = "occ_goju",
+		["Tanjiro Kamado"] = "pou_tanjiru",
+		["Bruit de fond"] = false,
+		["Model"] = false,
+	}
+	for name, expected in cases do
+		local got = Noms.match(name)
+		assert(got == (expected or nil), name .. " -> " .. tostring(got) .. " (attendu " .. tostring(expected) .. ")")
+	end
+end)
+
+test("Boîte à outils : « Kid Naruto » posé dans Workspace remplace Maruto", function()
+	local Server = Harness.find("ServerScriptService.Server")
+	local AvatarService = Harness.require(Server.Services.AvatarService)
+	local storage = game:GetService("ReplicatedStorage")
+	local folder = storage:FindFirstChild("ModelesPersos")
+	local previous = folder and folder:FindFirstChild("ninja_maruto")
+	if previous then
+		previous.Parent = nil
+	end
+	local function rig(name)
+		local model = Instance.new("Model")
+		model.Name = name
+		local root = Instance.new("Part")
+		root.Name = "HumanoidRootPart"
+		root.Parent = model
+		Instance.new("Humanoid").Parent = model
+		local script = Instance.new("Script")
+		script.Parent = model
+		return model
+	end
+	local pack = Instance.new("Folder")
+	pack.Name = "MesModeles"
+	pack.Parent = game:GetService("Workspace")
+	local naruto = rig("Kid Naruto")
+	naruto.Parent = pack
+	local statue = rig("Statue")
+	statue.Parent = pack
+	local tree = Instance.new("Model")
+	tree.Name = "Naruto Tree" -- pas de Humanoid : ignoré
+	tree.Parent = pack
+	local found = AvatarService:CollectUserModels()
+	assert(found.ninja_maruto == "Kid Naruto", "Kid Naruto non reconnu")
+	assert(naruto.Parent and naruto.Parent.Name == "ModelesPersos" and naruto.Name == "ninja_maruto", "modèle non rangé")
+	assert(not naruto:FindFirstChildOfClass("Script"), "scripts du modèle gratuit conservés")
+	assert(statue.Parent == pack and tree.Parent == pack, "modèle non reconnu déplacé à tort")
+	naruto:Destroy()
+	pack:Destroy()
+	if previous then
+		previous.Parent = storage.ModelesPersos
+	end
+end)
+
 test("Modèle perso (ModelesPersos) prioritaire sur le perso intégré", function()
 	local Shared = Harness.find("ReplicatedStorage.Shared")
 	local Factory = Harness.require(Shared.Modules.CharacterFactory)
