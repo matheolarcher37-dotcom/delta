@@ -229,10 +229,17 @@ local function buildMenuButtons(gui: ScreenGui)
 			end,
 		},
 		{
-			"🌀\nFusion",
+			"🏛️\nHub",
 			C.Pink,
 			function()
-				Remotes.event("Teleport"):FireServer("fusion")
+				Remotes.event("Teleport"):FireServer("hub")
+			end,
+		},
+		{
+			"👹\nBoss",
+			Color3.fromRGB(150, 40, 60),
+			function()
+				Remotes.event("Teleport"):FireServer("boss")
 			end,
 		},
 		{

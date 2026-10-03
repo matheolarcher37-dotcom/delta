@@ -17,7 +17,6 @@ local Remotes = require(Shared.Modules.Remotes)
 
 local FusionService = {}
 
-local OpenMenu = Remotes.event("OpenMenu")
 local HatchReveal = Remotes.event("HatchReveal")
 local Announce = Remotes.event("Announce")
 local Notify = Remotes.event("Notify")
@@ -80,7 +79,7 @@ function FusionService:Fuse(player: Player, uidA: any, uidB: any)
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if not root or (root.Position - Layout.FusionPortal).Magnitude > 45 then
-		return false, "Va au Portail Crossover pour fusionner."
+		return false, "Va au stand Fusionner, au centre du hub."
 	end
 	local ok, message, a, b, da, db = self:Validate(data, uidA, uidB)
 	if not ok then
@@ -140,12 +139,6 @@ function FusionService:Fuse(player: Player, uidA: any, uidB: any)
 end
 
 function FusionService:Start()
-	local world = workspace:WaitForChild("World")
-	local portal = world:WaitForChild("FusionPortal")
-	local prompt = portal:WaitForChild("FusionAltar"):WaitForChild("FusionPrompt") :: ProximityPrompt
-	prompt.Triggered:Connect(function(player)
-		OpenMenu:FireClient(player, "Fusion")
-	end)
 	Remotes.func("Fuse").OnServerInvoke = function(player, uidA, uidB)
 		local ok, message = self:Fuse(player, uidA, uidB)
 		if not ok and message then

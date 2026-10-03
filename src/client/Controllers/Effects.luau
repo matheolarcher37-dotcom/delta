@@ -200,25 +200,138 @@ end
 -- Attaques
 ------------------------------------------------------------------------
 
-local function lightningBolt(from: Vector3, to: Vector3, color: Color3, thickness: number, life: number)
-	local segments = 6
+local SPARKLE = "rbxasset://textures/particles/sparkles_main.dds"
+local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
+local FIRE = "rbxasset://textures/particles/fire_main.dds"
+
+-- Gerbe de particules ponctuelle (ParticleEmitter:Emit).
+local function particles(position: Vector3, options)
+	local holder = fxPart(Vector3.one * 0.2, CFrame.new(position), Color3.new(1, 1, 1), { Transparency = 1 })
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Texture = options.texture or SPARKLE
+	local c1 = options.color or Color3.new(1, 1, 1)
+	emitter.Color = ColorSequence.new(c1, options.color2 or c1)
+	emitter.LightEmission = options.light or 1
+	emitter.LightInfluence = options.light == 0 and 1 or 0
+	local size = options.size or 1
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, size * (options.grow and 0.4 or 1)), NumberSequenceKeypoint.new(1, size * (options.grow and 1.6 or 0.1)) })
+	emitter.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, options.alpha or 0), NumberSequenceKeypoint.new(1, 1) })
+	local life = options.life or 0.6
+	emitter.Lifetime = NumberRange.new(life * 0.6, life)
+	emitter.Speed = NumberRange.new(options.speedMin or 4, options.speed or 12)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Acceleration = options.gravity or Vector3.zero
+	emitter.Drag = options.drag or 3
+	emitter.RotSpeed = NumberRange.new(-180, 180)
+	emitter.Rotation = NumberRange.new(0, 360)
+	emitter.Enabled = false
+	emitter.Parent = holder
+	emitter:Emit(options.count or 20)
+	task.delay(life + 0.2, function()
+		holder:Destroy()
+	end)
+end
+
+-- Onde de choc au sol.
+local function shockwave(position: Vector3, color: Color3, radius: number, duration: number?)
+	local ground = Vector3.new(position.X, position.Y - 1, position.Z)
+	local ring = fxPart(Vector3.new(0.25, 2, 2), CFrame.new(ground) * CFrame.Angles(0, 0, math.rad(90)), color, { Shape = Enum.PartType.Cylinder, Transparency = 0.2 })
+	fadeAndDestroy(ring, duration or 0.45, { Size = Vector3.new(0.1, radius * 2, radius * 2) })
+end
+
+-- Croissant de lame (coup d'épée / tranchant) dans le plan horizontal, incliné de `tilt`.
+local function crescent(center: Vector3, direction: Vector3, radius: number, color: Color3, thickness: number, tilt: number?)
+	local flat = Vector3.new(direction.X, 0, direction.Z)
+	if flat.Magnitude < 0.01 then
+		flat = Vector3.new(0, 0, -1)
+	end
+	local base = CFrame.lookAt(center, center + flat.Unit) * CFrame.Angles(0, 0, tilt or 0)
+	local segments = 11
+	for i = 0, segments - 1 do
+		local a = math.rad(-65 + 130 * i / (segments - 1))
+		local edge = 1 - math.abs(i - (segments - 1) / 2) / ((segments - 1) / 2)
+		local pos = base * CFrame.new(math.sin(a) * radius, 0, -math.cos(a) * radius)
+		local cf = pos * CFrame.Angles(0, -a, 0)
+		local width = thickness * (0.35 + edge * 0.65)
+		local seg = fxPart(Vector3.new(radius * 0.3, width * 0.4, width), cf, color, { Transparency = 0.05 })
+		local core = fxPart(Vector3.new(radius * 0.3, width * 0.2, width * 0.45), cf, Color3.new(1, 1, 1))
+		local out = base * CFrame.new(math.sin(a) * radius * 1.25, 0, -math.cos(a) * radius * 1.25) * CFrame.Angles(0, -a, 0)
+		fadeAndDestroy(seg, 0.28, { CFrame = out, Size = Vector3.new(radius * 0.32, 0.05, width * 0.4) })
+		fadeAndDestroy(core, 0.2, { CFrame = out })
+	end
+end
+
+local function lightningBolt(from: Vector3, to: Vector3, color: Color3, thickness: number, life: number, jitter: number?)
+	local segments = 7
 	local previous = from
+	local j = jitter or 1.4
 	for i = 1, segments do
 		local point = from:Lerp(to, i / segments)
 		if i < segments then
-			point += Vector3.new(rng:NextNumber(-1.2, 1.2), rng:NextNumber(-1.2, 1.2), rng:NextNumber(-1.2, 1.2))
+			point += Vector3.new(rng:NextNumber(-j, j), rng:NextNumber(-j, j), rng:NextNumber(-j, j))
 		end
 		local length = (point - previous).Magnitude
 		local segment = fxPart(Vector3.new(thickness, thickness, length), CFrame.lookAt((previous + point) / 2, point), color)
 		fadeAndDestroy(segment, life)
+		-- Petites branches
+		if i < segments and rng:NextNumber() < 0.35 then
+			local branchEnd = point + Vector3.new(rng:NextNumber(-3, 3), rng:NextNumber(-2, 2), rng:NextNumber(-3, 3))
+			local branch = fxPart(Vector3.new(thickness * 0.5, thickness * 0.5, (branchEnd - point).Magnitude), CFrame.lookAt((point + branchEnd) / 2, branchEnd), color)
+			fadeAndDestroy(branch, life * 0.8)
+		end
 		previous = point
 	end
+end
+
+-- Cristaux de glace qui jaillissent du sol puis éclatent.
+local function iceCrystals(position: Vector3, color: Color3, scale: number)
+	local ground = Vector3.new(position.X, position.Y - 1.5 * scale, position.Z)
+	for i = 0, 6 do
+		local angle = i / 7 * math.pi * 2 + rng:NextNumber(-0.2, 0.2)
+		local dist = i == 0 and 0 or rng:NextNumber(1.2, 2.6) * scale
+		local base = ground + Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
+		local height = rng:NextNumber(2.5, 4.5) * scale * (i == 0 and 1.4 or 1)
+		local tiltCF = CFrame.new(base) * CFrame.Angles(rng:NextNumber(-0.4, 0.4), angle, rng:NextNumber(-0.4, 0.4))
+		local crystal = fxPart(Vector3.new(0.6, 0.2, 0.6) * scale, tiltCF * CFrame.Angles(0, math.rad(45), 0), color:Lerp(Color3.new(1, 1, 1), 0.35), {
+			Material = Enum.Material.Glass,
+			Transparency = 0.15,
+		})
+		local glow = fxPart(Vector3.new(0.3, 0.2, 0.3) * scale, crystal.CFrame, color, { Transparency = 0.1 })
+		tween(crystal, 0.12, { Size = Vector3.new(0.9 * scale, height, 0.9 * scale), CFrame = tiltCF * CFrame.new(0, height / 2, 0) * CFrame.Angles(0, math.rad(45), 0) })
+		tween(glow, 0.12, { Size = Vector3.new(0.4 * scale, height * 0.9, 0.4 * scale), CFrame = tiltCF * CFrame.new(0, height / 2, 0) * CFrame.Angles(0, math.rad(45), 0) })
+		task.delay(0.55, function()
+			fadeAndDestroy(crystal, 0.25, { Size = Vector3.new(0.2, height * 0.5, 0.2) })
+			fadeAndDestroy(glow, 0.2)
+		end)
+	end
+	particles(position, { color = color:Lerp(Color3.new(1, 1, 1), 0.5), count = 26, size = 0.7, speed = 14, life = 0.8, gravity = Vector3.new(0, -8, 0) })
+end
+
+-- Fumée noire.
+local function blackSmoke(position: Vector3, scale: number, tint: Color3?)
+	particles(position, {
+		texture = SMOKE,
+		color = Color3.fromRGB(15, 10, 20),
+		color2 = tint or Color3.fromRGB(60, 20, 90),
+		light = 0,
+		alpha = 0.15,
+		count = 18,
+		size = 2.2 * scale,
+		grow = true,
+		speedMin = 1,
+		speed = 5,
+		life = 1.1,
+		gravity = Vector3.new(0, 3, 0),
+		drag = 2,
+	})
 end
 
 local ATTACKS = {}
 
 ATTACKS.punch = function(from: Vector3, to: Vector3, color: Color3, scale: number)
 	burst(to, color, 2 * scale)
+	shockwave(to + Vector3.new(0, 1, 0), color, 3 * scale, 0.3)
+	particles(to, { color = color, count = 10, size = 0.5, speed = 10, life = 0.35 })
 	playAt("punch", to, 0.25)
 	local _ = from
 end
@@ -228,73 +341,129 @@ ATTACKS.orb = function(from: Vector3, to: Vector3, color: Color3, scale: number)
 	local core = fxPart(Vector3.one * 0.9 * scale, CFrame.new(from), Color3.new(1, 1, 1), { Shape = Enum.PartType.Ball })
 	local light = Instance.new("PointLight")
 	light.Color = color
-	light.Range = 10
+	light.Range = 12
 	light.Brightness = 3
 	light.Parent = orb
+	local trail = Instance.new("ParticleEmitter")
+	trail.Texture = SPARKLE
+	trail.Color = ColorSequence.new(color)
+	trail.LightEmission = 1
+	trail.Size = NumberSequence.new(0.6 * scale, 0)
+	trail.Lifetime = NumberRange.new(0.2, 0.35)
+	trail.Rate = 80
+	trail.Speed = NumberRange.new(1, 3)
+	trail.SpreadAngle = Vector2.new(180, 180)
+	trail.Parent = orb
 	tween(orb, 0.22, { CFrame = CFrame.new(to) }, Enum.EasingStyle.Linear)
 	tween(core, 0.22, { CFrame = CFrame.new(to) }, Enum.EasingStyle.Linear)
 	playAt("beam", from, 0.2)
 	task.delay(0.22, function()
 		orb:Destroy()
 		core:Destroy()
-		burst(to, color, 3 * scale)
-		shards(to, color, 6, 5)
+		burst(to, color, 3.2 * scale)
+		shockwave(to, color, 5 * scale)
+		particles(to, { color = color, color2 = Color3.new(1, 1, 1), count = 24, size = 0.8 * scale, speed = 16, life = 0.5 })
 	end)
 end
 
 ATTACKS.beam = function(from: Vector3, to: Vector3, color: Color3, scale: number)
 	local length = (to - from).Magnitude
-	local beam = fxPart(Vector3.new(1.2 * scale, 1.2 * scale, length), CFrame.lookAt((from + to) / 2, to), color, { Transparency = 0.1 })
-	local core = fxPart(Vector3.new(0.5 * scale, 0.5 * scale, length), beam.CFrame, Color3.new(1, 1, 1))
-	fadeAndDestroy(beam, 0.3, { Size = Vector3.new(0.1, 0.1, length) })
-	fadeAndDestroy(core, 0.25)
-	burst(to, color, 3 * scale)
+	local beam = fxPart(Vector3.new(1.4 * scale, 1.4 * scale, length), CFrame.lookAt((from + to) / 2, to), color, { Transparency = 0.1 })
+	local core = fxPart(Vector3.new(0.6 * scale, 0.6 * scale, length), beam.CFrame, Color3.new(1, 1, 1))
+	fadeAndDestroy(beam, 0.32, { Size = Vector3.new(0.1, 0.1, length) })
+	fadeAndDestroy(core, 0.26)
+	burst(to, color, 3.2 * scale)
+	particles(to, { color = color, color2 = Color3.new(1, 1, 1), count = 22, size = 0.7 * scale, speed = 14, life = 0.45 })
 	playAt("beam", from, 0.25)
 end
 
 ATTACKS.slash = function(from: Vector3, to: Vector3, color: Color3, scale: number)
-	for i = -1, 1 do
-		local cf = CFrame.lookAt(to, from) * CFrame.Angles(0, 0, math.rad(35 * i + rng:NextNumber(-10, 10)))
-		local slice = fxPart(Vector3.new(0.25, 5 * scale, 0.25), cf, color, { Transparency = 0.05 })
-		fadeAndDestroy(slice, 0.25, { Size = Vector3.new(0.05, 7 * scale, 0.05) })
-	end
-	shards(to, color, 4, 4)
+	crescent(to, to - from, 2.4 * scale, color, 1.2 * scale, math.rad(rng:NextNumber(-35, 35)))
+	particles(to, { color = color, count = 10, size = 0.5, speed = 12, life = 0.35 })
 	playAt("slash", to, 0.3)
 end
 
 ATTACKS.lightning = function(from: Vector3, to: Vector3, color: Color3, scale: number)
-	lightningBolt(from, to, color, 0.35 * scale, 0.18)
-	lightningBolt(from, to, Color3.new(1, 1, 1), 0.15 * scale, 0.12)
+	lightningBolt(from, to, color, 0.4 * scale, 0.2)
+	lightningBolt(from, to, Color3.new(1, 1, 1), 0.16 * scale, 0.14, 0.8)
+	-- Éclairs qui crépitent autour de la cible
+	for _ = 1, 3 do
+		local a = to + Vector3.new(rng:NextNumber(-3, 3), rng:NextNumber(-1, 3), rng:NextNumber(-3, 3)) * scale
+		lightningBolt(to, a, color, 0.18 * scale, 0.16, 0.6)
+	end
 	burst(to, color, 2.4 * scale)
+	particles(to, { color = color, color2 = Color3.new(1, 1, 1), count = 18, size = 0.5 * scale, speed = 18, life = 0.35 })
 	playAt("unsheath", to, 0.25)
 end
 
 ATTACKS.flame = function(from: Vector3, to: Vector3, color: Color3, scale: number)
-	for _ = 1, 7 do
+	for _ = 1, 6 do
 		local start = from:Lerp(to, rng:NextNumber(0, 0.4))
 		local cube = fxPart(
-			Vector3.one * rng:NextNumber(0.8, 1.6) * scale,
+			Vector3.one * rng:NextNumber(0.8, 1.5) * scale,
 			CFrame.new(start) * CFrame.Angles(rng:NextNumber(0, 6), rng:NextNumber(0, 6), 0),
 			color:Lerp(Color3.fromRGB(255, 240, 120), rng:NextNumber(0, 0.5))
 		)
 		fadeAndDestroy(cube, 0.35, { CFrame = CFrame.new(to + Vector3.new(rng:NextNumber(-1.5, 1.5), rng:NextNumber(0, 2), rng:NextNumber(-1.5, 1.5))), Size = Vector3.one * 0.3 })
 	end
-	burst(to, color, 2.6 * scale)
+	particles(to, {
+		texture = FIRE,
+		color = color,
+		color2 = Color3.fromRGB(255, 230, 120),
+		count = 22,
+		size = 1.6 * scale,
+		speedMin = 2,
+		speed = 8,
+		life = 0.6,
+		gravity = Vector3.new(0, 10, 0),
+		alpha = 0.1,
+	})
+	burst(to, color, 2.4 * scale)
 	playAt("lunge", to, 0.25)
 end
 
+ATTACKS.ice = function(from: Vector3, to: Vector3, color: Color3, scale: number)
+	local shard = fxPart(Vector3.new(0.4, 0.4, 2.2) * scale, CFrame.lookAt(from, to), color:Lerp(Color3.new(1, 1, 1), 0.4), { Material = Enum.Material.Glass, Transparency = 0.1 })
+	tween(shard, 0.16, { CFrame = CFrame.lookAt(to, to + (to - from).Unit) }, Enum.EasingStyle.Linear)
+	task.delay(0.16, function()
+		shard:Destroy()
+		iceCrystals(to, color, scale)
+	end)
+	playAt("slash", to, 0.25)
+end
+
 ATTACKS.shadow = function(from: Vector3, to: Vector3, color: Color3, scale: number)
-	local ground = Vector3.new(to.X, 0.2, to.Z)
+	local ground = Vector3.new(to.X, to.Y - 2 * scale, to.Z)
 	for i = 0, 4 do
-		local offset = Vector3.new(math.cos(i * 1.26) * 1.5, 0, math.sin(i * 1.26) * 1.5)
-		local spike = fxPart(Vector3.new(0.6, 0.2, 0.6) * scale, CFrame.new(ground + offset), color, { Material = Enum.Material.SmoothPlastic })
-		fadeAndDestroy(spike, 0.45, {
+		local offset = Vector3.new(math.cos(i * 1.26) * 1.5, 0, math.sin(i * 1.26) * 1.5) * scale
+		local spike = fxPart(Vector3.new(0.6, 0.2, 0.6) * scale, CFrame.new(ground + offset), Color3.fromRGB(20, 15, 25), { Material = Enum.Material.SmoothPlastic })
+		fadeAndDestroy(spike, 0.5, {
 			Size = Vector3.new(0.5, 6, 0.5) * scale,
 			CFrame = CFrame.new(ground + offset + Vector3.new(0, 3 * scale, 0)) * CFrame.Angles(rng:NextNumber(-0.3, 0.3), 0, rng:NextNumber(-0.3, 0.3)),
 		})
 	end
+	blackSmoke(to, scale, color)
 	playAt("lunge", to, 0.2)
 	local _ = from
+end
+
+ATTACKS.wind = function(from: Vector3, to: Vector3, color: Color3, scale: number)
+	for k = 0, 1 do
+		task.delay(k * 0.06, function()
+			crescent(to, to - from, (2 + k) * scale, color, 0.9 * scale, math.rad(-20 + k * 40))
+		end)
+	end
+	particles(to, { color = color, count = 14, size = 0.45, speed = 16, life = 0.5, drag = 1 })
+	playAt("slash", to, 0.3)
+end
+
+ATTACKS.mist = function(from: Vector3, to: Vector3, color: Color3, scale: number)
+	crescent(to, to - from, 3.2 * scale, color, 1.6 * scale, 0)
+	particles(
+		to,
+		{ texture = SMOKE, color = Color3.fromRGB(230, 240, 255), light = 0, alpha = 0.3, count = 14, size = 2.5 * scale, grow = true, speedMin = 1, speed = 4, life = 1.2 }
+	)
+	playAt("slash", to, 0.3)
 end
 
 ATTACKS.stretch = function(from: Vector3, to: Vector3, color: Color3, scale: number)
@@ -306,6 +475,7 @@ ATTACKS.stretch = function(from: Vector3, to: Vector3, color: Color3, scale: num
 	end)
 	task.delay(0.1, function()
 		burst(to, color, 2.4 * scale)
+		shockwave(to, color, 4 * scale, 0.3)
 	end)
 	playAt("punch", to, 0.3)
 end
@@ -352,6 +522,36 @@ HANDLERS.Hit = function(data)
 		floatingText(to + Vector3.new(0, 2, 0), "CRIT! " .. amountText, Color3.fromRGB(255, 80, 60), 1.25)
 	else
 		floatingText(to + Vector3.new(0, 2, 0), amountText, mine and Color3.fromRGB(255, 240, 120) or Color3.fromRGB(230, 230, 230), mine and 0.95 or 0.7)
+	end
+end
+
+-- Coup d'épée du joueur : croissant lumineux + particules selon l'épée.
+HANDLERS.SwordSlash = function(data)
+	local camera = Workspace.CurrentCamera
+	local position = data.position
+	if not position or (camera and (camera.CFrame.Position - position).Magnitude > 160) then
+		return
+	end
+	local color = data.color or Color3.new(1, 1, 1)
+	local direction = data.direction or Vector3.new(0, 0, -1)
+	local radius = math.clamp((data.range or 7) * 0.45, 2.5, 6)
+	crescent(position, direction, radius, color, 1.3, math.rad(rng:NextNumber(-25, 25)))
+	local kind = data.kind
+	if kind == "lightning" then
+		for _ = 1, 2 do
+			lightningBolt(position, position + direction * radius + Vector3.new(rng:NextNumber(-2, 2), rng:NextNumber(-1, 2), rng:NextNumber(-2, 2)), color, 0.2, 0.15, 0.7)
+		end
+	elseif kind == "flame" then
+		particles(
+			position + direction * 2,
+			{ texture = FIRE, color = color, color2 = Color3.fromRGB(255, 230, 120), count = 12, size = 1.2, speedMin = 2, speed = 6, life = 0.5, gravity = Vector3.new(0, 8, 0) }
+		)
+	elseif kind == "shadow" then
+		blackSmoke(position + direction * 2, 0.8, color)
+	elseif kind == "ice" then
+		particles(position + direction * 2, { color = color:Lerp(Color3.new(1, 1, 1), 0.5), count = 16, size = 0.5, speed = 10, life = 0.6 })
+	elseif kind == "wind" or kind == "mist" then
+		particles(position + direction * 2, { color = color, count = 12, size = 0.45, speed = 14, life = 0.45, drag = 1 })
 	end
 end
 

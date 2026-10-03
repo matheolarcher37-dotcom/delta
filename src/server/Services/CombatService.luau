@@ -114,16 +114,20 @@ function CombatService:_createEnemy(defId: string, tier: number, isBoss: boolean
 	CollectionService:AddTag(model, "Enemy")
 	CollectionService:AddTag(model, "AnimeRig")
 
-	local spawnPos
-	if isBoss then
-		spawnPos = Vector3.new(0, 0, 0)
-	else
-		local ring = tierStats.ring
-		local angle = rng:NextNumber(0, math.pi * 2)
-		local radius = rng:NextNumber(ring[1], ring[2])
-		spawnPos = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+	local spawnPos = Layout.BossArena
+	if not isBoss then
+		-- Dans la bande de l'anneau qui correspond à la force de l'ennemi, hors chemins et arène.
+		local band = Layout.EnemyBands[tier] or Layout.EnemyBands[1]
+		for _ = 1, 25 do
+			local angle = rng:NextNumber(0, math.pi * 2)
+			local radius = rng:NextNumber(band[1], band[2])
+			spawnPos = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+			if not Layout.onPath(spawnPos, 10) and not Layout.inBossArena(spawnPos, 10) then
+				break
+			end
+		end
 	end
-	local y = groundY() + CharacterFactory.rootHeight(model) + 0.3
+	local y = (isBoss and 0.7 or groundY()) + CharacterFactory.rootHeight(model) + 0.3
 	model:PivotTo(CFrame.new(spawnPos + Vector3.new(0, y, 0)) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0))
 	model.Parent = enemiesFolder
 	if model.PrimaryPart then
@@ -207,8 +211,7 @@ end
 ------------------------------------------------------------------------
 
 function CombatService:IsInZone(position: Vector3, margin: number?): boolean
-	local flat = Vector3.new(position.X, 0, position.Z)
-	return flat.Magnitude < Layout.ZoneRadius + (margin or 0)
+	return Layout.inRing(position, margin)
 end
 
 function CombatService:GetEnemyByModel(model: any)
@@ -220,6 +223,16 @@ function CombatService:GetEnemyByModel(model: any)
 		return record
 	end
 	return nil
+end
+
+function CombatService:GetEnemiesNear(position: Vector3, radius: number)
+	local found = {}
+	for _, record in enemies do
+		if record.alive and record.root and (record.root.Position - position).Magnitude <= radius then
+			table.insert(found, record)
+		end
+	end
+	return found
 end
 
 function CombatService:NearestEnemy(position: Vector3, maxDistance: number, anchor: Vector3?)

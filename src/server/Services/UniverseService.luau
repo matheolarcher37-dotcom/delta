@@ -162,7 +162,29 @@ function UniverseService:_setupInfoBoard()
 	}
 end
 
+-- Panneau flottant au-dessus du cristal du hub.
+function UniverseService:_updateHubBillboard()
+	local world = Workspace:FindFirstChild("World")
+	local hub = world and world:FindFirstChild("Hub")
+	local crystal = hub and hub:FindFirstChild("Crystal", true)
+	local gui = crystal and crystal:FindFirstChild("UniverseBillboard")
+	if not gui then
+		return
+	end
+	local universe = self:GetCurrent()
+	local title = gui:FindFirstChild("Title") :: TextLabel?
+	local timer = gui:FindFirstChild("Timer") :: TextLabel?
+	if title then
+		title.Text = "🌀 " .. universe.name
+		title.TextColor3 = universe.color:Lerp(Color3.new(1, 1, 1), 0.3)
+	end
+	if timer then
+		timer.Text = "⏳ Prochain univers dans " .. Formulas.formatTime(self:GetEndsAt() - os.time())
+	end
+end
+
 function UniverseService:_updateInfoBoard()
+	self:_updateHubBillboard()
 	if not infoLabels then
 		return
 	end
@@ -175,7 +197,7 @@ function UniverseService:_updateInfoBoard()
 	infoLabels.nextName.Text = "Ensuite : " .. nextUniverse.name
 	local bossAt = gameState:GetAttribute("BossAt")
 	if gameState:GetAttribute("BossAlive") then
-		infoLabels.boss.Text = "👹 Boss en cours au centre !"
+		infoLabels.boss.Text = "👹 Boss en cours dans l'arène !"
 	elseif bossAt then
 		infoLabels.boss.Text = "👹 Boss dans " .. Formulas.formatTime(bossAt - os.time())
 	end

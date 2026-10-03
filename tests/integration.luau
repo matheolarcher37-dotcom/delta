@@ -219,6 +219,7 @@ local function addPlayer(name)
 	humanoid.Parent = character
 	character.Parent = game:GetService("Workspace")
 	player.Character = character
+	Instance.new("Backpack").Parent = player
 	player.Parent = game:GetService("Players")
 	table.insert(playersList, player)
 	Players.PlayerAdded:Fire(player)
@@ -442,6 +443,101 @@ test("Rotation d'univers", function()
 	assert(before ~= after, "l'univers n'a pas changé")
 	local enemy = services.CombatService:NearestEnemy(Vector3.zero, 500)
 	assert(enemy and string.find(enemy.defId, string.sub(after, 1, 3)), "ennemis non renouvelés")
+end)
+
+test("Épées : épée rouillée de départ, Forgeron, coup d'épée", function()
+	local data = DataService:Get(alice)
+	assert(data.swords.rouillee and data.equippedSword == "rouillee", "pas d'épée de départ")
+	local backpack = alice:FindFirstChildOfClass("Backpack")
+	local tool = backpack and backpack:FindFirstChildOfClass("Tool")
+	assert(tool and tool:GetAttribute("SwordId") == "rouillee", "épée absente du sac")
+	DataService:AddCoins(alice, 100000)
+	local ok, message = invoke("BuySword", alice, "vent")
+	assert(ok, "achat : " .. tostring(message))
+	assert(data.equippedSword == "vent", "épée non équipée")
+	tool = backpack:FindFirstChildOfClass("Tool")
+	assert(tool and tool:GetAttribute("SwordId") == "vent", "nouvelle épée absente")
+	local enemy = services.CombatService:NearestEnemy(Vector3.zero, 500)
+	assert(enemy, "pas d'ennemi")
+	local pos = enemy.root.CFrame.Position
+	alice.Character:PivotTo(CFrame.lookAt(pos + Vector3.new(4, 0, 0), pos))
+	tool.Parent = alice.Character
+	local hp = enemy.hp
+	services.SwordService:Swing(alice, tool)
+	task.wait(0.3)
+	assert(enemy.hp < hp or not enemy.alive, "l'épée n'a pas touché")
+	assert(lastEvent("CombatFX") ~= nil, "pas d'effet de coup")
+	local okExpensive = invoke("BuySword", alice, "celeste")
+	assert(not okExpensive, "épée achetée sans assez d'argent")
+	assert(invoke("EquipSword", alice, "rouillee"), "rééquiper l'épée rouillée")
+end)
+
+test("Hub : les 6 stands ouvrent leur menu, le Défi mène à l'arène", function()
+	local Layout = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Layout"))
+	local stalls = Harness.CollectionService:GetTagged("HubStall")
+	assert(#stalls == 6, "stands : " .. #stalls)
+	for _, stall in stalls do
+		local prompt = stall:FindFirstChild("StallPrompt", true)
+		assert(prompt, "pas de prompt sur " .. stall.Name)
+		signalFor(prompt, "Triggered"):Fire(alice)
+		local menu = stall:GetAttribute("Menu")
+		if menu ~= "Challenge" then
+			local event = lastEvent("OpenMenu", alice)
+			assert(event and event.args[1] == menu, "menu non ouvert : " .. tostring(menu))
+		end
+	end
+	task.wait(0.3)
+	local root = alice.Character:FindFirstChild("HumanoidRootPart")
+	assert((root.CFrame.Position - Layout.BossArena).Magnitude < 45, "pas téléporté devant l'arène")
+	local npcs = 0
+	for _, model in Harness.CollectionService:GetTagged("AnimeRig") do
+		local ok, isNpc = pcall(function()
+			return model:GetAttribute("NPC")
+		end)
+		if ok and isNpc then
+			npcs += 1
+		end
+	end
+	assert(npcs >= 6, "vendeurs manquants : " .. npcs)
+end)
+
+test("Décors d'univers échangés sans perdre les retouches", function()
+	local UniverseDecor = Harness.require(serverFolder.World.UniverseDecor)
+	local Universes = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Universes"))
+	local zone = game:GetService("Workspace").World.Zone
+	local first = zone:FindFirstChild("Decor")
+	local id = first:GetAttribute("UniverseId")
+	first:SetAttribute("Retouche", true)
+	local other = Universes.List[(Universes.get(id).index % #Universes.List) + 1]
+	UniverseDecor.apply(other, zone)
+	assert(zone.Decor:GetAttribute("UniverseId") == other.id, "mauvais décor affiché")
+	assert(game:GetService("ServerStorage").DecorsUnivers:FindFirstChild(id), "ancien décor non rangé")
+	UniverseDecor.apply(Universes.get(id), zone)
+	assert(zone.Decor:GetAttribute("Retouche"), "retouche perdue")
+end)
+
+test("Modèle perso (ModelesPersos) prioritaire sur le perso intégré", function()
+	local Shared = Harness.find("ReplicatedStorage.Shared")
+	local Factory = Harness.require(Shared.Modules.CharacterFactory)
+	local Builder = Harness.require(Shared.Modules.CharacterBuilder)
+	local Characters = Harness.require(Shared.Config.Characters)
+	local look = Characters.get("ninja_maruto").look
+	local folder = Instance.new("Folder")
+	folder.Name = "ModelesPersos"
+	folder.Parent = game:GetService("ReplicatedStorage")
+	local custom = Builder.build(look, {})
+	custom.Name = "ninja_maruto"
+	custom.Parent = folder
+	local model = Factory.build("ninja_maruto", 3, look, { humanoid = true })
+	assert(model:GetAttribute("CustomModel"), "modèle perso ignoré")
+	assert(model:FindFirstChildOfClass("Humanoid"), "pas de Humanoid")
+	local plain = Factory.build("ninja_sasuki", 1, Characters.get("ninja_sasuki").look, {})
+	assert(not plain:GetAttribute("CustomModel"), "modèle perso utilisé à tort")
+	local preview = Factory.buildPreview("ninja_maruto", 1, look)
+	for _, d in preview:GetDescendants() do
+		assert(not d:IsA("SurfaceGui"), "SurfaceGui restée dans l'aperçu")
+	end
+	folder:Destroy()
 end)
 
 test("Commandes admin", function()

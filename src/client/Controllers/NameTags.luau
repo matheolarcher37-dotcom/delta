@@ -43,6 +43,7 @@ local function attach(model: Instance)
 		local isBoss = model:GetAttribute("Boss") == true
 		local isFollower = model:GetAttribute("Follower") == true
 		local isMine = model:GetAttribute("OwnerId") == player.UserId
+		local isNpc = model:GetAttribute("NPC") == true
 
 		local gui = Instance.new("BillboardGui")
 		gui.Name = "AnimeTag"
@@ -83,6 +84,12 @@ local function attach(model: Instance)
 		end
 
 		local function refresh()
+			if isNpc then
+				level.Text = "🛒"
+				name.Text = model:GetAttribute("DisplayName") or model.Name
+				name.TextColor3 = Color3.fromRGB(255, 235, 150)
+				return
+			end
 			local lvl = model:GetAttribute("Level") or 1
 			local stars = model:GetAttribute("Stars") or 1
 			level.Text = "LV." .. lvl .. (isEnemy and "" or ("  " .. string.rep("★", stars)))

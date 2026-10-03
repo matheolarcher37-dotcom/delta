@@ -69,9 +69,9 @@ Economy.IncomeFactor = 0.15
 
 -- Paliers d'ennemis dans la zone d'univers (anneau extérieur -> centre).
 Economy.EnemyTiers = {
-	[1] = { hp = 60, damage = 4, coins = 15, xp = 12, materialChance = 0.05, level = 3, scale = 0.9, count = 7, ring = { 40, 56 } },
-	[2] = { hp = 320, damage = 13, coins = 70, xp = 40, materialChance = 0.15, level = 18, scale = 1.15, count = 5, ring = { 26, 40 } },
-	[3] = { hp = 1800, damage = 38, coins = 300, xp = 150, materialChance = 0.4, level = 45, scale = 1.45, count = 3, ring = { 16, 26 } },
+	[1] = { hp = 60, damage = 4, coins = 15, xp = 12, materialChance = 0.05, level = 3, scale = 0.9, count = 14 },
+	[2] = { hp = 320, damage = 13, coins = 70, xp = 40, materialChance = 0.15, level = 18, scale = 1.15, count = 10 },
+	[3] = { hp = 1800, damage = 38, coins = 300, xp = 150, materialChance = 0.4, level = 45, scale = 1.45, count = 6 },
 }
 Economy.Boss = { hp = 80000, damage = 140, coins = 6000, xp = 2500, materials = { 4, 9 }, relicChance = 0.12, level = 99, scale = 4.2 }
 Economy.EnemyRespawn = 6

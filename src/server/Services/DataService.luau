@@ -35,6 +35,8 @@ local function template()
 		materials = {},
 		relics = {},
 		traitCrystals = Economy.StartingTraitCrystals,
+		swords = { rouillee = true },
+		equippedSword = "rouillee",
 		characters = {},
 		team = {},
 		incubators = {},

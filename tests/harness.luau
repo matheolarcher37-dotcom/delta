@@ -81,6 +81,9 @@ local EVENT_PROPERTIES = {
 	{ "RemoteEvent", "OnServerEvent" },
 	{ "Sound", "Ended" },
 	{ "TextBox", "FocusLost" },
+	{ "Tool", "Activated" },
+	{ "Tool", "Equipped" },
+	{ "Tool", "Unequipped" },
 }
 for _, pair in EVENT_PROPERTIES do
 	local name = pair[2]
@@ -122,6 +125,10 @@ roblox.implementMethod("Instance", "WaitForChild", function(self, name)
 	return child
 end)
 roblox.implementMethod("Sound", "Play", function() end)
+roblox.implementMethod("ParticleEmitter", "Emit", function() end)
+roblox.implementMethod("Humanoid", "EquipTool", function(humanoid, tool)
+	tool.Parent = humanoid.Parent
+end)
 roblox.implementMethod("SoundService", "PlayLocalSound", function() end)
 roblox.implementMethod("Camera", "ViewportPointToRay", function()
 	return { Origin = Vector3.zero, Direction = Vector3.new(0, 0, -1) }
@@ -347,7 +354,7 @@ end
 -- Lune ne dérive pas BasePart.Position du CFrame : on réécrit les lectures sur les
 -- variables qui contiennent des pièces (root, froot, PrimaryPart, stashPad...).
 local function patchSource(source: string): string
-	source = string.gsub(source, "(%f[%w_]root)%.Position%f[^%w_]", "%1.CFrame.Position")
+	source = string.gsub(source, "(%f[%w_][%w_]*[Rr]oot)%.Position%f[^%w_]", "%1.CFrame.Position")
 	source = string.gsub(source, "(%f[%w_]froot)%.Position%f[^%w_]", "%1.CFrame.Position")
 	source = string.gsub(source, "(PrimaryPart)%.Position%f[^%w_]", "%1.CFrame.Position")
 	source = string.gsub(source, "(stashPad)%.Position%f[^%w_]", "%1.CFrame.Position")

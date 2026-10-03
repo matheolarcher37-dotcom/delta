@@ -17,7 +17,7 @@ local EVENTS = {
 	-- Client -> Serveur
 	"SetTarget", -- (ennemi) cible prioritaire de l'équipe
 	"TradeAction", -- (action, données)
-	"Teleport", -- ("base" | "zone" | "trade" | "fusion")
+	"Teleport", -- ("base" | "zone" | "trade" | "fusion" | "hub" | "boss")
 }
 
 local FUNCTIONS = {
@@ -32,6 +32,8 @@ local FUNCTIONS = {
 	"AutoEquip", -- () -> équipe les meilleurs persos
 	"RerollTrait", -- (uid) -> ok, message, traitId
 	"BuyTraitCrystal", -- () -> ok, message
+	"BuySword", -- (swordId) -> ok, message
+	"EquipSword", -- (swordId) -> ok, message
 }
 
 local Remotes = {}

@@ -24,7 +24,8 @@ local CombatFX = Remotes.event("CombatFX")
 local plots = {}
 local playerPlots: { [Player]: any } = {}
 
-local PLOT_GRASS = { rgb(126, 214, 88), rgb(116, 204, 80) }
+local PLOT_TILES = { rgb(234, 206, 152), rgb(221, 190, 134) }
+local PLOT_STRIPE = rgb(205, 62, 56)
 local DIRT = rgb(160, 112, 72)
 local DIRT_DARK = rgb(135, 92, 60)
 
@@ -192,16 +193,28 @@ local function buildPlot(index: number, parent: Instance)
 	local static = Build.folder(model, "Static")
 
 	-- Sol : damier d'herbe plus clair + bordure de pierre.
+	-- Sol : dalles beiges à picots + bandes rouges (comme les bases des tycoons d'animé).
 	local half = Layout.PlotSize / 2
 	local tile = 25
 	for x = 0, 3 do
 		for z = 0, 3 do
-			Build.part(static, "Grass", Vector3.new(tile, 1, tile), toWorld(plot, -half + tile / 2 + x * tile, -0.35, -half + tile / 2 + z * tile), PLOT_GRASS[((x + z) % 2) + 1])
+			Build.part(static, "Tile", Vector3.new(tile, 1, tile), toWorld(plot, -half + tile / 2 + x * tile, -0.35, -half + tile / 2 + z * tile), PLOT_TILES[((x + z) % 2) + 1], {
+				Material = Enum.Material.Plastic,
+				TopSurface = Enum.SurfaceType.Studs,
+			})
 		end
 	end
 	for _, side in { -1, 1 } do
-		Build.part(static, "Border", Vector3.new(Layout.PlotSize + 2, 1, 1.5), toWorld(plot, 0, -0.3, side * (half + 0.5)), rgb(170, 160, 150), { Material = Enum.Material.Slate })
-		Build.part(static, "Border", Vector3.new(1.5, 1, Layout.PlotSize + 2), toWorld(plot, side * (half + 0.5), -0.3, 0), rgb(170, 160, 150), { Material = Enum.Material.Slate })
+		Build.part(static, "Border", Vector3.new(Layout.PlotSize + 3, 1.1, 2), toWorld(plot, 0, -0.3, side * (half + 0.75)), PLOT_STRIPE, {
+			Material = Enum.Material.Plastic,
+			TopSurface = Enum.SurfaceType.Studs,
+		})
+		Build.part(static, "Border", Vector3.new(2, 1.1, Layout.PlotSize + 3), toWorld(plot, side * (half + 0.75), -0.3, 0), PLOT_STRIPE, {
+			Material = Enum.Material.Plastic,
+			TopSurface = Enum.SurfaceType.Studs,
+		})
+		Build.deco(static, "Stripe", Vector3.new(Layout.PlotSize - 6, 0.08, 1.2), toWorld(plot, 0, 0.2, side * (half - 3)), PLOT_STRIPE)
+		Build.deco(static, "Stripe", Vector3.new(1.2, 0.08, Layout.PlotSize - 6), toWorld(plot, side * (half - 3), 0.2, 0), PLOT_STRIPE)
 	end
 
 	-- Clôture avec ouverture à l'avant.
@@ -271,6 +284,45 @@ local function buildPlot(index: number, parent: Instance)
 	model:SetAttribute("PlotIndex", index)
 	return plot
 end
+
+-- Retrouve les éléments d'une base déjà construite (par exemple dans le fichier, retouchée dans Studio).
+local function bindPlot(index: number, model: Model)
+	local plot = { index = index, cf = Layout.plotCFrame(index), owner = nil, model = model }
+	plot.signLabels = {}
+	local static = model:FindFirstChild("Static")
+	local sign = static and static:FindFirstChild("OwnerSign")
+	if sign then
+		for _, gui in sign:GetChildren() do
+			local label = gui:IsA("SurfaceGui") and gui:FindFirstChildOfClass("TextLabel")
+			if label then
+				label.Text = "BASE LIBRE"
+				table.insert(plot.signLabels, label)
+			end
+		end
+	end
+	local interactive = model:FindFirstChild("Interactive") :: Instance
+	local stash = interactive:FindFirstChild("Stash") :: Instance
+	plot.stashPad = stash:FindFirstChild("Pad")
+	plot.stashLabel = stash:FindFirstChild("Amount", true)
+	plot.relicDisplayCF = toWorld(plot, -16, 0, 36) * CFrame.new(0, 10.6, 0)
+	plot.pedestalFolder = interactive:FindFirstChild("Pedestals")
+	plot.pedestals = {}
+	for _, pedestal in plot.pedestalFolder:GetChildren() do
+		local slot = pedestal:GetAttribute("Slot")
+		if slot == 1 then
+			plot.pedestals[1] = pedestal
+		else
+			pedestal:Destroy() -- aperçu des améliorations (fichier Studio)
+		end
+	end
+	plot.ownerFolder = model:FindFirstChild("Owner") or Build.folder(model, "Owner")
+	plot.displayFolder = model:FindFirstChild("Display") or Build.folder(model, "Display")
+	plot.ownerFolder:ClearAllChildren()
+	plot.displayFolder:ClearAllChildren()
+	model:SetAttribute("OwnerId", nil)
+	return plot
+end
+PlotService.bindPlot = bindPlot
 
 ------------------------------------------------------------------------
 -- Structures d'amélioration
@@ -476,7 +528,8 @@ function PlotService:Init(services)
 	local world = Workspace:WaitForChild("World")
 	local folder = world:FindFirstChild("Plots") or Build.folder(world, "Plots")
 	for i = 1, Layout.PlotCount do
-		local plot = buildPlot(i, folder)
+		local existing = folder:FindFirstChild("Plot" .. i)
+		local plot = existing and bindPlot(i, existing) or buildPlot(i, folder)
 		plots[i] = plot
 		self:_connectPrompts(plot)
 	end
@@ -542,14 +595,19 @@ function PlotService:Start()
 			local plot = playerPlots[player]
 			target = plot and self:GetSpawnCFrame(plot)
 		elseif destination == "zone" then
+			-- Dans l'anneau d'univers, à côté du chemin qui mène à la base.
 			local plot = playerPlots[player]
-			local angle = plot and Layout.PlotAngles[plot.index] or 0
-			local pos = Vector3.new(math.cos(angle), 0, math.sin(angle)) * (Layout.ZoneFenceRadius + 8)
-			target = CFrame.lookAt(pos + Vector3.new(0, 3, 0), Vector3.new(0, 3, 0))
+			local angle = (plot and Layout.PlotAngles[plot.index] or 0) + math.rad(7)
+			local pos = Vector3.new(math.cos(angle), 0, math.sin(angle)) * (Layout.EnemyBands[1][1] + 6)
+			target = CFrame.lookAt(pos + Vector3.new(0, 3, 0), pos * 2 + Vector3.new(0, 3, 0))
 		elseif destination == "trade" then
 			target = CFrame.lookAt(Layout.TradeCorner + Vector3.new(-30, 3, 0), Layout.TradeCorner + Vector3.new(0, 3, 0))
-		elseif destination == "fusion" then
-			target = CFrame.lookAt(Layout.FusionPortal + Vector3.new(30, 3, 0), Layout.FusionPortal + Vector3.new(0, 3, 0))
+		elseif destination == "fusion" or destination == "hub" then
+			local stall = Layout.stallPosition(destination == "fusion" and "Fusion" or "Forge")
+			local pos = stall * 0.68
+			target = CFrame.lookAt(pos + Vector3.new(0, 3, 0), stall + Vector3.new(0, 3, 0))
+		elseif destination == "boss" and self.services.HubService then
+			target = self.services.HubService:GetArenaEntrance()
 		end
 		if target then
 			character:PivotTo(target)

@@ -20,6 +20,7 @@ local Fusion = require(UI.Fusion)
 local Trade = require(UI.Trade)
 local Index = require(UI.Index)
 local TraitsMenu = require(UI.TraitsMenu)
+local ForgeMenu = require(UI.ForgeMenu)
 
 local RigAnimator = require(Controllers.RigAnimator)
 local Effects = require(Controllers.Effects)
@@ -84,6 +85,9 @@ end)
 safeInit("Index", function()
 	Index.init(gui)
 end)
+safeInit("ForgeMenu", function()
+	ForgeMenu.init(gui)
+end)
 safeInit("TraitsMenu", function()
 	TraitsMenu.init(gui)
 end)
@@ -97,9 +101,9 @@ safeInit("WorldInteraction", WorldInteraction.init)
 
 updateScale()
 
--- On garde la liste des joueurs et le chat, mais pas le sac à dos (inutile ici).
+-- Barre d'outils visible : c'est là que se trouve l'épée du joueur.
 pcall(function()
-	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
 end)
 
 task.delay(2, function()
