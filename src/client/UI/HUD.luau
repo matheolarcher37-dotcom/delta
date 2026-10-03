@@ -120,7 +120,15 @@ local function buildCurrency(gui: ScreenGui)
 	Theme.corner(22).Parent = icon
 	Theme.stroke(Color3.fromRGB(150, 100, 20), 3).Parent = icon
 	Theme.gradient({ Color3.fromRGB(255, 240, 140), Color3.fromRGB(255, 170, 30) }, 90).Parent = icon
-	Theme.label({ Text = "$", Size = UDim2.fromScale(0.8, 0.8), Position = UDim2.fromScale(0.1, 0.1), Font = Theme.Fonts.Title, TextColor3 = Color3.fromRGB(150, 90, 10), Stroke = false, Parent = icon })
+	Theme.label({
+		Text = "$",
+		Size = UDim2.fromScale(0.8, 0.8),
+		Position = UDim2.fromScale(0.1, 0.1),
+		Font = Theme.Fonts.Title,
+		TextColor3 = Color3.fromRGB(150, 90, 10),
+		Stroke = false,
+		Parent = icon,
+	})
 	refs.coinScale = new("UIScale", { Parent = icon })
 	refs.coins = Theme.label({
 		Name = "Amount",
@@ -168,13 +176,55 @@ local function buildMenuButtons(gui: ScreenGui)
 	Theme.list(Enum.FillDirection.Vertical, 10, Enum.HorizontalAlignment.Left).Parent = holder
 	Theme.registerScaled(holder)
 	local buttons = {
-		{ "🎒\nPersos", C.Blue, function() Menus.toggle("Inventory") end },
-		{ "📖\nIndex", C.Purple, function() Menus.toggle("Index") end },
-		{ "🏠\nBase", C.Green, function() Remotes.event("Teleport"):FireServer("base") end },
-		{ "⚔️\nZone", C.Red, function() Remotes.event("Teleport"):FireServer("zone") end },
-		{ "🤝\nTroc", C.Orange, function() Remotes.event("Teleport"):FireServer("trade") end },
-		{ "🌀\nFusion", C.Pink, function() Remotes.event("Teleport"):FireServer("fusion") end },
-		{ "❔\nGuide", Color3.fromRGB(90, 90, 120), function() Menus.toggle("Guide") end },
+		{
+			"🎒\nPersos",
+			C.Blue,
+			function()
+				Menus.toggle("Inventory")
+			end,
+		},
+		{
+			"📖\nIndex",
+			C.Purple,
+			function()
+				Menus.toggle("Index")
+			end,
+		},
+		{
+			"🏠\nBase",
+			C.Green,
+			function()
+				Remotes.event("Teleport"):FireServer("base")
+			end,
+		},
+		{
+			"⚔️\nZone",
+			C.Red,
+			function()
+				Remotes.event("Teleport"):FireServer("zone")
+			end,
+		},
+		{
+			"🤝\nTroc",
+			C.Orange,
+			function()
+				Remotes.event("Teleport"):FireServer("trade")
+			end,
+		},
+		{
+			"🌀\nFusion",
+			C.Pink,
+			function()
+				Remotes.event("Teleport"):FireServer("fusion")
+			end,
+		},
+		{
+			"❔\nGuide",
+			Color3.fromRGB(90, 90, 120),
+			function()
+				Menus.toggle("Guide")
+			end,
+		},
 	}
 	for i, info in buttons do
 		Components.button({
@@ -385,7 +435,10 @@ function HUD.init(gui: ScreenGui)
 					displayedCoins += (target - displayedCoins) * 0.25
 				end
 				refs.coins.Text = Formulas.formatNumber(displayedCoins)
-				refs.income.Text = "+" .. Formulas.formatNumber(player:GetAttribute("IncomePerSec") or 0) .. " /s  ·  ⚔️ " .. Formulas.formatNumber(player:GetAttribute("TeamPower") or 0)
+				refs.income.Text = "+"
+					.. Formulas.formatNumber(player:GetAttribute("IncomePerSec") or 0)
+					.. " /s  ·  ⚔️ "
+					.. Formulas.formatNumber(player:GetAttribute("TeamPower") or 0)
 			end
 			task.wait(0.05)
 		end

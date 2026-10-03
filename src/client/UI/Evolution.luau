@@ -34,13 +34,27 @@ local function renderDetail()
 	local data = State.data
 	local entry = data and selected and data.characters[selected]
 	if not entry then
-		Theme.label({ Text = "Choisis un perso à éveiller.\nLes matériaux viennent des ennemis de son univers !", Size = UDim2.new(1, -20, 0, 80), Position = UDim2.new(0, 10, 0.4, 0), TextColor3 = C.TextDim, TextWrapped = true, Parent = panel })
+		Theme.label({
+			Text = "Choisis un perso à éveiller.\nLes matériaux viennent des ennemis de son univers !",
+			Size = UDim2.new(1, -20, 0, 80),
+			Position = UDim2.new(0, 10, 0.4, 0),
+			TextColor3 = C.TextDim,
+			TextWrapped = true,
+			Parent = panel,
+		})
 		return
 	end
 	local desc = Formulas.describe(entry)
 	local cost = Formulas.evolutionCost(entry)
 	local rarity = Rarities.get(desc.rarity)
-	Theme.label({ Text = desc.name, Size = UDim2.new(1, -16, 0, 36), Position = UDim2.fromOffset(8, 4), Font = Theme.Fonts.Title, TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.3), Parent = panel })
+	Theme.label({
+		Text = desc.name,
+		Size = UDim2.new(1, -16, 0, 36),
+		Position = UDim2.fromOffset(8, 4),
+		Font = Theme.Fonts.Title,
+		TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.3),
+		Parent = panel,
+	})
 
 	-- Avant / après
 	local compare = new("Frame", { Size = UDim2.new(1, -16, 0.42, 0), Position = UDim2.fromOffset(8, 44), BackgroundTransparency = 1, Parent = panel })
@@ -59,16 +73,36 @@ local function renderDetail()
 		local nextDesc = Formulas.describe(nextEntry)
 		preview(nextDesc.look, 0.56, string.rep("★", cost.stars))
 	else
-		Theme.label({ Text = "MAX ★★★", Size = UDim2.fromScale(0.44, 0.3), Position = UDim2.fromScale(0.56, 0.35), Font = Theme.Fonts.Title, TextColor3 = C.Gold, Parent = compare })
+		Theme.label({
+			Text = "MAX ★★★",
+			Size = UDim2.fromScale(0.44, 0.3),
+			Position = UDim2.fromScale(0.56, 0.35),
+			Font = Theme.Fonts.Title,
+			TextColor3 = C.Gold,
+			Parent = compare,
+		})
 	end
 
 	local y = 0.52
 	local function requirement(text: string, ok: boolean)
-		Theme.label({ Text = (ok and "✅ " or "❌ ") .. text, Size = UDim2.new(1, -24, 0.055, 0), Position = UDim2.new(0, 12, y, 0), TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = ok and C.Text or Color3.fromRGB(255, 160, 160), Parent = panel })
+		Theme.label({
+			Text = (ok and "✅ " or "❌ ") .. text,
+			Size = UDim2.new(1, -24, 0.055, 0),
+			Position = UDim2.new(0, 12, y, 0),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextColor3 = ok and C.Text or Color3.fromRGB(255, 160, 160),
+			Parent = panel,
+		})
 		y += 0.06
 	end
 	if not cost then
-		Theme.label({ Text = "Ce perso est au sommet de sa puissance !", Size = UDim2.new(1, -24, 0, 30), Position = UDim2.new(0, 12, y, 0), TextColor3 = C.TextDim, Parent = panel })
+		Theme.label({
+			Text = "Ce perso est au sommet de sa puissance !",
+			Size = UDim2.new(1, -24, 0, 30),
+			Position = UDim2.new(0, 12, y, 0),
+			TextColor3 = C.TextDim,
+			Parent = panel,
+		})
 		return
 	end
 	requirement("Niveau " .. cost.levelRequired .. " (actuel : " .. entry.level .. ")", entry.level >= cost.levelRequired)
@@ -83,7 +117,12 @@ local function renderDetail()
 	local nextEntry = table.clone(entry)
 	nextEntry.stars = cost.stars
 	Theme.label({
-		Text = "⚔️ " .. Formulas.formatNumber(Formulas.power(entry)) .. " ➜ " .. Formulas.formatNumber(Formulas.power(nextEntry)) .. "   ·   Niveau max " .. Formulas.levelCap(cost.stars),
+		Text = "⚔️ "
+			.. Formulas.formatNumber(Formulas.power(entry))
+			.. " ➜ "
+			.. Formulas.formatNumber(Formulas.power(nextEntry))
+			.. "   ·   Niveau max "
+			.. Formulas.levelCap(cost.stars),
 		Size = UDim2.new(1, -24, 0.055, 0),
 		Position = UDim2.new(0, 12, y, 0),
 		TextColor3 = C.Green,

@@ -81,7 +81,13 @@ local function apply(model: Model)
 		for i = 1, 7 do
 			local cube = newPart(Vector3.one * rng:NextNumber(0.5, 0.9) * scale, aura.color)
 			table.insert(state.instances, cube)
-			table.insert(state.orbit, { part = cube, radius = rng:NextNumber(2.2, 3.4) * scale, height = rng:NextNumber(-2, 3) * scale, speed = rng:NextNumber(1.2, 2.4) * (i % 2 == 0 and 1 or -1), phase = i })
+			table.insert(state.orbit, {
+				part = cube,
+				radius = rng:NextNumber(2.2, 3.4) * scale,
+				height = rng:NextNumber(-2, 3) * scale,
+				speed = rng:NextNumber(1.2, 2.4) * (i % 2 == 0 and 1 or -1),
+				phase = i,
+			})
 		end
 		table.insert(state.instances, particles(torso, aura.color, 8, 0.5 * scale))
 	elseif aura.effect == "fire" then
@@ -157,7 +163,8 @@ function AuraController.init()
 					item.part.Color = hue
 				end
 				item.part.Transparency = near and (state.aura.effect == "frost" and 0.25 or 0) or 1
-				item.part.CFrame = CFrame.new(center + Vector3.new(math.cos(angle) * item.radius, item.height + math.sin(t * 2 + item.phase) * 0.4, math.sin(angle) * item.radius)) * CFrame.Angles(t * 2, t * 1.5, 0)
+				item.part.CFrame = CFrame.new(center + Vector3.new(math.cos(angle) * item.radius, item.height + math.sin(t * 2 + item.phase) * 0.4, math.sin(angle) * item.radius))
+					* CFrame.Angles(t * 2, t * 1.5, 0)
 			end
 			-- Petits éclairs autour du perso.
 			if state.aura.effect == "lightning" and near and t >= state.nextBolt then

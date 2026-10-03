@@ -60,7 +60,11 @@ function EvolutionService:Evolve(player: Player, uid: any)
 		CombatFX:FireClient(player, "Evolve", { position = (plot.cf * CFrame.new(0, 8, 38)).Position, stars = entry.stars })
 	end
 	if entry.stars >= 3 then
-		Announce:FireAllClients("🌟 ÉVEIL ULTIME 🌟", player.DisplayName .. " a éveillé " .. (desc and desc.name or "un perso") .. " au rang ★★★ !", Color3.fromRGB(200, 140, 255))
+		Announce:FireAllClients(
+			"🌟 ÉVEIL ULTIME 🌟",
+			player.DisplayName .. " a éveillé " .. (desc and desc.name or "un perso") .. " au rang ★★★ !",
+			Color3.fromRGB(200, 140, 255)
+		)
 	end
 	return true, (desc and desc.name or "Perso") .. " évolue au rang " .. string.rep("★", entry.stars) .. " !"
 end

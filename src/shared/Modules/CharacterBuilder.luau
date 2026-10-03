@@ -244,7 +244,7 @@ local function buildFace(ctx, look)
 				if face == "smirk" and side > 0 then
 					browY = 0.4
 				end
-				ctx.add("Head", "Brow", Vector3.new(0.62, 0.13, 0.06), CFrame.new(x, browY, Z - 0.03) * CFrame.Angles(0, 0, tilt * side * -1), browColor)
+				ctx.add("Head", "Brow", Vector3.new(0.62, 0.13, 0.06), CFrame.new(x, browY, Z - 0.03) * CFrame.Angles(0, 0, tilt * side), browColor)
 			end
 		end
 	end
@@ -490,9 +490,14 @@ HAIR.curly = function(ctx, c, look)
 	hairBack(ctx, c, 1.3)
 	hairSides(ctx, c, 1.0)
 	local bumps = {
-		Vector3.new(-0.7, HY + 0.2, -0.6), Vector3.new(0.1, HY + 0.3, -0.7), Vector3.new(0.8, HY + 0.2, -0.5),
-		Vector3.new(-0.8, HY + 0.3, 0.3), Vector3.new(0, HY + 0.45, 0.1), Vector3.new(0.8, HY + 0.3, 0.3),
-		Vector3.new(-0.4, HY + 0.3, 0.9), Vector3.new(0.4, HY + 0.3, 0.9),
+		Vector3.new(-0.7, HY + 0.2, -0.6),
+		Vector3.new(0.1, HY + 0.3, -0.7),
+		Vector3.new(0.8, HY + 0.2, -0.5),
+		Vector3.new(-0.8, HY + 0.3, 0.3),
+		Vector3.new(0, HY + 0.45, 0.1),
+		Vector3.new(0.8, HY + 0.3, 0.3),
+		Vector3.new(-0.4, HY + 0.3, 0.9),
+		Vector3.new(0.4, HY + 0.3, 0.9),
 	}
 	for i, pos in bumps do
 		ctx.add("Head", "Curl", Vector3.new(1.0, 0.9, 1.0), CFrame.new(pos) * CFrame.Angles(0, i * 0.4, 0), c)
@@ -554,7 +559,13 @@ end
 ACC.whiskers = function(ctx, look)
 	for _, side in { -1, 1 } do
 		for i = 0, 2 do
-			ctx.add("Head", "Whisker", Vector3.new(0.42, 0.06, 0.04), CFrame.new(0.82 * side, -0.38 - i * 0.13, Z - 0.03) * CFrame.Angles(0, 0, (i - 1) * 0.15 * side), darken(look.skin, 0.45))
+			ctx.add(
+				"Head",
+				"Whisker",
+				Vector3.new(0.42, 0.06, 0.04),
+				CFrame.new(0.82 * side, -0.38 - i * 0.13, Z - 0.03) * CFrame.Angles(0, 0, (i - 1) * 0.15 * side),
+				darken(look.skin, 0.45)
+			)
 		end
 	end
 end
@@ -562,7 +573,14 @@ end
 ACC.glasses = function(ctx, look)
 	local frame = Color3.fromRGB(30, 30, 35)
 	for _, side in { -1, 1 } do
-		ctx.add("Head", "Lens", Vector3.new(0.66, 0.52, 0.04), CFrame.new(0.48 * side, -0.1, Z - 0.12), Color3.fromRGB(180, 220, 255), { Transparency = 0.55, Material = Enum.Material.Glass })
+		ctx.add(
+			"Head",
+			"Lens",
+			Vector3.new(0.66, 0.52, 0.04),
+			CFrame.new(0.48 * side, -0.1, Z - 0.12),
+			Color3.fromRGB(180, 220, 255),
+			{ Transparency = 0.55, Material = Enum.Material.Glass }
+		)
 		ctx.add("Head", "Frame", Vector3.new(0.7, 0.07, 0.05), CFrame.new(0.48 * side, 0.17, Z - 0.13), frame)
 	end
 	ctx.add("Head", "Bridge", Vector3.new(0.3, 0.06, 0.05), CFrame.new(0, 0.12, Z - 0.13), frame)
@@ -749,7 +767,14 @@ ACC.stitches = function(ctx, look)
 end
 
 ACC.scouter = function(ctx, look)
-	ctx.add("Head", "ScouterLens", Vector3.new(0.65, 0.48, 0.05), CFrame.new(0.5, -0.05, Z - 0.14), Color3.fromRGB(80, 255, 120), { Material = Enum.Material.Neon, Transparency = 0.35 })
+	ctx.add(
+		"Head",
+		"ScouterLens",
+		Vector3.new(0.65, 0.48, 0.05),
+		CFrame.new(0.5, -0.05, Z - 0.14),
+		Color3.fromRGB(80, 255, 120),
+		{ Material = Enum.Material.Neon, Transparency = 0.35 }
+	)
 	ctx.add("Head", "ScouterBody", Vector3.new(0.25, 0.6, 0.6), CFrame.new(1.25, 0, -0.35), Color3.fromRGB(240, 240, 240))
 	ctx.add("Head", "ScouterArm", Vector3.new(0.1, 0.1, 0.7), CFrame.new(1.1, 0.2, Z + 0.05), Color3.fromRGB(240, 240, 240))
 	local _ = look
@@ -1058,7 +1083,15 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 	buildFace(ctx, look)
 
 	local hairStyle = look.hair or "short"
-	if not has(look, "boar_head") and not has(look, "hood_full") and not has(look, "straw_hat") and not has(look, "volcano") and not has(look, "dome") and not has(look, "turban") and not has(look, "cap") then
+	if
+		not has(look, "boar_head")
+		and not has(look, "hood_full")
+		and not has(look, "straw_hat")
+		and not has(look, "volcano")
+		and not has(look, "dome")
+		and not has(look, "turban")
+		and not has(look, "cap")
+	then
 		local builder = HAIR[hairStyle] or HAIR.short
 		builder(ctx, look.hairColor or BLACK, look)
 	elseif has(look, "straw_hat") or has(look, "cap") then

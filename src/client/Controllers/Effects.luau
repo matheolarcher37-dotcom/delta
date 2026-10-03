@@ -272,7 +272,11 @@ end
 ATTACKS.flame = function(from: Vector3, to: Vector3, color: Color3, scale: number)
 	for _ = 1, 7 do
 		local start = from:Lerp(to, rng:NextNumber(0, 0.4))
-		local cube = fxPart(Vector3.one * rng:NextNumber(0.8, 1.6) * scale, CFrame.new(start) * CFrame.Angles(rng:NextNumber(0, 6), rng:NextNumber(0, 6), 0), color:Lerp(Color3.fromRGB(255, 240, 120), rng:NextNumber(0, 0.5)))
+		local cube = fxPart(
+			Vector3.one * rng:NextNumber(0.8, 1.6) * scale,
+			CFrame.new(start) * CFrame.Angles(rng:NextNumber(0, 6), rng:NextNumber(0, 6), 0),
+			color:Lerp(Color3.fromRGB(255, 240, 120), rng:NextNumber(0, 0.5))
+		)
 		fadeAndDestroy(cube, 0.35, { CFrame = CFrame.new(to + Vector3.new(rng:NextNumber(-1.5, 1.5), rng:NextNumber(0, 2), rng:NextNumber(-1.5, 1.5))), Size = Vector3.one * 0.3 })
 	end
 	burst(to, color, 2.6 * scale)
@@ -284,7 +288,10 @@ ATTACKS.shadow = function(from: Vector3, to: Vector3, color: Color3, scale: numb
 	for i = 0, 4 do
 		local offset = Vector3.new(math.cos(i * 1.26) * 1.5, 0, math.sin(i * 1.26) * 1.5)
 		local spike = fxPart(Vector3.new(0.6, 0.2, 0.6) * scale, CFrame.new(ground + offset), color, { Material = Enum.Material.SmoothPlastic })
-		fadeAndDestroy(spike, 0.45, { Size = Vector3.new(0.5, 6, 0.5) * scale, CFrame = CFrame.new(ground + offset + Vector3.new(0, 3 * scale, 0)) * CFrame.Angles(rng:NextNumber(-0.3, 0.3), 0, rng:NextNumber(-0.3, 0.3)) })
+		fadeAndDestroy(spike, 0.45, {
+			Size = Vector3.new(0.5, 6, 0.5) * scale,
+			CFrame = CFrame.new(ground + offset + Vector3.new(0, 3 * scale, 0)) * CFrame.Angles(rng:NextNumber(-0.3, 0.3), 0, rng:NextNumber(-0.3, 0.3)),
+		})
 	end
 	playAt("lunge", to, 0.2)
 	local _ = from
@@ -372,7 +379,12 @@ end
 
 HANDLERS.KO = function(data)
 	for _ = 1, 8 do
-		local puff = fxPart(Vector3.one * rng:NextNumber(1, 2), CFrame.new(data.position + Vector3.new(rng:NextNumber(-1.5, 1.5), rng:NextNumber(0, 2), rng:NextNumber(-1.5, 1.5))), Color3.fromRGB(200, 200, 210), { Material = Enum.Material.SmoothPlastic, Transparency = 0.2 })
+		local puff = fxPart(
+			Vector3.one * rng:NextNumber(1, 2),
+			CFrame.new(data.position + Vector3.new(rng:NextNumber(-1.5, 1.5), rng:NextNumber(0, 2), rng:NextNumber(-1.5, 1.5))),
+			Color3.fromRGB(200, 200, 210),
+			{ Material = Enum.Material.SmoothPlastic, Transparency = 0.2 }
+		)
 		fadeAndDestroy(puff, 0.7, { Size = Vector3.one * 3, CFrame = puff.CFrame + Vector3.new(0, 3, 0) })
 	end
 	playAt("ko", data.position, 0.4)
@@ -380,12 +392,22 @@ end
 
 HANDLERS.LevelUp = function(data)
 	floatingText(data.position + Vector3.new(0, 6, 0), "LEVEL UP! " .. tostring(data.level), Color3.fromRGB(255, 230, 60), 1.2, 1.4)
-	local ring = fxPart(Vector3.new(0.3, 4, 4), CFrame.new(data.position - Vector3.new(0, 1.5, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(255, 230, 60), { Shape = Enum.PartType.Cylinder, Transparency = 0.2 })
+	local ring = fxPart(
+		Vector3.new(0.3, 4, 4),
+		CFrame.new(data.position - Vector3.new(0, 1.5, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Color3.fromRGB(255, 230, 60),
+		{ Shape = Enum.PartType.Cylinder, Transparency = 0.2 }
+	)
 	fadeAndDestroy(ring, 0.6, { Size = Vector3.new(0.3, 12, 12), CFrame = ring.CFrame + Vector3.new(0, 3, 0) })
 end
 
 HANDLERS.Slam = function(data)
-	local ring = fxPart(Vector3.new(0.6, 6, 6), CFrame.new(data.position + Vector3.new(0, 0.4, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(255, 80, 60), { Shape = Enum.PartType.Cylinder, Transparency = 0.15 })
+	local ring = fxPart(
+		Vector3.new(0.6, 6, 6),
+		CFrame.new(data.position + Vector3.new(0, 0.4, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Color3.fromRGB(255, 80, 60),
+		{ Shape = Enum.PartType.Cylinder, Transparency = 0.15 }
+	)
 	fadeAndDestroy(ring, 0.5, { Size = Vector3.new(0.6, data.radius * 2, data.radius * 2) })
 	shards(data.position + Vector3.new(0, 1, 0), Color3.fromRGB(150, 120, 100), 16, 12)
 	local character = player.Character
@@ -402,7 +424,13 @@ HANDLERS.Strike = function(data)
 		-- Pluie de cubes du néant
 		for i = 1, 6 do
 			local cube = fxPart(Vector3.one * 1.4, CFrame.new(data.position + Vector3.new(rng:NextNumber(-3, 3), 40 + i * 4, rng:NextNumber(-3, 3))), color)
-			tween(cube, 0.5, { CFrame = CFrame.new(data.position + Vector3.new(rng:NextNumber(-2, 2), 0, rng:NextNumber(-2, 2))) * CFrame.Angles(1, 1, 0) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			tween(
+				cube,
+				0.5,
+				{ CFrame = CFrame.new(data.position + Vector3.new(rng:NextNumber(-2, 2), 0, rng:NextNumber(-2, 2))) * CFrame.Angles(1, 1, 0) },
+				Enum.EasingStyle.Quad,
+				Enum.EasingDirection.In
+			)
 			task.delay(0.5, function()
 				fadeAndDestroy(cube, 0.4, { Size = Vector3.one * 3 })
 			end)
@@ -487,7 +515,12 @@ local function onReward(kind: string, amount: number, position: Vector3?, extra:
 	if kind == "coins" then
 		local count = math.clamp(math.floor(math.log10(math.max(amount, 1)) * 2) + 2, 3, 10)
 		for i = 1, count do
-			local coin = fxPart(Vector3.new(0.25, 1.1, 1.1), CFrame.new(origin + Vector3.new(rng:NextNumber(-1.5, 1.5), 1, rng:NextNumber(-1.5, 1.5))), Color3.fromRGB(255, 205, 50), { Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal, Reflectance = 0.3 })
+			local coin = fxPart(
+				Vector3.new(0.25, 1.1, 1.1),
+				CFrame.new(origin + Vector3.new(rng:NextNumber(-1.5, 1.5), 1, rng:NextNumber(-1.5, 1.5))),
+				Color3.fromRGB(255, 205, 50),
+				{ Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal, Reflectance = 0.3 }
+			)
 			task.delay(i * 0.04, function()
 				flyTo(coin, 0.55, function()
 					if i == 1 and hud then

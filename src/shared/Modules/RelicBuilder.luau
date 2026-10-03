@@ -70,7 +70,13 @@ KINDS.box = function(ctx, look)
 		ctx.add("Band", Vector3.new(1.86, 0.15, 1.86), CFrame.new(0, y, 0) * CFrame.Angles(0, math.rad(20), 0), look.accent, { Material = Enum.Material.Metal })
 	end
 	ctx.add("Seal", Vector3.new(0.5, 1.6, 0.06), CFrame.new(0, 0.9, 0) * CFrame.Angles(0, math.rad(20), 0) * CFrame.new(0, 0, -0.93), Color3.fromRGB(245, 235, 200))
-	ctx.add("Eye", Vector3.new(0.35, 0.2, 0.06), CFrame.new(0, 1.05, 0) * CFrame.Angles(0, math.rad(20), 0) * CFrame.new(0, 0, -0.96), Color3.fromRGB(220, 30, 40), { Material = Enum.Material.Neon })
+	ctx.add(
+		"Eye",
+		Vector3.new(0.35, 0.2, 0.06),
+		CFrame.new(0, 1.05, 0) * CFrame.Angles(0, math.rad(20), 0) * CFrame.new(0, 0, -0.96),
+		Color3.fromRGB(220, 30, 40),
+		{ Material = Enum.Material.Neon }
+	)
 end
 
 KINDS.finger = function(ctx, look)
@@ -97,7 +103,13 @@ KINDS.capsule = function(ctx, look)
 end
 
 KINDS.orb = function(ctx, look)
-	ctx.add("Orb", Vector3.new(2.0, 2.0, 2.0), CFrame.new(0, 1.2, 0), look.color, { Shape = Enum.PartType.Ball, Material = Enum.Material.Glass, Transparency = 0.15, Reflectance = 0.2 })
+	ctx.add(
+		"Orb",
+		Vector3.new(2.0, 2.0, 2.0),
+		CFrame.new(0, 1.2, 0),
+		look.color,
+		{ Shape = Enum.PartType.Ball, Material = Enum.Material.Glass, Transparency = 0.15, Reflectance = 0.2 }
+	)
 	ctx.add("Core", Vector3.new(1.5, 1.5, 1.5), CFrame.new(0, 1.2, 0), lighten(look.color, 0.2), { Shape = Enum.PartType.Ball, Material = Enum.Material.Neon, Transparency = 0.45 })
 	-- Étoiles à l'intérieur (en losange).
 	local stars = { Vector3.new(0, 1.55, -0.85), Vector3.new(-0.45, 1.05, -0.85), Vector3.new(0.45, 1.05, -0.85), Vector3.new(0, 0.8, -0.9) }
@@ -144,12 +156,30 @@ KINDS.fruit = function(ctx, look)
 end
 
 KINDS.tsuba = function(ctx, look)
-	ctx.add("Guard", Vector3.new(0.25, 2.2, 2.2), CFrame.new(0, 1.2, 0) * CFrame.Angles(0, math.rad(90), 0), look.color, { Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal })
-	ctx.add("Rim", Vector3.new(0.3, 2.3, 2.3), CFrame.new(0, 1.2, 0) * CFrame.Angles(0, math.rad(90), 0), look.accent, { Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal, Transparency = 0.6 })
+	ctx.add(
+		"Guard",
+		Vector3.new(0.25, 2.2, 2.2),
+		CFrame.new(0, 1.2, 0) * CFrame.Angles(0, math.rad(90), 0),
+		look.color,
+		{ Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal }
+	)
+	ctx.add(
+		"Rim",
+		Vector3.new(0.3, 2.3, 2.3),
+		CFrame.new(0, 1.2, 0) * CFrame.Angles(0, math.rad(90), 0),
+		look.accent,
+		{ Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal, Transparency = 0.6 }
+	)
 	ctx.add("Hole", Vector3.new(0.3, 0.3, 0.7), CFrame.new(0, 1.2, 0), Color3.fromRGB(20, 20, 20))
 	for i = 0, 3 do
 		local angle = i * math.pi / 2 + math.pi / 4
-		ctx.add("Pattern", Vector3.new(0.35, 0.35, 0.3), CFrame.new(math.cos(angle) * 0.65, 1.2 + math.sin(angle) * 0.65, 0) * CFrame.Angles(0, 0, angle), look.accent, { Material = Enum.Material.Metal })
+		ctx.add(
+			"Pattern",
+			Vector3.new(0.35, 0.35, 0.3),
+			CFrame.new(math.cos(angle) * 0.65, 1.2 + math.sin(angle) * 0.65, 0) * CFrame.Angles(0, 0, angle),
+			look.accent,
+			{ Material = Enum.Material.Metal }
+		)
 	end
 	ctx.add("Stand", Vector3.new(1.0, 0.2, 0.6), CFrame.new(0, 0.1, 0), Color3.fromRGB(90, 60, 40), { Material = Enum.Material.Wood })
 end
@@ -177,7 +207,12 @@ KINDS.lily = function(ctx, look)
 		local angle = i * math.pi / 3
 		local cf = CFrame.new(0, 2.1, 0) * CFrame.Angles(0, angle, 0) * CFrame.Angles(math.rad(-50), 0, 0) * CFrame.new(0, 0.55, 0)
 		ctx.add("Petal", Vector3.new(0.22, 1.2, 0.08), cf, petal, { Material = Enum.Material.Neon, Transparency = 0.1 })
-		ctx.add("Stamen", Vector3.new(0.05, 1.1, 0.05), CFrame.new(0, 2.1, 0) * CFrame.Angles(0, angle + 0.5, 0) * CFrame.Angles(math.rad(-30), 0, 0) * CFrame.new(0, 0.55, 0), lighten(petal, 0.6))
+		ctx.add(
+			"Stamen",
+			Vector3.new(0.05, 1.1, 0.05),
+			CFrame.new(0, 2.1, 0) * CFrame.Angles(0, angle + 0.5, 0) * CFrame.Angles(math.rad(-30), 0, 0) * CFrame.new(0, 0.55, 0),
+			lighten(petal, 0.6)
+		)
 	end
 	ctx.add("Leaf", Vector3.new(0.8, 0.08, 0.3), CFrame.new(0.35, 0.7, 0) * CFrame.Angles(0, 0, 0.5), look.accent)
 	ctx.add("Pot", Vector3.new(0.5, 1.0, 1.0), CFrame.new(0, 0.25, 0) * UP, Color3.fromRGB(60, 50, 70), { Shape = Enum.PartType.Cylinder })

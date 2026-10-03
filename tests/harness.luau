@@ -128,17 +128,24 @@ roblox.implementMethod("Camera", "ViewportPointToRay", function()
 end)
 
 -- Réponses simulées des RemoteFunctions (côté client).
+-- (remplaçables par les tests via Harness.onInvokeServer / Harness.onFireServer)
 Harness.invokeResponses = {}
-roblox.implementMethod("RemoteFunction", "InvokeServer", function(remote, ...)
+Harness.firedToServer = {}
+function Harness.onInvokeServer(remote, ...)
 	local responder = Harness.invokeResponses[remote.Name]
 	if responder then
 		return responder(...)
 	end
 	return true, nil
-end)
-Harness.firedToServer = {}
-roblox.implementMethod("RemoteEvent", "FireServer", function(remote, ...)
+end
+function Harness.onFireServer(remote, ...)
 	table.insert(Harness.firedToServer, { remote.Name, ... })
+end
+roblox.implementMethod("RemoteFunction", "InvokeServer", function(remote, ...)
+	return Harness.onInvokeServer(remote, ...)
+end)
+roblox.implementMethod("RemoteEvent", "FireServer", function(remote, ...)
+	return Harness.onFireServer(remote, ...)
 end)
 
 ------------------------------------------------------------------------
@@ -273,6 +280,17 @@ local function requireModule(moduleScript)
 end
 Harness.require = requireModule
 
+-- CFrame.lookAt de Lune inverse l'axe Z (bug de Lune, pas de Roblox) : on le remplace.
+local function lookAt(at, target, up)
+	local upVector = up or Vector3.new(0, 1, 0)
+	local look = (target - at).Unit
+	local right = look:Cross(upVector).Unit
+	local realUp = right:Cross(look).Unit
+	return CFrame.fromMatrix(at, right, realUp, -look)
+end
+local CFrameProxy = setmetatable({ lookAt = lookAt }, { __index = CFrame })
+Harness.CFrame = CFrameProxy
+
 -- Décalage de temps (pour simuler l'attente sans attendre vraiment).
 Harness.timeOffset = 0
 local fakeOs = setmetatable({
@@ -297,7 +315,7 @@ function Harness.env(scriptInstance)
 		Instance = Instance,
 		Vector3 = Vector3,
 		Vector2 = roblox.Vector2,
-		CFrame = CFrame,
+		CFrame = CFrameProxy,
 		Color3 = roblox.Color3,
 		UDim = roblox.UDim,
 		UDim2 = roblox.UDim2,
@@ -307,8 +325,16 @@ function Harness.env(scriptInstance)
 		NumberSequenceKeypoint = roblox.NumberSequenceKeypoint,
 		ColorSequence = roblox.ColorSequence,
 		ColorSequenceKeypoint = roblox.ColorSequenceKeypoint,
-		RaycastParams = { new = function() return {} end },
-		TweenInfo = { new = function() return {} end },
+		RaycastParams = {
+			new = function()
+				return {}
+			end,
+		},
+		TweenInfo = {
+			new = function()
+				return {}
+			end,
+		},
 		Random = Random,
 		task = task,
 		warn = function(...)
@@ -325,6 +351,9 @@ local function patchSource(source: string): string
 	source = string.gsub(source, "(%f[%w_]froot)%.Position%f[^%w_]", "%1.CFrame.Position")
 	source = string.gsub(source, "(PrimaryPart)%.Position%f[^%w_]", "%1.CFrame.Position")
 	source = string.gsub(source, "(stashPad)%.Position%f[^%w_]", "%1.CFrame.Position")
+	source = string.gsub(source, "(%f[%w_]part)%.Position%f[^%w_]", "%1.CFrame.Position")
+	-- Propriétés calculées par le moteur (absentes dans Lune).
+	source = string.gsub(source, "camera%.ViewportSize", "Vector2.new(1280, 760)")
 	return source
 end
 

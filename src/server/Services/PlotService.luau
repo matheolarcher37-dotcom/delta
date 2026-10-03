@@ -89,7 +89,8 @@ local function buildRelicMachine(plot, parent: Instance)
 	Build.part(model, "Body", Vector3.new(8, 6, 6), base * CFrame.new(0, 6, 0), rgb(250, 245, 240))
 	Build.part(model, "Trim", Vector3.new(8.4, 0.6, 6.4), base * CFrame.new(0, 3.2, 0), gold, { Material = Enum.Material.Metal })
 	Build.part(model, "TopTrim", Vector3.new(8.4, 0.6, 6.4), base * CFrame.new(0, 9.2, 0), gold, { Material = Enum.Material.Metal })
-	local dome = Build.ball(model, "Dome", 7.5, (base * CFrame.new(0, 11.5, 0)).Position, rgb(200, 240, 255), { Material = Enum.Material.Glass, Transparency = 0.6, CanCollide = false })
+	local dome =
+		Build.ball(model, "Dome", 7.5, (base * CFrame.new(0, 11.5, 0)).Position, rgb(200, 240, 255), { Material = Enum.Material.Glass, Transparency = 0.6, CanCollide = false })
 	dome.Name = "Dome"
 	Build.part(model, "Panel", Vector3.new(5, 3.4, 0.3), base * CFrame.new(0, 6.2, -3.1), rgb(40, 35, 60))
 	Build.deco(model, "Slot", Vector3.new(1.6, 0.3, 0.2), base * CFrame.new(0, 4.2, -3.3), rgb(20, 20, 20))
@@ -100,7 +101,14 @@ local function buildRelicMachine(plot, parent: Instance)
 	Build.ball(model, "LeverKnob", 1.2, (base * CFrame.new(5.45, 8.9, 0)).Position, red)
 	-- Ampoules décoratives
 	for i = -3, 3 do
-		Build.deco(model, "Bulb", Vector3.new(0.5, 0.5, 0.5), base * CFrame.new(i * 1.1, 9.2, -3.25), i % 2 == 0 and rgb(255, 230, 90) or rgb(120, 220, 255), { Material = Enum.Material.Neon })
+		Build.deco(
+			model,
+			"Bulb",
+			Vector3.new(0.5, 0.5, 0.5),
+			base * CFrame.new(i * 1.1, 9.2, -3.25),
+			i % 2 == 0 and rgb(255, 230, 90) or rgb(120, 220, 255),
+			{ Material = Enum.Material.Neon }
+		)
 	end
 	local sign = model:FindFirstChild("Panel") :: BasePart
 	Build.surfaceText(sign, Enum.NormalId.Front, "RELIQUES", rgb(255, 220, 90))
@@ -233,7 +241,13 @@ local function buildPlot(index: number, parent: Instance)
 	local rng = Random.new(index * 99)
 	for _ = 1, 10 do
 		local x, z = rng:NextNumber(-21, 21), rng:NextNumber(-24, 7)
-		Build.deco(static, "Pebble", Vector3.new(rng:NextNumber(0.6, 1.4), 0.4, rng:NextNumber(0.6, 1.2)), toWorld(plot, x, 0.4, z) * CFrame.Angles(0, rng:NextNumber(0, 3), 0), rgb(150, 145, 140))
+		Build.deco(
+			static,
+			"Pebble",
+			Vector3.new(rng:NextNumber(0.6, 1.4), 0.4, rng:NextNumber(0.6, 1.2)),
+			toWorld(plot, x, 0.4, z) * CFrame.Angles(0, rng:NextNumber(0, 3), 0),
+			rgb(150, 145, 140)
+		)
 	end
 
 	-- Éléments interactifs.
@@ -338,7 +352,8 @@ STRUCTURES.aimant = function(plot, folder)
 		Build.part(folder, "MagnetTip", Vector3.new(1.7, 1.2, 1.7), base * CFrame.new(side * 1.8, 7.6, 0), rgb(220, 220, 230), { Material = Enum.Material.Metal })
 	end
 	Build.part(folder, "MagnetBridge", Vector3.new(5.2, 1.6, 1.6), base * CFrame.new(0, 1.8, 0), rgb(220, 40, 40))
-	local coin = Build.deco(folder, "Coin", Vector3.new(0.4, 2.6, 2.6), base * CFrame.new(0, 9.5, 0), rgb(255, 210, 60), { Shape = Enum.PartType.Cylinder, Material = Enum.Material.Neon })
+	local coin =
+		Build.deco(folder, "Coin", Vector3.new(0.4, 2.6, 2.6), base * CFrame.new(0, 9.5, 0), rgb(255, 210, 60), { Shape = Enum.PartType.Cylinder, Material = Enum.Material.Neon })
 	coin:SetAttribute("SpinAxis", "Y")
 	coin:SetAttribute("SpinSpeed", 2)
 	CollectionService:AddTag(coin, "Spin")
@@ -349,7 +364,14 @@ STRUCTURES.horloge = function(plot, folder)
 	Build.part(folder, "Tower", Vector3.new(5, 14, 5), base * CFrame.new(0, 7, 0), rgb(200, 180, 150), { Material = Enum.Material.Brick })
 	Build.part(folder, "TowerRoof", Vector3.new(6.4, 1, 6.4), base * CFrame.new(0, 14.5, 0), rgb(60, 70, 120))
 	Build.part(folder, "TowerTop", Vector3.new(4, 2, 4), base * CFrame.new(0, 16, 0) * CFrame.Angles(0, math.rad(45), 0), rgb(60, 70, 120))
-	local face = Build.deco(folder, "ClockFace", Vector3.new(0.3, 4, 4), base * CFrame.new(0, 11, -2.6) * CFrame.Angles(0, math.rad(90), 0), rgb(250, 245, 230), { Shape = Enum.PartType.Cylinder })
+	local face = Build.deco(
+		folder,
+		"ClockFace",
+		Vector3.new(0.3, 4, 4),
+		base * CFrame.new(0, 11, -2.6) * CFrame.Angles(0, math.rad(90), 0),
+		rgb(250, 245, 230),
+		{ Shape = Enum.PartType.Cylinder }
+	)
 	local hand = Build.deco(folder, "Hand", Vector3.new(0.2, 1.6, 0.25), base * CFrame.new(0, 11.6, -2.8), rgb(30, 30, 30))
 	hand:SetAttribute("SpinAxis", "Z")
 	hand:SetAttribute("SpinSpeed", 1.2)
@@ -361,7 +383,14 @@ STRUCTURES.coffre = function(plot, folder)
 	local base = toWorld(plot, 28, 0, -40)
 	Build.part(folder, "ShogunChest", Vector3.new(6, 3.6, 4), base * CFrame.new(0, 1.8, 0), rgb(150, 30, 40))
 	Build.part(folder, "ShogunLid", Vector3.new(6.2, 1.2, 4.2), base * CFrame.new(0, 4.2, 0), rgb(30, 25, 25))
-	Build.deco(folder, "ShogunEmblem", Vector3.new(1.4, 1.4, 0.2), base * CFrame.new(0, 2.2, -2.05) * CFrame.Angles(0, 0, math.rad(45)), rgb(255, 200, 60), { Material = Enum.Material.Metal })
+	Build.deco(
+		folder,
+		"ShogunEmblem",
+		Vector3.new(1.4, 1.4, 0.2),
+		base * CFrame.new(0, 2.2, -2.05) * CFrame.Angles(0, 0, math.rad(45)),
+		rgb(255, 200, 60),
+		{ Material = Enum.Material.Metal }
+	)
 end
 
 STRUCTURES.sablier = function(plot, folder)
@@ -392,10 +421,24 @@ end
 
 STRUCTURES.arene2 = function(plot, folder)
 	for step = 0, 2 do
-		Build.part(folder, "Bleacher", Vector3.new(40, 1 + step, 1.6), toWorld(plot, 0, (1 + step) / 2, 11.5 + step * 1.6), rgb(150, 110, 75):Lerp(rgb(255, 255, 255), step * 0.06), { Material = Enum.Material.WoodPlanks })
+		Build.part(
+			folder,
+			"Bleacher",
+			Vector3.new(40, 1 + step, 1.6),
+			toWorld(plot, 0, (1 + step) / 2, 11.5 + step * 1.6),
+			rgb(150, 110, 75):Lerp(rgb(255, 255, 255), step * 0.06),
+			{ Material = Enum.Material.WoodPlanks }
+		)
 	end
 	for i = -2, 2 do
-		Build.deco(folder, "Pennant", Vector3.new(2, 3, 0.2), toWorld(plot, i * 8, 6.5, 14.5), i % 2 == 0 and rgb(230, 50, 60) or rgb(255, 200, 60), { Material = Enum.Material.Fabric })
+		Build.deco(
+			folder,
+			"Pennant",
+			Vector3.new(2, 3, 0.2),
+			toWorld(plot, i * 8, 6.5, 14.5),
+			i % 2 == 0 and rgb(230, 50, 60) or rgb(255, 200, 60),
+			{ Material = Enum.Material.Fabric }
+		)
 		Build.part(folder, "PennantPole", Vector3.new(0.3, 7, 0.3), toWorld(plot, i * 8 - 1, 3.5, 14.6), rgb(90, 60, 40), { Material = Enum.Material.Wood })
 	end
 end
@@ -404,7 +447,14 @@ local function banner(plot, folder, x: number, color: Color3)
 	local base = toWorld(plot, x, 0, -29)
 	Build.part(folder, "BannerPole", Vector3.new(0.6, 12, 0.6), base * CFrame.new(0, 6, 0), rgb(90, 60, 40), { Material = Enum.Material.Wood })
 	Build.deco(folder, "Banner", Vector3.new(3, 6, 0.2), base * CFrame.new(1.8, 8.5, 0), color, { Material = Enum.Material.Fabric })
-	Build.deco(folder, "BannerStar", Vector3.new(1.2, 1.2, 0.25), base * CFrame.new(1.8, 9, 0) * CFrame.Angles(0, 0, math.rad(45)), rgb(255, 230, 120), { Material = Enum.Material.Neon })
+	Build.deco(
+		folder,
+		"BannerStar",
+		Vector3.new(1.2, 1.2, 0.25),
+		base * CFrame.new(1.8, 9, 0) * CFrame.Angles(0, 0, math.rad(45)),
+		rgb(255, 230, 120),
+		{ Material = Enum.Material.Neon }
+	)
 end
 
 STRUCTURES.equipe4 = function(plot, folder)

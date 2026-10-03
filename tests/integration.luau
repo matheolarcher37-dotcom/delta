@@ -95,9 +95,11 @@ function DataStoreService:GetOrderedDataStore(name)
 			table.sort(items, function(a, b)
 				return a.value > b.value
 			end)
-			return { GetCurrentPage = function()
-				return items
-			end }
+			return {
+				GetCurrentPage = function()
+					return items
+				end,
+			}
 		end,
 	}
 end

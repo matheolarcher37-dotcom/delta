@@ -54,7 +54,14 @@ local function render()
 		local preview = new("Frame", { Size = UDim2.new(1, -16, 0.34, 0), Position = UDim2.fromOffset(8, 8), BackgroundTransparency = 1, Parent = card })
 		Components.relicViewport(preview, relic, true)
 		Theme.label({ Text = relic.name, Size = UDim2.new(1, -16, 0.07, 0), Position = UDim2.new(0, 8, 0.35, 0), Font = Theme.Fonts.Title, Parent = card })
-		Theme.label({ Text = TIER_NAMES[relic.tier] .. " · ⏳ " .. tier.hatchTime .. "s", Size = UDim2.new(1, -16, 0.045, 0), Position = UDim2.new(0, 8, 0.425, 0), TextColor3 = tierColor:Lerp(Color3.new(1, 1, 1), 0.3), Font = Theme.Fonts.Small, Parent = card })
+		Theme.label({
+			Text = TIER_NAMES[relic.tier] .. " · ⏳ " .. tier.hatchTime .. "s",
+			Size = UDim2.new(1, -16, 0.045, 0),
+			Position = UDim2.new(0, 8, 0.425, 0),
+			TextColor3 = tierColor:Lerp(Color3.new(1, 1, 1), 0.3),
+			Font = Theme.Fonts.Small,
+			Parent = card,
+		})
 
 		-- Probabilités
 		local odds = new("Frame", { Size = UDim2.new(1, -24, 0.3, 0), Position = UDim2.new(0, 12, 0.48, 0), BackgroundTransparency = 1, Parent = card })

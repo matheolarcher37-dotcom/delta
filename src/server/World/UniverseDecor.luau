@@ -35,7 +35,8 @@ local function ambientParticles(parent: Instance, color: ColorSequence, directio
 	emitter.Color = color
 	emitter.LightEmission = 0.6
 	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, size), NumberSequenceKeypoint.new(1, size * 0.4) })
-	emitter.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.15, 0.1), NumberSequenceKeypoint.new(0.85, 0.2), NumberSequenceKeypoint.new(1, 1) })
+	emitter.Transparency =
+		NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.15, 0.1), NumberSequenceKeypoint.new(0.85, 0.2), NumberSequenceKeypoint.new(1, 1) })
 	emitter.Lifetime = NumberRange.new(6, 10)
 	emitter.Rate = rate
 	emitter.Speed = speed
@@ -63,7 +64,14 @@ local function stoneLantern(parent: Instance, base: Vector3)
 	Build.part(parent, "LanternBase", Vector3.new(2.4, 0.8, 2.4), CFrame.new(base + Vector3.new(0, 0.4, 0)), stone, { Material = Enum.Material.Slate })
 	Build.part(parent, "LanternPost", Vector3.new(1, 3, 1), CFrame.new(base + Vector3.new(0, 2.3, 0)), stone, { Material = Enum.Material.Slate })
 	local light = Build.part(parent, "LanternLight", Vector3.new(1.8, 1.4, 1.8), CFrame.new(base + Vector3.new(0, 4.5, 0)), rgb(255, 190, 110), { Material = Enum.Material.Neon })
-	Build.part(parent, "LanternRoof", Vector3.new(2.8, 0.7, 2.8), CFrame.new(base + Vector3.new(0, 5.5, 0)) * CFrame.Angles(0, math.rad(45), 0), stone, { Material = Enum.Material.Slate })
+	Build.part(
+		parent,
+		"LanternRoof",
+		Vector3.new(2.8, 0.7, 2.8),
+		CFrame.new(base + Vector3.new(0, 5.5, 0)) * CFrame.Angles(0, math.rad(45), 0),
+		stone,
+		{ Material = Enum.Material.Slate }
+	)
 	local point = Instance.new("PointLight")
 	point.Color = rgb(255, 180, 100)
 	point.Range = 16
@@ -98,7 +106,14 @@ end
 local function smallRock(parent: Instance, base: Vector3, rng: Random)
 	local color = rgb(130, 125, 125):Lerp(rgb(170, 165, 160), rng:NextNumber())
 	local size = Vector3.new(rng:NextNumber(0.8, 2), rng:NextNumber(0.5, 1.2), rng:NextNumber(0.8, 1.8))
-	Build.part(parent, "Pebble", size, CFrame.new(base + Vector3.new(0, size.Y / 2 - 0.1, 0)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0), color, { Material = Enum.Material.Slate })
+	Build.part(
+		parent,
+		"Pebble",
+		size,
+		CFrame.new(base + Vector3.new(0, size.Y / 2 - 0.1, 0)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0),
+		color,
+		{ Material = Enum.Material.Slate }
+	)
 end
 
 local function groundPatches(parent: Instance, rng: Random, color: Color3, count: number)
@@ -106,7 +121,13 @@ local function groundPatches(parent: Instance, rng: Random, color: Color3, count
 		local angle = rng:NextNumber(0, math.pi * 2)
 		local radius = rng:NextNumber(10, R - 6)
 		local size = rng:NextNumber(3, 7)
-		Build.deco(parent, "Patch", Vector3.new(size, 0.06, size * rng:NextNumber(0.6, 1.3)), CFrame.new(polar(angle, radius, 0.16)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0), color)
+		Build.deco(
+			parent,
+			"Patch",
+			Vector3.new(size, 0.06, size * rng:NextNumber(0.6, 1.3)),
+			CFrame.new(polar(angle, radius, 0.16)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0),
+			color
+		)
 	end
 end
 
@@ -117,7 +138,14 @@ local function palmTree(parent: Instance, base: Vector3, rng: Random)
 	local cf = CFrame.new(base) * CFrame.Angles(0, dir, 0)
 	for i = 0, 5 do
 		cf = cf * CFrame.new(0, 1.6, 0) * CFrame.Angles(lean * 0.35, 0, 0)
-		Build.part(model, "Trunk", Vector3.new(1.3 - i * 0.07, 3.2, 1.3 - i * 0.07), cf * CFrame.new(0, 0, 0), rgb(150, 110, 70):Lerp(rgb(120, 85, 55), (i % 2) * 0.6), { Material = Enum.Material.Wood })
+		Build.part(
+			model,
+			"Trunk",
+			Vector3.new(1.3 - i * 0.07, 3.2, 1.3 - i * 0.07),
+			cf * CFrame.new(0, 0, 0),
+			rgb(150, 110, 70):Lerp(rgb(120, 85, 55), (i % 2) * 0.6),
+			{ Material = Enum.Material.Wood }
+		)
 		cf = cf * CFrame.new(0, 1.6, 0)
 	end
 	local top = cf.Position
@@ -133,16 +161,64 @@ end
 local function wisteriaTree(parent: Instance, base: Vector3, rng: Random, scale: number)
 	local model = Build.model(parent, "Wisteria")
 	local s = scale
-	Build.part(model, "Trunk", Vector3.new(2.2 * s, 9 * s, 2.2 * s), CFrame.new(base + Vector3.new(0, 4.5 * s, 0)) * CFrame.Angles(0, 0, 0.05), rgb(90, 60, 45), { Material = Enum.Material.Wood })
-	Build.part(model, "Branch", Vector3.new(8 * s, 1.2 * s, 1.2 * s), CFrame.new(base + Vector3.new(0, 8.5 * s, 0)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0.15), rgb(90, 60, 45), { Material = Enum.Material.Wood })
-	Build.part(model, "Canopy", Vector3.new(13 * s, 2.5 * s, 13 * s), CFrame.new(base + Vector3.new(0, 10 * s, 0)), rgb(90, 140, 80), { Material = Enum.Material.Grass })
-	Build.part(model, "Canopy2", Vector3.new(9 * s, 2 * s, 9 * s), CFrame.new(base + Vector3.new(0, 11.8 * s, 0)) * CFrame.Angles(0, 0.4, 0), rgb(100, 150, 90), { Material = Enum.Material.Grass })
+	Build.part(
+		model,
+		"Trunk",
+		Vector3.new(2.2 * s, 9 * s, 2.2 * s),
+		CFrame.new(base + Vector3.new(0, 4.5 * s, 0)) * CFrame.Angles(0, 0, 0.05),
+		rgb(90, 60, 45),
+		{ Material = Enum.Material.Wood }
+	)
+	Build.part(
+		model,
+		"Branch",
+		Vector3.new(8 * s, 1.2 * s, 1.2 * s),
+		CFrame.new(base + Vector3.new(0, 8.5 * s, 0)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0.15),
+		rgb(90, 60, 45),
+		{ Material = Enum.Material.Wood }
+	)
+	-- Feuillage en dôme : vert à la base, couvert de grappes de glycine violettes.
+	Build.part(model, "Canopy", Vector3.new(12 * s, 2.4 * s, 12 * s), CFrame.new(base + Vector3.new(0, 10 * s, 0)), rgb(80, 120, 75), { Material = Enum.Material.Grass })
+	Build.part(
+		model,
+		"Canopy2",
+		Vector3.new(9 * s, 2.2 * s, 9 * s),
+		CFrame.new(base + Vector3.new(0, 11.8 * s, 0)) * CFrame.Angles(0, 0.4, 0),
+		rgb(170, 120, 230),
+		{ Material = Enum.Material.SmoothPlastic }
+	)
+	Build.part(
+		model,
+		"Canopy3",
+		Vector3.new(5.5 * s, 1.8 * s, 5.5 * s),
+		CFrame.new(base + Vector3.new(0, 13.4 * s, 0)) * CFrame.Angles(0, 0.9, 0),
+		rgb(205, 165, 255),
+		{ Material = Enum.Material.SmoothPlastic }
+	)
+	for i = 0, 5 do
+		local angle = i * math.pi / 3 + rng:NextNumber(0, 0.4)
+		Build.part(
+			model,
+			"Cluster",
+			Vector3.new(3.2, 2.4, 3.2) * s,
+			CFrame.new(base + Vector3.new(math.cos(angle) * 5.2 * s, 10.6 * s, math.sin(angle) * 5.2 * s)) * CFrame.Angles(0, angle, 0),
+			rgb(185, 140, 245):Lerp(rgb(230, 200, 255), rng:NextNumber()),
+			{ Material = Enum.Material.SmoothPlastic }
+		)
+	end
 	for _ = 1, 16 do
 		local x = rng:NextNumber(-5.8, 5.8) * s
 		local z = rng:NextNumber(-5.8, 5.8) * s
 		local length = rng:NextNumber(2, 4.5) * s
 		local purple = rgb(190, 140, 255):Lerp(rgb(240, 200, 255), rng:NextNumber())
-		Build.deco(model, "Bloom", Vector3.new(1.1 * s, length, 1.1 * s), CFrame.new(base + Vector3.new(x, 8.8 * s - length / 2, z)), purple, { Material = rng:NextNumber() < 0.5 and Enum.Material.Neon or Enum.Material.SmoothPlastic, Transparency = 0.1 })
+		Build.deco(
+			model,
+			"Bloom",
+			Vector3.new(1.1 * s, length, 1.1 * s),
+			CFrame.new(base + Vector3.new(x, 8.8 * s - length / 2, z)),
+			purple,
+			{ Material = rng:NextNumber() < 0.5 and Enum.Material.Neon or Enum.Material.SmoothPlastic, Transparency = 0.1 }
+		)
 	end
 end
 
@@ -225,7 +301,13 @@ THEMES.occulte = function(decor: Instance, rng: Random)
 	for i = 0, 3 do
 		local pos = polar(i * math.pi / 2 + math.pi / 4, 11)
 		Build.part(decor, "SealPillar", Vector3.new(1.2, 5, 1.2), CFrame.new(pos + Vector3.new(0, 2.5, 0)), rgb(40, 35, 45), { Material = Enum.Material.Slate })
-		Build.deco(decor, "SealPaper", Vector3.new(0.8, 1.6, 0.1), CFrame.new(pos + Vector3.new(0, 3.2, 0)) * CFrame.lookAt(Vector3.zero, -pos).Rotation * CFrame.new(0, 0, -0.66), rgb(245, 235, 200))
+		Build.deco(
+			decor,
+			"SealPaper",
+			Vector3.new(0.8, 1.6, 0.1),
+			CFrame.new(pos + Vector3.new(0, 3.2, 0)) * CFrame.lookAt(Vector3.zero, -pos).Rotation * CFrame.new(0, 0, -0.66),
+			rgb(245, 235, 200)
+		)
 	end
 	scatter(decor, rng, 22, 14, 60, function(parent, base, r)
 		Build.deco(parent, "Talisman", Vector3.new(0.8, 0.06, 1.6), CFrame.new(base + Vector3.new(0, 0.05, 0)) * CFrame.Angles(0, r:NextNumber(0, math.pi), 0), rgb(245, 235, 200))
@@ -243,25 +325,49 @@ THEMES.saiyan = function(decor: Instance, rng: Random)
 		for _, side in { -1, 1 } do
 			Build.part(decor, "GatePillar", Vector3.new(3, 12, 3), cf * CFrame.new(side * 8, 6, 0), rgb(200, 170, 120), { Material = Enum.Material.Sandstone })
 			Build.ball(decor, "GateOrb", 3.2, (cf * CFrame.new(side * 8, 13.6, 0)).Position, rgb(255, 160, 30), { Material = Enum.Material.Glass, Transparency = 0.1 })
-			Build.deco(decor, "GateStar", Vector3.new(0.9, 0.9, 0.2), cf * CFrame.new(side * 8, 13.6, -1.65) * CFrame.Angles(0, 0, math.rad(45)), rgb(220, 40, 30), { Material = Enum.Material.Neon })
+			Build.deco(
+				decor,
+				"GateStar",
+				Vector3.new(0.9, 0.9, 0.2),
+				cf * CFrame.new(side * 8, 13.6, -1.65) * CFrame.Angles(0, 0, math.rad(45)),
+				rgb(220, 40, 30),
+				{ Material = Enum.Material.Neon }
+			)
 		end
 	end
 	for i, angle in sectorAngles() do
 		local pos = polar(angle, 64)
 		if i % 2 == 0 then
 			-- Maison-dôme futuriste.
-			Build.ball(decor, "Dome", 14, pos + Vector3.new(0, 2, 0), rgb(250, 250, 250))
-			Build.disc(decor, "DomeBand", 1.2, 14.4, pos + Vector3.new(0, 3, 0), rgb(60, 130, 230))
-			Build.ball(decor, "DomeTop", 4, pos + Vector3.new(0, 9, 0), rgb(250, 250, 250))
-			local dir = (-pos).Unit
-			Build.disc(decor, "DomeDoor", 0.4, 4, pos + dir * 6.8 + Vector3.new(0, 0.2, 0), rgb(60, 130, 230))
+			Build.ball(decor, "Dome", 14, pos + Vector3.new(0, 1, 0), rgb(250, 250, 250))
+			Build.disc(decor, "DomeBand", 0.7, 14.15, pos + Vector3.new(0, 0.9, 0), rgb(60, 130, 230))
+			Build.disc(decor, "DomeTop", 1, 4, pos + Vector3.new(0, 7.6, 0), rgb(60, 130, 230))
+			local face = CFrame.lookAt(pos, Vector3.new(0, 0, 0))
+			Build.part(decor, "DomeDoor", Vector3.new(3, 4.5, 1), face * CFrame.new(0, 2.25, -6.6), rgb(60, 130, 230))
+			for _, side in { -1, 1 } do
+				Build.deco(
+					decor,
+					"DomeWindow",
+					Vector3.new(1.6, 1.6, 0.4),
+					face * CFrame.new(side * 3.6, 4.2, -5.6) * CFrame.Angles(0, side * 0.5, 0),
+					rgb(150, 220, 255),
+					{ Material = Enum.Material.Neon }
+				)
+			end
 		else
 			-- Pic rocheux.
 			local height = rng:NextNumber(22, 34)
 			local levels = 5
 			for l = 0, levels - 1 do
 				local width = (9 - l * 1.4)
-				Build.part(decor, "Spire", Vector3.new(width, height / levels + 0.5, width), CFrame.new(pos + Vector3.new(rng:NextNumber(-0.6, 0.6), (l + 0.5) * height / levels, rng:NextNumber(-0.6, 0.6))) * CFrame.Angles(0, l * 0.3, 0), rgb(205, 170, 115):Lerp(rgb(170, 130, 90), l / levels), { Material = Enum.Material.Sandstone })
+				Build.part(
+					decor,
+					"Spire",
+					Vector3.new(width, height / levels + 0.5, width),
+					CFrame.new(pos + Vector3.new(rng:NextNumber(-0.6, 0.6), (l + 0.5) * height / levels, rng:NextNumber(-0.6, 0.6))) * CFrame.Angles(0, l * 0.3, 0),
+					rgb(205, 170, 115):Lerp(rgb(170, 130, 90), l / levels),
+					{ Material = Enum.Material.Sandstone }
+				)
 			end
 		end
 		for _, side in { -1, 1 } do
@@ -311,12 +417,36 @@ THEMES.ocean = function(decor: Instance, rng: Random)
 			local hull = rgb(130, 80, 45)
 			Build.part(ship, "Hull", Vector3.new(7, 3.5, 22), shipCF * CFrame.new(0, 1.75, 0), hull, { Material = Enum.Material.WoodPlanks })
 			Build.part(ship, "HullLow", Vector3.new(5, 1.5, 18), shipCF * CFrame.new(0, 0.2, 0), hull:Lerp(Color3.new(0, 0, 0), 0.2), { Material = Enum.Material.WoodPlanks })
-			Build.wedge(ship, "Bow", Vector3.new(7, 3.5, 5), shipCF * CFrame.new(0, 1.75, -13.5) * CFrame.Angles(0, math.pi, 0) * CFrame.Angles(0, 0, 0), hull, { Material = Enum.Material.WoodPlanks })
+			Build.wedge(
+				ship,
+				"Bow",
+				Vector3.new(7, 3.5, 5),
+				shipCF * CFrame.new(0, 1.75, -13.5) * CFrame.Angles(0, math.pi, 0) * CFrame.Angles(0, 0, 0),
+				hull,
+				{ Material = Enum.Material.WoodPlanks }
+			)
 			Build.part(ship, "Cabin", Vector3.new(7, 3, 5), shipCF * CFrame.new(0, 5, 8), hull:Lerp(Color3.new(1, 1, 1), 0.1), { Material = Enum.Material.WoodPlanks })
-			Build.part(ship, "Rail", Vector3.new(7.4, 0.8, 22.4), shipCF * CFrame.new(0, 3.9, 0), rgb(240, 200, 90))
+			Build.part(ship, "Deck", Vector3.new(6.4, 0.3, 21), shipCF * CFrame.new(0, 3.4, 0), rgb(190, 140, 90), { Material = Enum.Material.WoodPlanks })
+			for _, side in { -1, 1 } do
+				Build.part(ship, "Rail", Vector3.new(0.5, 1, 22.4), shipCF * CFrame.new(side * 3.45, 4, 0), rgb(240, 200, 90))
+			end
 			Build.part(ship, "Mast", Vector3.new(0.9, 20, 0.9), shipCF * CFrame.new(0, 13, -1), rgb(110, 70, 40), { Material = Enum.Material.Wood })
-			Build.deco(ship, "Sail", Vector3.new(11, 7, 0.3), shipCF * CFrame.new(0, 13, -1.6) * CFrame.Angles(0, math.rad(90), 0), rgb(250, 245, 230), { Material = Enum.Material.Fabric })
-			Build.deco(ship, "Sail2", Vector3.new(8, 5, 0.3), shipCF * CFrame.new(0, 19.5, -1.6) * CFrame.Angles(0, math.rad(90), 0), rgb(250, 245, 230), { Material = Enum.Material.Fabric })
+			Build.deco(
+				ship,
+				"Sail",
+				Vector3.new(11, 7, 0.3),
+				shipCF * CFrame.new(0, 13, -1.6) * CFrame.Angles(0, math.rad(90), 0),
+				rgb(250, 245, 230),
+				{ Material = Enum.Material.Fabric }
+			)
+			Build.deco(
+				ship,
+				"Sail2",
+				Vector3.new(8, 5, 0.3),
+				shipCF * CFrame.new(0, 19.5, -1.6) * CFrame.Angles(0, math.rad(90), 0),
+				rgb(250, 245, 230),
+				{ Material = Enum.Material.Fabric }
+			)
 			Build.deco(ship, "JollyRoger", Vector3.new(0.2, 2.5, 3.5), shipCF * CFrame.new(0, 24, 0.8), rgb(25, 25, 30), { Material = Enum.Material.Fabric })
 			Build.deco(ship, "Figurehead", Vector3.new(2.5, 2.5, 2.5), shipCF * CFrame.new(0, 3.5, -16), rgb(255, 230, 120))
 		else
@@ -329,7 +459,14 @@ THEMES.ocean = function(decor: Instance, rng: Random)
 		end
 		for _, side in { -1, 1 } do
 			palmTree(decor, polar(angle + side * math.rad(19), 69), rng)
-			Build.part(decor, "Crate", Vector3.new(2.6, 2.6, 2.6), CFrame.new(polar(angle - side * math.rad(9), 56, 1.3)) * CFrame.Angles(0, rng:NextNumber(0, 1), 0), rgb(170, 125, 75), { Material = Enum.Material.WoodPlanks })
+			Build.part(
+				decor,
+				"Crate",
+				Vector3.new(2.6, 2.6, 2.6),
+				CFrame.new(polar(angle - side * math.rad(9), 56, 1.3)) * CFrame.Angles(0, rng:NextNumber(0, 1), 0),
+				rgb(170, 125, 75),
+				{ Material = Enum.Material.WoodPlanks }
+			)
 		end
 	end
 	-- Pont central en bois avec trésor.
@@ -344,10 +481,23 @@ THEMES.ocean = function(decor: Instance, rng: Random)
 	Build.disc(decor, "Lagoon", 0.3, 14, lagoon + Vector3.new(0, 0.05, 0), rgb(60, 190, 230), { Material = Enum.Material.Glass, Transparency = 0.3, CanCollide = false })
 	scatter(decor, rng, 18, 14, 60, function(parent, base, r)
 		local colors = { rgb(255, 170, 180), rgb(255, 140, 60), rgb(250, 240, 220) }
-		Build.deco(parent, "Shell", Vector3.new(0.7, 0.3, 0.6), CFrame.new(base + Vector3.new(0, 0.1, 0)) * CFrame.Angles(0, r:NextNumber(0, math.pi), 0), colors[r:NextInteger(1, #colors)])
+		Build.deco(
+			parent,
+			"Shell",
+			Vector3.new(0.7, 0.3, 0.6),
+			CFrame.new(base + Vector3.new(0, 0.1, 0)) * CFrame.Angles(0, r:NextNumber(0, math.pi), 0),
+			colors[r:NextInteger(1, #colors)]
+		)
 	end)
 	scatter(decor, rng, 14, 14, 58, function(parent, base, r)
-		Build.deco(parent, "Coin", Vector3.new(0.12, 0.8, 0.8), CFrame.new(base + Vector3.new(0, 0.1, 0)) * CFrame.Angles(0, r:NextNumber(0, math.pi), math.rad(90)), rgb(255, 205, 50), { Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal })
+		Build.deco(
+			parent,
+			"Coin",
+			Vector3.new(0.12, 0.8, 0.8),
+			CFrame.new(base + Vector3.new(0, 0.1, 0)) * CFrame.Angles(0, r:NextNumber(0, math.pi), math.rad(90)),
+			rgb(255, 205, 50),
+			{ Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal }
+		)
 	end)
 	ambientParticles(decor, ColorSequence.new(rgb(200, 240, 255), rgb(120, 210, 255)), Enum.NormalId.Top, 0.5, NumberRange.new(1, 2), 0.5, 14)
 end
@@ -363,7 +513,14 @@ THEMES.pourfendeur = function(decor: Instance, rng: Random)
 		Build.part(decor, "ArchBeam", Vector3.new(19, 1, 3), cf * CFrame.new(0, 12, 0), rgb(60, 40, 35), { Material = Enum.Material.Wood })
 		for i = -3, 3 do
 			local length = 2 + (3 - math.abs(i)) * 0.6
-			Build.deco(decor, "Bloom", Vector3.new(1, length, 1), cf * CFrame.new(i * 2.4, 11.5 - length / 2, 0), rgb(200, 150, 255), { Material = Enum.Material.Neon, Transparency = 0.15 })
+			Build.deco(
+				decor,
+				"Bloom",
+				Vector3.new(1, length, 1),
+				cf * CFrame.new(i * 2.4, 11.5 - length / 2, 0),
+				rgb(200, 150, 255),
+				{ Material = Enum.Material.Neon, Transparency = 0.15 }
+			)
 		end
 	end
 	for i, angle in sectorAngles() do

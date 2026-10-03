@@ -89,7 +89,14 @@ local function buildGround(world: Folder)
 	end
 	-- Murs invisibles en bordure.
 	local half = Layout.GroundSize / 2
-	for _, data in { { Vector3.new(half, 60, 0), Vector3.new(2, 120, Layout.GroundSize) }, { Vector3.new(-half, 60, 0), Vector3.new(2, 120, Layout.GroundSize) }, { Vector3.new(0, 60, half), Vector3.new(Layout.GroundSize, 120, 2) }, { Vector3.new(0, 60, -half), Vector3.new(Layout.GroundSize, 120, 2) } } do
+	for _, data in
+		{
+			{ Vector3.new(half, 60, 0), Vector3.new(2, 120, Layout.GroundSize) },
+			{ Vector3.new(-half, 60, 0), Vector3.new(2, 120, Layout.GroundSize) },
+			{ Vector3.new(0, 60, half), Vector3.new(Layout.GroundSize, 120, 2) },
+			{ Vector3.new(0, 60, -half), Vector3.new(Layout.GroundSize, 120, 2) },
+		}
+	do
 		Build.part(ground, "Boundary", data[2], CFrame.new(data[1]), Color3.new(1, 1, 1), { Transparency = 1 })
 	end
 	-- Collines voxel tout autour pour fermer le monde.
@@ -100,7 +107,14 @@ local function buildGround(world: Folder)
 		local width = rng:NextNumber(30, 50)
 		local pos = Vector3.new(math.cos(angle) * dist, height / 2 - 1, math.sin(angle) * dist)
 		pos = Vector3.new(math.clamp(pos.X, -half + 10, half - 10), pos.Y, math.clamp(pos.Z, -half + 10, half - 10))
-		Build.part(ground, "Hill", Vector3.new(width, height, width), CFrame.new(pos) * CFrame.Angles(0, angle, 0), GRASS[(i % 2) + 1]:Lerp(Color3.new(0, 0, 0), 0.08), { Material = Enum.Material.Grass })
+		Build.part(
+			ground,
+			"Hill",
+			Vector3.new(width, height, width),
+			CFrame.new(pos) * CFrame.Angles(0, angle, 0),
+			GRASS[(i % 2) + 1]:Lerp(Color3.new(0, 0, 0), 0.08),
+			{ Material = Enum.Material.Grass }
+		)
 	end
 end
 
@@ -121,7 +135,13 @@ local function buildPaths(world: Folder)
 		-- Pierres de gué décoratives.
 		for i = 1, math.floor(length / 9) do
 			local p = a + dir * (i * 9 - 4)
-			Build.deco(paths, "Stone", Vector3.new(3, 0.12, 2.2), CFrame.new(p + Vector3.new(0, 0.1, 0)) * CFrame.Angles(0, angle + rng:NextNumber(-0.3, 0.3), 0), PATH_EDGE:Lerp(Color3.new(1, 1, 1), 0.15))
+			Build.deco(
+				paths,
+				"Stone",
+				Vector3.new(3, 0.12, 2.2),
+				CFrame.new(p + Vector3.new(0, 0.1, 0)) * CFrame.Angles(0, angle + rng:NextNumber(-0.3, 0.3), 0),
+				PATH_EDGE:Lerp(Color3.new(1, 1, 1), 0.15)
+			)
 		end
 	end
 	-- Chemin circulaire qui relie toutes les bases.
@@ -133,7 +153,7 @@ local function buildPaths(world: Folder)
 		local p1 = Vector3.new(math.cos(a1) * radius, 0, math.sin(a1) * radius)
 		local p2 = Vector3.new(math.cos(a2) * radius, 0, math.sin(a2) * radius)
 		local cf = CFrame.lookAt((p1 + p2) / 2, p2)
-		Build.part(paths, "RingPath", Vector3.new(8, 0.3, (p2 - p1).Magnitude + 0.6), cf + Vector3.new(0, -0.06, 0), PATH)
+		Build.part(paths, "RingPath", Vector3.new(8, 0.3, (p2 - p1).Magnitude + 0.6), cf + Vector3.new(0, -0.04, 0), PATH)
 	end
 end
 
@@ -153,8 +173,11 @@ end
 local function buildScatter(world: Folder)
 	local nature = Build.folder(world, "Nature")
 	local flowerColors = {
-		Color3.fromRGB(255, 90, 110), Color3.fromRGB(255, 220, 80), Color3.fromRGB(150, 110, 255),
-		Color3.fromRGB(255, 255, 255), Color3.fromRGB(90, 180, 255),
+		Color3.fromRGB(255, 90, 110),
+		Color3.fromRGB(255, 220, 80),
+		Color3.fromRGB(150, 110, 255),
+		Color3.fromRGB(255, 255, 255),
+		Color3.fromRGB(90, 180, 255),
 	}
 	local half = Layout.GroundSize / 2 - 30
 	-- Arbres (surtout en bordure).
@@ -212,7 +235,14 @@ local function buildTradeCorner(world: Folder)
 	end
 	local stripes = { Color3.fromRGB(240, 70, 70), Color3.fromRGB(255, 245, 230) }
 	for i = 0, 7 do
-		Build.deco(corner, "Awning", Vector3.new(30, 0.4, 3.75), CFrame.new(center + Vector3.new(0, 14.6, -13.1 + i * 3.75)) * CFrame.Angles(0, 0, 0), stripes[(i % 2) + 1], { Material = Enum.Material.Fabric })
+		Build.deco(
+			corner,
+			"Awning",
+			Vector3.new(30, 0.4, 3.75),
+			CFrame.new(center + Vector3.new(0, 14.6, -13.1 + i * 3.75)) * CFrame.Angles(0, 0, 0),
+			stripes[(i % 2) + 1],
+			{ Material = Enum.Material.Fabric }
+		)
 	end
 
 	-- Deux tables d'échange avec deux tabourets (Seats) chacune.
@@ -220,9 +250,23 @@ local function buildTradeCorner(world: Folder)
 		local tableModel = Build.model(corner, "TradeTable" .. index)
 		local base = center + offset
 		Build.part(tableModel, "Top", Vector3.new(8, 0.6, 4), CFrame.new(base + Vector3.new(0, 3, 0)), Color3.fromRGB(130, 85, 55), { Material = Enum.Material.Wood })
-		Build.part(tableModel, "Cloth", Vector3.new(3, 0.1, 4.2), CFrame.new(base + Vector3.new(0, 3.35, 0)), Color3.fromRGB(200, 50, 60), { Material = Enum.Material.Fabric, CanCollide = false })
+		Build.part(
+			tableModel,
+			"Cloth",
+			Vector3.new(3, 0.1, 4.2),
+			CFrame.new(base + Vector3.new(0, 3.35, 0)),
+			Color3.fromRGB(200, 50, 60),
+			{ Material = Enum.Material.Fabric, CanCollide = false }
+		)
 		for _, legOffset in { Vector3.new(3.4, 0, 1.6), Vector3.new(-3.4, 0, 1.6), Vector3.new(3.4, 0, -1.6), Vector3.new(-3.4, 0, -1.6) } do
-			Build.part(tableModel, "Leg", Vector3.new(0.5, 2.7, 0.5), CFrame.new(base + legOffset + Vector3.new(0, 1.35, 0)), Color3.fromRGB(100, 65, 45), { Material = Enum.Material.Wood })
+			Build.part(
+				tableModel,
+				"Leg",
+				Vector3.new(0.5, 2.7, 0.5),
+				CFrame.new(base + legOffset + Vector3.new(0, 1.35, 0)),
+				Color3.fromRGB(100, 65, 45),
+				{ Material = Enum.Material.Wood }
+			)
 		end
 		for _, side in { "A", "B" } do
 			local x = side == "A" and -6 or 6
@@ -241,10 +285,24 @@ local function buildTradeCorner(world: Folder)
 	end
 
 	-- Panneau.
-	local sign = Build.part(corner, "Sign", Vector3.new(18, 4.5, 0.6), CFrame.lookAt(center + Vector3.new(-25, 9, 0), center + Vector3.new(-60, 9, 0)), Color3.fromRGB(120, 80, 50), { Material = Enum.Material.Wood })
+	local sign = Build.part(
+		corner,
+		"Sign",
+		Vector3.new(18, 4.5, 0.6),
+		CFrame.lookAt(center + Vector3.new(-25, 9, 0), center + Vector3.new(-60, 9, 0)),
+		Color3.fromRGB(120, 80, 50),
+		{ Material = Enum.Material.Wood }
+	)
 	Build.surfaceText(sign, Enum.NormalId.Front, "🤝 COIN DES ÉCHANGES", Color3.fromRGB(255, 230, 120))
 	for _, side in { -1, 1 } do
-		Build.part(corner, "SignPost", Vector3.new(0.8, 9, 0.8), CFrame.new(center + Vector3.new(-25, 4.5, side * 8)), Color3.fromRGB(90, 60, 40), { Material = Enum.Material.Wood })
+		Build.part(
+			corner,
+			"SignPost",
+			Vector3.new(0.8, 9, 0.8),
+			CFrame.new(center + Vector3.new(-25, 4.5, side * 8)),
+			Color3.fromRGB(90, 60, 40),
+			{ Material = Enum.Material.Wood }
+		)
 	end
 	Build.lantern(corner, center + Vector3.new(-20, 0, 18), Color3.fromRGB(255, 200, 90))
 	Build.lantern(corner, center + Vector3.new(-20, 0, -18), Color3.fromRGB(255, 200, 90))
@@ -273,11 +331,25 @@ local function buildFusionPortal(world: Folder)
 		local pos = ringCenter + Vector3.new(0, math.sin(angle) * 11, math.cos(angle) * 11)
 		Build.deco(portal, "RingBlock", Vector3.new(2, 2.4, 2.4), CFrame.new(pos) * CFrame.Angles(angle, 0, 0), ringColors[(i % 3) + 1], { Material = Enum.Material.Neon })
 	end
-	local vortex = Build.deco(portal, "Vortex", Vector3.new(0.4, 20, 20), CFrame.new(ringCenter), Color3.fromRGB(120, 80, 255), { Material = Enum.Material.Neon, Transparency = 0.45, Shape = Enum.PartType.Cylinder })
+	local vortex = Build.deco(
+		portal,
+		"Vortex",
+		Vector3.new(0.4, 20, 20),
+		CFrame.new(ringCenter),
+		Color3.fromRGB(120, 80, 255),
+		{ Material = Enum.Material.Neon, Transparency = 0.45, Shape = Enum.PartType.Cylinder }
+	)
 	vortex:SetAttribute("SpinAxis", "X")
 	vortex:SetAttribute("SpinSpeed", 1.5)
 	CollectionService:AddTag(vortex, "Spin")
-	local inner = Build.deco(portal, "VortexCore", Vector3.new(0.5, 9, 9), CFrame.new(ringCenter), Color3.fromRGB(255, 255, 255), { Material = Enum.Material.Neon, Transparency = 0.3, Shape = Enum.PartType.Cylinder })
+	local inner = Build.deco(
+		portal,
+		"VortexCore",
+		Vector3.new(0.5, 9, 9),
+		CFrame.new(ringCenter),
+		Color3.fromRGB(255, 255, 255),
+		{ Material = Enum.Material.Neon, Transparency = 0.3, Shape = Enum.PartType.Cylinder }
+	)
 	inner:SetAttribute("SpinAxis", "X")
 	inner:SetAttribute("SpinSpeed", -3)
 	CollectionService:AddTag(inner, "Spin")
@@ -299,12 +371,27 @@ local function buildFusionPortal(world: Folder)
 	-- Piliers latéraux
 	for _, side in { -1, 1 } do
 		Build.part(portal, "Pillar", Vector3.new(3, 26, 3), CFrame.new(center + Vector3.new(-4, 13, side * 14)), stone, { Material = Enum.Material.Slate })
-		Build.deco(portal, "PillarGem", Vector3.new(2, 2, 2), CFrame.new(center + Vector3.new(-4, 27.5, side * 14)) * CFrame.Angles(math.rad(45), 0, math.rad(45)), ringColors[side > 0 and 1 or 3], { Material = Enum.Material.Neon })
+		Build.deco(
+			portal,
+			"PillarGem",
+			Vector3.new(2, 2, 2),
+			CFrame.new(center + Vector3.new(-4, 27.5, side * 14)) * CFrame.Angles(math.rad(45), 0, math.rad(45)),
+			ringColors[side > 0 and 1 or 3],
+			{ Material = Enum.Material.Neon }
+		)
 	end
 
 	-- Autel d'activation (prompt).
-	local altar = Build.part(portal, "FusionAltar", Vector3.new(4, 3.5, 4), CFrame.new(center + Vector3.new(8, 1.75, 0)), Color3.fromRGB(70, 60, 100), { Material = Enum.Material.Slate })
-	Build.deco(portal, "AltarGem", Vector3.new(1.6, 1.6, 1.6), CFrame.new(center + Vector3.new(8, 4.6, 0)) * CFrame.Angles(math.rad(45), 0, math.rad(45)), Color3.fromRGB(80, 255, 220), { Material = Enum.Material.Neon })
+	local altar =
+		Build.part(portal, "FusionAltar", Vector3.new(4, 3.5, 4), CFrame.new(center + Vector3.new(8, 1.75, 0)), Color3.fromRGB(70, 60, 100), { Material = Enum.Material.Slate })
+	Build.deco(
+		portal,
+		"AltarGem",
+		Vector3.new(1.6, 1.6, 1.6),
+		CFrame.new(center + Vector3.new(8, 4.6, 0)) * CFrame.Angles(math.rad(45), 0, math.rad(45)),
+		Color3.fromRGB(80, 255, 220),
+		{ Material = Enum.Material.Neon }
+	)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "FusionPrompt"
 	prompt.ActionText = "Fusionner"
@@ -314,7 +401,14 @@ local function buildFusionPortal(world: Folder)
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = altar
 
-	local sign = Build.part(portal, "Sign", Vector3.new(20, 4, 0.6), CFrame.lookAt(center + Vector3.new(19, 8.5, -16), center + Vector3.new(60, 8.5, -16)), Color3.fromRGB(60, 50, 90), { Material = Enum.Material.Slate })
+	local sign = Build.part(
+		portal,
+		"Sign",
+		Vector3.new(20, 4, 0.6),
+		CFrame.lookAt(center + Vector3.new(19, 8.5, -16), center + Vector3.new(60, 8.5, -16)),
+		Color3.fromRGB(60, 50, 90),
+		{ Material = Enum.Material.Slate }
+	)
 	Build.surfaceText(sign, Enum.NormalId.Front, "🌀 PORTAIL CROSSOVER", Color3.fromRGB(120, 255, 230))
 end
 
@@ -331,7 +425,14 @@ local function buildBoards(world: Folder)
 		Build.part(model, "Frame", Vector3.new(23.5, 17.5, 0.8), face * CFrame.new(0, 0, 0.3), color)
 		Build.part(model, "Header", Vector3.new(23.5, 3, 1.4), face * CFrame.new(0, 9.5, 0), color)
 		for _, side in { -1, 1 } do
-			Build.part(model, "Leg", Vector3.new(1.2, 20, 1.2), CFrame.new(position + Vector3.new(0, 10, 0)) * (face - face.Position) * CFrame.new(side * 10, 0, 0.6), Color3.fromRGB(90, 60, 40), { Material = Enum.Material.Wood })
+			Build.part(
+				model,
+				"Leg",
+				Vector3.new(1.2, 20, 1.2),
+				CFrame.new(position + Vector3.new(0, 10, 0)) * (face - face.Position) * CFrame.new(side * 10, 0, 0.6),
+				Color3.fromRGB(90, 60, 40),
+				{ Material = Enum.Material.Wood }
+			)
 		end
 		local header = model:FindFirstChild("Header") :: BasePart
 		Build.surfaceText(header, Enum.NormalId.Front, title, Color3.fromRGB(255, 255, 255))
@@ -365,7 +466,7 @@ end
 ------------------------------------------------------------------------
 
 local function setupLighting()
-	Lighting.Technology = Enum.Technology.Future
+	-- Lighting.Technology (Future) est réglé dans default.project.json : non modifiable par script.
 	Lighting.Brightness = 2.6
 	Lighting.EnvironmentDiffuseScale = 0.6
 	Lighting.EnvironmentSpecularScale = 0.6

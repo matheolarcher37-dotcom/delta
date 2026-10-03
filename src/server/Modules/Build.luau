@@ -228,7 +228,14 @@ function Build.tree(parent: Instance, base: Vector3, scale: number, leaf: Color3
 	}
 	for i, block in blocks do
 		local shade = leafColor:Lerp(Color3.new(1, 1, 1), (i % 2) * 0.08)
-		Build.part(model, "Leaves", block[2] * s, CFrame.new(top + block[1] * s) * CFrame.Angles(0, r:NextNumber(0, 0.5), 0), shade, { Material = Enum.Material.Grass, CanCollide = i == 1 })
+		Build.part(
+			model,
+			"Leaves",
+			block[2] * s,
+			CFrame.new(top + block[1] * s) * CFrame.Angles(0, r:NextNumber(0, 0.5), 0),
+			shade,
+			{ Material = Enum.Material.Grass, CanCollide = i == 1 }
+		)
 	end
 	return model
 end
@@ -240,7 +247,14 @@ function Build.pine(parent: Instance, base: Vector3, scale: number, leaf: Color3
 	Build.part(model, "Trunk", Vector3.new(1.4 * s, 5 * s, 1.4 * s), CFrame.new(base + Vector3.new(0, 2.5 * s, 0)), Color3.fromRGB(100, 65, 45), { Material = Enum.Material.Wood })
 	for i = 0, 3 do
 		local width = (7 - i * 1.6) * s
-		Build.part(model, "Layer", Vector3.new(width, 2.6 * s, width), CFrame.new(base + Vector3.new(0, (5 + i * 2.4) * s, 0)) * CFrame.Angles(0, i * 0.4, 0), leafColor:Lerp(Color3.new(0, 0, 0), i * 0.05), { Material = Enum.Material.Grass })
+		Build.part(
+			model,
+			"Layer",
+			Vector3.new(width, 2.6 * s, width),
+			CFrame.new(base + Vector3.new(0, (5 + i * 2.4) * s, 0)) * CFrame.Angles(0, i * 0.4, 0),
+			leafColor:Lerp(Color3.new(0, 0, 0), i * 0.05),
+			{ Material = Enum.Material.Grass }
+		)
 	end
 	return model
 end
@@ -250,9 +264,23 @@ function Build.rock(parent: Instance, base: Vector3, scale: number, color: Color
 	local c = color or Color3.fromRGB(140, 140, 150)
 	local model = Build.model(parent, "Rock")
 	local size = Vector3.new(r:NextNumber(2, 3.5), r:NextNumber(1.2, 2.2), r:NextNumber(2, 3.2)) * scale
-	Build.part(model, "Rock", size, CFrame.new(base + Vector3.new(0, size.Y / 2 - 0.2, 0)) * CFrame.Angles(0, r:NextNumber(0, math.pi), r:NextNumber(-0.15, 0.15)), c, { Material = Enum.Material.Slate })
+	Build.part(
+		model,
+		"Rock",
+		size,
+		CFrame.new(base + Vector3.new(0, size.Y / 2 - 0.2, 0)) * CFrame.Angles(0, r:NextNumber(0, math.pi), r:NextNumber(-0.15, 0.15)),
+		c,
+		{ Material = Enum.Material.Slate }
+	)
 	local small = size * 0.5
-	Build.part(model, "Rock", small, CFrame.new(base + Vector3.new(size.X * 0.5, small.Y / 2 - 0.1, size.Z * 0.2)) * CFrame.Angles(0, r:NextNumber(0, math.pi), 0), c:Lerp(Color3.new(1, 1, 1), 0.1), { Material = Enum.Material.Slate })
+	Build.part(
+		model,
+		"Rock",
+		small,
+		CFrame.new(base + Vector3.new(size.X * 0.5, small.Y / 2 - 0.1, size.Z * 0.2)) * CFrame.Angles(0, r:NextNumber(0, math.pi), 0),
+		c:Lerp(Color3.new(1, 1, 1), 0.1),
+		{ Material = Enum.Material.Slate }
+	)
 	return model
 end
 
@@ -265,7 +293,14 @@ end
 function Build.bush(parent: Instance, base: Vector3, scale: number, color: Color3?)
 	local c = color or Color3.fromRGB(70, 160, 60)
 	Build.part(parent, "Bush", Vector3.new(3, 2.2, 3) * scale, CFrame.new(base + Vector3.new(0, 1.1 * scale, 0)), c, { Material = Enum.Material.Grass })
-	Build.part(parent, "Bush", Vector3.new(2, 1.6, 2) * scale, CFrame.new(base + Vector3.new(1.2 * scale, 0.8 * scale, 0.6 * scale)) * CFrame.Angles(0, 0.5, 0), c:Lerp(Color3.new(1, 1, 1), 0.08), { Material = Enum.Material.Grass })
+	Build.part(
+		parent,
+		"Bush",
+		Vector3.new(2, 1.6, 2) * scale,
+		CFrame.new(base + Vector3.new(1.2 * scale, 0.8 * scale, 0.6 * scale)) * CFrame.Angles(0, 0.5, 0),
+		c:Lerp(Color3.new(1, 1, 1), 0.08),
+		{ Material = Enum.Material.Grass }
+	)
 end
 
 function Build.lantern(parent: Instance, base: Vector3, color: Color3?, height: number?)
@@ -313,13 +348,26 @@ function Build.house(parent: Instance, cf: CFrame, size: Vector3, wall: Color3, 
 	-- Toit à deux pans (wedges).
 	local roofHeight = size.Y * 0.45
 	for _, side in { -1, 1 } do
-		Build.wedge(model, "Roof", Vector3.new(size.X + 2.5, roofHeight, size.Z / 2 + 1.5), cf * CFrame.new(0, size.Y + roofHeight / 2, side * (size.Z / 4 + 0.75)) * CFrame.Angles(0, side > 0 and math.pi or 0, 0), roof)
+		Build.wedge(
+			model,
+			"Roof",
+			Vector3.new(size.X + 2.5, roofHeight, size.Z / 2 + 1.5),
+			cf * CFrame.new(0, size.Y + roofHeight / 2, side * (size.Z / 4 + 0.75)) * CFrame.Angles(0, side > 0 and math.pi or 0, 0),
+			roof
+		)
 	end
 	Build.part(model, "Ridge", Vector3.new(size.X + 2.7, 0.6, 0.8), cf * CFrame.new(0, size.Y + roofHeight, 0), roof:Lerp(Color3.new(0, 0, 0), 0.25))
 	-- Porte et fenêtres.
 	Build.deco(model, "Door", Vector3.new(size.X * 0.2, size.Y * 0.55, 0.2), cf * CFrame.new(0, size.Y * 0.275 + 0.4, -size.Z / 2 - 0.05), t)
 	for _, side in { -1, 1 } do
-		Build.deco(model, "Window", Vector3.new(size.X * 0.15, size.Y * 0.2, 0.2), cf * CFrame.new(side * size.X * 0.3, size.Y * 0.6, -size.Z / 2 - 0.05), Color3.fromRGB(255, 230, 150), { Material = Enum.Material.Neon, Transparency = 0.2 })
+		Build.deco(
+			model,
+			"Window",
+			Vector3.new(size.X * 0.15, size.Y * 0.2, 0.2),
+			cf * CFrame.new(side * size.X * 0.3, size.Y * 0.6, -size.Z / 2 - 0.05),
+			Color3.fromRGB(255, 230, 150),
+			{ Material = Enum.Material.Neon, Transparency = 0.2 }
+		)
 	end
 	return model
 end

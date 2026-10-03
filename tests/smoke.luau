@@ -150,8 +150,16 @@ test("Bases des joueurs + toutes les améliorations", function()
 	end
 	local fakePlayer = { UserId = 1, DisplayName = "Testeur", SetAttribute = function() end, CharacterAdded = fakeSignal }
 	local services = {
-		DataService = { Get = function() return { upgrades = allUpgrades, coins = 0, stash = 0 } end },
-		CharacterService = { GetBestLook = function() return Characters.get("ninja_renard").look end },
+		DataService = {
+			Get = function()
+				return { upgrades = allUpgrades, coins = 0, stash = 0 }
+			end,
+		},
+		CharacterService = {
+			GetBestLook = function()
+				return Characters.get("ninja_renard").look
+			end,
+		},
 	}
 	PlotService:Init(services)
 	local plot = PlotService:GetPlots()[1]

@@ -60,7 +60,14 @@ local function render()
 			Theme.stroke(rarity.color:Lerp(C.Stroke, 0.5), 3).Parent = card
 			Theme.label({ Text = "?", Size = UDim2.fromScale(0.6, 0.5), Position = UDim2.fromScale(0.2, 0.12), Font = Theme.Fonts.Title, TextColor3 = C.TextDim, Parent = card })
 			Theme.label({ Text = "???", Size = UDim2.new(0.94, 0, 0.13, 0), Position = UDim2.fromScale(0.03, 0.74), TextColor3 = C.TextDim, Parent = card })
-			Theme.label({ Text = rarity.name, Size = UDim2.new(0.94, 0, 0.1, 0), Position = UDim2.fromScale(0.03, 0.87), TextColor3 = rarity.color, Font = Theme.Fonts.Small, Parent = card })
+			Theme.label({
+				Text = rarity.name,
+				Size = UDim2.new(0.94, 0, 0.1, 0),
+				Position = UDim2.fromScale(0.03, 0.87),
+				TextColor3 = rarity.color,
+				Font = Theme.Fonts.Small,
+				Parent = card,
+			})
 		end
 	end
 end
@@ -84,14 +91,35 @@ local function buildTabs()
 end
 
 local GUIDE = {
-	{ "🌀 Les univers", "Toutes les 30 minutes, la Zone d'Univers au centre change d'animé : Village Ninja, Académie Occulte, Planète des Guerriers, Grand Océan, Ère des Pourfendeurs. Ennemis, boss, reliques et décor changent avec !" },
-	{ "🎁 Les reliques", "La Machine à Reliques de ta base vend les reliques de l'univers actuel (parchemins, doigts maudits, boules de cristal, fruits du démon...). Pose-les sur un autel : après quelques secondes, ouvre-les pour obtenir un perso !" },
-	{ "⚔️ Le combat", "Tes persos équipés te suivent. Entre dans la Zone d'Univers : ils attaquent tout seuls les ennemis proches. Clique sur un ennemi pour le cibler. Les ennemis du centre sont plus forts mais rapportent plus. Un boss apparaît régulièrement !" },
+	{
+		"🌀 Les univers",
+		"Toutes les 30 minutes, la Zone d'Univers au centre change d'animé : Village Ninja, Académie Occulte, Planète des Guerriers, Grand Océan, Ère des Pourfendeurs. Ennemis, boss, reliques et décor changent avec !",
+	},
+	{
+		"🎁 Les reliques",
+		"La Machine à Reliques de ta base vend les reliques de l'univers actuel (parchemins, doigts maudits, boules de cristal, fruits du démon...). Pose-les sur un autel : après quelques secondes, ouvre-les pour obtenir un perso !",
+	},
+	{
+		"⚔️ Le combat",
+		"Tes persos équipés te suivent. Entre dans la Zone d'Univers : ils attaquent tout seuls les ennemis proches. Clique sur un ennemi pour le cibler. Les ennemis du centre sont plus forts mais rapportent plus. Un boss apparaît régulièrement !",
+	},
 	{ "📈 Grandir", "Tes persos gagnent de l'XP en combat et en s'entraînant sur ta base. Plus ils montent de niveau, plus ils GRANDISSENT et deviennent puissants." },
-	{ "✨ L'évolution", "Au niveau max, fais évoluer un perso à l'Autel d'Éveil avec des matériaux de SON univers (ex : Fragments de Chakra pour le Village Ninja). On ne les trouve que quand son univers est actif !" },
-	{ "🏠 Ta base", "Les persos exposés sur ta base rapportent des pièces dans le coffre doré : marche dessus pour récupérer. Marche sur les boutons verts pour construire des améliorations (autels, dojo, fontaine...)." },
-	{ "🤝 Les échanges", "Va au Coin des Échanges, assieds-toi d'un côté de la table : quand un autre joueur s'assoit en face, l'échange s'ouvre. Les persos verrouillés 🔒 ne peuvent pas être échangés." },
-	{ "🌀 La fusion Crossover", "Au Portail Crossover, fusionne 2 persos de 2 univers différents (Épique+, ★★) pour créer un perso Crossover unique, comme « Renard de l'Infini » !" },
+	{
+		"✨ L'évolution",
+		"Au niveau max, fais évoluer un perso à l'Autel d'Éveil avec des matériaux de SON univers (ex : Fragments de Chakra pour le Village Ninja). On ne les trouve que quand son univers est actif !",
+	},
+	{
+		"🏠 Ta base",
+		"Les persos exposés sur ta base rapportent des pièces dans le coffre doré : marche dessus pour récupérer. Marche sur les boutons verts pour construire des améliorations (autels, dojo, fontaine...).",
+	},
+	{
+		"🤝 Les échanges",
+		"Va au Coin des Échanges, assieds-toi d'un côté de la table : quand un autre joueur s'assoit en face, l'échange s'ouvre. Les persos verrouillés 🔒 ne peuvent pas être échangés.",
+	},
+	{
+		"🌀 La fusion Crossover",
+		"Au Portail Crossover, fusionne 2 persos de 2 univers différents (Épique+, ★★) pour créer un perso Crossover unique, comme « Renard de l'Infini » !",
+	},
 	{ "⚡ Les événements", "Orage Électrique, Éclipse du Néant, Pluie d'Or, Lune de Sang... Pendant un orage, la foudre peut donner l'aura Foudre aux persos de ta base !" },
 }
 
@@ -109,7 +137,13 @@ function Index.init(gui: ScreenGui)
 		CanvasSize = UDim2.new(),
 		Parent = window.content,
 	})
-	new("UIGridLayout", { CellSize = UDim2.fromOffset(130, 165), CellPadding = UDim2.fromOffset(12, 12), SortOrder = Enum.SortOrder.LayoutOrder, HorizontalAlignment = Enum.HorizontalAlignment.Center, Parent = list })
+	new("UIGridLayout", {
+		CellSize = UDim2.fromOffset(130, 165),
+		CellPadding = UDim2.fromOffset(12, 12),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		Parent = list,
+	})
 	Theme.padding(8).Parent = list
 	window.onClose = function()
 		Menus.closed("Index")
@@ -140,8 +174,26 @@ function Index.init(gui: ScreenGui)
 	for i, section in GUIDE do
 		local frame = new("Frame", { Size = UDim2.new(1, -12, 0, 96), BackgroundColor3 = C.PanelDark, BackgroundTransparency = 0.2, LayoutOrder = i, Parent = scroll })
 		Theme.corner(12).Parent = frame
-		Theme.label({ Text = section[1], Size = UDim2.new(1, -20, 0, 28), Position = UDim2.fromOffset(10, 6), Font = Theme.Fonts.Title, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = C.Gold, Parent = frame })
-		local body = Theme.label({ Text = section[2], Size = UDim2.new(1, -20, 0, 56), Position = UDim2.fromOffset(10, 36), TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = true, Font = Theme.Fonts.Small, Stroke = false, Parent = frame })
+		Theme.label({
+			Text = section[1],
+			Size = UDim2.new(1, -20, 0, 28),
+			Position = UDim2.fromOffset(10, 6),
+			Font = Theme.Fonts.Title,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextColor3 = C.Gold,
+			Parent = frame,
+		})
+		local body = Theme.label({
+			Text = section[2],
+			Size = UDim2.new(1, -20, 0, 56),
+			Position = UDim2.fromOffset(10, 36),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			TextWrapped = true,
+			Font = Theme.Fonts.Small,
+			Stroke = false,
+			Parent = frame,
+		})
 		new("UITextSizeConstraint", { MaxTextSize = 17, Parent = body })
 	end
 	guideWindow.onClose = function()

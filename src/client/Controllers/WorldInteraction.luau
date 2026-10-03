@@ -22,7 +22,7 @@ local marker: Part? = nil
 local targetModel: Model? = nil
 
 local function addSpinner(instance: Instance)
-	if spinners[instance] then
+	if spinners[instance] or not instance.Parent then
 		return
 	end
 	if instance:IsA("BasePart") then

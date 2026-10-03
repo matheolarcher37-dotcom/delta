@@ -214,7 +214,14 @@ local function renderGrid()
 					local holder = new("Frame", { Size = UDim2.new(1, -8, 0.66, 0), Position = UDim2.fromOffset(4, 4), BackgroundTransparency = 1, Parent = card })
 					Components.relicViewport(holder, relic, true)
 					Theme.label({ Text = relic.name, Size = UDim2.new(0.94, 0, 0.14, 0), Position = UDim2.fromScale(0.03, 0.68), Parent = card })
-					Theme.label({ Text = "× " .. owned .. "  ·  " .. universe.name, Size = UDim2.new(0.94, 0, 0.11, 0), Position = UDim2.fromScale(0.03, 0.84), TextColor3 = C.TextDim, Font = Theme.Fonts.Small, Parent = card })
+					Theme.label({
+						Text = "× " .. owned .. "  ·  " .. universe.name,
+						Size = UDim2.new(0.94, 0, 0.11, 0),
+						Position = UDim2.fromScale(0.03, 0.84),
+						TextColor3 = C.TextDim,
+						Font = Theme.Fonts.Small,
+						Parent = card,
+					})
 				end
 			end
 		end
@@ -230,7 +237,13 @@ local function renderGrid()
 	refs.pager.Visible = pages > 1
 	refs.pageLabel.Text = "Page " .. page .. " / " .. pages
 	if #list == 0 then
-		Theme.label({ Text = "Aucun perso pour l'instant. Ouvre une relique sur l'autel de ta base !", Size = UDim2.new(1, 0, 0, 50), TextColor3 = C.TextDim, TextWrapped = true, Parent = grid })
+		Theme.label({
+			Text = "Aucun perso pour l'instant. Ouvre une relique sur l'autel de ta base !",
+			Size = UDim2.new(1, 0, 0, 50),
+			TextColor3 = C.TextDim,
+			TextWrapped = true,
+			Parent = grid,
+		})
 	end
 	for i = (page - 1) * PAGE_SIZE + 1, math.min(#list, page * PAGE_SIZE) do
 		local item = list[i]
@@ -335,14 +348,27 @@ function Inventory.init(gui: ScreenGui)
 	})
 	Theme.padding(6).Parent = refs.grid
 	refs.pager = new("Frame", { Size = UDim2.new(1, 0, 0, 40), Position = UDim2.new(0, 0, 1, -40), BackgroundTransparency = 1, Parent = left })
-	Components.button({ Text = "◀", Color = C.Purple, Size = UDim2.fromOffset(50, 38), Parent = refs.pager, OnClick = function()
-		page -= 1
-		render()
-	end })
-	Components.button({ Text = "▶", Color = C.Purple, Size = UDim2.fromOffset(50, 38), Position = UDim2.new(1, -50, 0, 0), Parent = refs.pager, OnClick = function()
-		page += 1
-		render()
-	end })
+	Components.button({
+		Text = "◀",
+		Color = C.Purple,
+		Size = UDim2.fromOffset(50, 38),
+		Parent = refs.pager,
+		OnClick = function()
+			page -= 1
+			render()
+		end,
+	})
+	Components.button({
+		Text = "▶",
+		Color = C.Purple,
+		Size = UDim2.fromOffset(50, 38),
+		Position = UDim2.new(1, -50, 0, 0),
+		Parent = refs.pager,
+		OnClick = function()
+			page += 1
+			render()
+		end,
+	})
 	refs.pageLabel = Theme.label({ Size = UDim2.new(1, -120, 0, 30), Position = UDim2.fromOffset(60, 4), Parent = refs.pager })
 
 	refs.detail = new("Frame", {

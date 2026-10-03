@@ -67,7 +67,14 @@ local function renderPicker()
 				Theme.label({ Text = relic.name, Size = UDim2.new(0.94, 0, 0.13, 0), Position = UDim2.fromScale(0.03, 0.62), Parent = card })
 				Theme.label({ Text = "× " .. owned, Size = UDim2.new(0.94, 0, 0.1, 0), Position = UDim2.fromScale(0.03, 0.76), TextColor3 = C.Gold, Parent = card })
 				local hatch = math.max(3, math.floor(Economy.RelicTiers[relic.tier].hatchTime * stats.hatchSpeed))
-				Theme.label({ Text = "⏳ " .. hatch .. "s · " .. universe.name, Size = UDim2.new(0.94, 0, 0.09, 0), Position = UDim2.fromScale(0.03, 0.88), TextColor3 = C.TextDim, Font = Theme.Fonts.Small, Parent = card })
+				Theme.label({
+					Text = "⏳ " .. hatch .. "s · " .. universe.name,
+					Size = UDim2.new(0.94, 0, 0.09, 0),
+					Position = UDim2.fromScale(0.03, 0.88),
+					TextColor3 = C.TextDim,
+					Font = Theme.Fonts.Small,
+					Parent = card,
+				})
 				card.Activated:Connect(function()
 					Components.click()
 					local ok, success = pcall(function()
@@ -140,7 +147,11 @@ local function playReveal(info)
 			Parent = rays,
 		})
 		new("UIGradient", {
-			Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, rarity.color), ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)), ColorSequenceKeypoint.new(1, rarity.color) }),
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, rarity.color),
+				ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
+				ColorSequenceKeypoint.new(1, rarity.color),
+			}),
 			Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0.2), NumberSequenceKeypoint.new(1, 1) }),
 			Rotation = 90,
 			Parent = ray,
@@ -200,7 +211,15 @@ local function playReveal(info)
 	})
 	local headline = info.fusion and "🌀 CROSSOVER ! 🌀" or (info.isNew and "✨ NOUVEAU ! ✨" or "TU AS OBTENU")
 	Theme.label({ Text = headline, Size = UDim2.new(1, 0, 0, 30), TextColor3 = C.Gold, ZIndex = 33, Parent = text })
-	local name = Theme.label({ Text = desc.name, Size = UDim2.new(1, 0, 0, 56), Position = UDim2.fromOffset(0, 32), Font = Theme.Fonts.Title, ZIndex = 33, StrokeThickness = 4, Parent = text })
+	local name = Theme.label({
+		Text = desc.name,
+		Size = UDim2.new(1, 0, 0, 56),
+		Position = UDim2.fromOffset(0, 32),
+		Font = Theme.Fonts.Title,
+		ZIndex = 33,
+		StrokeThickness = 4,
+		Parent = text,
+	})
 	Theme.gradient({ rarity.gradient[1], rarity.gradient[#rarity.gradient] }, 90).Parent = name
 	local universe = Universes.get(desc.universe)
 	local sub = rarity.name .. "  ·  " .. (universe and universe.name or "")
@@ -208,7 +227,14 @@ local function playReveal(info)
 	if aura then
 		sub ..= "  ·  Aura " .. aura.name .. " (×" .. aura.multiplier .. ")"
 	end
-	Theme.label({ Text = sub, Size = UDim2.new(1, 0, 0, 26), Position = UDim2.fromOffset(0, 90), TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.3), ZIndex = 33, Parent = text })
+	Theme.label({
+		Text = sub,
+		Size = UDim2.new(1, 0, 0, 26),
+		Position = UDim2.fromOffset(0, 90),
+		TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.3),
+		ZIndex = 33,
+		Parent = text,
+	})
 	local closeButton = Components.button({
 		Text = "Génial !",
 		Color = rarity.color,

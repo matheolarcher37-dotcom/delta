@@ -121,13 +121,33 @@ local function render()
 			order += 1
 			local row = new("Frame", { Size = UDim2.new(1, 0, 0, 32), BackgroundTransparency = 1, LayoutOrder = order, Parent = refs.materials })
 			local current = mine.materials[id] or 0
-			Theme.label({ Text = universe.material.name .. " : " .. current .. "/" .. owned, Size = UDim2.new(1, -80, 1, 0), TextXAlignment = Enum.TextXAlignment.Left, Font = Theme.Fonts.Small, Parent = row })
-			Components.button({ Text = "-", Color = C.Red, Size = UDim2.fromOffset(34, 30), Position = UDim2.new(1, -74, 0, 1), Parent = row, OnClick = function()
-				send("setMaterial", { id = id, amount = current - 1 })
-			end })
-			Components.button({ Text = "+", Color = C.Green, Size = UDim2.fromOffset(34, 30), Position = UDim2.new(1, -36, 0, 1), Parent = row, OnClick = function()
-				send("setMaterial", { id = id, amount = current + 1 })
-			end })
+			Theme.label({
+				Text = universe.material.name .. " : " .. current .. "/" .. owned,
+				Size = UDim2.new(1, -80, 1, 0),
+				TextXAlignment = Enum.TextXAlignment.Left,
+				Font = Theme.Fonts.Small,
+				Parent = row,
+			})
+			Components.button({
+				Text = "-",
+				Color = C.Red,
+				Size = UDim2.fromOffset(34, 30),
+				Position = UDim2.new(1, -74, 0, 1),
+				Parent = row,
+				OnClick = function()
+					send("setMaterial", { id = id, amount = current - 1 })
+				end,
+			})
+			Components.button({
+				Text = "+",
+				Color = C.Green,
+				Size = UDim2.fromOffset(34, 30),
+				Position = UDim2.new(1, -36, 0, 1),
+				Parent = row,
+				OnClick = function()
+					send("setMaterial", { id = id, amount = current + 1 })
+				end,
+			})
 		end
 	end
 
@@ -146,7 +166,8 @@ function Trade.init(gui: ScreenGui)
 	window = Components.window(gui, "🤝 ÉCHANGE", C.Orange, UDim2.fromScale(0.8, 0.8))
 	local content = window.content
 	local function column(x: number)
-		local frame = new("Frame", { Size = UDim2.new(0.49, 0, 0.42, 0), Position = UDim2.fromScale(x, 0), BackgroundColor3 = C.PanelDark, BackgroundTransparency = 0.2, Parent = content })
+		local frame =
+			new("Frame", { Size = UDim2.new(0.49, 0, 0.42, 0), Position = UDim2.fromScale(x, 0), BackgroundColor3 = C.PanelDark, BackgroundTransparency = 0.2, Parent = content })
 		Theme.corner(12).Parent = frame
 		Theme.stroke(C.Stroke, 3).Parent = frame
 		return frame
@@ -195,10 +216,17 @@ function Trade.init(gui: ScreenGui)
 	})
 	Theme.corner(10).Parent = coinsBox
 	Theme.stroke(C.Stroke, 2).Parent = coinsBox
-	Components.button({ Text = "OK", Color = C.Blue, Size = UDim2.new(0.37, 0, 0, 38), Position = UDim2.new(0.63, 0, 1, -40), Parent = side, OnClick = function()
-		local amount = tonumber((string.gsub(coinsBox.Text, "[^%d]", ""))) or 0
-		send("setCoins", amount)
-	end })
+	Components.button({
+		Text = "OK",
+		Color = C.Blue,
+		Size = UDim2.new(0.37, 0, 0, 38),
+		Position = UDim2.new(0.63, 0, 1, -40),
+		Parent = side,
+		OnClick = function()
+			local amount = tonumber((string.gsub(coinsBox.Text, "[^%d]", ""))) or 0
+			send("setCoins", amount)
+		end,
+	})
 
 	refs.readyButton = Components.button({
 		Text = "✅ PRÊT",

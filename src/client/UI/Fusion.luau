@@ -54,9 +54,23 @@ local function slotFrame(parent: Instance, x: number, uid: string?, label: strin
 		Components.characterViewport(frame, desc.look, true)
 		Theme.label({ Text = desc.name, Size = UDim2.new(1, -8, 0, 24), Position = UDim2.new(0, 4, 1, -28), Parent = frame })
 		local universe = Universes.get(desc.universe)
-		Theme.label({ Text = universe and universe.name or "", Size = UDim2.new(1, -8, 0, 18), Position = UDim2.fromOffset(4, 6), TextColor3 = universe and universe.color or C.TextDim, Font = Theme.Fonts.Small, Parent = frame })
+		Theme.label({
+			Text = universe and universe.name or "",
+			Size = UDim2.new(1, -8, 0, 18),
+			Position = UDim2.fromOffset(4, 6),
+			TextColor3 = universe and universe.color or C.TextDim,
+			Font = Theme.Fonts.Small,
+			Parent = frame,
+		})
 	else
-		Theme.label({ Text = "Perso " .. label .. "\n(clique puis choisis)", Size = UDim2.new(1, -16, 0, 60), Position = UDim2.new(0, 8, 0.4, 0), TextColor3 = C.TextDim, TextWrapped = true, Parent = frame })
+		Theme.label({
+			Text = "Perso " .. label .. "\n(clique puis choisis)",
+			Size = UDim2.new(1, -16, 0, 60),
+			Position = UDim2.new(0, 8, 0.4, 0),
+			TextColor3 = C.TextDim,
+			TextWrapped = true,
+			Parent = frame,
+		})
 	end
 	frame.Activated:Connect(function()
 		Components.click()
@@ -101,7 +115,14 @@ render = function()
 		if desc then
 			Components.characterViewport(result, desc.look, true)
 			Theme.label({ Text = desc.name, Size = UDim2.new(1, -8, 0, 24), Position = UDim2.new(0, 4, 1, -28), Font = Theme.Fonts.Title, Parent = result })
-			Theme.label({ Text = "⚔️ " .. Formulas.formatNumber(Formulas.power(preview)) .. " (niv. 1)", Size = UDim2.new(1, -8, 0, 18), Position = UDim2.fromOffset(4, 6), TextColor3 = C.Green, Font = Theme.Fonts.Small, Parent = result })
+			Theme.label({
+				Text = "⚔️ " .. Formulas.formatNumber(Formulas.power(preview)) .. " (niv. 1)",
+				Size = UDim2.new(1, -8, 0, 18),
+				Position = UDim2.fromOffset(4, 6),
+				TextColor3 = C.Green,
+				Font = Theme.Fonts.Small,
+				Parent = result,
+			})
 		end
 		local da, db = Formulas.describe(entryA), Formulas.describe(entryB)
 		if da.universe == db.universe then
@@ -132,7 +153,15 @@ render = function()
 		table.insert(lines, message)
 	end
 	for i, text in lines do
-		local label = Theme.label({ Text = text, Size = UDim2.new(1, 0, 0, 20), Position = UDim2.fromOffset(0, (i - 1) * 22), TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = i <= 3 and C.TextDim or C.Text, Font = Theme.Fonts.Small, Parent = refs.info })
+		local label = Theme.label({
+			Text = text,
+			Size = UDim2.new(1, 0, 0, 20),
+			Position = UDim2.fromOffset(0, (i - 1) * 22),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextColor3 = i <= 3 and C.TextDim or C.Text,
+			Font = Theme.Fonts.Small,
+			Parent = refs.info,
+		})
 		new("UITextSizeConstraint", { MaxTextSize = 16, Parent = label })
 	end
 
@@ -142,7 +171,13 @@ render = function()
 		return eligible(entry)
 	end)
 	if #list == 0 then
-		Theme.label({ Text = "Aucun perso éligible : fais évoluer des persos Épiques ou mieux au rang ★★ à l'Autel d'Éveil !", Size = UDim2.new(1, -10, 0, 50), TextColor3 = C.TextDim, TextWrapped = true, Parent = refs.list })
+		Theme.label({
+			Text = "Aucun perso éligible : fais évoluer des persos Épiques ou mieux au rang ★★ à l'Autel d'Éveil !",
+			Size = UDim2.new(1, -10, 0, 50),
+			TextColor3 = C.TextDim,
+			TextWrapped = true,
+			Parent = refs.list,
+		})
 	end
 	for i, item in list do
 		Components.characterCard(refs.list, item.entry, {
