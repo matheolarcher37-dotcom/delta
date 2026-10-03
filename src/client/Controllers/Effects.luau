@@ -541,6 +541,16 @@ local function onReward(kind: string, amount: number, position: Vector3?, extra:
 		light.Parent = gem
 		flyTo(gem, 0.8, function() end)
 		floatingText(origin + Vector3.new(0, 4, 0), "+" .. amount .. " " .. (material and material.name or ""), color:Lerp(Color3.new(1, 1, 1), 0.3), 1, 1.4)
+	elseif kind == "crystal" then
+		local color = Color3.fromRGB(120, 230, 255)
+		local gem = fxPart(Vector3.new(0.9, 1.6, 0.9), CFrame.new(origin + Vector3.new(0, 2, 0)), color, { Transparency = 0.1 })
+		local light = Instance.new("PointLight")
+		light.Color = color
+		light.Range = 10
+		light.Brightness = 2
+		light.Parent = gem
+		flyTo(gem, 0.9, function() end)
+		floatingText(origin + Vector3.new(0, 5, 0), "+" .. amount .. " CRISTAL DE TRAIT 💎", color, 1.2, 1.6)
 	end
 end
 

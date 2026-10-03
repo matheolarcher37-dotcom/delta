@@ -11,6 +11,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Economy = require(Shared.Config.Economy)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
+local CharacterFactory = require(Shared.Modules.CharacterFactory)
 
 local TeamService = {}
 
@@ -164,13 +165,12 @@ function TeamService:_spawnFollower(player: Player, uid: string, entry, index: n
 	model:SetAttribute("HP", hp)
 	model:SetAttribute("AttackTick", 0)
 	CollectionService:AddTag(model, "Follower")
-	local scale = Formulas.visualScale(entry)
 	local root = ownerRoot(player)
 	local spawnCF
 	if previous and previous.model and previous.model.PrimaryPart then
 		spawnCF = previous.model.PrimaryPart.CFrame
 	elseif root then
-		spawnCF = root.CFrame * formationOffset(index) + Vector3.new(0, 2.15 * scale - 3, 0)
+		spawnCF = root.CFrame * formationOffset(index) + Vector3.new(0, CharacterFactory.rootHeight(model) - 3, 0)
 	else
 		local plot = self.services.PlotService:GetPlot(player)
 		spawnCF = plot and (self.services.PlotService:GetSpawnCFrame(plot) * CFrame.new(0, 2, 4)) or CFrame.new(0, 10, 0)
@@ -243,8 +243,7 @@ function TeamService:TeleportTeam(player: Player)
 	end
 	for _, follower in s.followers do
 		if follower.model.Parent and follower.root then
-			local scale = follower.model:GetAttribute("BaseScale") or 1
-			follower.model:PivotTo(root.CFrame * formationOffset(follower.index) + Vector3.new(0, 2.15 * scale - 3 + 0.5, 0))
+			follower.model:PivotTo(root.CFrame * formationOffset(follower.index) + Vector3.new(0, CharacterFactory.rootHeight(follower.model) - 3 + 0.5, 0))
 		end
 	end
 end
@@ -318,8 +317,7 @@ function TeamService:_update(player: Player, s, now: number)
 				model:SetAttribute("HP", follower.hp)
 				model.Parent = followersFolder
 				if root then
-					local scale = model:GetAttribute("BaseScale") or 1
-					model:PivotTo(root.CFrame * formationOffset(follower.index) + Vector3.new(0, 2.15 * scale - 2.5, 0))
+					model:PivotTo(root.CFrame * formationOffset(follower.index) + Vector3.new(0, CharacterFactory.rootHeight(model) - 2.5, 0))
 				end
 			end
 			continue
@@ -366,7 +364,9 @@ function TeamService:_update(player: Player, s, now: number)
 				if distance > 0.1 then
 					froot.CFrame = CFrame.lookAt(froot.Position, froot.Position + flatDelta)
 				end
-				if now - follower.lastAttack >= Economy.FollowerAttackCooldown then
+				local entry = data.characters[follower.uid]
+				local cooldown = entry and Formulas.attackCooldown(entry) or Economy.FollowerAttackCooldown
+				if now - follower.lastAttack >= cooldown then
 					follower.lastAttack = now
 					self:_attack(player, follower, target, data)
 				end
@@ -377,7 +377,7 @@ function TeamService:_update(player: Player, s, now: number)
 			local goal = goalCF.Position
 			local distance = (Vector3.new(goal.X, 0, goal.Z) - Vector3.new(froot.Position.X, 0, froot.Position.Z)).Magnitude
 			if distance > 90 then
-				model:PivotTo(CFrame.new(goal + Vector3.new(0, 2.15 * scale - 2.5, 0)) * root.CFrame.Rotation)
+				model:PivotTo(CFrame.new(goal + Vector3.new(0, CharacterFactory.rootHeight(model) - 2.5, 0)) * root.CFrame.Rotation)
 			elseif distance > 3 then
 				if now - follower.lastMove > 0.2 then
 					humanoid:MoveTo(goal)
@@ -396,7 +396,7 @@ function TeamService:_attack(player: Player, follower, target, data)
 	end
 	follower.attackCount += 1
 	local special = follower.attackCount % Economy.SpecialEvery == 0
-	local crit = rng:NextNumber() < Economy.CritChance
+	local crit = rng:NextNumber() < Formulas.critChance(entry)
 	local damage = Formulas.power(entry) * rng:NextNumber(0.9, 1.1)
 	if special then
 		damage *= 3
@@ -416,7 +416,14 @@ function TeamService:_attack(player: Player, follower, target, data)
 		color = model:GetAttribute("AttackColor"),
 		from = follower.root.Position,
 		attacker = model,
+		coinBonus = Formulas.traitBonus(entry, "coins"),
 	})
+	-- Trait Vampire : récupère une partie des dégâts en PV.
+	local lifesteal = Formulas.traitBonus(entry, "lifesteal")
+	if lifesteal > 0 and follower.hp < follower.maxHp then
+		follower.hp = math.min(follower.maxHp, follower.hp + damage * lifesteal)
+		model:SetAttribute("HP", math.floor(follower.hp))
+	end
 end
 
 -- XP de combat partagée entre les persos actifs de l'équipe.

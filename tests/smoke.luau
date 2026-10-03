@@ -59,11 +59,11 @@ test("Univers : persos, ennemis, reliques cohérents", function()
 end)
 
 test("Formules : puissance, évolution, fusion", function()
-	local entry = { id = "ninja_renard", level = 30, xp = 0, stars = 1 }
+	local entry = { id = "ninja_maruto", level = 30, xp = 0, stars = 1 }
 	assert(Formulas.power(entry) > 0)
 	local cost = Formulas.evolutionCost(entry)
 	assert(cost and cost.stars == 2 and cost.materials.chakra, "coût d'évolution")
-	local fusion = { id = "fusion", fusion = { a = "ninja_renard", b = "occ_fort" }, level = 1, xp = 0, stars = 1 }
+	local fusion = { id = "fusion", fusion = { a = "ninja_maruto", b = "occ_goju" }, level = 1, xp = 0, stars = 1 }
 	local desc = Formulas.describe(fusion)
 	assert(desc.name == "Renard de l'Infini", desc.name)
 	local fcost = Formulas.evolutionCost(fusion)
@@ -157,7 +157,7 @@ test("Bases des joueurs + toutes les améliorations", function()
 		},
 		CharacterService = {
 			GetBestLook = function()
-				return Characters.get("ninja_renard").look
+				return Characters.get("ninja_maruto").look
 			end,
 		},
 	}

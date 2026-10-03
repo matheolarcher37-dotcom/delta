@@ -7,9 +7,10 @@ local SoundService = game:GetService("SoundService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Rarities = require(Shared.Config.Rarities)
 local Auras = require(Shared.Config.Auras)
+local Traits = require(Shared.Config.Traits)
 local Universes = require(Shared.Config.Universes)
 local Formulas = require(Shared.Modules.Formulas)
-local CharacterBuilder = require(Shared.Modules.CharacterBuilder)
+local CharacterFactory = require(Shared.Modules.CharacterFactory)
 local RelicBuilder = require(Shared.Modules.RelicBuilder)
 
 local Theme = require(script.Parent.Theme)
@@ -245,11 +246,12 @@ local function lookSignature(look): string
 	return table.concat(parts, ";")
 end
 
-function Components.characterModel(look): Model
-	local signature = lookSignature(look)
+function Components.characterModel(look, id: string?, stars: number?): Model
+	local template = CharacterFactory.templateFor(id, stars)
+	local signature = lookSignature(look) .. (template and ("|" .. template:GetFullName()) or "")
 	local cached = previewCache[signature]
 	if not cached then
-		cached = CharacterBuilder.buildPreview(look)
+		cached = CharacterFactory.buildPreview(id, stars, look)
 		previewCache[signature] = cached
 	end
 	return cached:Clone()
@@ -283,9 +285,10 @@ function Components.viewport(parent: Instance, model: Model, focus: Vector3, dis
 	return viewport
 end
 
-function Components.characterViewport(parent: Instance, look, spin: boolean?): ViewportFrame
-	local model = Components.characterModel(look)
-	return Components.viewport(parent, model, Vector3.new(0, 3.3, 0), 11.5, nil, spin)
+-- `entry` (facultatif) permet d'utiliser le modèle personnalisé du perso s'il existe.
+function Components.characterViewport(parent: Instance, look, spin: boolean?, entry: any?): ViewportFrame
+	local model = Components.characterModel(look, entry and entry.id, entry and entry.stars)
+	return Components.viewport(parent, model, Vector3.new(0, 3.6, 0), 12.5, nil, spin)
 end
 
 function Components.relicViewport(parent: Instance, relic, spin: boolean?): ViewportFrame
@@ -332,7 +335,7 @@ function Components.characterCard(parent: Instance, entry, options: CardOptions?
 			BackgroundTransparency = 1,
 			Parent = card,
 		})
-		Components.characterViewport(holder, desc.look, opts.spin)
+		Components.characterViewport(holder, desc.look, opts.spin, entry)
 	end
 
 	Theme.label({
@@ -381,6 +384,9 @@ function Components.characterCard(parent: Instance, entry, options: CardOptions?
 		Theme.corner(8).Parent = chip
 		Theme.stroke(C.Stroke, 2).Parent = chip
 		Theme.label({ Text = aura.name, Size = UDim2.fromScale(0.94, 0.9), Position = UDim2.fromScale(0.03, 0.05), Font = Theme.Fonts.Small, Parent = chip })
+	end
+	if entry.trait and Traits.get(entry.trait) then
+		Components.traitChip(card, entry.trait, UDim2.new(0.62, 0, 0.11, 0), UDim2.fromScale(0.04, aura and 0.48 or 0.6))
 	end
 	if opts.inTeam then
 		local badge = new("Frame", {
@@ -490,6 +496,26 @@ function Components.materialPill(parent: Instance, materialId: string, count: nu
 		Parent = pill,
 	})
 	return pill
+end
+
+-- Petite pastille colorée avec le nom du trait (dégradé + contour).
+function Components.traitChip(parent: Instance, traitId: string, size: UDim2, position: UDim2)
+	local trait = Traits.get(traitId)
+	if not trait then
+		return nil
+	end
+	local chip = new("Frame", {
+		Name = "TraitChip",
+		Size = size,
+		Position = position,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Parent = parent,
+	})
+	Theme.corner(8).Parent = chip
+	Theme.stroke(Traits.TierColors[trait.tier] or C.Stroke, 2).Parent = chip
+	Theme.gradient({ trait.color:Lerp(Color3.new(1, 1, 1), 0.2), trait.color:Lerp(Color3.new(0, 0, 0), 0.35) }, 90).Parent = chip
+	Theme.label({ Text = "◆ " .. trait.name, Size = UDim2.fromScale(0.94, 0.9), Position = UDim2.fromScale(0.03, 0.05), Font = Theme.Fonts.Small, Parent = chip })
+	return chip
 end
 
 function Components.clear(container: Instance)

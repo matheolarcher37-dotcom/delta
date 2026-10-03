@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Rarities = require(Shared.Config.Rarities)
 local Auras = require(Shared.Config.Auras)
+local Traits = require(Shared.Config.Traits)
 
 local NameTags = {}
 
@@ -56,6 +57,7 @@ local function attach(model: Instance)
 
 		local level = makeLabel(gui, "", UDim2.fromScale(1, 0.42), UDim2.fromScale(0, 0), Color3.fromRGB(255, 230, 40), Enum.Font.LuckiestGuy)
 		local name = makeLabel(gui, "", UDim2.fromScale(1, 0.3), UDim2.fromScale(0, 0.42), Color3.new(1, 1, 1), Enum.Font.FredokaOne)
+		local traitLabel = makeLabel(gui, "", UDim2.fromScale(1, 0.26), UDim2.fromScale(0, -0.26), Color3.new(1, 1, 1), Enum.Font.FredokaOne)
 		local bar, fill = nil, nil
 		if isEnemy or isFollower then
 			bar = Instance.new("Frame")
@@ -87,6 +89,9 @@ local function attach(model: Instance)
 			local displayName = model:GetAttribute("DisplayName") or model.Name
 			local aura = Auras.get(model:GetAttribute("Aura"))
 			name.Text = (aura and ("[" .. aura.name .. "] ") or "") .. displayName
+			local trait = Traits.get(model:GetAttribute("Trait"))
+			traitLabel.Text = trait and ("◆ " .. trait.name) or ""
+			traitLabel.TextColor3 = trait and trait.color or Color3.new(1, 1, 1)
 			if isEnemy then
 				name.TextColor3 = isBoss and Color3.fromRGB(255, 80, 80) or Color3.fromRGB(255, 200, 200)
 			else
@@ -100,7 +105,7 @@ local function attach(model: Instance)
 			end
 		end
 		refresh()
-		for _, attribute in { "Level", "Stars", "HP", "MaxHP", "Aura", "DisplayName" } do
+		for _, attribute in { "Level", "Stars", "HP", "MaxHP", "Aura", "DisplayName", "Trait" } do
 			model:GetAttributeChangedSignal(attribute):Connect(refresh)
 		end
 		if isFollower and not isMine then

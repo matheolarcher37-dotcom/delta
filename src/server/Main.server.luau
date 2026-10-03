@@ -10,6 +10,7 @@ local WorldBuilder = require(script.Parent.World.WorldBuilder)
 WorldBuilder.build()
 
 local ORDER = {
+	"AvatarService",
 	"DataService",
 	"PlotService",
 	"CharacterService",
@@ -20,6 +21,7 @@ local ORDER = {
 	"HatchService",
 	"EvolutionService",
 	"FusionService",
+	"TraitService",
 	"TradeService",
 	"EventService",
 	"LeaderboardService",

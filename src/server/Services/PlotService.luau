@@ -331,7 +331,9 @@ STRUCTURES.statue = function(plot, folder, ctx)
 	if look then
 		local statue = CharacterBuilder.build(look, { scale = 1.6, name = "GoldenStatue" })
 		for _, part in statue:GetDescendants() do
-			if part:IsA("BasePart") then
+			if part:IsA("SurfaceGui") then
+				part:Destroy()
+			elseif part:IsA("BasePart") then
 				part.Anchored = true
 				part.Color = rgb(255, 200, 60):Lerp(part.Color, 0.15)
 				part.Material = Enum.Material.Metal
@@ -339,7 +341,7 @@ STRUCTURES.statue = function(plot, folder, ctx)
 				part.CanCollide = false
 			end
 		end
-		statue:PivotTo(base * CFrame.new(0, 3, 0) * CFrame.new(0, CharacterBuilder.HipHeight * 1.6 + 0.85 * 1.6, 0) * CFrame.Angles(0, math.pi, 0))
+		statue:PivotTo(base * CFrame.new(0, 3, 0) * CFrame.new(0, CharacterBuilder.RootHeight * 1.6, 0) * CFrame.Angles(0, math.pi, 0))
 		statue.Parent = folder
 	end
 end

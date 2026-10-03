@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Rarities = require(Shared.Config.Rarities)
 local Auras = require(Shared.Config.Auras)
+local Traits = require(Shared.Config.Traits)
 local Universes = require(Shared.Config.Universes)
 local Economy = require(Shared.Config.Economy)
 local Formulas = require(Shared.Modules.Formulas)
@@ -81,7 +82,7 @@ local function renderDetail()
 	})
 	Theme.corner(14).Parent = preview
 	Theme.stroke(rarity.color, 3).Parent = preview
-	Components.characterViewport(preview, desc.look, true)
+	Components.characterViewport(preview, desc.look, true, entry)
 
 	local y = 0.44
 	local function line(text: string, color: Color3?, height: number?, font: Enum.Font?)
@@ -118,6 +119,8 @@ local function renderDetail()
 	if aura then
 		line("Aura " .. aura.name .. " (×" .. aura.multiplier .. " puissance)", aura.color, 0.045)
 	end
+	local trait = Traits.get(entry.trait)
+	line(trait and ("◆ Trait " .. trait.name .. " : " .. trait.description) or "◆ Pas de trait (Autel des Traits, au centre)", trait and trait.color or C.TextDim, 0.045)
 
 	local buttons = new("Frame", {
 		Size = UDim2.new(1, -16, 0, 96),

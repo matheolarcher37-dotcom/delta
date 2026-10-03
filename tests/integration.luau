@@ -333,7 +333,7 @@ end)
 test("Revenus passifs et coffre", function()
 	local data = DataService:Get(alice)
 	-- Ajoute un 2e perso (exposé sur la base car l'équipe garde le 1er).
-	local entry = services.CharacterService:CreateEntry("ninja_renard", "foudre")
+	local entry = services.CharacterService:CreateEntry("ninja_maruto", "foudre")
 	local uid = services.CharacterService:AddCharacter(alice, entry)
 	-- Il a été équipé automatiquement : on le retire de l'équipe pour l'exposer sur la base.
 	assert(invoke("EquipCharacter", alice, uid, false), "déséquiper")
@@ -367,9 +367,9 @@ end)
 test("Fusion Crossover au portail", function()
 	local data = DataService:Get(alice)
 	local CharacterService = services.CharacterService
-	local a = CharacterService:CreateEntry("ninja_renard")
+	local a = CharacterService:CreateEntry("ninja_maruto")
 	a.stars = 2
-	local b = CharacterService:CreateEntry("occ_fort", "neant")
+	local b = CharacterService:CreateEntry("occ_goju", "neant")
 	b.stars = 2
 	local uidA = CharacterService:AddCharacter(alice, a)
 	local uidB = CharacterService:AddCharacter(alice, b)
@@ -379,7 +379,7 @@ test("Fusion Crossover au portail", function()
 	assert(ok, "fusion : " .. tostring(message))
 	local found = false
 	for _, entry in data.characters do
-		if entry.fusion and entry.fusion.a == "ninja_renard" and entry.fusion.b == "occ_fort" then
+		if entry.fusion and entry.fusion.a == "ninja_maruto" and entry.fusion.b == "occ_goju" then
 			found = true
 			assert(entry.aura == "neant", "aura non héritée")
 		end
@@ -391,7 +391,7 @@ end)
 test("Équiper / verrouiller / vendre", function()
 	local data = DataService:Get(alice)
 	local CharacterService = services.CharacterService
-	local uid = CharacterService:AddCharacter(alice, CharacterService:CreateEntry("ninja_genin"))
+	local uid = CharacterService:AddCharacter(alice, CharacterService:CreateEntry("ninja_rokli"))
 	assert(invoke("ToggleLock", alice, uid), "verrou")
 	local ok = invoke("SellCharacter", alice, uid)
 	assert(not ok, "vente d'un perso verrouillé")
@@ -407,9 +407,9 @@ test("Échange entre deux joueurs", function()
 	local TradeService = services.TradeService
 	local CharacterService = services.CharacterService
 	local dataA, dataB = DataService:Get(alice), DataService:Get(bob)
-	local gift = CharacterService:AddCharacter(alice, CharacterService:CreateEntry("ninja_rose"))
-	local bobChar = CharacterService:AddCharacter(bob, CharacterService:CreateEntry("oce_mousse"))
-	CharacterService:AddCharacter(bob, CharacterService:CreateEntry("oce_marin"))
+	local gift = CharacterService:AddCharacter(alice, CharacterService:CreateEntry("ninja_sakoura"))
+	local bobChar = CharacterService:AddCharacter(bob, CharacterService:CreateEntry("oce_kobi"))
+	CharacterService:AddCharacter(bob, CharacterService:CreateEntry("oce_buggi"))
 	local tableModel = Harness.CollectionService:GetTagged("TradeTable")[1]
 	TradeService:_start(tableModel, alice, bob)
 	assert(TradeService:IsInTrade(alice) and TradeService:IsInTrade(bob), "échange non démarré")

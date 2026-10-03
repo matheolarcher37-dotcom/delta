@@ -34,6 +34,7 @@ local function template()
 		totalCoins = 0,
 		materials = {},
 		relics = {},
+		traitCrystals = Economy.StartingTraitCrystals,
 		characters = {},
 		team = {},
 		incubators = {},

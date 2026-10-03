@@ -244,13 +244,13 @@ end)
 
 test("Remplissage : plusieurs persos, auras, fusion", function()
 	local CharacterService = services.CharacterService
-	for _, id in { "ninja_renard", "occ_fort", "sai_heros", "oce_capitaine", "pou_flamme", "occ_roi", "ninja_rose" } do
-		local entry = CharacterService:CreateEntry(id, id == "occ_fort" and "neant" or (id == "sai_heros" and "foudre" or nil))
+	for _, id in { "ninja_maruto", "occ_goju", "sai_goko", "oce_loffy", "pou_rengoko", "occ_sukana", "ninja_sakoura" } do
+		local entry = CharacterService:CreateEntry(id, id == "occ_goju" and "neant" or (id == "sai_goko" and "foudre" or nil))
 		entry.stars = 2
 		entry.level = 40
 		CharacterService:AddCharacter(alice, entry)
 	end
-	local fusion = { id = "fusion", fusion = { a = "ninja_renard", b = "occ_fort" }, level = 5, xp = 0, stars = 1, aura = "arcenciel", obtained = os.time() }
+	local fusion = { id = "fusion", fusion = { a = "ninja_maruto", b = "occ_goju" }, level = 5, xp = 0, stars = 1, aura = "arcenciel", obtained = os.time() }
 	CharacterService:AddCharacter(alice, fusion)
 	services.DataService:AddCoins(alice, 5000000)
 	for _, material in { "chakra", "maudite", "ki", "perle", "sang" } do

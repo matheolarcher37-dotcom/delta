@@ -6,6 +6,7 @@ local Auras = require(Shared.Config.Auras)
 local Characters = require(Shared.Config.Characters)
 local Universes = require(Shared.Config.Universes)
 local Economy = require(Shared.Config.Economy)
+local Traits = require(Shared.Config.Traits)
 
 local Formulas = {}
 
@@ -144,20 +145,43 @@ function Formulas.auraMultiplier(entry): number
 	return aura and aura.multiplier or 1
 end
 
+-- Valeur d'un bonus de trait (power, hp, speed, crit, coins, xp, lifesteal, scale).
+function Formulas.traitBonus(entry, key: string): number
+	local trait = Traits.get(entry.trait)
+	if not trait then
+		return 0
+	end
+	return (trait :: any)[key] or 0
+end
+
 function Formulas.power(entry): number
 	local base = Formulas.basePower(entry)
 	local levelFactor = 1 + (entry.level - 1) * 0.12
 	local starMult = Economy.StarMultiplier[entry.stars or 1] or 1
-	return math.floor(base * levelFactor * starMult * Formulas.auraMultiplier(entry))
+	local traitMult = 1 + Formulas.traitBonus(entry, "power")
+	return math.floor(base * levelFactor * starMult * Formulas.auraMultiplier(entry) * traitMult)
 end
 
 function Formulas.maxHp(entry): number
-	return Formulas.power(entry) * 10
+	return math.floor(Formulas.power(entry) * 10 * (1 + Formulas.traitBonus(entry, "hp")))
+end
+
+-- Temps entre deux attaques (en secondes).
+function Formulas.attackCooldown(entry): number
+	return Economy.FollowerAttackCooldown * (1 - Formulas.traitBonus(entry, "speed"))
+end
+
+function Formulas.critChance(entry): number
+	return Economy.CritChance + Formulas.traitBonus(entry, "crit")
+end
+
+function Formulas.xpMultiplier(entry): number
+	return 1 + Formulas.traitBonus(entry, "xp")
 end
 
 -- Revenu passif par seconde quand le perso est exposé sur la base.
 function Formulas.income(entry, incomeMult: number?): number
-	return Formulas.power(entry) * Economy.IncomeFactor * (incomeMult or 1)
+	return Formulas.power(entry) * Economy.IncomeFactor * (incomeMult or 1) * (1 + Formulas.traitBonus(entry, "coins"))
 end
 
 function Formulas.sellValue(entry): number
@@ -165,17 +189,19 @@ function Formulas.sellValue(entry): number
 	if not desc then
 		return 0
 	end
-	local value = Rarities.get(desc.rarity).sellValue * (entry.stars or 1) * Formulas.auraMultiplier(entry)
+	local trait = Traits.get(entry.trait)
+	local traitMult = trait and (1 + trait.tier * 0.5) or 1
+	local value = Rarities.get(desc.rarity).sellValue * (entry.stars or 1) * Formulas.auraMultiplier(entry) * traitMult
 	return math.floor(value * (1 + (entry.level - 1) * 0.02))
 end
 
 -- Taille visuelle : les persos grandissent avec leur niveau (comme les poulets !).
 function Formulas.visualScale(entry): number
-	local scale = 0.85 + math.floor(entry.level / 10) * 0.11 + ((entry.stars or 1) - 1) * 0.1
+	local scale = 0.85 + math.floor(entry.level / 10) * 0.11 + ((entry.stars or 1) - 1) * 0.1 + Formulas.traitBonus(entry, "scale")
 	if entry.fusion then
 		scale += 0.15
 	end
-	return math.min(scale, 2.3)
+	return math.min(scale, 2.5)
 end
 
 -- Coût de la prochaine évolution, ou nil si déjà au maximum.

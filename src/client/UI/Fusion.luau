@@ -51,7 +51,7 @@ local function slotFrame(parent: Instance, x: number, uid: string?, label: strin
 	Theme.stroke(activeSlot == label and C.Gold or C.Stroke, activeSlot == label and 4 or 3).Parent = frame
 	if entry then
 		local desc = Formulas.describe(entry)
-		Components.characterViewport(frame, desc.look, true)
+		Components.characterViewport(frame, desc.look, true, entry)
 		Theme.label({ Text = desc.name, Size = UDim2.new(1, -8, 0, 24), Position = UDim2.new(0, 4, 1, -28), Parent = frame })
 		local universe = Universes.get(desc.universe)
 		Theme.label({

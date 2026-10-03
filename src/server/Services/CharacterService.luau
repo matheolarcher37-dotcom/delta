@@ -9,7 +9,7 @@ local Economy = require(Shared.Config.Economy)
 local Rarities = require(Shared.Config.Rarities)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
-local CharacterBuilder = require(Shared.Modules.CharacterBuilder)
+local CharacterFactory = require(Shared.Modules.CharacterFactory)
 
 local CharacterService = {}
 
@@ -20,7 +20,15 @@ local CombatFX = Remotes.event("CombatFX")
 local state: { [Player]: any } = {}
 
 local function signatureOf(entry): string
-	return string.format("%s|%s|%d|%s|%.2f", entry.id, entry.fusion and (entry.fusion.a .. entry.fusion.b) or "", entry.stars or 1, entry.aura or "", Formulas.visualScale(entry))
+	return string.format(
+		"%s|%s|%d|%s|%s|%.2f",
+		entry.id,
+		entry.fusion and (entry.fusion.a .. entry.fusion.b) or "",
+		entry.stars or 1,
+		entry.aura or "",
+		entry.trait or "",
+		Formulas.visualScale(entry)
+	)
 end
 CharacterService.signatureOf = signatureOf
 
@@ -34,6 +42,7 @@ function CharacterService:ApplyAttributes(model: Model, player: Player, uid: str
 	model:SetAttribute("Level", entry.level)
 	model:SetAttribute("Stars", entry.stars or 1)
 	model:SetAttribute("Aura", entry.aura)
+	model:SetAttribute("Trait", entry.trait)
 	model:SetAttribute("AttackKind", desc and desc.attack.kind or "punch")
 	model:SetAttribute("AttackColor", desc and desc.attack.color or Color3.new(1, 1, 1))
 	model:SetAttribute("AttackName", desc and desc.attack.name or "Attaque")
@@ -47,7 +56,7 @@ function CharacterService:BuildModel(player: Player, uid: string, entry, options
 	end
 	local scale = Formulas.visualScale(entry)
 	local opts = options or {}
-	local model = CharacterBuilder.build(desc.look, {
+	local model = CharacterFactory.build(entry.id, entry.stars, desc.look, {
 		scale = scale,
 		name = desc.name,
 		humanoid = opts.humanoid,
@@ -153,13 +162,14 @@ end
 -- Inventaire
 ------------------------------------------------------------------------
 
-function CharacterService:CreateEntry(characterId: string, aura: string?)
+function CharacterService:CreateEntry(characterId: string, aura: string?, trait: string?)
 	return {
 		id = characterId,
 		level = 1,
 		xp = 0,
 		stars = 1,
 		aura = aura,
+		trait = trait,
 		locked = false,
 		obtained = os.time(),
 	}
@@ -263,20 +273,19 @@ function CharacterService:Refresh(player: Player)
 			info = nil
 			s.models[uid] = nil
 		end
-		local scale = Formulas.visualScale(entry)
-		local target = self.services.PlotService:GetDisplayCFrame(plot, slot) * CFrame.new(0, 2.15 * scale, 0)
+		local target = self.services.PlotService:GetDisplayCFrame(plot, slot)
 		if not info then
 			local model = self:BuildModel(player, uid, entry, { anchored = true })
 			if model then
 				model.PrimaryPart.CanCollide = false
 				CollectionService:AddTag(model, "DisplayCharacter")
-				model:PivotTo(target)
+				model:PivotTo(target * CFrame.new(0, CharacterFactory.rootHeight(model), 0))
 				model.Parent = plot.displayFolder
 				s.models[uid] = { model = model, signature = signature, slot = slot }
 			end
 		else
 			if info.slot ~= slot then
-				info.model:PivotTo(target)
+				info.model:PivotTo(target * CFrame.new(0, CharacterFactory.rootHeight(info.model), 0))
 				info.slot = slot
 			end
 			self:ApplyAttributes(info.model, player, uid, entry)
@@ -311,6 +320,7 @@ function CharacterService:AddXP(player: Player, uid: string, amount: number, sil
 	if not entry then
 		return
 	end
+	amount *= Formulas.xpMultiplier(entry)
 	local cap = Formulas.levelCap(entry.stars)
 	if entry.level >= cap then
 		entry.xp = math.min(entry.xp + amount, Formulas.xpToNext(entry.level))

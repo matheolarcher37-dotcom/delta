@@ -148,11 +148,28 @@ local function buildCurrency(gui: ScreenGui)
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = coins,
 	})
+	local crystals = new("Frame", {
+		Name = "Crystals",
+		Size = UDim2.fromOffset(150, 34),
+		BackgroundColor3 = C.Panel,
+		BackgroundTransparency = 0.1,
+		LayoutOrder = 2,
+		Parent = holder,
+	})
+	Theme.corner(17).Parent = crystals
+	Theme.stroke(C.Stroke, 2).Parent = crystals
+	refs.crystals = Theme.label({
+		Size = UDim2.new(1, -16, 1, -8),
+		Position = UDim2.fromOffset(8, 4),
+		TextColor3 = Color3.fromRGB(140, 230, 255),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = crystals,
+	})
 	refs.materials = new("Frame", {
 		Name = "Materials",
 		Size = UDim2.fromOffset(260, 120),
 		BackgroundTransparency = 1,
-		LayoutOrder = 2,
+		LayoutOrder = 3,
 		Parent = holder,
 	})
 	local grid = new("UIGridLayout", {
@@ -333,6 +350,9 @@ local function objectiveText(data): string
 end
 
 local function refreshMaterials(data)
+	if refs.crystals then
+		refs.crystals.Text = "💎 " .. Formulas.formatNumber(data.traitCrystals or 0) .. " cristaux"
+	end
 	Components.clear(refs.materials)
 	local order = 0
 	for _, universe in Universes.List do

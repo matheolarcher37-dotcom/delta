@@ -10,6 +10,7 @@ local Economy = require(Shared.Config.Economy)
 local Universes = require(Shared.Config.Universes)
 local Rarities = require(Shared.Config.Rarities)
 local Auras = require(Shared.Config.Auras)
+local Traits = require(Shared.Config.Traits)
 local Layout = require(Shared.Config.Layout)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
@@ -101,6 +102,16 @@ function FusionService:Fuse(player: Player, uidA: any, uidB: any)
 		end
 	end
 
+	-- ... et du meilleur trait.
+	local bestTrait = nil
+	local bestTier = 0
+	for _, entry in { a, b } do
+		local trait = Traits.get(entry.trait)
+		if trait and trait.tier > bestTier then
+			bestTrait, bestTier = entry.trait, trait.tier
+		end
+	end
+
 	local CharacterService = self.services.CharacterService
 	CharacterService:RemoveCharacter(player, uidA)
 	CharacterService:RemoveCharacter(player, uidB)
@@ -111,6 +122,7 @@ function FusionService:Fuse(player: Player, uidA: any, uidB: any)
 		xp = 0,
 		stars = 1,
 		aura = bestAura,
+		trait = bestTrait,
 		locked = true,
 		obtained = os.time(),
 	}

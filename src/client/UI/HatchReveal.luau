@@ -7,6 +7,7 @@ local SoundService = game:GetService("SoundService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Rarities = require(Shared.Config.Rarities)
 local Auras = require(Shared.Config.Auras)
+local Traits = require(Shared.Config.Traits)
 local Universes = require(Shared.Config.Universes)
 local Economy = require(Shared.Config.Economy)
 local Formulas = require(Shared.Modules.Formulas)
@@ -196,7 +197,7 @@ local function playReveal(info)
 	rays.Visible = true
 
 	-- 3) Le perso apparaît.
-	local viewport = Components.characterViewport(holder, desc.look, true)
+	local viewport = Components.characterViewport(holder, desc.look, true, entry)
 	viewport.ZIndex = 32
 	local popScale = new("UIScale", { Scale = 0.2, Parent = holder })
 	Theme.tween(popScale, 0.45, { Scale = 1 }, Enum.EasingStyle.Back)
@@ -226,6 +227,10 @@ local function playReveal(info)
 	local aura = Auras.get(entry.aura)
 	if aura then
 		sub ..= "  ·  Aura " .. aura.name .. " (×" .. aura.multiplier .. ")"
+	end
+	local trait = Traits.get(entry.trait)
+	if trait then
+		sub ..= "  ·  ◆ " .. trait.name
 	end
 	Theme.label({
 		Text = sub,

@@ -13,6 +13,12 @@ Economy.EventInterval = 11 * 60
 Economy.EventDuration = 150
 
 Economy.StartingCoins = 250
+Economy.StartingTraitCrystals = 2
+
+-- Traits : Cristaux de Trait (relance à l'Autel des Traits, au centre).
+Economy.TraitCrystalPrice = 25000
+Economy.TraitCrystalBossDrop = { 1, 2 }
+Economy.TraitCrystalTier3Chance = 0.04
 Economy.StartingRelics = { ninja_r1 = 1 } -- relique offerte au premier lancement
 
 -- Reliques par palier : prix, stock par réapprovisionnement, temps d'ouverture.

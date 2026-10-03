@@ -12,7 +12,7 @@ local Characters = require(Shared.Config.Characters)
 local Layout = require(Shared.Config.Layout)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
-local CharacterBuilder = require(Shared.Modules.CharacterBuilder)
+local CharacterFactory = require(Shared.Modules.CharacterFactory)
 
 local CombatService = {}
 
@@ -92,7 +92,7 @@ function CombatService:_createEnemy(defId: string, tier: number, isBoss: boolean
 	end
 	local tierStats = isBoss and Economy.Boss or Economy.EnemyTiers[tier]
 	local scale = tierStats.scale
-	local model = CharacterBuilder.build(def.look, {
+	local model = CharacterFactory.build(defId, 1, def.look, {
 		scale = scale,
 		name = def.name,
 		humanoid = true,
@@ -123,7 +123,7 @@ function CombatService:_createEnemy(defId: string, tier: number, isBoss: boolean
 		local radius = rng:NextNumber(ring[1], ring[2])
 		spawnPos = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
 	end
-	local y = groundY() + 2.15 * scale + 0.3
+	local y = groundY() + CharacterFactory.rootHeight(model) + 0.3
 	model:PivotTo(CFrame.new(spawnPos + Vector3.new(0, y, 0)) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0))
 	model.Parent = enemiesFolder
 	if model.PrimaryPart then
@@ -294,7 +294,7 @@ function CombatService:_updateEnemy(record, now: number)
 			if #hits > 0 then
 				record.lastSlam = now
 				record.model:SetAttribute("AttackTick", (record.model:GetAttribute("AttackTick") or 0) + 1)
-				CombatFX:FireAllClients("Slam", { position = root.Position - Vector3.new(0, 2.15 * record.scale, 0), radius = 20 })
+				CombatFX:FireAllClients("Slam", { position = root.Position - Vector3.new(0, CharacterFactory.rootHeight(record.model), 0), radius = 20 })
 				for _, item in hits do
 					TeamService:DamageFollower(item.player, item.follower, record.damage * 0.6)
 				end
@@ -355,11 +355,11 @@ function CombatService:DamageEnemy(player: Player, record, amount: number, info)
 		owner = player.UserId,
 	})
 	if record.hp <= 0 then
-		self:_kill(record, player)
+		self:_kill(record, player, info)
 	end
 end
 
-function CombatService:_kill(record, killer: Player)
+function CombatService:_kill(record, killer: Player, info)
 	record.alive = false
 	byModel[record.model] = nil
 	local index = table.find(enemies, record)
@@ -376,7 +376,7 @@ function CombatService:_kill(record, killer: Player)
 		self:_rewardBoss(record, universe, position)
 		boss = nil
 	else
-		self:_reward(killer, record, universe, position)
+		self:_reward(killer, record, universe, position, info)
 		local gen = record.generation
 		task.delay(Economy.EnemyRespawn, function()
 			if gen == generation then
@@ -393,14 +393,15 @@ local function coinMultiplier(self, player: Player): number
 	return (stats and stats.combatCoins or 1) * eventMult
 end
 
-function CombatService:_reward(player: Player, record, universe, position: Vector3)
+function CombatService:_reward(player: Player, record, universe, position: Vector3, info)
 	local DataService = self.services.DataService
 	local data = DataService:Get(player)
 	if not data or not player.Parent then
 		return
 	end
 	local stats = record.stats
-	local coins = math.floor(stats.coins * (1 + (record.level - stats.level) * 0.05) * coinMultiplier(self, player))
+	local bonus = 1 + (info and info.coinBonus or 0)
+	local coins = math.floor(stats.coins * (1 + (record.level - stats.level) * 0.05) * coinMultiplier(self, player) * bonus)
 	DataService:AddCoins(player, coins)
 	Reward:FireClient(player, "coins", coins, position)
 	data.stats.kills += 1
@@ -410,6 +411,10 @@ function CombatService:_reward(player: Player, record, universe, position: Vecto
 		local amount = (record.tier == 3 and rng:NextInteger(1, 2) or 1) * materialMult
 		DataService:AddMaterial(player, universe.material.id, amount)
 		Reward:FireClient(player, "material", amount, position, universe.material.id)
+	end
+	if record.tier == 3 and rng:NextNumber() < Economy.TraitCrystalTier3Chance then
+		data.traitCrystals = (data.traitCrystals or 0) + 1
+		Reward:FireClient(player, "crystal", 1, position)
 	end
 	self.services.TeamService:GrantCombatXP(player, stats.xp)
 end
@@ -442,6 +447,9 @@ function CombatService:_rewardBoss(record, universe, position: Vector3)
 					Notify:FireClient(player, "🎁 Le boss a lâché une relique rare : " .. relic.name .. " !", "success")
 				end
 			end
+			local crystals = rng:NextInteger(Economy.TraitCrystalBossDrop[1], Economy.TraitCrystalBossDrop[2])
+			data.traitCrystals = (data.traitCrystals or 0) + crystals
+			Reward:FireClient(player, "crystal", crystals, position)
 			data.stats.bossKills += 1
 			self.services.TeamService:GrantCombatXP(player, stats.xp * math.max(share, 0.2))
 			Notify:FireClient(player, "🏆 Boss vaincu ! Participation : " .. math.floor(share * 100) .. "%", "success")

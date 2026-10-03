@@ -30,6 +30,8 @@ local FUNCTIONS = {
 	"Fuse", -- (uidA, uidB) -> ok, message
 	"GetShop", -- () -> état de la boutique
 	"AutoEquip", -- () -> équipe les meilleurs persos
+	"RerollTrait", -- (uid) -> ok, message, traitId
+	"BuyTraitCrystal", -- () -> ok, message
 }
 
 local Remotes = {}

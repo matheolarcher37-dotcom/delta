@@ -58,20 +58,20 @@ local function renderDetail()
 
 	-- Avant / après
 	local compare = new("Frame", { Size = UDim2.new(1, -16, 0.42, 0), Position = UDim2.fromOffset(8, 44), BackgroundTransparency = 1, Parent = panel })
-	local function preview(look, x: number, title: string)
+	local function preview(look, x: number, title: string, who)
 		local frame = new("Frame", { Size = UDim2.fromScale(0.44, 1), Position = UDim2.fromScale(x, 0), BackgroundColor3 = C.PanelDark, Parent = compare })
 		Theme.corner(12).Parent = frame
 		Theme.stroke(rarity.color, 2).Parent = frame
-		Components.characterViewport(frame, look, true)
+		Components.characterViewport(frame, look, true, who)
 		Theme.label({ Text = title, Size = UDim2.new(1, 0, 0, 24), Position = UDim2.new(0, 0, 1, -26), TextColor3 = C.Gold, Parent = frame })
 	end
-	preview(desc.look, 0, string.rep("★", entry.stars))
+	preview(desc.look, 0, string.rep("★", entry.stars), entry)
 	Theme.label({ Text = "➜", Size = UDim2.fromScale(0.12, 0.3), Position = UDim2.fromScale(0.44, 0.35), Font = Theme.Fonts.Title, Parent = compare })
 	if cost then
 		local nextEntry = table.clone(entry)
 		nextEntry.stars = cost.stars
 		local nextDesc = Formulas.describe(nextEntry)
-		preview(nextDesc.look, 0.56, string.rep("★", cost.stars))
+		preview(nextDesc.look, 0.56, string.rep("★", cost.stars), { id = entry.id, stars = cost.stars })
 	else
 		Theme.label({
 			Text = "MAX ★★★",
