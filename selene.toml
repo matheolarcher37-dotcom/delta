@@ -1,0 +1,6 @@
+std = "roblox_lite"
+exclude = ["tests/*"]
+
+[lints]
+shadowing = "allow"
+unused_variable = "warn"
