@@ -154,9 +154,22 @@ function Painter.bakeToParts(gui: SurfaceGui)
 					table.insert(colors, key.Value)
 				end
 			end
+			local radius = nil
+			if corner then
+				local ok, value = pcall(function()
+					return corner.CornerRadius.Scale
+				end)
+				if not ok then
+					-- Fichiers récents : arrondi enregistré coin par coin.
+					ok, value = pcall(function()
+						return (corner :: any).TopLeftRadius.Scale
+					end)
+				end
+				radius = ok and value or 0.5
+			end
 			canvas:rect(x + w / 2, y + h / 2, w, h, frame.BackgroundColor3, {
 				rotation = frame.Rotation,
-				corner = corner and corner.CornerRadius.Scale or nil,
+				corner = radius,
 				transparency = frame.BackgroundTransparency,
 				gradient = colors,
 				stroke = stroke and stroke.Color or nil,

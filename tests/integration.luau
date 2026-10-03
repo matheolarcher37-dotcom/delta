@@ -522,22 +522,39 @@ test("Modèle perso (ModelesPersos) prioritaire sur le perso intégré", functio
 	local Builder = Harness.require(Shared.Modules.CharacterBuilder)
 	local Characters = Harness.require(Shared.Config.Characters)
 	local look = Characters.get("ninja_maruto").look
-	local folder = Instance.new("Folder")
-	folder.Name = "ModelesPersos"
-	folder.Parent = game:GetService("ReplicatedStorage")
+	local storage = game:GetService("ReplicatedStorage")
+	local folder = storage:FindFirstChild("ModelesPersos")
+	local created = false
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "ModelesPersos"
+		folder.Parent = storage
+		created = true
+	end
+	local previous = folder:FindFirstChild("ninja_maruto")
+	if previous then
+		previous.Parent = nil
+	end
 	local custom = Builder.build(look, {})
 	custom.Name = "ninja_maruto"
+	custom:SetAttribute("Marque", true)
 	custom.Parent = folder
-	local model = Factory.build("ninja_maruto", 3, look, { humanoid = true })
-	assert(model:GetAttribute("CustomModel"), "modèle perso ignoré")
+	local model = Factory.build("ninja_maruto", 1, look, { humanoid = true })
+	assert(model:GetAttribute("CustomModel") and model:GetAttribute("Marque"), "modèle perso ignoré")
 	assert(model:FindFirstChildOfClass("Humanoid"), "pas de Humanoid")
-	local plain = Factory.build("ninja_sasuki", 1, Characters.get("ninja_sasuki").look, {})
+	local plain = Factory.build("perso_inconnu", 1, look, {})
 	assert(not plain:GetAttribute("CustomModel"), "modèle perso utilisé à tort")
 	local preview = Factory.buildPreview("ninja_maruto", 1, look)
 	for _, d in preview:GetDescendants() do
 		assert(not d:IsA("SurfaceGui"), "SurfaceGui restée dans l'aperçu")
 	end
-	folder:Destroy()
+	custom:Destroy()
+	if previous then
+		previous.Parent = folder
+	end
+	if created then
+		folder:Destroy()
+	end
 end)
 
 test("Commandes admin", function()

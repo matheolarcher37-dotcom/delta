@@ -1,6 +1,6 @@
 # ANIME TYCOON — Document de conception
 
-**Version 1.1** : ta version 1.0, complétée avec ce qui est implémenté dans le jeu, ma « pépite » et des idées pour la suite.
+**Version 2.0** : ta version 1.0, complétée avec ce qui est implémenté dans le jeu, ma « pépite », tes demandes de la version 2 (persos R6 façon jeux d'animé récents, hub central, anneau d'univers, épées, traits, édition dans Studio) et des idées pour la suite.
 
 > ✅ = implémenté dans le jeu · 💡 = idée proposée pour la suite
 
@@ -11,14 +11,16 @@
 Un jeu Roblox de type **Tycoon** qui mélange combat, collection de personnages d'animé, évolution et gestion de base.
 Il est inspiré de *Grow a Chicken Fighter* : même carte (herbe en damier, arènes de terre, clôtures en bois, style voxel),
 même fonctionnement, mais avec des **persos d'animé** à la place des poulets et des **reliques des séries** à la place des œufs.
+Les persos ont le format **avatar Roblox R6** des jeux d'animé récents (*Defeat Anime Bosses*…), avec des noms légèrement changés (Naruto → Maruto, Gojo → Goju…).
 
 ---
 
 ## 1. Les maps ✅
 
-- ✅ **Un nouvel univers toutes les 30 minutes** dans la Zone d'Univers, au centre de la carte.
+- ✅ **Un hub central** (zone sûre) avec 6 stands et leurs vendeurs : Défi (arène du boss), Fusionner, Traits, Forgeron, Faire évoluer, Index.
+- ✅ **Un nouvel univers toutes les 30 minutes** dans l'**anneau d'univers** qui entoure le hub (c'est l'anneau qui change, pas le centre).
 - ✅ Le même univers est actif **en même temps sur tous les serveurs** (calculé à partir de l'heure), ce qui est utile pour les échanges.
-- ✅ **5 univers** : Village Ninja (Naruto), Académie Occulte (Jujutsu Kaisen, avec « Le Plus Fort »), Planète des Guerriers (Dragon Ball), Grand Océan (One Piece), Ère des Pourfendeurs (Demon Slayer).
+- ✅ **5 univers** : Village Ninja (Naruto), Académie Occulte (Jujutsu Kaisen, avec Goju), Planète des Guerriers (Dragon Ball), Grand Océan (One Piece), Ère des Pourfendeurs (Demon Slayer).
 - ✅ Chaque univers a son **décor** (maisons, portiques, château d'eau, temple, pics rocheux, bateau pirate, glycines…), sa **lumière** (jour, crépuscule violet, nuit de pleine lune…), ses **particules**, ses **3 ennemis** et son **boss**.
 - ✅ **Faille Inter-Univers** au changement : flash, tremblement de caméra, annonce géante, puis le décor change.
 
@@ -26,11 +28,12 @@ même fonctionnement, mais avec des **persos d'animé** à la place des poulets 
 
 - ✅ Les persos équipés (3 places, jusqu'à 5 avec les améliorations) **suivent le joueur** et attaquent automatiquement dans la zone.
 - ✅ **Clic sur un ennemi** = cible prioritaire (un anneau rouge s'affiche dessous).
-- ✅ **3 anneaux de difficulté** : faibles à l'extérieur, forts au centre.
-- ✅ **8 types d'attaques** avec effets visuels : poing, orbe (Orbe Spirale, Violet Imaginaire…), rayon (Vague Déferlante…), entaille, foudre, flammes, ombres, bras élastique.
+- ✅ **3 bandes de difficulté** dans l'anneau : faibles près du hub, forts au bord.
+- ✅ **Le joueur se bat aussi** : il commence avec une Épée Rouillée toute faible et achète de meilleures épées au **Forgeron** (8 épées, de 6 à 8 000 dégâts, avec effets de vent, foudre, flammes, fumée noire, glace…).
+- ✅ **9 types d'attaques** avec effets visuels et particules : poing, orbe (Orbe Spirale, Violet Imaginaire…), rayon (Vague Déferlante…), entaille, éclairs, flammes, fumée noire, cristaux de glace, bras élastique.
 - ✅ Une **attaque spéciale** toutes les 6 attaques (×3 dégâts, nom de l'attaque affiché façon anime), coups critiques.
 - ✅ Les ennemis ripostent : un perso K.O. revient après 8 secondes.
-- ✅ **Boss** toutes les 8 minutes au centre, avec une onde de choc de zone et des récompenses partagées selon les dégâts infligés (et une chance de relique légendaire).
+- ✅ **Boss** toutes les 8 minutes dans l'**arène rocheuse** de l'anneau, avec une onde de choc de zone et des récompenses partagées selon les dégâts infligés (et une chance de relique légendaire).
 - ✅ Récompenses : pièces (qui volent vers le joueur), XP pour l'équipe, **matériaux d'évolution** de l'univers.
 
 ## 3. La base / Tycoon ✅
@@ -47,7 +50,8 @@ même fonctionnement, mais avec des **persos d'animé** à la place des poulets 
 - ✅ Plafond de niveau par rang : ★ = 30, ★★ = 60, ★★★ = 100.
 - ✅ À l'**Autel d'Éveil**, évolution avec des pièces + les **matériaux de l'univers du perso** (Fragment de Chakra, Énergie Maudite, Éclat de Ki, Perle des Abysses, Sang de Démon).
 - ✅ Comme ces matériaux ne tombent que quand **leur** univers est actif, ça pousse à revenir à chaque rotation.
-- ✅ **L'apparence change** à l'évolution : Ninja Renard en mode doré, Le Plus Fort sans son bandeau, cheveux dorés puis bleus pour les guerriers, Capitaine Élastique tout blanc…
+- ✅ **L'apparence change** à l'évolution : Maruto en mode Ermite puis Renard, Goju sans son bandeau, cheveux dorés pour les guerriers, Loffy tout blanc (Gear 5)…
+- ✅ **Traits** : bonus aléatoires (Vigueur, Célérité, Fortuné, Vampire… jusqu'à Monarque), obtenus avec les reliques ou relancés avec des Cristaux de Trait au stand Traits.
 
 ## 5. Les échanges ✅
 
@@ -60,20 +64,20 @@ même fonctionnement, mais avec des **persos d'animé** à la place des poulets 
 
 > « Une mécanique reste à définir. Elle sera ajoutée dès que tu trouveras ta petite pépite. »
 
-**Le Portail Crossover** : on fusionne **deux persos de deux univers différents** pour créer un perso **Crossover** unique.
+**La Fusion Crossover** (stand Fusionner du hub) : on fusionne **deux persos de deux univers différents** pour créer un perso **Crossover** unique.
 
 - Conditions : Épique ou mieux, évolués au moins ★★, univers différents, 100 000 pièces + 15 matériaux de chaque univers.
 - Résultat : coiffure, visage et accessoires de tête du **premier** + tenue et accessoires du corps du **second**, nom composé (préfixe de l'un + suffixe de l'autre).
-  - Ninja Renard + Le Plus Fort = **Renard de l'Infini**
-  - Le Plus Fort + Ninja Renard = **Infini du Renard** (l'ordre compte !)
-  - Pilier de la Flamme + Roi des Fléaux = **Flamme des Fléaux**
-- Rareté **Crossover** (au-dessus de Mythique), puissance de base = (puissance des deux) × 2. Le Crossover hérite de la **meilleure aura** et peut évoluer jusqu'à ★★★.
+  - Maruto + Goju = **Renard de l'Infini**
+  - Goju + Maruto = **Infini du Renard** (l'ordre compte !)
+  - Rengoko + Sukana = **Flamme des Fléaux**
+- Rareté **Crossover** (au-dessus de Mythique), puissance de base = (puissance des deux) × 2. Le Crossover hérite de la **meilleure aura** et du **meilleur trait**, et peut évoluer jusqu'à ★★★.
 - **320 combinaisons** à découvrir dans l'Index.
 
 **Pourquoi c'est la bonne pépite pour ce jeu :**
 1. Elle **exploite la rotation des univers** : il faut jouer sur plusieurs rotations pour réunir deux persos compatibles.
 2. Elle **nourrit les échanges** : il te manque un perso d'un autre univers ? Va à la table d'échange.
-3. Elle donne un **objectif de fin de partie** quasi infini (320 Crossovers) sans avoir à créer de nouveaux modèles : le générateur de persos en blocs mélange tout seul les looks.
+3. Elle donne un **objectif de fin de partie** quasi infini (320 Crossovers) sans avoir à créer de nouveaux modèles : le générateur de persos mélange tout seul les looks.
 4. C'est **le fantasme des fans d'animé** : « et si Naruto avait les pouvoirs de Gojo ? »
 
 ### Bonus implémentés en plus de la pépite
@@ -83,7 +87,8 @@ même fonctionnement, mais avec des **persos d'animé** à la place des poulets 
 - ✅ **Index** (collection) par univers, avec les persos non découverts en « ? ».
 - ✅ **Classement** global « Les plus puissants » + panneau d'information sur l'univers en cours.
 - ✅ **Objectif guidé** en bas de l'écran pour les nouveaux joueurs + **Guide** complet en jeu.
-- ✅ Boutons de **téléportation** rapide : Base, Zone, Troc, Fusion.
+- ✅ Boutons de **téléportation** rapide : Base, Zone, Troc, Hub, Boss.
+- ✅ **Tout est visible et modifiable dans Studio** sans lancer la partie : carte, décors des 5 univers, base d'exemple et galerie de tous les persos (repris par le jeu au lancement). On peut aussi remplacer un perso par son propre modèle R6 ou par des objets du catalogue Roblox (`Config/Avatars.luau`).
 
 ---
 

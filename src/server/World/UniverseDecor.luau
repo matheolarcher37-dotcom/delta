@@ -245,6 +245,12 @@ local function wisteriaTree(parent: Instance, base: Vector3, rng: Random, scale:
 	end
 end
 
+-- Végétation dans les bandes intérieure et extérieure (la bande du milieu reste dégagée pour les combats).
+local function foliage(decor: Instance, rng: Random, count: number, fn: (Instance, Vector3, Random) -> ())
+	scatter(decor, rng, math.ceil(count * 0.4), RING_IN + 8, 92, fn, 5)
+	scatter(decor, rng, math.floor(count * 0.6), 132, RING_OUT - 8, fn, 5)
+end
+
 ------------------------------------------------------------------------
 -- Thèmes (positions dans l'anneau : secteurs entre les chemins)
 ------------------------------------------------------------------------
@@ -257,6 +263,13 @@ THEMES.ninja = function(decor: Instance, rng: Random, theme)
 	groundPatches(decor, rng, rgb(130, 90, 60), 40)
 	gates(function(cf)
 		Build.torii(decor, cf, 15, 13, rgb(230, 90, 30), rgb(60, 40, 30))
+	end)
+	foliage(decor, rng, 22, function(parent, base, r)
+		if r:NextNumber() < 0.7 then
+			Build.tree(parent, base, r:NextNumber(0.9, 1.4), rgb(70, 170, 70), nil, r)
+		else
+			Build.bush(parent, base, r:NextNumber(0.9, 1.3), rgb(80, 160, 60))
+		end
 	end)
 	local roofs = { rgb(210, 60, 40), rgb(240, 130, 40), rgb(70, 120, 200) }
 	for i, deg in SECTORS do
@@ -299,6 +312,13 @@ THEMES.occulte = function(decor: Instance, rng: Random, theme)
 	groundPatches(decor, rng, rgb(65, 60, 72), 40)
 	gates(function(cf)
 		Build.torii(decor, cf, 15, 14, rgb(150, 25, 35), rgb(20, 15, 20))
+	end)
+	foliage(decor, rng, 20, function(parent, base, r)
+		if r:NextNumber() < 0.7 then
+			Build.pine(parent, base, r:NextNumber(1.1, 1.6), rgb(30, 80, 55))
+		else
+			Build.rock(parent, base, r:NextNumber(0.9, 1.5), rgb(70, 65, 80), r)
+		end
 	end)
 	for i, deg in SECTORS do
 		local angle = math.rad(deg)
@@ -346,6 +366,14 @@ THEMES.saiyan = function(decor: Instance, rng: Random, theme)
 			Build.deco(decor, "GateStar", Vector3.new(0.9, 0.9, 0.2), cf * CFrame.new(side * 8, 13.6, -1.65) * CFrame.Angles(0, 0, math.rad(45)), rgb(220, 40, 30), {
 				Material = Enum.Material.Neon,
 			})
+		end
+	end)
+	foliage(decor, rng, 18, function(parent, base, r)
+		if r:NextNumber() < 0.6 then
+			Build.part(parent, "TreeTrunk", Vector3.new(0.8, 7, 0.8), CFrame.new(base + Vector3.new(0, 3.5, 0)), rgb(140, 110, 80), { Material = Enum.Material.Wood })
+			Build.ball(parent, "TreeTop", r:NextNumber(4.5, 6), base + Vector3.new(0, 8.5, 0), rgb(80, 190, 150), { Material = Enum.Material.Grass })
+		else
+			Build.rock(parent, base, r:NextNumber(1, 1.8), rgb(200, 165, 115), r)
 		end
 	end)
 	for i, deg in SECTORS do
@@ -440,6 +468,13 @@ THEMES.ocean = function(decor: Instance, rng: Random, theme)
 		Build.deco(decor, "Flag", Vector3.new(6, 4, 0.2), cf * CFrame.new(0, 9.8, -0.3), rgb(25, 25, 30), { Material = Enum.Material.Fabric })
 		Build.deco(decor, "Skull", Vector3.new(1.8, 1.6, 0.1), cf * CFrame.new(0, 10.1, -0.45), rgb(245, 245, 245))
 	end)
+	foliage(decor, rng, 16, function(parent, base, r)
+		if r:NextNumber() < 0.6 then
+			palmTree(parent, base, r)
+		else
+			Build.rock(parent, base, r:NextNumber(0.8, 1.4), rgb(170, 160, 140), r)
+		end
+	end)
 	for i, deg in SECTORS do
 		local angle = math.rad(deg)
 		local cf = facingCenter(angle, 148)
@@ -517,6 +552,13 @@ THEMES.pourfendeur = function(decor: Instance, rng: Random, theme)
 				rgb(200, 150, 255),
 				{ Material = Enum.Material.Neon, Transparency = 0.15 }
 			)
+		end
+	end)
+	foliage(decor, rng, 16, function(parent, base, r)
+		if r:NextNumber() < 0.55 then
+			wisteriaTree(parent, base, r, r:NextNumber(0.6, 0.85))
+		else
+			Build.bush(parent, base, r:NextNumber(0.9, 1.3), rgb(60, 90, 60))
 		end
 	end)
 	for i, deg in SECTORS do

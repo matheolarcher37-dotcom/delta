@@ -13,7 +13,9 @@ local Vector3 = roblox.Vector3
 
 local Harness = {}
 
-local game = roblox.deserializePlace(fs.readFile("build/AnimeTycoon.rbxl"))
+-- Fichier testé : celui livré (carte pré-construite) ou un autre via ANIME_PLACE.
+local placePath = require("@lune/process").env.ANIME_PLACE or "build/AnimeTycoon.rbxl"
+local game = roblox.deserializePlace(fs.readFile(placePath))
 Harness.game = game
 Harness.roblox = roblox
 
@@ -186,19 +188,46 @@ Harness.Random = Random
 
 local tags = {}
 local tagAdded, tagRemoved = {}, {}
+local function alive(instance)
+	local ok = pcall(function()
+		return instance.Name
+	end)
+	return ok
+end
+-- Les tags sont aussi écrits sur les instances (ils sont alors enregistrés dans le fichier .rbxl).
 Harness.CollectionService = {
 	AddTag = function(_, instance, tag)
 		tags[tag] = tags[tag] or {}
 		table.insert(tags[tag], instance)
+		pcall(function()
+			instance:AddTag(tag)
+		end)
 		if tagAdded[tag] then
 			tagAdded[tag]:Fire(instance)
 		end
 	end,
 	HasTag = function(_, instance, tag)
-		return tags[tag] ~= nil and table.find(tags[tag], instance) ~= nil
+		local ok, has = pcall(function()
+			return instance:HasTag(tag)
+		end)
+		return (ok and has) or (tags[tag] ~= nil and table.find(tags[tag], instance) ~= nil)
 	end,
 	GetTagged = function(_, tag)
-		return tags[tag] or {}
+		local result, seen = {}, {}
+		for _, instance in tags[tag] or {} do
+			if not seen[instance] and alive(instance) then
+				seen[instance] = true
+				table.insert(result, instance)
+			end
+		end
+		-- Instances déjà taguées dans le fichier (carte pré-construite).
+		for _, instance in game:GetDescendants() do
+			if not seen[instance] and instance:HasTag(tag) then
+				seen[instance] = true
+				table.insert(result, instance)
+			end
+		end
+		return result
 	end,
 	GetInstanceAddedSignal = function(_, tag)
 		tagAdded[tag] = tagAdded[tag] or newSignal()

@@ -180,7 +180,7 @@ function SwordBuilder.buildModel(sword): Model
 			descendant:Destroy()
 		end
 	end
-	model:PivotTo(CFrame.Angles(math.rad(-90), 0, 0))
+	model:PivotTo(CFrame.Angles(math.rad(90), 0, 0))
 	return model
 end
 
