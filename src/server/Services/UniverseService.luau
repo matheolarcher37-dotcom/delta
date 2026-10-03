@@ -59,18 +59,55 @@ function UniverseService:Skip()
 	offset += remaining + 1
 end
 
+-- Ciel et lumière de l'univers : heure, Atmosphere, nuages, soleil/lune/étoiles, effets, couleur
+-- de l'eau (theme.ciel, voir Config/Universes).
 local function applyLighting(universe, instant: boolean)
 	local theme = universe.theme
+	local ciel = theme.ciel or {}
 	local info = TweenInfo.new(instant and 0 or 2.5, Enum.EasingStyle.Sine)
-	Lighting.ClockTime = theme.clockTime
-	TweenService:Create(Lighting, info, { Ambient = theme.ambient, OutdoorAmbient = theme.outdoorAmbient }):Play()
-	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
-	if atmosphere then
-		TweenService:Create(atmosphere, info, { Color = theme.atmosphereColor, Decay = theme.atmosphereDecay, Haze = theme.haze }):Play()
+	local function tween(instance: Instance?, goal: { [string]: any })
+		if instance then
+			TweenService:Create(instance, info, goal):Play()
+		end
 	end
-	local grading = Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
-	if grading then
-		TweenService:Create(grading, info, { TintColor = theme.tint, Saturation = theme.saturation }):Play()
+	Lighting.ClockTime = ciel.clockTime or theme.clockTime
+	Lighting.GeographicLatitude = ciel.latitude or 35
+	Lighting.ExposureCompensation = ciel.exposure or 0
+	tween(Lighting, { Ambient = theme.ambient, OutdoorAmbient = theme.outdoorAmbient, Brightness = ciel.brightness or 3 })
+	tween(Lighting:FindFirstChildOfClass("Atmosphere"), {
+		Color = ciel.atmosphereColor or theme.atmosphereColor,
+		Decay = ciel.atmosphereDecay or theme.atmosphereDecay,
+		Haze = ciel.haze or theme.haze,
+		Density = ciel.density or 0.3,
+		Offset = ciel.offset or 0.2,
+		Glare = ciel.glare or 0.3,
+	})
+	tween(Lighting:FindFirstChildOfClass("ColorCorrectionEffect"), {
+		TintColor = theme.tint,
+		Saturation = theme.saturation,
+		Contrast = ciel.contrast or 0.08,
+	})
+	tween(Lighting:FindFirstChildOfClass("BloomEffect"), { Intensity = ciel.bloom or 0.45 })
+	tween(Lighting:FindFirstChildOfClass("SunRaysEffect"), { Intensity = ciel.sunRays or 0.1 })
+	local sky = Lighting:FindFirstChildOfClass("Sky")
+	if sky then
+		sky.StarCount = ciel.stars or 0
+		sky.SunAngularSize = ciel.sunSize or 16
+		sky.MoonAngularSize = ciel.moonSize or 11
+		sky.CelestialBodiesShown = true
+	end
+	local terrain = Workspace:FindFirstChildOfClass("Terrain")
+	if terrain then
+		tween(terrain:FindFirstChildOfClass("Clouds"), {
+			Cover = ciel.cloudCover or 0.6,
+			Density = ciel.cloudDensity or 0.55,
+			Color = ciel.cloudColor or Color3.new(1, 1, 1),
+		})
+		if ciel.water then
+			pcall(function()
+				terrain.WaterColor = ciel.water
+			end)
+		end
 	end
 end
 

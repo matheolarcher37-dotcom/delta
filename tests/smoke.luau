@@ -140,6 +140,29 @@ test("Décors des 5 univers", function()
 	end
 end)
 
+test("Carte : le sol suit l'univers, éléments remplaçables", function()
+	local UniverseDecor = requireModule(Server.World.UniverseDecor)
+	local zone = Workspace.World.Zone
+	local grass = Workspace.World.Ground:FindFirstChild("Grass")
+	assert(grass and grass:GetAttribute("Role") == "herbe", "herbe de l'île non marquée")
+	for _, id in { "occulte", "ninja" } do
+		local universe = Universes.get(id)
+		UniverseDecor.apply(universe, zone)
+		assert(grass.Color == universe.theme.sol.herbe[1], "couleur du sol non appliquée : " .. id)
+	end
+	local slots, sized = 0, 0
+	for _, item in zone.Decor:GetDescendants() do
+		if item:IsA("Model") and item:HasTag("DecorSlot") then
+			slots += 1
+			if (item:GetAttribute("TargetHeight") or 0) > 0 and item:GetAttribute("Slot") then
+				sized += 1
+			end
+		end
+	end
+	assert(slots > 50 and sized == slots, "emplacements remplaçables manquants")
+	print("   emplacements remplaçables (Village Ninja) : " .. slots)
+end)
+
 test("Bases des joueurs + toutes les améliorations", function()
 	local Remotes = requireModule(Shared.Modules.Remotes)
 	assert(Remotes.event("Notify"))

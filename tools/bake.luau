@@ -6,6 +6,8 @@
 --     ServerStorage > DecorsUnivers (glisse-les dans Workspace pour les voir / modifier)
 --   * Workspace > World > Plots > Plot1 : une base d'exemple avec toutes les améliorations
 --   * Workspace > GaleriePersos : tous les persos et ennemis (modifiables, repris par le jeu)
+--   * ServerStorage > ModelesDeco : dossier (vide) pour les modèles de la Boîte à outils qui
+--     remplacent les arbres, rochers, maisons... de la carte (même nom que l'élément, ex. "ArbreGeant")
 --
 -- Usage :
 --   rojo build default.project.json -o build/_rojo.rbxl
@@ -60,7 +62,8 @@ print("carte :", count(world), "pièces")
 ------------------------------------------------------------------------
 
 local first = Universes.List[1]
-UniverseDecor.apply(first, built.zone)
+local firstDecor = UniverseDecor.apply(first, built.zone)
+print("décor", first.id, count(firstDecor), "pièces")
 local ServerStorage = game:GetService("ServerStorage")
 local store = ServerStorage:FindFirstChild("DecorsUnivers")
 if store then
@@ -69,6 +72,12 @@ end
 store = Instance.new("Folder")
 store.Name = "DecorsUnivers"
 store.Parent = ServerStorage
+-- Dossier des modèles de remplacement (Boîte à outils de Studio), voir World/DecorKit.
+if not ServerStorage:FindFirstChild("ModelesDeco") then
+	local modeles = Instance.new("Folder")
+	modeles.Name = "ModelesDeco"
+	modeles.Parent = ServerStorage
+end
 for i = 2, #Universes.List do
 	local universe = Universes.List[i]
 	local decor = UniverseDecor.build(universe)

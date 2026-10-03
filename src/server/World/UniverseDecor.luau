@@ -1,6 +1,12 @@
--- Décor de l'ANNEAU D'UNIVERS (autour du hub) : change complètement toutes les 30 min.
+-- Décor de l'UNIVERS : change complètement toutes les 30 min, sur TOUTE la carte.
 --
--- Chaque univers a son sol, ses portes, ses bâtiments et ses petits objets.
+-- Chaque univers a son décor d'anneau (portes, bâtiments, petits objets), la nature de l'île
+-- (arbres, buissons, rochers), son horizon (montagnes) et les couleurs du sol de la carte
+-- (theme.sol, appliqué aux pièces taguées "TeinteSol"). Le ciel suit theme.ciel (UniverseService).
+--
+-- Les univers qui ont un module dans World/Themes (ex. Themes/Ninja) sont construits en taille réelle
+-- par ce module. Les autres utilisent l'ancien décor d'anneau, agrandi à l'échelle de la nouvelle
+-- carte, et une nature d'île générique (en attendant d'être refaits comme le Village Ninja).
 -- Dans le fichier fourni, les 5 décors sont déjà construits : celui de l'univers affiché est dans
 -- Workspace > World > Zone > Decor, les autres sont rangés dans ServerStorage > DecorsUnivers.
 -- Tu peux les modifier dans Studio (glisse-en un dans Workspace pour le voir, puis remets-le) :
@@ -12,11 +18,22 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Layout = require(Shared.Config.Layout)
 local Build = require(script.Parent.Parent.Modules.Build)
+local DecorKit = require(script.Parent.DecorKit)
+local WorldBuilder = require(script.Parent.WorldBuilder)
+
+-- Univers construits en taille réelle (un module par univers).
+local THEME_MODULES = {
+	ninja = require(script.Parent.Themes.Ninja),
+}
 
 local UniverseDecor = {}
 
 local rgb = Color3.fromRGB
-local RING_IN, RING_OUT = Layout.RingInner, Layout.RingOuter
+-- Ancien décor : construit avec les dimensions de l'ancienne carte (anneau 54 → 168), puis agrandi
+-- d'un facteur LEGACY_SCALE pour remplir le nouvel anneau.
+local RING_IN, RING_OUT = 54, 168
+local LEGACY_FENCE = 171
+local LEGACY_SCALE = Layout.RingOuter / RING_OUT
 local SECTORS = { 0, 60, 120, 180, 240, 300 } -- entre les chemins (degrés)
 
 local function polar(angle: number, radius: number, y: number?): Vector3
@@ -30,7 +47,8 @@ end
 
 local function isFree(position: Vector3, margin: number): boolean
 	local r = Vector3.new(position.X, 0, position.Z).Magnitude
-	return r > RING_IN + margin and r < RING_OUT - margin and not Layout.onPath(position, margin) and not Layout.inBossArena(position, margin + 2)
+	local k = LEGACY_SCALE
+	return r > RING_IN + margin and r < RING_OUT - margin and not Layout.onPath(position * k, margin * k) and not Layout.inBossArena(position * k, (margin + 2) * k)
 end
 
 -- Place `count` objets à des endroits libres de l'anneau.
@@ -89,7 +107,7 @@ end
 -- Une porte par chemin, sur la clôture extérieure de l'anneau.
 local function gates(builder: (CFrame) -> ())
 	for _, angle in Layout.PlotAngles do
-		builder(facingCenter(angle, Layout.RingFenceRadius))
+		builder(facingCenter(angle, LEGACY_FENCE))
 	end
 end
 
@@ -593,12 +611,88 @@ end
 -- API
 ------------------------------------------------------------------------
 
+-- Agrandit un ancien décor (positions, tailles, lumières) autour du centre de la carte.
+local function scaleLegacy(root: Instance, k: number)
+	for _, item in root:GetDescendants() do
+		if item:IsA("BasePart") then
+			local cf = item.CFrame
+			item.Size = item.Size * k
+			item.CFrame = (cf - cf.Position) + cf.Position * k
+		elseif item:IsA("PointLight") then
+			item.Range = math.min(60, item.Range * k)
+		end
+	end
+end
+
+-- Nature générique de l'île (pour les univers pas encore refaits en taille réelle).
+local NATURE = {
+	occulte = { palette = "sapin", rock = rgb(80, 76, 90), mountain = { rgb(70, 66, 80), rgb(52, 70, 60) } },
+	saiyan = { palette = "vert", rock = rgb(206, 170, 118), mountain = { rgb(200, 164, 112), rgb(120, 170, 100) } },
+	ocean = { palette = "palmier", rock = rgb(170, 160, 140), mountain = { rgb(150, 140, 120), rgb(90, 170, 80) } },
+	pourfendeur = { palette = "glycine", rock = rgb(90, 86, 100), mountain = { rgb(70, 70, 86), rgb(46, 76, 54) } },
+}
+
+local function islandNature(decor: Instance, rng: Random, key: string)
+	local nature = NATURE[key] or NATURE.saiyan
+	local island = Build.folder(decor, "Ile")
+	local horizon = Build.folder(decor, "Horizon")
+	local function tree(p: Vector3)
+		if key == "occulte" then
+			DecorKit.pine(island, p, { rng = rng, height = rng:NextNumber(26, 40) })
+		elseif key == "ocean" then
+			DecorKit.palmTree(island, p, { rng = rng, height = rng:NextNumber(20, 30) })
+		elseif key == "pourfendeur" then
+			if rng:NextNumber() < 0.5 then
+				DecorKit.wisteriaTree(island, p, { rng = rng, height = rng:NextNumber(20, 28) })
+			else
+				DecorKit.pine(island, p, { rng = rng, height = rng:NextNumber(26, 36), palette = DecorKit.Palettes.sapin })
+			end
+		else
+			DecorKit.roundTree(island, p, { rng = rng, height = rng:NextNumber(20, 30), palette = DecorKit.Palettes.vert })
+		end
+	end
+	DecorKit.scatter(rng, 90, Vector3.zero, Layout.WalkwayOuter + 10, Layout.IslandRadius - 12, function(p)
+		return WorldBuilder.isFree(p, 10)
+	end, tree)
+	DecorKit.scatter(rng, 50, Vector3.zero, Layout.WalkwayOuter + 6, Layout.IslandRadius - 8, function(p)
+		return WorldBuilder.isFree(p, 3)
+	end, function(p)
+		if rng:NextNumber() < 0.5 then
+			DecorKit.bush(island, p, { rng = rng, height = rng:NextNumber(3.5, 5.5), palette = DecorKit.Palettes[nature.palette] })
+		else
+			DecorKit.rock(island, p, rng:NextNumber(4, 9), { rng = rng, color = nature.rock })
+		end
+	end)
+	for i = 0, 17 do
+		local angle = i / 18 * math.pi * 2 + rng:NextNumber(-0.08, 0.08)
+		local radius = rng:NextNumber(Layout.HorizonInner + 60, Layout.HorizonOuter - 60)
+		DecorKit.mountain(horizon, polar(angle, radius, -2), rng:NextNumber(150, 240), rng:NextNumber(80, 150), {
+			rng = rng,
+			rock = nature.mountain[1],
+			grass = nature.mountain[2],
+			slot = "MontagneHorizon",
+		})
+	end
+end
+
 -- Construit le décor d'un univers (sans le placer).
 function UniverseDecor.build(universe): Model
 	local decor = Instance.new("Model")
 	decor.Name = "Decor"
-	local builder = THEMES[universe.theme.decor] or THEMES.ninja
-	builder(decor, Random.new(universe.index * 1000 + 7), universe.theme)
+	local rng = Random.new(universe.index * 1000 + 7)
+	local key = universe.theme.decor
+	local module = THEME_MODULES[key]
+	if module then
+		module.build(decor, rng, universe.theme)
+	else
+		local ring = Instance.new("Model")
+		ring.Name = "Anneau"
+		local builder = THEMES[key] or THEMES.ninja
+		builder(ring, rng, universe.theme)
+		scaleLegacy(ring, LEGACY_SCALE)
+		ring.Parent = decor
+		islandNature(decor, rng, key)
+	end
 	decor:SetAttribute("UniverseId", universe.id)
 	return decor
 end
@@ -613,8 +707,10 @@ local function storage(): Folder
 	return folder :: Folder
 end
 
--- Colore les éléments marqués "UniverseTint" (cristal du hub, arène...) aux couleurs de l'univers.
+-- Colore les éléments marqués "UniverseTint" (cristal du hub, arène...) aux couleurs de l'univers
+-- et applique les couleurs / matériaux du sol de l'univers à toute la carte.
 function UniverseDecor.tint(universe, root: Instance)
+	DecorKit.applySol(universe.theme.sol)
 	for _, descendant in root:GetDescendants() do
 		if descendant:IsA("BasePart") and descendant:GetAttribute("UniverseTint") then
 			descendant.Color = universe.color
@@ -626,14 +722,23 @@ function UniverseDecor.tint(universe, root: Instance)
 	end
 end
 
--- Affiche le décor d'un univers dans l'anneau. Les décors déjà construits (ou retouchés dans
--- Studio) sont simplement échangés avec ServerStorage.DecorsUnivers.
+-- Modèles de la Boîte à outils (ServerStorage > ModelesDeco) à la place des éléments remplaçables.
+local function replaceOnce(decor: Instance)
+	if not decor:GetAttribute("SlotsRemplaces") and DecorKit.hasStore() then
+		DecorKit.replaceSlots(decor)
+		decor:SetAttribute("SlotsRemplaces", true)
+	end
+end
+
+-- Affiche le décor d'un univers (anneau, île, horizon). Les décors déjà construits (ou retouchés
+-- dans Studio) sont simplement échangés avec ServerStorage.DecorsUnivers.
 function UniverseDecor.apply(universe, zone: Instance)
 	local store = storage()
 	local current = zone:FindFirstChild("Decor")
 	if current then
 		local id = current:GetAttribute("UniverseId")
 		if id == universe.id then
+			replaceOnce(current)
 			UniverseDecor.tint(universe, zone.Parent or zone)
 			return current
 		end
@@ -651,6 +756,7 @@ function UniverseDecor.apply(universe, zone: Instance)
 		decor = UniverseDecor.build(universe)
 	end
 	decor.Parent = zone
+	replaceOnce(decor)
 	UniverseDecor.tint(universe, zone.Parent or zone)
 	return decor
 end

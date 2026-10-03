@@ -1,11 +1,13 @@
--- Disposition de la carte (partagée serveur/client).
+-- Disposition de la carte (partagée serveur/client), en TAILLE RÉELLE :
+-- un perso R6 mesure ~5,3 studs, une porte ~8 studs, les bâtiments 20 à 60 studs.
 --
---   centre (0 → 46)      : le HUB, zone sûre avec les stands (Fusionner, Traits, Forgeron...)
---   46 → 54              : muret du hub (6 portes)
---   54 → 168             : l'ANNEAU D'UNIVERS, la zone de combat qui change toutes les 30 min
---   168 → 190            : clôture + promenade circulaire
---   205 → 305            : les bases des joueurs (6), avec le coin des échanges entre deux bases
---   jusqu'à 330          : l'île (herbe à picots), puis la plage et l'océan
+--   centre (0 → 84)      : le HUB, zone sûre avec les stands (Fusionner, Traits, Forgeron...)
+--   84 → 96              : muret du hub (6 portes)
+--   96 → 330             : l'ANNEAU D'UNIVERS, la zone de combat qui change toutes les 30 min
+--   330 → 358            : clôture (ou rempart de l'univers) + promenade circulaire
+--   390 → 530            : les bases des joueurs (6), avec le coin des échanges entre deux bases
+--   jusqu'à 640          : l'île (forêts et décor de l'univers), puis la plage et l'océan
+--   720 → 980            : l'horizon de l'univers (montagnes, falaises...) posé dans la mer
 
 local Layout = {}
 
@@ -16,15 +18,15 @@ end
 Layout.polar = polar
 
 -- Hub central
-Layout.HubRadius = 46
-Layout.HubWallRadius = 50
+Layout.HubRadius = 84
+Layout.HubWallRadius = 88
 
 -- Anneau d'univers (zone de combat)
-Layout.RingInner = 54
-Layout.RingOuter = 168
-Layout.RingFenceRadius = 171
-Layout.WalkwayInner = 174
-Layout.WalkwayOuter = 188
+Layout.RingInner = 96
+Layout.RingOuter = 330
+Layout.RingFenceRadius = 334
+Layout.WalkwayInner = 340
+Layout.WalkwayOuter = 358
 
 -- Compatibilité : la "zone" de combat est l'anneau.
 Layout.ZoneCenter = Vector3.new(0, 0, 0)
@@ -32,29 +34,36 @@ Layout.ZoneRadius = Layout.RingOuter
 Layout.ZoneFenceRadius = Layout.RingFenceRadius
 
 -- Bandes d'ennemis (du plus faible, près du hub, au plus fort, au bord).
+-- Les bandes laissent libres le bord intérieur (96 → 110) et le bord extérieur (280 → 330),
+-- où le décor de l'univers pose ses bâtiments.
 Layout.EnemyBands = {
-	{ 62, 92 },
-	{ 98, 128 },
-	{ 134, 162 },
+	{ 112, 165 },
+	{ 180, 232 },
+	{ 246, 274 },
 }
+Layout.RingBuildInner = 280 -- bâtiments du décor entre ce rayon et RingOuter
 
 -- Île et océan
-Layout.IslandRadius = 330
-Layout.BeachRadius = 352
-Layout.GroundSize = 720
-Layout.GroundTile = 30
+Layout.IslandRadius = 640
+Layout.BeachRadius = 676
+Layout.GroundSize = 1400
+Layout.GroundTile = 60
+
+-- Décor d'horizon de l'univers (dans la mer, au-delà de la plage).
+Layout.HorizonInner = 720
+Layout.HorizonOuter = 980
 
 -- Bases des joueurs disposées en cercle.
 Layout.PlotCount = 6
-Layout.PlotRing = 255
-Layout.PlotSize = 100
+Layout.PlotRing = 460
+Layout.PlotSize = 140
 
 -- Angles (radians) des bases : 30°, 90°, 150°, 210°, 270°, 330°. Les chemins suivent ces angles.
 Layout.PlotAngles = {}
 for i = 1, Layout.PlotCount do
 	Layout.PlotAngles[i] = math.rad((i - 1) * 60 + 30)
 end
-Layout.PathWidth = 10
+Layout.PathWidth = 16
 
 -- CFrame d'une base : centrée, regardant vers le centre (-Z local = vers le hub).
 function Layout.plotCFrame(index: number): CFrame
@@ -64,11 +73,11 @@ function Layout.plotCFrame(index: number): CFrame
 end
 
 -- Arène rocheuse du boss, dans l'anneau (entre deux chemins).
-Layout.BossArena = polar(0, 112)
-Layout.BossArenaRadius = 24
+Layout.BossArena = polar(0, 215)
+Layout.BossArenaRadius = 34
 
 -- Stands du hub (entre les portes). `menu` = menu ouvert côté client.
-Layout.StallRadius = 33
+Layout.StallRadius = 60
 Layout.Stalls = {
 	{ id = "Defi", angle = 0, title = "DÉFI", subtitle = "Affronter le boss", icon = "⚔️", color = Color3.fromRGB(230, 60, 60), menu = "Challenge" },
 	{ id = "Fusion", angle = 60, title = "FUSIONNER", subtitle = "Portail crossover", icon = "🌀", color = Color3.fromRGB(150, 80, 255), menu = "Fusion" },
@@ -87,12 +96,12 @@ function Layout.stallPosition(stallId: string): Vector3
 end
 
 -- Lieux spéciaux
-Layout.TradeCorner = polar(0, 258) -- entre les bases à 330° et 30°
+Layout.TradeCorner = polar(0, 470) -- entre les bases à 330° et 30°
 Layout.FusionPortal = Layout.stallPosition("Fusion")
-Layout.Leaderboard = polar(120, 232)
-Layout.InfoBoard = polar(240, 232)
-Layout.Spawn = polar(270, 18)
-Layout.GalleryCenter = Vector3.new(0, 0, 470) -- galerie des persos (visible seulement dans Studio)
+Layout.Leaderboard = polar(120, 405)
+Layout.InfoBoard = polar(240, 405)
+Layout.Spawn = polar(270, 30)
+Layout.GalleryCenter = Vector3.new(0, 0, 1250) -- galerie des persos (visible seulement dans Studio)
 
 -- Vrai si la position est sur un des chemins radiaux (avec une marge).
 function Layout.onPath(position: Vector3, margin: number?): boolean
@@ -118,6 +127,18 @@ end
 function Layout.inBossArena(position: Vector3, margin: number?): boolean
 	local flat = Vector3.new(position.X, 0, position.Z)
 	return (flat - Layout.BossArena).Magnitude < Layout.BossArenaRadius + (margin or 0)
+end
+
+-- Vrai si la position touche une base (avec une marge), pour garder les bases dégagées.
+function Layout.nearPlot(position: Vector3, margin: number?): boolean
+	for i = 1, Layout.PlotCount do
+		local localPos = Layout.plotCFrame(i):PointToObjectSpace(position)
+		local half = Layout.PlotSize / 2 + (margin or 0)
+		if math.abs(localPos.X) < half and math.abs(localPos.Z) < half then
+			return true
+		end
+	end
+	return false
 end
 
 return Layout
