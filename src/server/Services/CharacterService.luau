@@ -5,6 +5,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local AttackFx = require(Shared.Config.AttackFx)
 local Economy = require(Shared.Config.Economy)
 local Rarities = require(Shared.Config.Rarities)
 local Formulas = require(Shared.Modules.Formulas)
@@ -46,6 +47,8 @@ function CharacterService:ApplyAttributes(model: Model, player: Player, uid: str
 	model:SetAttribute("AttackKind", desc and desc.attack.kind or "punch")
 	model:SetAttribute("AttackColor", desc and desc.attack.color or Color3.new(1, 1, 1))
 	model:SetAttribute("AttackName", desc and desc.attack.name or "Attaque")
+	-- Effet signature de l'attaque (voir Config/AttackFx.luau, joué par Controllers/Effects.luau).
+	model:SetAttribute("AttackFx", AttackFx.forCharacter(entry.id, desc and desc.attack.kind))
 	model:SetAttribute("Power", Formulas.power(entry))
 end
 
