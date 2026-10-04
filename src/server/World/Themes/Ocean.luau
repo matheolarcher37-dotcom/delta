@@ -19,6 +19,7 @@ local Archi = require(script.Parent.Parent.Kit.Archi)
 local Props = require(script.Parent.Parent.Kit.Props)
 local Relief = require(script.Parent.Parent.Kit.Relief)
 local Common = require(script.Parent.Common)
+local WorldBuilder = require(script.Parent.Parent.WorldBuilder)
 
 local Ocean = {}
 
@@ -426,7 +427,7 @@ function Ocean.build(decor: Instance, rng: Random, _theme)
 	})
 	for _, angle in { 40, 150, 200, 250, 340 } do
 		local p = polar(angle, 664)
-		if not WorldBuilderInCliffs(p) then
+		if not WorldBuilder.inCliffs(p, 10) then
 			beachHut(island, CFrame.lookAt(p, Vector3.zero) * CFrame.new(0, -0.4, 0))
 			Nature.tree("Palmier", island, p + polar(angle + 90, 10) + UP * -0.4, { rng = rng, height = 22, detail = "low" })
 		end
@@ -502,11 +503,6 @@ function Ocean.build(decor: Instance, rng: Random, _theme)
 		lifetime = NumberRange.new(16, 22),
 		spin = false,
 	})
-end
-
--- Vrai si la position est dans un cap rocheux de l'île (pas de cabane de plage dessus).
-function WorldBuilderInCliffs(pos: Vector3): boolean
-	return require(script.Parent.Parent.WorldBuilder).inCliffs(pos, 10)
 end
 
 return Ocean
