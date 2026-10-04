@@ -672,6 +672,10 @@ function HUD.init(gui: ScreenGui)
 	buildBottom(root)
 	layoutForDevice()
 	Console.onModeChanged(layoutForDevice)
+	-- L'arbre de compétences occupe tout l'écran : le HUD se cache pendant ce temps.
+	Menus.onChanged(function(name)
+		root.Visible = name ~= "SkillTree"
+	end)
 
 	local lastTeamKey = ""
 	State.onChanged(function(data)

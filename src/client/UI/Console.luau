@@ -37,12 +37,8 @@ local BUTTONS = {
 	R = { text = "R", color = Color3.fromRGB(70, 70, 86) },
 }
 
-local GAMEPAD_TYPES = {
-	[Enum.UserInputType.Gamepad1] = true,
-	[Enum.UserInputType.Gamepad2] = true,
-	[Enum.UserInputType.Gamepad3] = true,
-	[Enum.UserInputType.Gamepad4] = true,
-}
+-- Manettes 1 à 4 (comparées par nom : plus robuste que l'EnumItem lui-même).
+local GAMEPAD_TYPES = { Gamepad1 = true, Gamepad2 = true, Gamepad3 = true, Gamepad4 = true }
 
 function Console.isGamepad(): boolean
 	return gamepad
@@ -193,7 +189,7 @@ function Console.select(object: GuiObject?)
 end
 
 local function detectMode(inputType: Enum.UserInputType)
-	if GAMEPAD_TYPES[inputType] then
+	if GAMEPAD_TYPES[inputType.Name] then
 		touch = false
 		setGamepad(true)
 	elseif inputType == Enum.UserInputType.Touch then

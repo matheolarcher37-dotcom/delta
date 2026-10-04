@@ -397,14 +397,17 @@ end
 local function buildScreen(gui: ScreenGui)
 	root = Theme.scaledRoot(gui, "SkillTree", 12)
 	root.Visible = false
-	new("Frame", {
+	-- Fond : le monde reste visible mais assombri (bleu nuit), plus sombre sur les bords.
+	local dim = new("Frame", {
 		Name = "Dim",
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = rgb(4, 8, 20),
-		BackgroundTransparency = 0.35,
+		BackgroundColor3 = WHITE,
+		BackgroundTransparency = 0.18,
 		BorderSizePixel = 0,
 		Parent = root,
 	})
+	Theme.gradient({ rgb(6, 10, 26), rgb(14, 26, 58), rgb(6, 10, 26) }, 90, { 0.05, 0.3, 0.05 }).Parent = dim
+	Theme.sparkles(dim, 26, 5, 0.82)
 	canvas = new("Frame", {
 		Name = "Canvas",
 		Size = UDim2.fromScale(1, 1),

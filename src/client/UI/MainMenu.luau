@@ -28,7 +28,6 @@ MainMenu.Entries = {
 	{ menu = "Inventory", text = "Unités", icon = "unit", color = Color3.fromRGB(40, 190, 80), color2 = Color3.fromRGB(16, 100, 50) },
 	{ menu = "Inventory", arg = "items", text = "Objets", icon = "bag", color = Color3.fromRGB(40, 150, 240), color2 = Color3.fromRGB(20, 70, 160) },
 	{ menu = "Index", text = "Indice", icon = "book", color = Color3.fromRGB(230, 40, 90), color2 = Color3.fromRGB(130, 10, 50) },
-	{ menu = "Event", text = "Événement", icon = "calendar", color = Color3.fromRGB(150, 40, 70), color2 = Color3.fromRGB(20, 110, 130) },
 	{ menu = "Evolution", text = "Évolution", icon = "evolve", color = Color3.fromRGB(150, 70, 255), color2 = Color3.fromRGB(70, 20, 160) },
 	{ menu = "Fusion", text = "Fusion", icon = "fusion", color = Color3.fromRGB(255, 80, 170), color2 = Color3.fromRGB(120, 30, 160) },
 	{ menu = "Traits", text = "Traits", icon = "gem", color = Color3.fromRGB(40, 200, 230), color2 = Color3.fromRGB(20, 80, 160) },
@@ -46,18 +45,36 @@ local eventRefs: { [string]: any } = {}
 ------------------------------------------------------------------------
 
 local function buildMenu(gui: ScreenGui)
-	menuWindow = Components.window(gui, "MENU", C.Gold, UDim2.fromOffset(1060, 610), { icon = "grid", subtitle = "Toutes les fonctions du jeu" })
+	menuWindow = Components.window(gui, "MENU", C.Gold, UDim2.fromOffset(1060, 620), { icon = "grid", subtitle = "Toutes les fonctions du jeu" })
 	local content = menuWindow.content
+	-- Bandeau large « Événement » (comme la grille de référence) avec l'événement en cours.
+	local event = Components.tile({
+		Text = "Événement",
+		Icon = "calendar",
+		Color = Color3.fromRGB(150, 40, 70),
+		Color2 = Color3.fromRGB(20, 110, 130),
+		Size = UDim2.new(1, -24, 0, 76),
+		Position = UDim2.fromOffset(12, 0),
+		Wide = true,
+		Seed = 5,
+		Parent = content,
+		OnClick = function()
+			Menus.open("Event")
+		end,
+	})
+	local eventLabel = event:FindFirstChild("Label", true) :: TextLabel?
 	local grid = new("Frame", {
 		Name = "Grid",
-		Size = UDim2.new(1, 0, 0, 340),
+		Size = UDim2.new(1, 0, 0, 318),
+		Position = UDim2.fromOffset(0, 88),
 		BackgroundTransparency = 1,
 		Parent = content,
 	})
 	local layout = Theme.grid(Vector2.new(152, 152), 14, Enum.HorizontalAlignment.Center)
 	layout.Parent = grid
+	local tiles = {}
 	for i, entry in MainMenu.Entries do
-		Components.tile({
+		local tile = Components.tile({
 			Text = entry.text,
 			Icon = entry.icon,
 			Color = entry.color,
@@ -74,13 +91,20 @@ local function buildMenu(gui: ScreenGui)
 				end
 			end,
 		})
+		tiles[i] = tile
 	end
+	pcall(function()
+		event.NextSelectionDown = tiles[1]
+		for i = 1, math.min(6, #tiles) do
+			tiles[i].NextSelectionUp = event
+		end
+	end)
 	-- Voyages rapides
-	Components.sectionTitle(content, "VOYAGER", { Position = UDim2.fromOffset(4, 350) })
+	Components.sectionTitle(content, "VOYAGER", { Position = UDim2.fromOffset(12, 414) })
 	local travel = new("Frame", {
 		Name = "Travel",
 		Size = UDim2.new(1, 0, 0, 62),
-		Position = UDim2.fromOffset(0, 382),
+		Position = UDim2.fromOffset(0, 444),
 		BackgroundTransparency = 1,
 		Parent = content,
 	})
@@ -101,7 +125,29 @@ local function buildMenu(gui: ScreenGui)
 		})
 	end
 	Components.registerWindow(Menus, "MainMenu", menuWindow, nil, function()
-		return grid:FindFirstChildWhichIsA("GuiButton")
+		return tiles[1] or event
+	end)
+	-- Texte du bandeau : événement en cours (ou prochain boss).
+	task.spawn(function()
+		while true do
+			if menuWindow.isOpen and eventLabel then
+				local state = State.gameState()
+				local now = State.now()
+				local name = state:GetAttribute("EventName")
+				local bossAt = state:GetAttribute("BossAt")
+				if name then
+					eventLabel.Text = "Événement : " .. name .. "  ·  " .. Formulas.formatTime((state:GetAttribute("EventEndsAt") or now) - now)
+				elseif state:GetAttribute("BossAlive") then
+					eventLabel.Text = "Événement : le BOSS est là !"
+				elseif bossAt then
+					eventLabel.Text = "Événement  ·  Boss dans " .. Formulas.formatTime(bossAt - now)
+				else
+					eventLabel.Text = "Événement"
+				end
+				Components.setBadge(event, (name or state:GetAttribute("BossAlive")) and "!" or nil)
+			end
+			task.wait(0.5)
+		end
 	end)
 end
 

@@ -326,6 +326,8 @@ function Components.tile(props: TileProps): TextButton
 
 	local iconBox
 	if props.Wide then
+		local tileH = (props.Size and props.Size.Y.Offset > 0) and props.Size.Y.Offset or 66
+		local labelX = math.floor(10 + (tileH - 10) * 0.7 + 14)
 		iconBox = new("Frame", {
 			Name = "IconBox",
 			AnchorPoint = Vector2.new(0, 0.5),
@@ -344,8 +346,8 @@ function Components.tile(props: TileProps): TextButton
 			Name = "Label",
 			Text = props.Text,
 			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0.3, 0, 0.5, 0),
-			Size = UDim2.new(0.66, 0, 0.42, 0),
+			Position = UDim2.new(0, labelX, 0.5, 0),
+			Size = UDim2.new(1, -labelX - 24, 0.42, 0),
 			FontFace = Theme.Faces.Title,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 5,

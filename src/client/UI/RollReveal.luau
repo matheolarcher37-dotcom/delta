@@ -50,7 +50,7 @@ local function buildCard(parent: Instance, result, index: number)
 	local def = Characters.get(result.id or "")
 	local holder = new("Frame", {
 		Name = "RollCard" .. index,
-		Size = UDim2.fromOffset(150, 206),
+		Size = UDim2.fromOffset(176, 240),
 		BackgroundTransparency = 1,
 		LayoutOrder = index,
 		Parent = parent,
@@ -75,7 +75,7 @@ local function buildCard(parent: Instance, result, index: number)
 		Name = "Rays",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.4),
-		Size = UDim2.fromOffset(150, 150),
+		Size = UDim2.fromOffset(176, 176),
 		BackgroundTransparency = 1,
 		Parent = card,
 	})
@@ -199,7 +199,7 @@ function RollReveal.show(payload)
 	end
 	local cards = new("Frame", {
 		Name = "Cards",
-		Size = UDim2.new(1, 0, 0, 210),
+		Size = UDim2.new(1, 0, 0, 244),
 		BackgroundTransparency = 1,
 		LayoutOrder = 1,
 		Parent = strip,
@@ -263,8 +263,8 @@ function RollReveal.init(gui: ScreenGui)
 	strip = new("Frame", {
 		Name = "Strip",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 196),
-		Size = UDim2.fromOffset(560, 250),
+		Position = UDim2.new(0.5, 0, 0, 232),
+		Size = UDim2.fromOffset(640, 280),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 		Visible = false,
