@@ -337,7 +337,8 @@ local function buildIsland(world: Folder)
 
 	-- Taches d'herbe et de terre, touffes, herbes hautes, fleurs (hors anneau, bases, eau).
 	local details = Build.folder(ground, "Details")
-	Core.scatter(rng, 100, Vector3.zero, Layout.WalkwayOuter + 10, Layout.IslandRadius - 20, function(pos)
+	-- taches organiques : ellipses aplaties qui se chevauchent, en nuances proches du sol
+	Core.scatter(rng, 150, Vector3.zero, Layout.WalkwayOuter + 10, Layout.IslandRadius - 20, function(pos)
 		return isFree(pos, 10)
 	end, function(pos)
 		local roll = rng:NextNumber()
@@ -349,12 +350,45 @@ local function buildIsland(world: Folder)
 			local size = rng:NextNumber(26, 64)
 			for i = 1, count do
 				local a = rng:NextNumber(0, math.pi * 2)
-				local r = i == 1 and 0 or size * rng:NextNumber(0.2, 0.42)
-				local d = size * (i == 1 and 0.8 or rng:NextNumber(0.4, 0.65))
-				local disc = Core.flatDisc(details, "Patch", pos + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r), d, TOP_PATCH + (i % 2) * 0.01, GRASS, material)
-				Core.solRole(disc, role)
+				local r = i == 1 and 0 or size * rng:NextNumber(0.2, 0.45)
+				local len = size * (i == 1 and 0.9 or rng:NextNumber(0.45, 0.7))
+				local nuance = rng:NextNumber(-0.04, 0.04)
+				local patch = Core.ellipsoid(
+					details,
+					"Patch",
+					Vector3.new(len, 0.12, len * rng:NextNumber(0.4, 0.75)),
+					CFrame.new(pos + Vector3.new(math.cos(a) * r, TOP_PATCH - 0.03 + (i % 3) * 0.006, math.sin(a) * r)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0),
+					GRASS,
+					material
+				)
+				patch.CastShadow = false
+				Core.solRole(patch, role, nuance)
 			end
 		end
+	end)
+	-- prés d'herbes hautes (petits massifs) et cailloux
+	Core.scatter(rng, 50, Vector3.zero, Layout.WalkwayOuter + 20, Layout.IslandRadius - 16, function(pos)
+		return isFree(pos, 3)
+	end, function(pos)
+		for _ = 1, rng:NextInteger(4, 7) do
+			local q = pos + Vector3.new(rng:NextNumber(-3, 3), 0, rng:NextNumber(-3, 3))
+			Nature.tallGrass(details, q + UP * (WorldBuilder.groundY(q) + TOP_PATCH), rng:NextNumber(2.4, 3.8), GRASS, rng, "touffe")
+		end
+	end)
+	Core.scatter(rng, 160, Vector3.zero, Layout.WalkwayOuter + 4, Layout.IslandRadius - 14, function(pos)
+		return isFree(pos, 0)
+	end, function(pos)
+		local size = rng:NextNumber(0.6, 1.6)
+		local pebble = Core.ellipsoid(
+			details,
+			"Pebble",
+			Vector3.new(size, size * 0.45, size * rng:NextNumber(0.6, 1)),
+			CFrame.new(pos + UP * (WorldBuilder.groundY(pos) + TOP_PATCH + size * 0.1)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0),
+			ROCK,
+			Enum.Material.Slate
+		)
+		pebble.CastShadow = false
+		Core.solRole(pebble, "roche", rng:NextNumber(-0.1, 0.08))
 	end)
 	Core.scatter(rng, 520, Vector3.zero, Layout.WalkwayOuter + 4, Layout.IslandRadius - 14, function(pos)
 		return isFree(pos, 0)
