@@ -1,4 +1,6 @@
 -- Gestionnaire de menus : un seul grand menu ouvert à la fois.
+-- Chaque menu peut aussi fournir `tab(direction)` (LB/RB à la manette) et `selection()`
+-- (le bouton sélectionné en premier à la manette).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -9,15 +11,37 @@ local Menus = {}
 
 local registry = {}
 local current: string? = nil
+local listeners: { (string?) -> () } = {}
 
 export type Menu = {
 	open: (any?) -> (),
 	close: () -> (),
 	isOpen: (() -> boolean)?,
+	tab: ((number) -> ())?,
+	selection: (() -> GuiObject?)?,
 }
+
+local function notify()
+	for _, callback in listeners do
+		task.spawn(callback, current)
+	end
+end
+
+-- Appelé à chaque ouverture / fermeture (nom du menu ouvert, ou nil).
+function Menus.onChanged(callback: (string?) -> ())
+	table.insert(listeners, callback)
+end
 
 function Menus.register(name: string, menu: Menu)
 	registry[name] = menu
+end
+
+function Menus.get(name: string?): Menu?
+	return name and registry[name] or nil
+end
+
+function Menus.exists(name: string): boolean
+	return registry[name] ~= nil
 end
 
 function Menus.open(name: string, arg: any?)
@@ -26,10 +50,13 @@ function Menus.open(name: string, arg: any?)
 		return
 	end
 	if current and current ~= name and registry[current] then
-		registry[current].close()
+		local previous = current
+		current = nil
+		registry[previous].close()
 	end
 	current = name
 	menu.open(arg)
+	notify()
 end
 
 function Menus.close(name: string?)
@@ -39,6 +66,7 @@ function Menus.close(name: string?)
 	end
 	if target == current then
 		current = nil
+		notify()
 	end
 end
 
@@ -50,9 +78,11 @@ function Menus.toggle(name: string, arg: any?)
 	end
 end
 
+-- Un menu prévient qu'il s'est fermé tout seul (bouton ✕).
 function Menus.closed(name: string)
 	if current == name then
 		current = nil
+		notify()
 	end
 end
 
