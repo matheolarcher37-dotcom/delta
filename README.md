@@ -1,248 +1,220 @@
-# 🌀 ANIME TYCOON
+# 🌀 ANIME TYCOON (version 3)
 
 **Un jeu Roblox de type Tycoon** inspiré de *Grow a Chicken Fighter* et des jeux d'animé récents
-(*Defeat Anime Bosses*…) : à la place des poulets, tu collectionnes, entraînes et fais évoluer des
-**héros d'animé au format avatar Roblox R6**. À la place des œufs, tu ouvres des **reliques des séries** :
-parchemins ninja, doigts maudits, boules de cristal, fruits du démon…
+(*Defeat Anime Bosses*…). Tu fais tourner la **machine à persos « ROULER »** de ta base pour obtenir
+des **héros d'animé** (de vrais avatars Roblox R6). Tu les poses sur ta base pour gagner de l'argent,
+tu les emmènes combattre dans l'anneau, et tu améliores tout : ta chance, le nombre de persos tirés
+à la fois, tes revenus, tes dégâts…
 
-![Vue d'ensemble de la carte](docs/images/world.png)
+Le jeu marche sur **PC, mobile et console (Xbox / PlayStation)**.
 
-> Toutes les images de ce README sont des rendus réels des modèles du jeu (générés à partir du code, hors Roblox).
+---
+
+## ✨ Les nouveautés de la version 3
+
+| Domaine | Ce qui change |
+|---|---|
+| 👥 **Persos** | Tous les persos sont de **vrais avatars Roblox R6 aux proportions classiques**, sur le modèle du Kid Naruto que tu m'as montré : tête ronde classique, torse 2×2, bras et jambes 1×2. Leurs vêtements sont dessinés comme des habits Roblox classiques, avec ombres et plis. Leurs visages ressemblent à des décalques d'animé. **Maruto ★1 recopie Kid Naruto** : veste orange, bandeau, moustaches. |
+| 🗺️ **Carte** | Carte beaucoup plus grande et détaillée : collines, falaises, plage, étang, ruisseau avec pont, rues pavées, vrais arbres détaillés. **Toutes les 30 minutes, TOUTE la carte change** : bâtiments, forêt de l'île, grand monument, montagnes à l'horizon, couleurs du sol, ciel, lumière et particules. |
+| 🏠 **Base** | Vraie base tycoon : **machine ROULER animée**, **arbre de compétences** de 56 cases, 28 constructions sur 3 paliers, 24 cases d'unités, tapis roulant avec des pièces qui roulent jusqu'au coffre. **La déco de la base suit l'univers** : Naruto en thème Ninja, Gojo en thème Occulte… |
+| 🖥️ **Interface** | Nouveau style inspiré de tes captures : grands boutons brillants, fiche d'unité avec ses statistiques, arbre hexagonal plein écran, prix et argent toujours visibles. Elle est animée et jouable entièrement à la manette. |
+| 💥 **Attaques** | Chaque perso a son **attaque signature**, détaillée comme dans *Defeat Anime Bosses* : Rasengan, Chidori, Kamehameha, Violet Imaginaire, Gatling, Santoryu, Hinokami Kagura… Il y a une phase de charge, puis l'explosion, l'onde de choc, le cratère et des roches projetées. Les boss ont aussi leurs attaques de zone. |
 
 ---
 
 ## 🚀 Lancer le jeu
 
 1. Installe **Roblox Studio** (gratuit).
-2. Télécharge le fichier **[`build/AnimeTycoon.rbxl`](build/AnimeTycoon.rbxl)** de ce dépôt.
-3. Double-clique dessus (ou *Fichier → Ouvrir* dans Studio).
-4. **Tout est déjà visible sans lancer la partie** (voir plus bas), et tu peux le modifier.
-5. Clique sur **▶ Play** pour jouer.
+2. Ouvre le fichier **[`build/AnimeTycoon.rbxl`](build/AnimeTycoon.rbxl)** (double-clic, ou *Fichier → Ouvrir* dans Studio).
+3. **Tout est déjà construit et visible sans lancer la partie** : la carte, les 5 décors, une base d'exemple
+   et la galerie de tous les persos. Tu peux les retoucher (voir plus bas).
+4. Clique sur **▶ Play** pour jouer.
 
 **Pour sauvegarder la progression** : publie le jeu (*Fichier → Publier sur Roblox*), puis active
-*Paramètres du jeu → Sécurité → « Enable Studio Access to API Services »*. Sans ça, le jeu marche
+*Paramètres du jeu → Sécurité → « Enable Studio Access to API Services »*. Sans ça, le jeu marche,
 mais rien n'est sauvegardé (un message te le rappelle en jeu).
 
 ---
 
-## ✏️ Modifier le jeu directement dans Studio (sans lancer la partie)
+## 🎮 Comment jouer
+
+### La boucle de jeu
+
+1. **Tu arrives** : une base t'est attribuée (6 bases par serveur) et ton nom s'affiche sur le portail.
+2. **Tu roules** : appuie sur le gros bouton rouge **ROULER** de la machine, au centre de ta base. Tu peux aussi utiliser le bouton ROULER du panneau à droite de l'écran.
+   Les persos tirés apparaissent sur l'**estrade**. Chacun affiche sa rareté, ses dégâts (DPS), son nom et son prix en ¥.
+3. **Tu collectes** : approche-toi d'un perso et choisis **« Collecter »** pour l'acheter. Tu peux aussi cliquer sur « Prendre » dans le panneau. **Le tout premier est offert.**
+4. **Tu poses tes unités** : tes persos hors équipe se tiennent sur les **cases jaunes** de ta base et **remplissent ton coffre** (revenus).
+   Sur une case, « **Remplacer l'unité** » ouvre un menu pour choisir qui s'y tient.
+5. **Tu combats** : tes persos équipés **te suivent** et attaquent tout seuls dans l'anneau qui entoure le hub.
+   Toi aussi, tu te bats avec ton épée. Un **boss** apparaît toutes les 8 minutes dans l'arène.
+6. **Tu gagnes de l'argent** : en combat, et grâce à tes unités posées sur les cases. Leurs pièces roulent sur le tapis jusqu'à ton **coffre** : va le récupérer.
+7. **Tu améliores** :
+   - les **boutons d'achat** de ta base (anneau vert si tu as assez d'argent, rouge sinon) construisent 28 bâtiments. Un modèle transparent montre ce qui sera construit ;
+   - l'**arbre de compétences** se trouve au grand arbre lumineux de ta base, ou dans le bouton **Améliorations**. Il augmente ta chance, te fait tirer **2 puis 3 persos à la fois**, réduit le délai entre deux roulages, débloque l'**auto-roulage**, et augmente tes revenus, tes dégâts, tes critiques et ton nombre de cases…
+8. **L'univers change toutes les 30 minutes** : la carte, la déco de ta base, les ennemis, le boss et les persos de la machine changent avec lui.
+9. **Tu deviens plus fort** grâce à l'**Évolution** (★ → ★★ → ★★★), la **Fusion Crossover**, les **Traits**, le **Forgeron** (épées) et les **Échanges** avec les autres joueurs.
+
+### La machine ROULER
+
+| Rareté | Couleur | Chance de base | Prix de base |
+|---|---|---|---|
+| Commun | gris | 60 % | 90 ¥ |
+| Peu commun (un commun avec un trait garanti) | vert | 24 % | 260 ¥ |
+| Rare | bleu | 11,5 % | 900 ¥ |
+| Épique | violet | 3,8 % | 6 000 ¥ |
+| Légendaire | or | 0,6 % | 45 000 ¥ |
+| Mythique | rouge | 0,09 % | 350 000 ¥ |
+| Secret (le Mythique de l'univers, avec l'aura Arc-en-ciel et un trait rare) | noir / arc-en-ciel | 0,01 % | 2 000 000 ¥ |
+
+- **Rouler est gratuit, tu paies à la collecte.** Les prix augmentent avec l'aura et le trait du perso.
+- La jauge **« x10 Chance dans : N »** annonce un roulage où la chance est multipliée par 10.
+- Le panneau **« Garanties »** (la pitié) indique dans combien de roulages un Légendaire (150), un Mythique (1 200) ou un Secret (8 000) est garanti. L'arbre réduit ces seuils.
+- L'estrade garde 6 persos. Quand elle est pleine, ce sont les plus anciens et les moins rares qui partent ; **les Légendaires et plus ne partent jamais tout seuls**.
+- Les **reliques** existent toujours, comme source secondaire de persos : butin du boss, marchand de reliques au fond de la base, autels.
+
+### Les commandes
+
+| Action | PC | Manette (Xbox / PlayStation) | Mobile |
+|---|---|---|---|
+| Se déplacer | ZQSD / flèches | joystick gauche | joystick à l'écran |
+| Utiliser une invite (Rouler, Collecter, Acheter, Remplacer l'unité…) | **E** | **X** (carré sur PlayStation) | toucher l'invite |
+| ROULER depuis n'importe où | bouton ROULER à droite | **X** (quand aucune invite n'est affichée) | bouton ROULER |
+| Choisir dans un menu | clic | **A** (croix) | toucher |
+| Fermer un menu | ✕ | **B** (rond) | ✕ |
+| Changer d'onglet | clic sur l'onglet | **LB / RB** | toucher l'onglet |
+| Menu principal | bouton **Plus** | **croix directionnelle haut** | bouton **Plus** |
+| Arbre de compétences : se déplacer / zoomer | glisser / molette | joystick droit / **LT – RT** | glisser / pincer |
+| Sortir l'épée et frapper | **1** puis clic | bouton de la barre d'outils | barre d'outils |
+
+Les indications des boutons de la manette (A, B, X…) apparaissent toutes seules dès que tu prends une manette. Sur une télé, l'interface est un peu plus grande.
+
+### L'écran
+
+- **En haut à gauche** : tes pièces, tes cristaux et tes matériaux, toujours visibles. Les compteurs défilent quand tu gagnes de l'argent.
+- **En haut au centre** : l'univers actuel et le temps avant le prochain.
+- **À droite** : le panneau **ROULAGE** (x10, garanties, boutons ROULER et AUTO) et les persos qui attendent sur l'estrade, avec leur prix.
+- **En bas à gauche** : Améliorations (l'arbre), Boutique, Unités, Objets, Indice et **Plus** (menu complet : Événement, Évolution, Fusion, Traits, Forgeron, Guide, Échanges, **Options**, voyages rapides).
+- **Options** : couper la secousse d'écran ou les flashs, et choisir la qualité des effets (Auto, Haute, Moyenne ou Basse).
+
+---
+
+## ✏️ Retoucher le jeu dans Studio (mode édition, sans lancer la partie)
 
 Le fichier contient le jeu **déjà construit**. Dans l'*Explorateur* de Studio :
 
 | Où | Ce que c'est | Ce qui se passe au lancement |
 |---|---|---|
-| `Workspace › World` | Toute la carte : hub, stands, vendeurs, anneau, arène du boss, chemins, île, bases, coin des échanges | **Gardée telle quelle** : déplace, recolore, ajoute ou supprime ce que tu veux |
-| `Workspace › World › Zone › Decor` | Le décor de l'anneau pour le **Village Ninja** | Échangé avec les autres décors toutes les 30 min, **tes retouches sont gardées** |
-| `ServerStorage › DecorsUnivers` | Les décors des 4 autres univers | Glisse-en un dans `Workspace › World › Zone` pour le voir, modifie-le, puis remets-le dans `DecorsUnivers` (ne change pas son nom) |
-| `Workspace › World › Plots › Plot1` | Une **base d'exemple** avec toutes les améliorations et des persos exposés | Le sol, la clôture, la machine, l'autel… sont gardés. Les améliorations et les persos (aperçu) sont reconstruits pour chaque joueur |
-| `Workspace › GaleriePersos` | **Les 40 persos (et leurs évolutions) + les 20 ennemis**, posés sur des socles, au sud de l'île | Le jeu **reprend ces modèles** pour tout le monde : retouche une couleur, un accessoire, une coiffure… et c'est appliqué en jeu |
+| `Workspace › World` | La carte fixe : hub, stands, collines, falaises, plage, étang, rues, arène du boss, île… | **Gardée telle quelle** : déplace, recolore, ajoute ou supprime ce que tu veux |
+| `Workspace › World › Zone › Decor` | Le décor de l'univers affiché (Village Ninja) | Échangé avec les autres décors toutes les 30 min. **Tes retouches sont gardées.** |
+| `ServerStorage › DecorsUnivers` | Les décors des 4 autres univers | Pour en modifier un : glisse-le dans `Workspace › World › Zone`, retouche-le, puis remets-le dans `DecorsUnivers` sans changer son nom |
+| `Workspace › World › Plots › Plot1` | Une **base d'exemple complète** (toutes les constructions, des unités sur les cases, des persos sur l'estrade, déco Ninja) | Les constructions et les persos sont reconstruits pour chaque joueur |
+| `ServerStorage › DecorsBase` | La **déco de base** des 5 univers (murs, portail, sol, accessoires) | Retouche-les ici : elles sont appliquées à toutes les bases quand l'univers change |
+| `ServerStorage › ModelesDeco` | Dossier **vide** pour tes modèles de la Boîte à outils | Voir « Remplacer les arbres et bâtiments » plus bas |
+| `Workspace › GaleriePersos` | **Les 40 persos (et leurs évolutions), les 15 ennemis et les 5 boss**, posés sur des socles | Le jeu **reprend ces modèles** : retouche une couleur, une coiffure, un accessoire… et c'est appliqué en jeu |
 
-Astuces :
-- Le plus simple pour avoir un **vrai perso de la Boîte à outils** (ex. « Kid Naruto ») : dans Studio,
-  ouvre la **Boîte à outils**, cherche le perso, **clique dessus** pour l'insérer, puis
-  **Fichier › Enregistrer**. C'est tout : pas besoin de le déplacer ni de le renommer. Au lancement,
-  le jeu reconnaît le nom d'origine (Naruto → Maruto, Goku → Goko…) et l'utilise à la place du perso
-  intégré. « Naruto Sage » / « Naruto Kurama » remplacent les évolutions ★★ / ★★★. Les scripts des
-  modèles gratuits sont supprimés automatiquement. La liste des noms reconnus est dans
-  `src/shared/Config/NomsOriginaux.luau`. Prends de préférence un modèle **R6** (les animations du jeu
-  sont en R6).
-- Pour remplacer un perso par **ton propre modèle** (fait dans Studio ou avec des objets du catalogue) :
-  mets un rig **R6** (avec `HumanoidRootPart`, `Torso`, `Head`, `Left Arm`…) dans
-  `GaleriePersos › ModelesPersos` et nomme-le comme le perso : `ninja_maruto`, ou `ninja_maruto_2` /
-  `ninja_maruto_3` pour ses évolutions ★★ / ★★★.
-- Pour utiliser des **objets du catalogue Roblox** (cheveux, vêtements, visage) sans rien construire :
-  colle leurs identifiants dans `src/shared/Config/Avatars.luau` (exemple dans le fichier). Le jeu crée
-  alors l'avatar R6 tout seul au démarrage.
-- Si tu modifies le look d'un perso dans `Characters.luau`, supprime son modèle de la galerie (ou
-  reconstruis le fichier, voir *Pour les développeurs*) pour voir la nouvelle version.
+### Remplacer un perso
 
----
+- **Par un perso de la Boîte à outils** (par exemple « Kid Naruto ») : ouvre la **Boîte à outils** de Studio,
+  cherche le perso, **clique dessus** pour l'insérer, puis **Fichier › Enregistrer**. Pas besoin de le déplacer ni de
+  le renommer : au lancement, le jeu reconnaît le **nom d'origine** (Naruto → Maruto, Goku → Goko…) et l'utilise à
+  la place du perso intégré. « Naruto Sage » et « Naruto Kurama » remplacent les évolutions ★★ et ★★★.
+  Les scripts des modèles gratuits sont supprimés automatiquement. La liste des noms reconnus est dans
+  `src/shared/Config/NomsOriginaux.luau`. Prends de préférence un modèle **R6**.
+- **Par ton propre modèle** : mets un rig **R6** (avec `HumanoidRootPart`, `Torso`, `Head`, `Left Arm`…) dans
+  `GaleriePersos › ModelesPersos` et donne-lui le nom du perso : `ninja_maruto`, ou `ninja_maruto_2` / `ninja_maruto_3` pour ses évolutions.
+- **Avec des objets du catalogue Roblox** (cheveux, vêtements, visage) : suis le mode d'emploi en haut de
+  `src/shared/Config/Avatars.luau`. Le jeu crée l'avatar tout seul au démarrage.
+- **Changer le look intégré** (couleurs, coiffure, tenue) : `src/shared/Config/Characters.luau`, champ `look`. Les champs
+  possibles sont expliqués en haut du fichier. Supprime ensuite le modèle de la galerie, ou reconstruis le fichier, pour voir la nouvelle version.
 
-## 🗺️ La carte
+### Remplacer les arbres et bâtiments
 
-| Le hub central | Un stand du hub | L'anneau et l'arène du boss |
-|---|---|---|
-| ![](docs/images/hub.png) | ![](docs/images/stand.png) | ![](docs/images/arene.png) |
-
-- **Au centre, le HUB** (zone sûre) : le cristal d'univers (avec le compte à rebours) et **6 stands** avec leurs vendeurs :
-  - ⚔️ **Défi** : téléporte à l'arène du boss · 🌀 **Fusionner** : la Fusion Crossover · 💎 **Traits** : relancer les traits
-  - 🗡️ **Forgeron** : acheter des épées · ⭐ **Faire évoluer** les unités · 📖 **Index** : ta collection
-- **Autour du hub, l'ANNEAU D'UNIVERS** : la zone de combat. Son décor, ses ennemis, son boss, la lumière et les reliques
-  en vente **changent toutes les 30 minutes** (en même temps sur tous les serveurs). Les ennemis faibles sont près du hub,
-  les plus forts au bord. L'**arène rocheuse** du boss est dans l'anneau.
-- **Autour, les bases des joueurs** (dalles beiges à picots et bandes rouges), reliées au hub par des **chemins à chevrons**,
-  le **coin des échanges**, le classement, et l'île entourée de plage et d'océan.
-
-### 🌀 Un nouvel univers toutes les 30 minutes
-
-| Village Ninja | Académie Occulte | Planète des Guerriers |
-|---|---|---|
-| ![](docs/images/zone_ninja.png) | ![](docs/images/zone_occulte.png) | ![](docs/images/zone_saiyan.png) |
-| **Grand Océan** | **Ère des Pourfendeurs** | **Ta base (toutes les améliorations)** |
-| ![](docs/images/zone_ocean.png) | ![](docs/images/zone_pourfendeur.png) | ![](docs/images/plot.png) |
+Mets un modèle (de la Boîte à outils ou fait par toi) dans **`ServerStorage › ModelesDeco`** et donne-lui le nom
+de l'élément à remplacer, par exemple `ArbreFeuillu`, `Cedre` ou `Machiya`. **Tous** les éléments de ce nom, sur toute la carte et
+dans tous les univers, sont remplacés par ton modèle, à la bonne taille. Pour trouver le nom d'un élément, clique dessus
+dans Studio : c'est le nom du modèle (ils portent l'étiquette `DecorSlot`).
 
 ---
 
-## 🎮 La boucle de jeu
+## 🗺️ La carte et les 5 univers
 
-| Étape | Ce que tu fais |
+- **Au centre, le HUB** (zone sûre) : le cristal d'univers, les arches dont les panneaux affichent l'univers actuel, le compte à rebours et le suivant,
+  et **6 stands** : Défi (arène du boss), Fusionner, Traits, Forgeron, Faire évoluer, Index.
+- **Autour, l'ANNEAU D'UNIVERS** : la zone de combat. Les ennemis faibles sont près du hub, les plus forts au bord.
+- **Plus loin, les 6 bases des joueurs**, puis l'**île** (forêts, grands monuments) et les **montagnes enneigées** à l'horizon.
+
+| Univers (inspiration) | Décor |
 |---|---|
-| 🎁 **Reliques** | La **Machine à Reliques** de ta base vend les reliques de l'univers actuel. Pose-en une sur un **autel** : après quelques secondes, ouvre-la et découvre ton perso (révélation animée, avec parfois une **aura** et un **trait**). |
-| ⚔️ **Combat** | Tes persos équipés **te suivent** et attaquent tout seuls dans l'anneau. **Toi aussi tu te bats** : tu commences avec une **Épée Rouillée** toute faible (touche **1** pour la sortir, clic pour frapper). Un **boss** apparaît toutes les 8 minutes dans l'arène. |
-| 🗡️ **Forgeron** | Achète de meilleures épées au stand du Forgeron, chacune avec son effet (vent, foudre, flammes, fumée noire, glace…). |
-| 📈 **Grandir** | Les persos gagnent de l'XP en combat et en s'entraînant sur ta base. En montant de niveau, ils **grandissent** (comme les poulets !). |
-| ✨ **Évoluer** | Au niveau max, fais-les évoluer (★ → ★★ → ★★★) avec les matériaux de **leur** univers. Leur apparence change (mode Ermite, Gear 5, bandeau retiré…). |
-| 💎 **Traits** | À l'autel des Traits, dépense un **Cristal de Trait** pour donner un bonus aléatoire à un perso (de Vigueur I à **Monarque**). |
-| 🏠 **Tycoon** | Les persos exposés sur ta base remplissent ton **coffre doré**. Marche sur les **boutons verts** pour construire : autels, dojo, fontaine, statue dorée… |
-| 🤝 **Échanges** | Au **Coin des Échanges**, assieds-toi à une table : quand un joueur s'assoit en face, l'échange s'ouvre. |
-| 🌀 **Fusion** | Au stand **Fusionner**, fusionne deux persos de deux univers différents (la pépite, voir plus bas). |
+| **Village Ninja** (Naruto) | tour du chef, montagne aux visages, stand de ramen, maisons rondes |
+| **Académie Occulte** (Jujutsu Kaisen) | école en bois sombre, pagode, cimetière brumeux, entrepôts, Sanctuaire Malveillant |
+| **Planète des Guerriers** (Dragon Ball) | maisons-dômes, Capsule Corp, voitures volantes, pics rocheux, arène du tournoi, tour céleste |
+| **Grand Océan** (One Piece) | port, navires, phare, lagon |
+| **Ère des Pourfendeurs** (Demon Slayer) | la nuit : ville de l'ère Taishō, Domaine des Papillons, glycines, rocher fendu, mont Fujikasane, Train de l'Infini sur son viaduc |
 
-Les boutons à gauche de l'écran téléportent : **Base, Zone, Troc, Hub, Boss**.
+Le même univers est actif **en même temps sur tous les serveurs**. Le chargement progressif (*StreamingEnabled*) est activé
+pour que la grande carte tourne bien sur console et sur mobile.
 
 ---
 
-## 👥 Les 40 personnages (format avatar R6)
+## 👥 Les 40 personnages
 
-Comme dans les jeux d'animé récents, les persos sont des **avatars Roblox R6** (corps en blocs, animations
-officielles de Roblox) avec un **visage d'animé dessiné** (grands yeux brillants, moustaches, cicatrices…),
-des **tenues peintes** et des **coiffures en mèches**. Les noms sont légèrement changés pour respecter
-les droits d'auteur (Naruto → **Maruto**, Gojo → **Goju**…).
+Les noms sont légèrement changés pour respecter les droits d'auteur (Naruto → **Maruto**, Gojo → **Goju**…).
 
-![Les personnages](docs/images/personnages.png)
-
-| Univers (inspiration) | Communs | Rares | Épiques | Légendaire | Mythique | Boss |
+| Univers | Communs | Rares | Épiques | Légendaire | Mythique | Boss |
 |---|---|---|---|---|---|---|
-| **Village Ninja** (Naruto) | Rok Li, Konohamaro | Sakoura, Shikamaro | Sasuki, Kakashu | **Maruto** | **Itochi** | Kourama |
-| **Académie Occulte** (Jujutsu Kaisen) | Toudo, Inumako | Nobora, Megumo | Yuzi, Mako | **Goju** | **Sukana** | Kenjakou |
-| **Planète des Guerriers** (Dragon Ball) | Yamcho, Krilin | Piccola, Androïde 81 | Vejeta, Gohon | **Goko** | **Beeros** | Freezo |
-| **Grand Océan** (One Piece) | Kobi, Buggi | Usupp, Nomi | Zoru, Sanjo | **Loffy** | **Shonks** | Amiral Akaino |
-| **Ère des Pourfendeurs** (Demon Slayer) | Genyo, Kanoa | Zenitso, Inosoke | Tanjiru, Nezoko | **Rengoko** | **Yoriichu** | Akazo |
+| **Village Ninja** | Rok Li, Konohamaro | Sakoura, Shikamaro | Sasuki, Kakashu | **Maruto** | **Itochi** | Kourama |
+| **Académie Occulte** | Toudo, Inumako | Nobora, Megumo | Yuzi, Mako | **Goju** | **Sukana** | Kenjakou |
+| **Planète des Guerriers** | Yamcho, Krilin | Piccola, Androïde 81 | Vejeta, Gohon | **Goko** | **Beeros** | Freezo |
+| **Grand Océan** | Kobi, Buggi | Usupp, Nomi | Zoru, Sanjo | **Loffy** | **Shonks** | Amiral Akaino |
+| **Ère des Pourfendeurs** | Genyo, Kanoa | Zenitso, Inosoke | Tanjiru, Nezoko | **Rengoko** | **Yoriichu** | Akazo |
 
-<details>
-<summary>Voir les persos évolués ★★★ et les ennemis</summary>
-
-![Persos évolués](docs/images/personnages_evolues.png)
-
-![Ennemis et boss](docs/images/ennemis.png)
-</details>
-
-### 🎁 Les reliques (à la place des œufs)
-
-![Les reliques](docs/images/relics.png)
-
-| Palier | Prix | Stock / 5 min | Ouverture | Chances |
-|---|---|---|---|---|
-| Commune | 150 | 8 | 12 s | Commun 70 % · Rare 25 % · Épique 4,5 % · Légendaire 0,5 % |
-| Rare | 2 500 | 3 | 60 s | Commun 25 % · Rare 45 % · Épique 24 % · Légendaire 5,5 % · Mythique 0,5 % |
-| Légendaire | 40 000 | 1 (60 % du temps) | 3 min | Rare 20 % · Épique 50 % · Légendaire 25 % · Mythique 5 % |
+L'apparence change à l'évolution : Maruto ★3 en manteau jaune, Goko en super guerrier, Loffy ★3 tout en blanc…
 
 ---
 
-## 💎 Les traits
+## 🛠️ Réglages (par le code)
 
-En plus de son perso, chaque relique a **35 % de chances** de donner un **trait**. Tu peux aussi relancer
-le trait d'un perso au stand **Traits** avec un **Cristal de Trait** (2 offerts au départ, en vente à
-25 000 pièces, lâchés par les boss et parfois par les ennemis forts).
-
-| Rang | Traits |
+| Je veux changer… | Fichier |
 |---|---|
-| Commun | Vigueur I (+10 % puissance), Célérité I (attaque 10 % plus vite), Érudit (+50 % XP) |
-| Rare | Vigueur II, Célérité II, Fortuné (+25 % pièces), Colosse (+60 % PV, plus grand) |
-| Épique | Critique (+15 % de critiques), Vigueur III, Célérité III, Vampire (vol de vie) |
-| Légendaire | Midas (+100 % pièces), Céleste (+100 % puissance, attaque plus vite) |
-| Mythique | **Monarque** (+200 % puissance, +50 % PV, +50 % pièces) |
-
----
-
-## 🗡️ Les épées du Forgeron
-
-![Les épées](docs/images/epees.png)
-
-| Épée | Prix | Dégâts | Effet |
-|---|---|---|---|
-| Épée Rouillée | offerte | 6 | entaille |
-| Lame d'Acier | 1 500 | 18 | entaille |
-| Katana du Vent | 12 000 | 55 | rafales de vent |
-| Lame de Foudre | 60 000 | 160 | éclairs |
-| Lame Solaire | 250 000 | 420 | flammes |
-| Couperet de la Brume | 900 000 | 1 100 | brume tranchante (grande portée) |
-| Lame des Abysses | 3 000 000 | 3 000 | fumée noire |
-| Épée Céleste | 12 000 000 | 8 000 | cristaux de glace |
-
-Les attaques des persos ont aussi leurs effets : éclairs bleus, cristaux de glace, fumée noire, orbes,
-rayons, flammes, croissants de lame…
-
----
-
-## 💎 La pépite : la Fusion Crossover
-
-> Ton document laissait une mécanique à inventer. Voici ma proposition, intégrée au jeu (stand **Fusionner** du hub).
-
-Tu fusionnes **deux persos de deux univers différents** (Épique ou mieux, évolués au moins ★★) pour créer un
-**perso Crossover unique** : coiffure et visage du premier, tenue du second, nom généré automatiquement.
-
-![Fusions](docs/images/fusions.png)
-
-*Exemples : Maruto + Goju = **« Renard de l'Infini »**, Goju + Maruto = **« Infini du Renard »**.*
-
-- Les univers tournent toutes les 30 min : il faut **revenir à plusieurs rotations** pour réunir deux persos compatibles.
-- Ça donne une raison forte d'**échanger**.
-- **320 combinaisons** à découvrir dans l'Index. Le Crossover hérite de la **meilleure aura** et du **meilleur trait**.
-
-Bonus : **auras** (Foudre, Givre, Flamme, Néant, Doré, Arc-en-ciel) et **événements célestes** toutes les 11 minutes
-(Orage Électrique, Éclipse du Néant, Pluie d'Or, Lune de Sang). D'autres idées dans le [document de conception](docs/CONCEPTION.md).
-
----
-
-## 🏗️ Améliorations de la base (boutons « tycoon »)
-
-| Amélioration | Prix | Effet | | Amélioration | Prix | Effet |
-|---|---|---|---|---|---|---|
-| Lanternes de Papier | 600 | +10 % revenus | | Autel de Relique #2 | 1 500 | +1 autel |
-| Tatami d'Entraînement | 3 000 | +50 % XP | | Arène Agrandie | 12 000 | +4 persos exposés |
-| Aimant à Pièces | 7 500 | +25 % pièces de combat | | Bannière d'Équipe #4 | 25 000 | +1 place d'équipe |
-| Fontaine de Chakra | 35 000 | +25 % revenus | | Autel de Relique #3 | 50 000 | +1 autel |
-| Horloge Mystique | 80 000 | −25 % temps d'ouverture | | Grande Arène | 220 000 | +6 persos exposés |
-| Dojo Légendaire | 150 000 | +100 % XP | | Autel de Relique #4 | 450 000 | +1 autel |
-| Coffre du Shogun | 300 000 | +50 % pièces de combat | | Bannière d'Équipe #5 | 600 000 | +1 place d'équipe |
-| Statue Dorée | 900 000 | +50 % revenus | | Sablier Divin | 1 500 000 | −25 % temps d'ouverture |
-
----
-
-## 🛠️ Personnaliser par le code
-
-| Je veux… | Fichier |
-|---|---|
-| Renommer un perso, changer ses couleurs, sa coiffure, sa tenue, ses accessoires, ses évolutions | `src/shared/Config/Characters.luau` |
-| Donner à un perso des objets du catalogue Roblox (cheveux, vêtements, visage) | `src/shared/Config/Avatars.luau` |
-| Ajouter un nom reconnu pour les modèles de la Boîte à outils | `src/shared/Config/NomsOriginaux.luau` |
-| Changer les épées du Forgeron | `src/shared/Config/Swords.luau` |
-| Changer les traits | `src/shared/Config/Traits.luau` |
-| Changer les univers, reliques, ennemis, ambiance lumineuse | `src/shared/Config/Universes.luau` |
-| Changer les prix, la durée des univers (30 min), les boss, les améliorations | `src/shared/Config/Economy.luau` |
-| Changer la taille du hub, de l'anneau, la place des stands | `src/shared/Config/Layout.luau` |
-| Changer les raretés ou les auras | `src/shared/Config/Rarities.luau`, `src/shared/Config/Auras.luau` |
-| Ajouter des admins | `ADMINS` dans `src/server/Services/AdminService.luau` |
+| Les chances et les prix de la machine ROULER, la pitié, le x10, le nombre de cases | `src/shared/Config/Economy.luau` (`RollRarities`, `Roll`, `BaseDisplaySlots`) |
+| Les 28 constructions de la base (prix, effets) | `src/shared/Config/Economy.luau` (`Upgrades`) |
+| La durée des univers (30 min), les boss, les événements, l'argent de départ | `src/shared/Config/Economy.luau` |
+| L'arbre de compétences (cases, prix, effets, position) | `src/shared/Config/SkillTree.luau` |
+| Les univers (noms, reliques, ennemis, ciel, couleurs du sol) | `src/shared/Config/Universes.luau` |
+| Le décor d'un univers (bâtiments, forêts, monuments) | `src/server/World/Themes/` (un fichier par univers) |
+| La déco des bases par univers | `src/server/World/BaseDecor.luau` |
+| Le look des persos, leurs évolutions | `src/shared/Config/Characters.luau` |
+| Des objets du catalogue Roblox sur un perso | `src/shared/Config/Avatars.luau` |
+| Les noms reconnus de la Boîte à outils | `src/shared/Config/NomsOriginaux.luau` |
+| L'attaque signature d'un perso, ses couleurs et sa taille | `src/shared/Config/AttackFx.luau` (`Characters` et `Signatures`) |
+| Les épées, les traits, les raretés, les auras | `Swords.luau`, `Traits.luau`, `Rarities.luau`, `Auras.luau` dans `src/shared/Config/` |
+| Les couleurs de l'interface | `src/client/UI/Theme.luau` (`Theme.Colors`) |
+| La taille du hub, de l'anneau, la place des bases | `src/shared/Config/Layout.luau` (attention : les bases font 140 × 140) |
+| Les admins | `ADMINS` dans `src/server/Services/AdminService.luau` |
 
 ### Pour les développeurs (Rojo)
 
 Le code source est dans `src/` et se synchronise avec [Rojo](https://rojo.space) (`rojo serve`).
-Pour reconstruire le fichier livré, avec la carte, les décors et la galerie déjà construits dedans :
+Pour reconstruire le fichier livré, avec la carte, les décors, la base d'exemple et la galerie déjà construits dedans :
 
 ```bash
 rojo build default.project.json -o build/_rojo.rbxl
 ANIME_PLACE=build/_rojo.rbxl lune run tools/bake.luau build/AnimeTycoon.rbxl
 ```
 
-Vérifications : `selene src`, `stylua src tests`, et les tests Lune :
+Le jeu marche aussi sans cette étape (il construit tout au lancement), mais il n'y a alors rien à voir en mode édition.
+
+Vérifications : `selene src`, `stylua src tests tools`, puis les tests Lune (avec `ANIME_PLACE=build/_rojo.rbxl`) :
 `lune run tests/smoke.luau`, `lune run tests/integration.luau`, `lune run tests/client_smoke.luau`.
 
 | Dossier | Contenu |
 |---|---|
-| `src/shared/Config` | Toutes les données du jeu (persos, univers, économie, épées, traits, disposition de la carte) |
-| `src/shared/Modules` | `CharacterBuilder` (persos R6), `Painter` (visages et tenues dessinés), `CharacterFactory` (modèles perso / catalogue), `SwordBuilder`, `RelicBuilder`, formules |
-| `src/server/World` | Construction de la carte (`WorldBuilder`) et des décors d'univers (`UniverseDecor`) |
-| `src/server/Services` | Les services du serveur (données, bases, combat, épées, hub, traits, fusion, échanges…) |
-| `src/client` | Interface (menus, HUD, révélations), animations des persos, effets visuels |
-| `tools/bake.luau` | Pré-construit le jeu dans le fichier `.rbxl` (pour le voir et le modifier dans Studio) |
+| `src/shared/Config` | Toutes les données du jeu (persos, univers, économie, arbre de compétences, attaques, disposition) |
+| `src/shared/Modules` | `CharacterBuilder` et `Painter` (persos R6), `CharacterFactory` (modèles perso / catalogue / Boîte à outils), `SwordBuilder`, `RelicBuilder`, `Formulas`, `Remotes` |
+| `src/server/World` | La carte (`WorldBuilder`), les décors d'univers (`UniverseDecor`, `DecorKit`, `Kit/`, `Themes/`) et la déco des bases (`BaseDecor`) |
+| `src/server/Modules` | Les éléments de la base tycoon (`TycoonMachine`, `TycoonSlots`, `TycoonStructures`, `TycoonConveyor`, `TycoonProps`, `TycoonKit`) |
+| `src/server/Services` | Les services du serveur (données, bases, machine ROULER, combat, univers, hub, évolution, fusion, traits, épées, échanges…) |
+| `src/client` | L'interface (`UI/`), les animations, les effets d'attaque et les auras (`Controllers/`) |
+| `tools/bake.luau` | Pré-construit le jeu dans le fichier `.rbxl` |
 | `tests` | Tests automatiques Lune (serveur, client, construction) |

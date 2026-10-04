@@ -309,16 +309,35 @@ end)
 
 test("IA de l'équipe : le perso attaque un ennemi proche", function()
 	local CombatService = services.CombatService
-	local enemy = CombatService:NearestEnemy(Vector3.zero, 500)
+	-- Un ennemi bien dans la zone de combat (le joueur posé à côté doit y être aussi).
+	local enemy = nil
+	for _, record in CombatService:GetEnemiesNear(Vector3.zero, 2000) do
+		local p = record.root.CFrame.Position
+		if CombatService:IsInZone(p + Vector3.new(4, 0, 0), 6) and CombatService:IsInZone(p, 6) then
+			enemy = record
+			break
+		end
+	end
 	assert(enemy, "pas d'ennemi")
 	local follower = services.TeamService:GetFollowers(alice)[firstUid]
 	assert(follower, "follower introuvable")
 	local enemyPos = enemy.root.CFrame.Position
 	alice.Character:PivotTo(CFrame.new(enemyPos + Vector3.new(4, 0, 0)))
 	follower.model:PivotTo(CFrame.new(enemyPos + Vector3.new(2, 0, 0)))
-	local hpBefore = enemy.hp
+	-- Le perso peut viser un autre ennemi apparu tout près : on vérifie qu'un ennemi proche a été touché.
+	local nearby = CombatService:GetEnemiesNear(enemyPos, 40)
+	local hpBefore = {}
+	for _, record in nearby do
+		hpBefore[record] = record.hp
+	end
 	services.TeamService:_update(alice, { followers = { [firstUid] = follower }, target = nil }, os.clock() + 100)
-	assert(enemy.hp < hpBefore or not enemy.alive, "le perso n'a pas attaqué")
+	local hit = false
+	for _, record in nearby do
+		if record.hp < hpBefore[record] or not record.alive then
+			hit = true
+		end
+	end
+	assert(hit, "le perso n'a pas attaqué")
 end)
 
 test("Améliorations de base (boutons tycoon)", function()
@@ -760,6 +779,11 @@ test("Rotation d'univers", function()
 	-- toute la carte suit : décor de l'anneau / île / horizon et panneaux des arches du hub
 	local zone = game:GetService("Workspace").World.Zone
 	assert(zone.Decor:GetAttribute("UniverseId") == after, "décor de la carte non changé")
+	-- les bases aussi (murs, portail, sol : World/BaseDecor)
+	for _, plot in services.PlotService:GetPlots() do
+		local decor = plot.model:FindFirstChild("Decor")
+		assert(decor and decor:GetAttribute("UniverseId") == after, "déco de base non changée")
+	end
 	task.wait(1.2)
 	local Universes = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Universes"))
 	local expected = UniverseService.upper(Universes.get(after).name)

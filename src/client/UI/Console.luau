@@ -6,6 +6,7 @@
 
 local ContextActionService = game:GetService("ContextActionService")
 local GuiService = game:GetService("GuiService")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local UserInputService = game:GetService("UserInputService")
 
 local Theme = require(script.Parent.Theme)
@@ -214,6 +215,28 @@ end
 
 local PRIORITY = Enum.ContextActionPriority.High.Value + 10
 
+-- Invites de proximité affichées (Collecter, Acheter, Remplacer l'unité... utilisent aussi X) :
+-- tant qu'une invite est visible, X lui revient au lieu du raccourci ROULER.
+local shownPrompts: { [Instance]: boolean } = {}
+pcall(function()
+	ProximityPromptService.PromptShown:Connect(function(prompt)
+		shownPrompts[prompt] = true
+	end)
+	ProximityPromptService.PromptHidden:Connect(function(prompt)
+		shownPrompts[prompt] = nil
+	end)
+end)
+
+local function promptVisible(): boolean
+	for prompt in shownPrompts do
+		if prompt.Parent and prompt.Enabled then
+			return true
+		end
+		shownPrompts[prompt] = nil
+	end
+	return false
+end
+
 local function bindMenuKeys(open: boolean)
 	pcall(function()
 		if open then
@@ -244,7 +267,7 @@ end
 local function bindWorldKeys()
 	pcall(function()
 		ContextActionService:BindActionAtPriority("AT_Rouler", function(_, state)
-			if state ~= Enum.UserInputState.Begin or Menus.current() ~= nil then
+			if state ~= Enum.UserInputState.Begin or Menus.current() ~= nil or promptVisible() then
 				return Enum.ContextActionResult.Pass
 			end
 			if actions.roll then
