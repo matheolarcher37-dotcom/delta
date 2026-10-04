@@ -671,4 +671,172 @@ function Kit.animateBuild(root: Instance, duration: number?)
 	end
 end
 
+------------------------------------------------------------------------
+-- Hexagones, étiquettes de rareté, effets
+------------------------------------------------------------------------
+
+-- Hexagone plein (« pointe » sur ±X) : union de 3 blocs tournés de 60°.
+-- `cf` = centre du dessus ; `radius` = distance centre → sommet.
+function Kit.hexTile(parent: Instance, name: string, cf: CFrame, radius: number, height: number, color: Color3, props: { [string]: any }?): { Part }
+	local parts = {}
+	local w = radius * math.sqrt(3)
+	for i = 0, 2 do
+		local part = Build.part(parent, name, Vector3.new(radius, height, w), cf * CFrame.Angles(0, math.rad(60 * i), 0) * CFrame.new(0, -height / 2, 0), color, props)
+		table.insert(parts, part)
+	end
+	return parts
+end
+
+-- Hexagone dressé (posé verticalement, face vers -Z local de `cf`), pour les gros boutons.
+function Kit.hexPlate(parent: Instance, name: string, cf: CFrame, radius: number, depth: number, color: Color3, props: { [string]: any }?): { Part }
+	return Kit.hexTile(parent, name, cf * CFrame.Angles(math.rad(-90), 0, 0) * CFrame.new(0, depth / 2, 0), radius, depth, color, props)
+end
+
+-- Dégradé de couleurs (UIGradient) sur un objet d'interface.
+function Kit.gradient(parent: Instance, colors: { Color3 }, rotation: number?): UIGradient
+	local g = Instance.new("UIGradient")
+	local keys = {}
+	if #colors == 1 then
+		keys = { ColorSequenceKeypoint.new(0, colors[1]), ColorSequenceKeypoint.new(1, colors[1]) }
+	else
+		for i, c in colors do
+			table.insert(keys, ColorSequenceKeypoint.new((i - 1) / (#colors - 1), c))
+		end
+	end
+	g.Color = ColorSequence.new(keys)
+	g.Rotation = rotation or 90
+	g.Parent = parent
+	return g
+end
+
+function Kit.text(parent: Instance, name: string, value: string, pos: UDim2, size: UDim2, color: Color3, font: Enum.Font?, strokeColor: Color3?): TextLabel
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.BackgroundTransparency = 1
+	label.Position = pos
+	label.Size = size
+	label.Text = value
+	label.TextColor3 = color
+	label.TextScaled = true
+	label.Font = font or Enum.Font.LuckiestGuy
+	label.TextStrokeTransparency = 0
+	label.TextStrokeColor3 = strokeColor or C.Stroke
+	label.Parent = parent
+	return label
+end
+
+-- Étiquette d'une unité (au-dessus de la tête), style jeux de tirage :
+--   lignes = liste de { text, colors = {..} | color, font?, weight (hauteur relative) }
+-- Nommée « AnimeTag » : le client n'ajoute alors pas sa propre étiquette.
+function Kit.unitTag(adornee: BasePart, lines: { any }, heightStuds: number, offsetY: number, maxDistance: number?): BillboardGui
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "AnimeTag"
+	gui.Adornee = adornee
+	gui.Size = UDim2.new(8, 60, heightStuds, 24)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, offsetY, 0)
+	gui.LightInfluence = 0
+	gui.MaxDistance = maxDistance or 90
+	gui.AlwaysOnTop = false
+	gui.ResetOnSpawn = false
+	gui.Parent = adornee
+	local total = 0
+	for _, line in lines do
+		total += line.weight or 1
+	end
+	local y = 0
+	for i, line in lines do
+		local h = (line.weight or 1) / total
+		local label = Kit.text(gui, line.name or ("Ligne" .. i), line.text, UDim2.fromScale(0, y), UDim2.fromScale(1, h), line.colors and Color3.new(1, 1, 1) or (line.color or Color3.new(1, 1, 1)), line.font)
+		if line.colors then
+			Kit.gradient(label, line.colors, line.rotation or 90)
+		end
+		y += h
+	end
+	return gui
+end
+
+-- Silhouette « ??? » d'un emplacement verrouillé (comme les jeux de tirage).
+function Kit.silhouetteTag(adornee: BasePart, offsetY: number, caption: string?): BillboardGui
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "Silhouette"
+	gui.Adornee = adornee
+	gui.Size = UDim2.new(4.2, 0, 5.4, 0)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, offsetY, 0)
+	gui.LightInfluence = 0
+	gui.MaxDistance = 110
+	gui.Parent = adornee
+	local function block(name: string, pos: UDim2, size: UDim2, round: boolean?)
+		local frame = Instance.new("Frame")
+		frame.Name = name
+		frame.Position = pos
+		frame.Size = size
+		frame.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
+		frame.BorderSizePixel = 0
+		frame.Parent = gui
+		local s = Instance.new("UIStroke")
+		s.Color = Color3.new(1, 1, 1)
+		s.Thickness = 2
+		s.Parent = frame
+		if round then
+			local c = Instance.new("UICorner")
+			c.CornerRadius = UDim.new(0.5, 0)
+			c.Parent = frame
+		end
+		return frame
+	end
+	-- Corps R6 : tête, torse, bras, jambes.
+	block("Tete", UDim2.fromScale(0.33, 0.02), UDim2.fromScale(0.34, 0.2), true)
+	local torso = block("Torse", UDim2.fromScale(0.25, 0.24), UDim2.fromScale(0.5, 0.36))
+	block("BrasG", UDim2.fromScale(0.03, 0.24), UDim2.fromScale(0.2, 0.34))
+	block("BrasD", UDim2.fromScale(0.77, 0.24), UDim2.fromScale(0.2, 0.34))
+	block("JambeG", UDim2.fromScale(0.26, 0.62), UDim2.fromScale(0.23, 0.36))
+	block("JambeD", UDim2.fromScale(0.51, 0.62), UDim2.fromScale(0.23, 0.36))
+	Kit.text(torso, "Mystere", "???", UDim2.fromScale(0.05, 0.25), UDim2.fromScale(0.9, 0.5), Color3.new(1, 1, 1), Enum.Font.GothamBlack)
+	if caption then
+		Kit.text(gui, "Legende", caption, UDim2.fromScale(-0.4, 1.0), UDim2.fromScale(1.8, 0.16), Color3.fromRGB(255, 230, 120), Enum.Font.GothamBold)
+	end
+	return gui
+end
+
+-- Émetteur de particules avec les textures intégrées de Roblox.
+function Kit.particles(parent: Instance, props: { [string]: any }): ParticleEmitter
+	local p = Instance.new("ParticleEmitter")
+	p.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	p.LightEmission = 1
+	p.Rate = 0
+	for key, value in props do
+		(p :: any)[key] = value
+	end
+	p.Parent = parent
+	return p
+end
+
+-- Faisceau lumineux animé (la texture défile toute seule, sans script) entre deux points
+-- exprimés dans le repère de `part`.
+function Kit.beam(part: BasePart, a: Vector3, b: Vector3, props: { [string]: any }): Beam
+	local a0 = Instance.new("Attachment")
+	a0.Name = "BeamA"
+	a0.Position = a
+	a0.Parent = part
+	local a1 = Instance.new("Attachment")
+	a1.Name = "BeamB"
+	a1.Position = b
+	a1.Parent = part
+	local beam = Instance.new("Beam")
+	beam.Attachment0 = a0
+	beam.Attachment1 = a1
+	beam.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	beam.TextureMode = Enum.TextureMode.Wrap
+	beam.TextureLength = 4
+	beam.TextureSpeed = 1
+	beam.LightEmission = 1
+	beam.FaceCamera = true
+	beam.Segments = 1
+	for key, value in props do
+		(beam :: any)[key] = value
+	end
+	beam.Parent = part
+	return beam
+end
+
 return Kit
