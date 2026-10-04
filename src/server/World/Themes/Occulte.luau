@@ -528,7 +528,7 @@ function Occulte.build(decor: Instance, rng: Random, _theme)
 	local shrineCF = facing(SHRINE_ANGLE, SHRINE_RADIUS)
 	local free = Common.islandFree({ { polar(SHRINE_ANGLE, 650), 110 } })
 	Common.forest(island, rng, {
-		groves = 34,
+		groves = 42,
 		perGrove = { 5, 9 },
 		radius = { 22, 40 },
 		free = free,

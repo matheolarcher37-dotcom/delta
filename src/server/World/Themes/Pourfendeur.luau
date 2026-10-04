@@ -817,7 +817,7 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 	local spiderAt = polar(150, 600)
 	local free = Common.islandFree({ { polar(MOUNT_ANGLE, 650), 110 }, { spiderAt, 26 } })
 	Common.forest(island, rng, {
-		groves = 30,
+		groves = 35,
 		perGrove = { 5, 8 },
 		radius = { 20, 38 },
 		free = free,
@@ -878,7 +878,7 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 		local angle = MOUNT_ANGLE - 17 + k * (34 / 23) + rng:NextNumber(-0.6, 0.6)
 		local p = Common.ground(polar(angle, rng:NextNumber(578, 622)))
 		if openGround(p, 3) then
-			Nature.tree("Glycine", mount, p, { rng = rng, height = rng:NextNumber(16, 24), detail = k % 3 == 0 and "hero" or "normal" })
+			Nature.tree("Glycine", mount, p, { rng = rng, height = rng:NextNumber(16, 24), detail = k % 4 == 0 and "normal" or "low" })
 		end
 	end
 	local foot = Common.ground(polar(MOUNT_ANGLE, 600))

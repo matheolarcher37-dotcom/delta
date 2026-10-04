@@ -529,8 +529,8 @@ function Ocean.build(decor: Instance, rng: Random, _theme)
 	local portCenter = polar(PORT_ANGLE, 650)
 	local free = Common.islandFree({ { portCenter, 50 } })
 	Common.forest(island, rng, {
-		groves = 30,
-		perGrove = { 4, 8 },
+		groves = 40,
+		perGrove = { 5, 9 },
 		radius = { 20, 36 },
 		free = free,
 		spacing = 0.4,
