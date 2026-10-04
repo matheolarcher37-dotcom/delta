@@ -2,6 +2,7 @@
 -- éclairs jaunes, cubes violets en orbite, flammes, givre, paillettes dorées, arc-en-ciel.
 
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -166,19 +167,33 @@ function AuraController.init()
 				item.part.CFrame = CFrame.new(center + Vector3.new(math.cos(angle) * item.radius, item.height + math.sin(t * 2 + item.phase) * 0.4, math.sin(angle) * item.radius))
 					* CFrame.Angles(t * 2, t * 1.5, 0)
 			end
-			-- Petits éclairs autour du perso.
+			-- Petits éclairs autour du perso (cœur blanc + halo coloré, parfois une branche).
 			if state.aura.effect == "lightning" and near and t >= state.nextBolt then
-				state.nextBolt = t + rng:NextNumber(0.12, 0.4)
+				local lowQuality = Players.LocalPlayer and Players.LocalPlayer:GetAttribute("FxQuality") == "low"
+				state.nextBolt = t + rng:NextNumber(0.12, 0.4) * (lowQuality and 2 or 1)
 				local s = state.scale
 				local from = center + Vector3.new(rng:NextNumber(-1.8, 1.8), rng:NextNumber(-2, 3), rng:NextNumber(-1.8, 1.8)) * s
 				local previous = from
-				for _ = 1, 3 do
+				for i = 1, 3 do
 					local point = previous + Vector3.new(rng:NextNumber(-1.2, 1.2), rng:NextNumber(-1.5, 0.5), rng:NextNumber(-1.2, 1.2)) * s
 					local length = (point - previous).Magnitude
-					local bolt = newPart(Vector3.new(0.18 * s, 0.18 * s, length), state.aura.color)
-					bolt.CFrame = CFrame.lookAt((previous + point) / 2, point)
+					local cf = CFrame.lookAt((previous + point) / 2, point)
+					local core = newPart(Vector3.new(0.09 * s, 0.09 * s, length), Color3.new(1, 1, 1):Lerp(state.aura.color, 0.25))
+					core.CFrame = cf
+					local halo = newPart(Vector3.new(0.32 * s, 0.32 * s, length + 0.1 * s), state.aura.color)
+					halo.Transparency = 0.6
+					halo.CFrame = cf
+					local parts = { core, halo }
+					if i == 2 and not lowQuality and rng:NextNumber() < 0.5 then
+						local branchEnd = point + Vector3.new(rng:NextNumber(-1, 1), rng:NextNumber(-1, 0.6), rng:NextNumber(-1, 1)) * s
+						local branch = newPart(Vector3.new(0.06 * s, 0.06 * s, (branchEnd - point).Magnitude), state.aura.color)
+						branch.CFrame = CFrame.lookAt((point + branchEnd) / 2, branchEnd)
+						table.insert(parts, branch)
+					end
 					task.delay(0.08, function()
-						bolt:Destroy()
+						for _, part in parts do
+							part:Destroy()
+						end
 					end)
 					previous = point
 				end

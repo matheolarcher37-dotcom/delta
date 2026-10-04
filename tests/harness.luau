@@ -127,7 +127,11 @@ roblox.implementMethod("Instance", "WaitForChild", function(self, name)
 	return child
 end)
 roblox.implementMethod("Sound", "Play", function() end)
-roblox.implementMethod("ParticleEmitter", "Emit", function() end)
+roblox.implementMethod("ParticleEmitter", "Emit", function(emitter, count)
+	if Harness.onEmit then
+		Harness.onEmit(emitter, count) -- aperçus des effets
+	end
+end)
 roblox.implementMethod("Humanoid", "EquipTool", function(humanoid, tool)
 	tool.Parent = humanoid.Parent
 end)

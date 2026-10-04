@@ -176,6 +176,7 @@ local liveCount = 0
 local jobs = {}
 local timers = {}
 local reported = {}
+local droppedJobs = 0 -- animations arrêtées parce que leurs pièces avaient déjà été supprimées
 
 local function report(err)
 	local message = tostring(err)
@@ -265,8 +266,12 @@ local function step()
 		local elapsed = t - item.t0
 		local p = math.min(1, elapsed / item.d)
 		local ok, result = pcall(item.fn, p, elapsed, dt)
-		if not ok and not string.find(tostring(result), "destroyed", 1, true) then
-			report(result)
+		if not ok then
+			if string.find(tostring(result), "destroyed", 1, true) then
+				droppedJobs += 1
+			else
+				report(result)
+			end
 		end
 		if not ok or result == true or p >= 1 then
 			jobs[i] = jobs[#jobs]
@@ -651,7 +656,7 @@ end
 -- Point d'impact : cœur blanc qui éclate + halo coloré + étoile de pointes + lumière.
 local function impactFlash(pos: Vector3, size: number, color: Color3, life: number?, spikes: number?)
 	local l = life or 0.3
-	local core = ball(pos, size * 0.5, lighten(color, 0.85), l, 0)
+	local core = ball(pos, size * 0.5, lighten(color, 0.7), l, 0)
 	local halo = ball(pos, size * 0.8, color, l, 0.4)
 	job(l, function(p)
 		local e = easeOut(p)
@@ -722,13 +727,13 @@ end
 
 -- Dôme d'explosion : cœur blanc + coque colorée + reflet en champ de force.
 local function dome(pos: Vector3, radius: number, color: Color3, duration: number, forcefield: boolean?)
-	local core = ball(pos, radius * 0.5, lighten(color, 0.9), duration, 0)
-	local shell = ball(pos, radius * 0.6, color, duration, 0.3)
+	local core = ball(pos, radius * 0.4, lighten(color, 0.6), duration, 0)
+	local shell = ball(pos, radius * 0.6, color, duration, 0.4)
 	local ff = forcefield and ball(pos, radius * 0.6, lighten(color, 0.3), duration, 0, Enum.Material.ForceField) or nil
 	job(duration, function(p)
 		local e = easeOut(p)
-		setBall(core, pos, radius * (0.5 + 1.1 * e), math.min(1, p * 1.7))
-		setBall(shell, pos, radius * (0.6 + 1.4 * e), 0.3 + 0.7 * p)
+		setBall(core, pos, radius * (0.4 + 0.7 * e), math.min(1, p * 2))
+		setBall(shell, pos, radius * (0.6 + 1.4 * e), 0.4 + 0.6 * p)
 		if ff then
 			setBall(ff, pos, radius * (0.7 + 1.5 * e), p)
 		end
@@ -1077,7 +1082,7 @@ local function screenFlash(color: Color3, alpha: number, duration: number)
 	frame.Name = "FxFlash"
 	frame.Size = UDim2.fromScale(1, 1)
 	frame.BackgroundColor3 = color
-	frame.BackgroundTransparency = 1 - math.min(alpha, 0.45)
+	frame.BackgroundTransparency = 1 - math.min(alpha * 0.7, 0.3)
 	frame.BorderSizePixel = 0
 	frame.ZIndex = 40
 	frame.Active = false
@@ -1350,7 +1355,7 @@ end
 type Ctx = { [string]: any }
 
 local function rootOf(model: Instance?): BasePart?
-	if model and model:IsA("Model") then
+	if model and model.Parent and model:IsA("Model") then
 		local root = model.PrimaryPart or model:FindFirstChild("HumanoidRootPart")
 		if root and root:IsA("BasePart") then
 			return root
@@ -1454,7 +1459,7 @@ local function makeCtx(data, attacker: Model?, target: Instance?, sig, mine: boo
 		end
 		local m = mult or 1
 		shake((sig.shake or 1) * m, 0.25 + 0.2 * m)
-		screenFlash(lighten(ctx.color, 0.6), (sig.flash or 0) * m, 0.35)
+		screenFlash(lighten(ctx.color, 0.35), (sig.flash or 0) * m, 0.35)
 	end
 	return ctx
 end
@@ -1627,11 +1632,12 @@ local FAMILIES = {}
 local function lightHit(ctx: Ctx, size: number?, color: Color3?)
 	local c = color or ctx.color
 	local s = ctx.s * (size or 1)
-	impactFlash(ctx.to, 2.2 * s, c, 0.28, ctx.n(5))
+	impactFlash(ctx.to, 2.8 * s, c, 0.3, ctx.n(6))
 	if ctx.detail > 0.5 then
-		airRing(ctx.to, ctx.to - ctx.root(), 1.8 * s, lighten(c, 0.4), 0.25, 0.2 * s)
+		airRing(ctx.to, ctx.to - ctx.root(), 2.2 * s, lighten(c, 0.4), 0.28, 0.22 * s)
+		shockRing(ctx.ground, 3 * s, c, 0.35, 0.25 * s)
 	end
-	sparks(ctx.to, c, ctx.n(8), 14)
+	sparks(ctx.to, c, ctx.n(12), 18)
 	ctx.impact()
 end
 
@@ -1800,9 +1806,9 @@ local function energyBeam(ctx: Ctx, from: Vector3, to: Vector3, width: number, h
 		end
 		local pulse = 1 + 0.08 * math.sin(elapsed * 40)
 		local w = width * thin * pulse
-		setTube(coreTube, from, tip, w * 0.45, 1 - thin)
+		setTube(coreTube, from, tip, w * 0.32, 1 - thin)
 		setTube(body, from, tip, w, 0.15 + 0.85 * (1 - thin))
-		setTube(halo, from, tip, w * 1.7, 0.72 + 0.28 * (1 - thin))
+		setTube(halo, from, tip, w * 1.7, 0.8 + 0.2 * (1 - thin))
 		if shimmer then
 			setTube(shimmer, from, tip, w * 2.1, 0.2 + 0.8 * (1 - thin))
 		end
@@ -2783,22 +2789,19 @@ FAMILIES.bolt = {
 			if variant == "sky" then
 				-- Nuage d'orage puis foudre géante depuis le ciel.
 				local top = ctx.to + Vector3.new(0, 34, 0)
-				emit(
-					top,
-					{
-						texture = SMOKE,
-						color = Color3.fromRGB(50, 50, 70),
-						light = 0,
-						alpha = 0.2,
-						count = 16,
-						size = 8,
-						grow = true,
-						speedMin = 3,
-						speed = 8,
-						life = 1.4,
-						drag = 2,
-					}
-				)
+				emit(top, {
+					texture = SMOKE,
+					color = Color3.fromRGB(50, 50, 70),
+					light = 0,
+					alpha = 0.2,
+					count = 16,
+					size = 8,
+					grow = true,
+					speedMin = 3,
+					speed = 8,
+					life = 1.4,
+					drag = 2,
+				})
 				after(0.12, function()
 					bolt(top, ctx.to, ctx.color, 1.1 * s, 0.45, { segments = 12, branches = ctx.n(5), flicker = 3 })
 					bolt(top + Vector3.new(4, 0, 2), ctx.to + randomUnit() * 3 * s, ctx.color, 0.5 * s, 0.3, { segments = 10, branches = 2, flicker = 2 })
@@ -2955,20 +2958,17 @@ FAMILIES.flame = {
 				end
 				after(0.2, function()
 					bigImpact(ctx, 1.1, ctx.color, { dome = 3, debris = 12, lava = ctx.color })
-					emit(
-						ctx.to,
-						{
-							texture = FIRE,
-							color = ctx.color2,
-							color2 = ctx.color,
-							count = 40,
-							size = 2.4 * s,
-							speedMin = 6,
-							speed = 18,
-							life = 0.8,
-							gravity = Vector3.new(0, 14, 0),
-						}
-					)
+					emit(ctx.to, {
+						texture = FIRE,
+						color = ctx.color2,
+						color2 = ctx.color,
+						count = 40,
+						size = 2.4 * s,
+						speedMin = 6,
+						speed = 18,
+						life = 0.8,
+						gravity = Vector3.new(0, 14, 0),
+					})
 				end)
 			end
 		end)
@@ -3449,22 +3449,19 @@ HANDLERS.SwordSlash = function(data)
 			{ texture = FIRE, color = color, color2 = Color3.fromRGB(255, 230, 120), count = 12, size = 1.2, speedMin = 2, speed = 6, life = 0.5, gravity = Vector3.new(0, 8, 0) }
 		)
 	elseif kind == "shadow" then
-		emit(
-			position + direction * 2,
-			{
-				texture = SMOKE,
-				color = Color3.fromRGB(15, 10, 20),
-				color2 = color,
-				light = 0,
-				alpha = 0.2,
-				count = 12,
-				size = 1.8,
-				grow = true,
-				speedMin = 1,
-				speed = 4,
-				life = 0.9,
-			}
-		)
+		emit(position + direction * 2, {
+			texture = SMOKE,
+			color = Color3.fromRGB(15, 10, 20),
+			color2 = color,
+			light = 0,
+			alpha = 0.2,
+			count = 12,
+			size = 1.8,
+			grow = true,
+			speedMin = 1,
+			speed = 4,
+			life = 0.9,
+		})
 	elseif kind == "ice" then
 		emit(position + direction * 2, { color = lighten(color, 0.5), count = 16, size = 0.5, speed = 10, life = 0.6 })
 	elseif kind == "wind" or kind == "mist" then
@@ -3866,9 +3863,34 @@ function Effects.handle(kind: string, data)
 	end
 end
 
+-- Horloge des animations (les tests et les aperçus avancent le temps eux-mêmes).
+function Effects.setClock(fn: (() -> number)?)
+	local before = now()
+	now = fn or os.clock
+	-- Les effets en cours gardent leur avancement dans la nouvelle horloge.
+	local offset = now() - before
+	for _, item in jobs do
+		item.t0 += offset
+	end
+	for _, timer in timers do
+		timer.at += offset
+	end
+	for instance, expiry in live do
+		live[instance] = expiry + offset
+	end
+	shakeUntil += offset
+	lastStep = now()
+	lastSweep = now()
+end
+
+-- Force le nettoyage des effets expirés (tests).
+function Effects.sweep()
+	sweep(now())
+end
+
 -- Statistiques (tests et réglage des performances).
 function Effects.stats()
-	return { parts = liveCount, jobs = #jobs, timers = #timers, lights = activeLights, quality = qualityName, highlights = highlightCount }
+	return { parts = liveCount, jobs = #jobs, timers = #timers, lights = activeLights, quality = qualityName, highlights = highlightCount, dropped = droppedJobs }
 end
 
 -- Réglages joueur (menu d'options) : "FxShake" / "FxFlash" (booléens), "FxQuality" ("auto", "high", "medium", "low").
