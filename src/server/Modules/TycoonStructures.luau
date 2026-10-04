@@ -167,7 +167,7 @@ S.distributeur3 = {
 }
 
 S.lanternes = {
-	pad = { -15, -57 },
+	pad = { -15, -56 },
 	build = function(ctx)
 		for _, z in { -57, -49, -41 } do
 			for _, side in { -1, 1 } do
@@ -268,7 +268,7 @@ S.aimant = {
 }
 
 S.remparts = { -- « Allée des Torii » au-dessus du tapis rouge
-	pad = { 15, -57 },
+	pad = { 15, -56 },
 	build = function(ctx)
 		for i, z in { -56, -50, -44 } do
 			Build.torii(ctx.folder, ctx.at(0, 0, z), 13.5, 12.5 - i * 0.4)

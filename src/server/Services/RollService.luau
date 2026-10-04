@@ -424,6 +424,11 @@ function RollService:Collect(player: Player, ref: any)
 	return true, (free and "🎁 Offert : " or "✅ Collecté : ") .. def.name .. " (" .. info.name .. ")"
 end
 
+-- Remet à zéro le délai entre deux roulages (tests, commandes admin).
+function RollService:ResetCooldown(player: Player)
+	lastRoll[player] = nil
+end
+
 function RollService:SetAutoRoll(player: Player, enabled: boolean)
 	local data = self.services.DataService:Get(player)
 	if not data then

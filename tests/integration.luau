@@ -350,6 +350,322 @@ test("Revenus passifs et coffre", function()
 	assert(data.coins >= coins + 500, "coffre non récupéré")
 end)
 
+------------------------------------------------------------------------
+-- Machine ROULER, arbre de compétences, cases d'unités, déco de base
+------------------------------------------------------------------------
+
+local function rollNow(player)
+	services.RollService:ResetCooldown(player)
+	return invoke("Roll", player)
+end
+
+test("Machine ROULER : roulage, estrade, collecte offerte puis payante", function()
+	local data = DataService:Get(alice)
+	local plot = services.PlotService:GetPlot(alice)
+	assert(plot.machine and plot.machine.prompt, "machine absente")
+	table.clear(data.RolledQueue)
+	data.Skills = {}
+	local countBefore = 0
+	for _ in data.characters do
+		countBefore += 1
+	end
+	local ok, results = rollNow(alice)
+	assert(ok and type(results) == "table" and #results == 1, "roulage : " .. tostring(results))
+	assert(#data.RolledQueue == 1, "perso pas sur l'estrade")
+	assert(lastEvent("RollResult", alice), "RollResult non envoyé")
+	local payload = lastEvent("RollResult", alice).args[1]
+	assert(payload.results[1].id and payload.results[1].price and payload.results[1].dps and payload.pity.legendary and payload.x10In, "contenu de RollResult")
+	assert(#plot.rolledFolder:GetChildren() == 1, "modèle du perso tiré absent")
+	local univers = services.UniverseService:GetCurrent()
+	assert(table.find(univers.characters, results[1].id), "perso hors du pool de l'univers actuel")
+	-- Premier perso collecté : offert.
+	data.FirstCollectDone = false
+	data.coins = 0
+	local okFree, msg = invoke("CollectRolled", alice, 1)
+	assert(okFree, "collecte offerte : " .. tostring(msg))
+	assert(#data.RolledQueue == 0 and #plot.rolledFolder:GetChildren() == 0, "estrade non vidée")
+	-- Ensuite on paie le prix.
+	rollNow(alice)
+	local price = data.RolledQueue[1].price
+	assert(price > 0, "prix nul")
+	local okPoor = invoke("CollectRolled", alice, 1)
+	assert(not okPoor, "collecte sans argent acceptée")
+	DataService:AddCoins(alice, price)
+	local okPaid, msg2 = invoke("CollectRolled", alice, 1)
+	assert(okPaid, "collecte payante : " .. tostring(msg2))
+	assert(data.coins == 0, "prix non débité")
+	local count = 0
+	local rolledEntry = nil
+	for _, entry in data.characters do
+		count += 1
+		if entry.rollRarity then
+			rolledEntry = entry
+		end
+	end
+	assert(count == countBefore + 2, "persos non ajoutés")
+	assert(rolledEntry, "rareté de la machine non mémorisée")
+	-- L'invite « Collecter » de l'estrade marche aussi.
+	rollNow(alice)
+	DataService:AddCoins(alice, data.RolledQueue[1].price)
+	local model = plot.rolledFolder:GetChildren()[1]
+	signalFor(model.PrimaryPart.Prompt, "Triggered"):Fire(alice)
+	assert(#data.RolledQueue == 0, "invite Collecter sans effet")
+	-- Le bouton de la machine (invite) roule.
+	services.RollService:ResetCooldown(alice)
+	signalFor(plot.machine.prompt, "Triggered"):Fire(alice)
+	assert(#data.RolledQueue == 1, "le bouton ROULER ne roule pas")
+	table.clear(data.RolledQueue)
+	services.RollService:RenderStage(alice)
+end)
+
+test("Machine ROULER : délai entre deux roulages", function()
+	services.RollService:ResetCooldown(alice)
+	assert(invoke("Roll", alice), "1er roulage")
+	local ok = invoke("Roll", alice)
+	assert(not ok, "roulage sans délai accepté")
+	table.clear(DataService:Get(alice).RolledQueue)
+end)
+
+test("Pitié : Légendaire, Mythique et Secret garantis au seuil", function()
+	local data = DataService:Get(alice)
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
+	local stats = Formulas.playerStats(data)
+	for _, tier in { "legendary", "mythic", "secret" } do
+		table.clear(data.RolledQueue)
+		data.Pity = { legendary = 0, mythic = 0, secret = 0 }
+		data.Pity[tier] = Formulas.pityThreshold(tier, stats.pityMult) - 1
+		local ok, results = rollNow(alice)
+		assert(ok, "roulage")
+		local got = Economy.RollRarities[results[1].rarity].order
+		assert(got >= Economy.RollRarities[tier].order, tier .. " non garanti (obtenu " .. results[1].rarity .. ")")
+		assert(data.Pity[tier] == 0, "compteur de pitié non remis à zéro : " .. tier)
+	end
+	-- Le Secret = le Mythique de l'univers avec l'aura Arc-en-ciel.
+	local secret = data.RolledQueue[1]
+	assert(secret.aura == "arcenciel" and secret.trait, "Secret sans aura ni trait")
+	local panel = services.PlotService:GetPlot(alice).machine.pityLines.legendary
+	assert(panel.Text:find("rouleaux") or panel.Text:find("PROCHAIN"), "panneau de pitié non mis à jour")
+	table.clear(data.RolledQueue)
+	services.RollService:RenderStage(alice)
+end)
+
+test("Chance x10 : tous les N roulages", function()
+	local data = DataService:Get(alice)
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	local every = Formulas.playerStats(data).x10Every
+	data.X10Counter = every - 2
+	rollNow(alice)
+	assert(lastEvent("RollResult", alice).args[1].x10 == false, "x10 trop tôt")
+	assert(lastEvent("RollResult", alice).args[1].x10In == 1, "compte à rebours x10")
+	rollNow(alice)
+	assert(lastEvent("RollResult", alice).args[1].x10 == true, "pas de roulage x10")
+	assert(data.X10Counter == 0, "compteur x10 non remis à zéro")
+	-- Les probabilités x10 favorisent les raretés.
+	local normal = Formulas.rollOdds(1)
+	local boosted = Formulas.rollOdds(10)
+	assert(boosted.legendary > normal.legendary * 5 and boosted.common < normal.common, "chance x10 sans effet")
+	local total = 0
+	for _, p in boosted do
+		total += p
+	end
+	assert(math.abs(total - 1) < 1e-6, "probabilités x10 ≠ 100 %")
+	table.clear(data.RolledQueue)
+end)
+
+test("Arbre de compétences : prérequis, argent, effets", function()
+	local data = DataService:Get(alice)
+	local SkillTree = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.SkillTree"))
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	data.Skills = {}
+	data.coins = 0
+	assert(not invoke("BuySkill", alice, "chance1"), "nœud acheté sans prérequis")
+	assert(not invoke("BuySkill", alice, "coeur"), "nœud acheté sans argent")
+	assert(not invoke("BuySkill", alice, "inconnu"), "nœud inconnu accepté")
+	DataService:AddCoins(alice, 10000000)
+	local coins = data.coins
+	assert(invoke("BuySkill", alice, "coeur"), "cœur")
+	assert(data.coins == coins - SkillTree.get("coeur").cost, "coût non débité")
+	assert(not invoke("BuySkill", alice, "coeur"), "nœud acheté deux fois")
+	local displayBefore = Formulas.playerStats(data).display
+	for _, id in { "chance1", "slots1", "revenu1", "degats1" } do
+		local ok, message = invoke("BuySkill", alice, id)
+		assert(ok, id .. " : " .. tostring(message))
+	end
+	local stats = Formulas.playerStats(data)
+	assert(stats.luck > 1.15, "chance non appliquée")
+	assert(stats.display == displayBefore + 1, "emplacement non ajouté")
+	assert(stats.income > Formulas.upgradeStats(data.upgrades).income, "revenu non appliqué")
+	-- Dégâts : +10 % appliqués par le combat.
+	local enemy = services.CombatService:NearestEnemy(Vector3.zero, 500)
+	assert(enemy, "pas d'ennemi")
+	enemy.hp = 1e9
+	local before = enemy.hp
+	services.CombatService:DamageEnemy(alice, enemy, 100, {})
+	assert(math.abs((before - enemy.hp) - 110) < 0.01, "dégâts de l'arbre non appliqués : " .. (before - enemy.hp))
+	-- Critique : les coups critiques suivent « Dégâts critiques ».
+	data.Skills.critdmg1 = true
+	before = enemy.hp
+	services.CombatService:DamageEnemy(alice, enemy, 100, { crit = true })
+	assert(math.abs((before - enemy.hp) - 100 * 1.1 * 2.25 / 2) < 0.01, "dégâts critiques non appliqués")
+	data.Skills.critdmg1 = nil
+	-- Hologramme de l'arbre dans la base.
+	local plot = services.PlotService:GetPlot(alice)
+	assert(plot.skillRefs.cells.coeur.TextTransparency == 0, "hologramme non mis à jour")
+	-- Le pupitre ouvre l'écran de l'arbre.
+	signalFor(plot.skillRefs.prompt, "Triggered"):Fire(alice)
+	local open = lastEvent("OpenMenu", alice)
+	assert(open and open.args[1] == "SkillTree", "le pupitre n'ouvre pas l'arbre")
+end)
+
+test("Multi-tirage : 2 puis 3 persos par roulage + auto-roulage", function()
+	local data = DataService:Get(alice)
+	table.clear(data.RolledQueue)
+	data.Skills = { coeur = true, taux1 = true, multi1 = true }
+	local ok, results = rollNow(alice)
+	assert(ok and #results == 2, "multi-tirage I : " .. (type(results) == "table" and #results or tostring(results)))
+	table.clear(data.RolledQueue)
+	data.Skills.taux2 = true
+	data.Skills.multi2 = true
+	ok, results = rollNow(alice)
+	assert(ok and #results == 3, "multi-tirage II")
+	assert(#services.PlotService:GetPlot(alice).rolledFolder:GetChildren() == 3, "3 persos attendus sur l'estrade")
+	-- Auto-roulage : refusé sans le nœud, accepté avec.
+	assert(not invoke("SetAutoRoll", alice, true), "auto-roulage sans nœud")
+	data.Skills.autoroll = true
+	assert(invoke("SetAutoRoll", alice, true), "auto-roulage")
+	assert(data.AutoRoll == true, "auto-roulage non enregistré")
+	invoke("SetAutoRoll", alice, false)
+	table.clear(data.RolledQueue)
+	services.RollService:RenderStage(alice)
+end)
+
+test("Estrade pleine : les persos rares ne sont jamais poussés dehors", function()
+	local data = DataService:Get(alice)
+	data.Skills = {}
+	table.clear(data.RolledQueue)
+	for i = 1, 6 do
+		table.insert(data.RolledQueue, { key = "L" .. i, id = "ninja_maruto", rarity = "legendary", stars = 1, price = 45000, dps = 100, at = 0 })
+	end
+	local ok = rollNow(alice)
+	assert(not ok, "roulage accepté avec une estrade pleine de Légendaires")
+	assert(#data.RolledQueue == 6 and data.RolledQueue[1].key == "L1", "Légendaire perdu")
+	-- Avec un Commun dans la file, c'est lui qui part.
+	data.RolledQueue[3] = { key = "C", id = "ninja_rokli", rarity = "common", stars = 1, price = 90, dps = 5, at = 0 }
+	ok = rollNow(alice)
+	assert(ok, "roulage refusé alors qu'un Commun peut partir")
+	for _, item in data.RolledQueue do
+		assert(item.key ~= "C", "le Commun aurait dû partir")
+	end
+	table.clear(data.RolledQueue)
+	services.RollService:RenderStage(alice)
+end)
+
+test("Cases d'unités : « Remplacer l'unité », silhouettes verrouillées", function()
+	local data = DataService:Get(alice)
+	local plot = services.PlotService:GetPlot(alice)
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	assert(#plot.slots == 24, "24 cases attendues")
+	local display = Formulas.playerStats(data).display
+	assert(plot.slots[24].state == "locked" and plot.slots[24].silhouette.Enabled, "case 24 non verrouillée")
+	-- Choisit un perso hors équipe et le place sur la case 2.
+	local uid = nil
+	for id in data.characters do
+		if not table.find(data.team, id) then
+			uid = id
+		end
+	end
+	assert(uid, "aucun perso hors équipe")
+	signalFor(plot.slots[2].prompt, "Triggered"):Fire(alice)
+	local open = lastEvent("OpenMenu", alice)
+	assert(open.args[1] == "PlaceUnit" and open.args[2].slot == 2, "l'invite n'ouvre pas le choix d'unité")
+	local ok, message = invoke("PlaceUnit", alice, 2, uid)
+	assert(ok, "PlaceUnit : " .. tostring(message))
+	assert(services.CharacterService:GetDisplayed(alice)[2] == uid, "unité non placée sur la case 2")
+	assert(plot.slots[2].state == "occupied", "case 2 non occupée")
+	assert(not invoke("PlaceUnit", alice, display + 1, uid), "case verrouillée acceptée")
+	-- Un perso de l'équipe placé sur une case quitte l'équipe.
+	local teamUid = data.team[1]
+	assert(invoke("PlaceUnit", alice, 1, teamUid), "placer un perso d'équipe")
+	assert(not table.find(data.team, teamUid), "le perso est resté dans l'équipe")
+	assert(invoke("EquipCharacter", alice, teamUid, true), "rééquiper")
+	assert(data.DisplayPins["1"] == nil, "le perso rééquipé est resté sur sa case")
+	-- Étiquette nom + étoiles + rareté au-dessus des unités exposées.
+	local tagged = 0
+	for _, model in plot.displayFolder:GetChildren() do
+		if model.PrimaryPart and model.PrimaryPart:FindFirstChild("AnimeTag") then
+			tagged += 1
+		end
+	end
+	assert(tagged >= 1, "pas d'étiquette sur les unités exposées")
+end)
+
+test("Boutons d'achat : panneau, fantôme, construction", function()
+	local plot = services.PlotService:GetPlot(alice)
+	local pads = plot.ownerFolder:FindFirstChild("Pads")
+	local ghosts = plot.ownerFolder:FindFirstChild("Ghosts")
+	assert(pads and #pads:GetChildren() > 0, "aucun bouton d'achat")
+	assert(ghosts and #ghosts:GetChildren() == #pads:GetChildren(), "fantômes manquants")
+	local pad = pads:GetChildren()[1]
+	assert(pad:FindFirstChild("Pad", true):FindFirstChild("PriceGui"), "panneau de prix absent")
+	local upgradeId = pad:GetAttribute("UpgradeId")
+	DataService:AddCoins(alice, pad:GetAttribute("Price"))
+	assert(services.PlotService:BuyUpgrade(alice, upgradeId), "achat")
+	assert(plot.ownerFolder.Structures:FindFirstChild(upgradeId), "structure non construite")
+	assert(not plot.ownerFolder.Ghosts:FindFirstChild(upgradeId), "fantôme resté après l'achat")
+end)
+
+test("Déco de base : change avec l'univers, panneau du propriétaire gardé", function()
+	local BaseDecor = Harness.require(serverFolder.World.BaseDecor)
+	local Universes = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Universes"))
+	local plot = services.PlotService:GetPlot(alice)
+	for _, universe in Universes.List do
+		BaseDecor.applyAll(universe, services.PlotService:GetPlots())
+		assert(plot.model.Decor:GetAttribute("UniverseId") == universe.id, "déco non changée : " .. universe.id)
+		assert(#plot.signLabels >= 2, "panneau du propriétaire absent : " .. universe.id)
+		assert(plot.signLabels[1].Text == "BASE DE ALICE", "panneau du propriétaire perdu : " .. universe.id)
+		assert(plot.model.Decor:FindFirstChild("Portail"), "portail absent : " .. universe.id)
+	end
+	assert(game:GetService("ServerStorage").DecorsBase:FindFirstChild("pourfendeur"), "modèles de déco non rangés")
+	BaseDecor.applyAll(services.UniverseService:GetCurrent(), services.PlotService:GetPlots())
+end)
+
+test("Migration d'une ancienne sauvegarde (v1)", function()
+	local oldId = nextUserId + 1
+	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
+	stores.AnimeTycoon_v1 = stores.AnimeTycoon_v1 or {}
+	stores.AnimeTycoon_v1["player_" .. oldId] = {
+		version = 1,
+		coins = 1234,
+		totalCoins = 5000,
+		materials = {},
+		relics = {},
+		characters = { ["OLD-1"] = { id = "ninja_maruto", level = 12, xp = 0, stars = 1, obtained = 0 } },
+		team = { "OLD-1" },
+		incubators = {},
+		upgrades = { lanternes = true, dojo = true },
+		index = { ninja_maruto = true },
+		stash = 10,
+		stats = { kills = 3 },
+		shop = { window = 0, bought = {} },
+		starterGiven = true,
+	}
+	local carol = addPlayer("Carol")
+	assert(carol.UserId == oldId, "identifiant inattendu")
+	local data = DataService:Get(carol)
+	assert(data.version == 2, "version non migrée")
+	assert(type(data.Skills) == "table" and next(data.Skills) == nil, "Skills manquant")
+	assert(data.Pity.legendary == 0 and data.Pity.mythic == 0 and data.Pity.secret == 0, "Pity manquant")
+	assert(data.RollCount == 0 and data.X10Counter == 0 and data.AutoRoll == false, "compteurs manquants")
+	assert(type(data.RolledQueue) == "table" and type(data.DisplayPins) == "table", "file / cases manquantes")
+	assert(data.FirstCollectDone == true, "un ancien joueur ne doit pas avoir de perso offert")
+	assert(data.coins == 1234 and data.characters["OLD-1"], "anciennes données perdues")
+	assert(data.upgrades.dojo and Economy.UpgradesById.dojo, "ancienne amélioration perdue")
+	local plot = services.PlotService:GetPlot(carol)
+	assert(plot and plot.ownerFolder.Structures:FindFirstChild("dojo"), "structure de l'ancienne sauvegarde non construite")
+	removePlayer(carol)
+end)
+
 test("Évolution à l'Autel d'Éveil", function()
 	local data = DataService:Get(alice)
 	local entry = data.characters[firstUid]
