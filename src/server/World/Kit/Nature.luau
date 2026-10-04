@@ -962,59 +962,41 @@ function Nature.cliff(
 	-- dos de la falaise : masse de roche + pente d'herbe vers l'intérieur des terres
 	rockBlock(Vector3.new(width * 0.96, height, depth * 0.5), cf * CFrame.new(0, height / 2 - 1, depth * 0.2), -0.02)
 	if o.top then
-		-- pente côté terre en plusieurs pans de longueurs et d'orientations différentes (pas un mur
-		-- droit), avec des buttes d'herbe et des rochers qui percent la pente
-		local rampLen = o.ramp or math.clamp(height * 1.3, 12, 34)
-		local segs = math.max(2, math.floor(width / 16))
-		-- bourrelets d'herbe arrondis aux jointures des pans (et aux deux bouts) : cachent les
-		-- flancs verticaux des pans et donnent une pente vallonnée
-		for k = 0, segs do
-			local seam = Core.ellipsoid(
-				model,
-				"CliffSeam",
-				Vector3.new(rng:NextNumber(11, 16), height * rng:NextNumber(1.75, 1.95), rampLen * rng:NextNumber(1.15, 1.4)),
-				cf * CFrame.new(-width / 2 + k * width / segs + rng:NextNumber(-1, 1), -0.4, depth * 0.45 + rampLen * 0.32),
-				shade(o.top, rng:NextNumber(-0.04, 0.04)),
-				LEAF
-			)
-			if o.topRole then
-				Core.solRole(seam, o.topRole, rng:NextNumber(-0.04, 0.04))
-			end
+		-- pente côté terre : un seul plan d'herbe (pas de flancs verticaux visibles), adouci par de
+		-- larges buttes basses et percé de rochers
+		local rampLen = o.ramp or math.clamp(height * 1.45, 14, 36)
+		local ramp = Build.wedge(
+			model,
+			"CliffSlope",
+			Vector3.new(width * 0.98, height + 0.6, rampLen),
+			cf * CFrame.new(0, (height + 0.6) / 2 - 0.6, depth * 0.45 + rampLen / 2) * CFrame.Angles(0, math.pi, 0),
+			o.top,
+			{
+				Material = LEAF,
+			}
+		)
+		if o.topRole then
+			Core.solRole(ramp, o.topRole)
 		end
-		for k = 0, segs - 1 do
-			local sw = width / segs * rng:NextNumber(1.1, 1.35)
-			local x = -width / 2 + (k + 0.5) * width / segs + rng:NextNumber(-1.5, 1.5)
-			local sh = height * rng:NextNumber(0.86, 1.02)
-			local sl = rampLen * rng:NextNumber(0.85, 1.45)
-			local nuance = rng:NextNumber(-0.05, 0.04)
-			local ramp = Build.wedge(
-				model,
-				"CliffSlope",
-				Vector3.new(sw, sh + 0.6, sl),
-				cf * CFrame.new(x, (sh + 0.6) / 2 - 0.6, depth * 0.45 + sl / 2 - 1) * CFrame.Angles(0, math.pi + rng:NextNumber(-0.14, 0.14), 0),
-				shade(o.top, nuance),
-				{
-					Material = LEAF,
-				}
-			)
-			if o.topRole then
-				Core.solRole(ramp, o.topRole, nuance)
-			end
-			local t = rng:NextNumber(0.3, 0.7)
+		local mounds = math.max(2, math.floor(width / 24))
+		for k = 0, mounds - 1 do
+			local x = -width / 2 + (k + 0.5) * width / mounds + rng:NextNumber(-3, 3)
+			local t = rng:NextNumber(0.35, 0.75)
+			local nuance = rng:NextNumber(-0.05, 0.05)
 			local mound = Core.ellipsoid(
 				model,
 				"CliffMound",
-				Vector3.new(sw * rng:NextNumber(0.5, 0.8), rng:NextNumber(2, 4), sl * rng:NextNumber(0.35, 0.55)),
-				cf * CFrame.new(x + rng:NextNumber(-3, 3), sh * (1 - t) - 0.2, depth * 0.45 + sl * t),
-				shade(o.top, nuance + 0.04),
+				Vector3.new(width / mounds * rng:NextNumber(0.9, 1.2), rng:NextNumber(2.4, 4), rampLen * rng:NextNumber(0.45, 0.65)),
+				cf * CFrame.new(x, height * (1 - t) - 0.3, depth * 0.45 + rampLen * t) * CFrame.Angles(math.atan2(height, rampLen), rng:NextNumber(-0.2, 0.2), 0),
+				shade(o.top, nuance),
 				LEAF
 			)
 			if o.topRole then
-				Core.solRole(mound, o.topRole, nuance + 0.04)
+				Core.solRole(mound, o.topRole, nuance)
 			end
 			if rng:NextNumber() < 0.6 then
-				local u = rng:NextNumber(0.25, 0.75)
-				Nature.rock(model, cf * CFrame.new(x + rng:NextNumber(-4, 4), sh * (1 - u) - 1.2, depth * 0.45 + sl * u), rng:NextNumber(3.5, 7), {
+				local u = rng:NextNumber(0.25, 0.7)
+				Nature.rock(model, cf * CFrame.new(x + rng:NextNumber(-6, 6), height * (1 - u) - 1.4, depth * 0.45 + rampLen * u), rng:NextNumber(3.5, 7), {
 					rng = rng,
 					color = color,
 					slot = "Eboulis",

@@ -94,6 +94,59 @@ local function templeHall(parent: Instance, cf: CFrame, w: number, d: number, h:
 	return model
 end
 
+-- Entrepôt de l'école (kura) : soubassement de pierre sombre à joints blancs (namako), murs
+-- enduits blancs, lourde porte, petite fenêtre à barreaux, toit de tuiles et blason sur le pignon.
+local function kura(parent: Instance, cf: CFrame, rng: Random): Model
+	local model = Core.slot(parent, "Entrepot", cf, 16)
+	pcall(function()
+		model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	end)
+	local w, d, h = rng:NextNumber(9, 11), rng:NextNumber(7.5, 9), rng:NextNumber(8.5, 10)
+	Archi.plinth(model, cf, w + 1.4, d + 1.4, 0.8, STONE, Enum.Material.Cobblestone)
+	local base = cf * CFrame.new(0, 0.8, 0)
+	Archi.walls(model, base, w, d, h, PLASTER, { base = rgb(52, 52, 60), baseHeight = 2.6, band = DARK_WOOD })
+	-- joints blancs en losanges sur le soubassement (namako)
+	for i = 0, math.floor(w / 1.6) do
+		local x = -w / 2 + 0.8 + i * 1.6
+		if x < w / 2 - 0.4 then
+			Build.deco(
+				model,
+				"Namako",
+				Vector3.new(0.18, 1.6, 0.08),
+				base * CFrame.new(x, 1.3, -d / 2 - 0.05) * CFrame.Angles(0, 0, math.rad(45)),
+				rgb(232, 230, 222),
+				{ CastShadow = false }
+			)
+			Build.deco(
+				model,
+				"Namako",
+				Vector3.new(0.18, 1.6, 0.08),
+				base * CFrame.new(x, 1.3, -d / 2 - 0.05) * CFrame.Angles(0, 0, math.rad(-45)),
+				rgb(232, 230, 222),
+				{ CastShadow = false }
+			)
+		end
+	end
+	Archi.door(model, base * CFrame.new(-w / 4, 0, -d / 2 - 0.05), 3, 5.6, { color = rgb(40, 34, 32), frame = DARK_WOOD, step = true })
+	Archi.window(model, base * CFrame.new(w / 4, h * 0.62, -d / 2 - 0.05), 1.8, 1.6, { frame = DARK_WOOD, bars = true, glass = rgb(30, 26, 30) })
+	Archi.gableRoof(model, base * CFrame.new(0, h, 0), w, d, 3, 1.6, ROOF, { trim = DARK_WOOD, ridge = rgb(30, 28, 34), rafters = DARK_WOOD, gableFill = PLASTER })
+	-- blason sur le pignon latéral
+	local crest = Build.deco(model, "Crest", Vector3.new(0.12, 1.6, 1.6), base * CFrame.new(w / 2 + 0.08, h + 1.1, 0), rgb(30, 26, 30), { Shape = Enum.PartType.Cylinder })
+	crest.CastShadow = false
+	Build.deco(
+		model,
+		"CrestMark",
+		Vector3.new(0.14, 0.9, 0.9),
+		base * CFrame.new(w / 2 + 0.12, h + 1.1, 0) * CFrame.Angles(math.rad(45), 0, 0),
+		rgb(236, 230, 214),
+		{ CastShadow = false }
+	)
+	if rng:NextNumber() < 0.6 then
+		Props.barrel(model, base * CFrame.new(w / 2 - 1, 0, -d / 2 - 1.4), 0.8)
+	end
+	return model
+end
+
 -- Pagode à cinq étages avec flèche à anneaux (sōrin).
 local function pagoda(parent: Instance, cf: CFrame): Model
 	local model = Core.slot(parent, "Pagode", cf, 74)
@@ -373,6 +426,13 @@ function Occulte.build(decor: Instance, rng: Random, _theme)
 	corridor(school, polar(200, 300, TOP_RING), polar(222, 300, TOP_RING))
 	-- allée de gravier devant l'école
 	Common.ringStreet(school, 268, 284, "dalle", rng)
+	-- entrepôts (kura) en seconde rangée, là où il n'y a ni galerie ni grand bâtiment
+	for _, angle in { 54, 70, 110, 130, 232, 240, 254, 284, 312, 336, 356, 6 } do
+		local pos = polar(angle, 287)
+		if not Layout.onPath(pos, 10) and not Layout.inBossArena(pos, 14) then
+			kura(school, facing(angle + rng:NextNumber(-0.8, 0.8), 287, TOP_RING), rng)
+		end
+	end
 
 	-- 2) Cimetière brumeux (entre 170° et 192°).
 	local cemetery = Build.folder(ring, "Cimetiere")
@@ -462,7 +522,7 @@ function Occulte.build(decor: Instance, rng: Random, _theme)
 			{ CastShadow = false }
 		)
 	end)
-	Common.ringGround(ring, rng, { patches = 24, tufts = 260, flowers = 40, flowerColors = { rgb(200, 40, 50), rgb(140, 100, 200) }, patchRole = "herbe" })
+	Common.ringGround(ring, rng, { patches = 44, tufts = 300, flowers = 40, flowerColors = { rgb(200, 40, 50), rgb(140, 100, 200) }, patchRole = "herbe" })
 
 	-- 6) Île : forêt de cèdres sombres, érables rouges, arbres morts, torii perdus.
 	local shrineCF = facing(SHRINE_ANGLE, SHRINE_RADIUS)

@@ -408,15 +408,17 @@ function Ocean.build(decor: Instance, rng: Random, _theme)
 	local town = Build.folder(ring, "Ville")
 
 	-- 1) Ville portuaire : deux rangées de maisons pastel.
+	-- rangée extérieure serrée (tous les 7,5°), rangée intérieure plus basse (tous les 15°)
 	for i = 0, 47 do
 		local angle = i * 7.5 + 3.75 + rng:NextNumber(-1, 1)
-		local outer = i % 2 == 0
-		local radius = outer and 316 or 292
-		local pos = polar(angle, radius)
-		local reserved = Common.angleDiff(angle, 300) < 10 or Common.angleDiff(angle, 120) < 13
-		if not Layout.onPath(pos, 10) and not reserved and not Layout.inBossArena(pos, 14) then
-			local size = Vector3.new(rng:NextNumber(13, 18), outer and rng:NextNumber(14, 20) or rng:NextNumber(10, 13), rng:NextNumber(11, 13))
-			portHouse(town, facing(angle, radius, TOP_RING), size, rng)
+		for _, outer in { true, false } do
+			local radius = outer and 316 or 292
+			local pos = polar(angle, radius)
+			local reserved = Common.angleDiff(angle, 300) < 10 or Common.angleDiff(angle, 120) < 13
+			if (outer or i % 2 == 1) and not Layout.onPath(pos, 10) and not reserved and not Layout.inBossArena(pos, 14) then
+				local size = Vector3.new(rng:NextNumber(13, 17), outer and rng:NextNumber(14, 20) or rng:NextNumber(10, 13), rng:NextNumber(11, 12.5))
+				portHouse(town, facing(angle, radius, TOP_RING), size, rng)
+			end
 		end
 	end
 	Common.ringStreet(town, 266, 280, "pave", rng)
