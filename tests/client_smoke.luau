@@ -169,6 +169,12 @@ local alice
 local services = {}
 local Menus
 
+-- Détection du mode de jeu (clavier / manette) simulée.
+Harness.services.UserInputService.LastInputTypeChanged = newSignal()
+Harness.services.UserInputService.GetLastInputType = function()
+	return roblox.Enum.UserInputType.MouseMovement
+end
+
 local function makePlayer(name, userId)
 	local player = Instance.new("Player")
 	player.Name = name
@@ -259,7 +265,7 @@ test("Remplissage : plusieurs persos, auras, fusion", function()
 	task.wait(0.5)
 end)
 
-for _, menuName in { "Inventory", "Index", "Guide", "Shop", "Evolution", "Fusion" } do
+for _, menuName in { "Inventory", "Index", "Guide", "Shop", "Evolution", "Fusion", "MainMenu", "Event", "SkillTree", "Traits", "Forge" } do
 	test("Menu " .. menuName, function()
 		local before = #warnings
 		Menus.open(menuName)
@@ -291,6 +297,102 @@ test("Inventaire : sélection et actions", function()
 	-- Clique sur tous les boutons du panneau de détail (équiper, verrouiller, vendre x2).
 	Menus.close("Inventory")
 	expectNoNewWarnings(before, "inventaire")
+end)
+
+test("Inventaire : onglet Objets et fiche d'unité", function()
+	local before = #warnings
+	local gui = alice.PlayerGui.AnimeTycoonUI
+	Menus.open("Inventory")
+	task.wait(0.2)
+	local sheet = nil
+	for _, d in gui:GetDescendants() do
+		if d.Name == "UnitSheet" then
+			sheet = d
+		end
+	end
+	assert(sheet, "pas de fiche d'unité")
+	for _, key in { "dmg", "spa", "crit", "critdmg" } do
+		assert(sheet:FindFirstChild("Stat_" .. key, true), "tuile de statistique manquante : " .. key)
+	end
+	Menus.open("Inventory", "items")
+	task.wait(0.2)
+	Menus.close("Inventory")
+	expectNoNewWarnings(before, "objets")
+end)
+
+test("Arbre de compétences : nœuds hexagonaux et achat", function()
+	local before = #warnings
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local SkillTreeMenu = Harness.require(client.UI.SkillTreeMenu)
+	local State = Harness.require(client.State)
+	assert(SkillTreeMenu.nodeCount() == #State.skillTree().Nodes, "nœuds manquants")
+	assert(SkillTreeMenu.nodeCount() >= 20, "arbre trop petit")
+	Menus.open("SkillTree")
+	task.wait(0.1)
+	-- Le HUD se cache pendant l'arbre (plein écran).
+	assert(alice.PlayerGui.AnimeTycoonUI.HUD.Visible == false, "le HUD devrait être caché")
+	SkillTreeMenu.select(State.skillTree().Nodes[1].id, true)
+	SkillTreeMenu.buy(State.skillTree().Nodes[1].id)
+	task.wait(0.2)
+	for _ = 1, 5 do
+		Harness.services.RunService.RenderStepped:Fire(1 / 60)
+	end
+	Menus.close("SkillTree")
+	assert(alice.PlayerGui.AnimeTycoonUI.HUD.Visible == true, "le HUD devrait réapparaître")
+	expectNoNewWarnings(before, "arbre")
+end)
+
+test("Révélation des persos tirés (RollResult)", function()
+	local before = #warnings
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local RollReveal = Harness.require(client.UI.RollReveal)
+	RollReveal.show({
+		results = {
+			{ id = "occ_goju", stars = 1, rarity = "mythic", price = 250000, dps = 4200 },
+			{ id = "ninja_maruto", stars = 1, rarity = "rare", price = 900, dps = 80 },
+			{ id = "sai_goko", stars = 1, rarity = "secret", price = 1000000, dps = 9000 },
+		},
+		pity = { legendary = 10, mythic = 100, secret = 1000 },
+		x10In = 4,
+		x10 = true,
+	})
+	task.wait(0.4)
+	local strip = alice.PlayerGui.AnimeTycoonUI.RollReveal.Strip
+	local cards = 0
+	for _, d in strip:GetDescendants() do
+		if string.sub(d.Name, 1, 8) == "RollCard" then
+			cards += 1
+		end
+	end
+	assert(cards == 3, "3 cartes attendues, " .. cards .. " trouvées")
+	for _ = 1, 10 do
+		Harness.services.RunService.RenderStepped:Fire(1 / 60)
+	end
+	task.wait(3.2)
+	expectNoNewWarnings(before, "révélation du roulage")
+end)
+
+test("Manette : indications A/B et sélection automatique", function()
+	local before = #warnings
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local Console = Harness.require(client.UI.Console)
+	Harness.services.UserInputService.LastInputTypeChanged:Fire(roblox.Enum.UserInputType.Gamepad1)
+	task.wait(0.1)
+	assert(Console.isGamepad(), "mode manette non détecté")
+	Menus.open("MainMenu")
+	task.wait(0.2)
+	local visibleHints = 0
+	for _, d in alice.PlayerGui.AnimeTycoonUI:GetDescendants() do
+		if string.sub(d.Name, 1, 8) == "PadHint_" and d.Visible then
+			visibleHints += 1
+		end
+	end
+	assert(visibleHints > 0, "aucune indication de bouton de manette")
+	Menus.close("MainMenu")
+	Harness.services.UserInputService.LastInputTypeChanged:Fire(roblox.Enum.UserInputType.MouseMovement)
+	task.wait(0.1)
+	assert(not Console.isGamepad(), "retour clavier/souris non détecté")
+	expectNoNewWarnings(before, "manette")
 end)
 
 test("Effets de combat et récompenses", function()

@@ -708,7 +708,10 @@ function HUD.init(gui: ScreenGui)
 		local crystals = data.traitCrystals or 0
 		displayed.crystals = crystals
 		refs.crystals.Text = Formulas.formatNumber(crystals)
-		refs.income.Text = "+" .. Formulas.formatNumber(player:GetAttribute("IncomePerSec") or 0) .. " /s   ·   Puissance " .. Formulas.formatNumber(player:GetAttribute("TeamPower") or 0)
+		refs.income.Text = "+"
+			.. Formulas.formatNumber(player:GetAttribute("IncomePerSec") or 0)
+			.. " /s   ·   Puissance "
+			.. Formulas.formatNumber(player:GetAttribute("TeamPower") or 0)
 	end)
 
 	task.spawn(function()

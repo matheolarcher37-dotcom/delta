@@ -1379,7 +1379,14 @@ function Components.traitChip(parent: Instance, traitId: string, size: UDim2, po
 	Theme.corner(8).Parent = chip
 	Theme.stroke(Traits.TierColors[trait.tier] or C.Stroke, 2).Parent = chip
 	Theme.gradient({ Theme.light(trait.color, 0.2), Theme.dark(trait.color, 0.35) }, 90).Parent = chip
-	Theme.label({ Text = "◆ " .. trait.name, Size = UDim2.fromScale(0.94, 0.86), Position = UDim2.fromScale(0.03, 0.07), FontFace = Theme.Faces.Heavy, ZIndex = chip.ZIndex + 1, Parent = chip })
+	Theme.label({
+		Text = "◆ " .. trait.name,
+		Size = UDim2.fromScale(0.94, 0.86),
+		Position = UDim2.fromScale(0.03, 0.07),
+		FontFace = Theme.Faces.Heavy,
+		ZIndex = chip.ZIndex + 1,
+		Parent = chip,
+	})
 	return chip
 end
 

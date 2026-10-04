@@ -210,7 +210,8 @@ function Trade.init(gui: ScreenGui)
 	refs.materials = Components.scroll(side, { Size = UDim2.new(1, -16, 1, -150), Position = UDim2.fromOffset(8, 30) })
 	Theme.list(Enum.FillDirection.Vertical, 4, Enum.HorizontalAlignment.Left).Parent = refs.materials
 	-- Pièces : boutons rapides (manette) + saisie libre (clavier)
-	local coinsRow = new("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 10, 1, -66), Size = UDim2.new(1, -20, 0, 44), BackgroundTransparency = 1, Parent = side })
+	local coinsRow =
+		new("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 10, 1, -66), Size = UDim2.new(1, -20, 0, 44), BackgroundTransparency = 1, Parent = side })
 	local layout = Theme.list(Enum.FillDirection.Horizontal, 6, Enum.HorizontalAlignment.Left)
 	layout.VerticalAlignment = Enum.VerticalAlignment.Center
 	layout.Parent = coinsRow

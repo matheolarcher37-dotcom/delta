@@ -572,7 +572,8 @@ local function buildScreen(gui: ScreenGui)
 	Theme.corner(18).Parent = infoHex
 	Theme.stroke(rgb(130, 210, 255), 2.5).Parent = infoHex
 	refs.infoHex = infoHex
-	refs.infoIcon = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(56, 56), BackgroundTransparency = 1, Parent = infoHex })
+	refs.infoIcon =
+		new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(56, 56), BackgroundTransparency = 1, Parent = infoHex })
 	refs.infoName = Theme.label({
 		Position = UDim2.fromOffset(112, 12),
 		Size = UDim2.new(1, -350, 0, 30),

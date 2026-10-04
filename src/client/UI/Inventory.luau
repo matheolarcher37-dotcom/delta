@@ -65,8 +65,7 @@ local function renderSheet()
 	local entry = data and selected and data.characters[selected]
 	if not entry then
 		local empty = Components.sheet(holder, { Size = UDim2.fromScale(1, 1) })
-		Components.emptyState(empty, "Choisis une unité pour voir sa fiche.\nRoule à la machine ROULER de ta base pour en obtenir !", "unit").Position =
-			UDim2.new(0, 10, 0.3, 0)
+		Components.emptyState(empty, "Choisis une unité pour voir sa fiche.\nRoule à la machine ROULER de ta base pour en obtenir !", "unit").Position = UDim2.new(0, 10, 0.3, 0)
 		return
 	end
 	local uid = selected :: string

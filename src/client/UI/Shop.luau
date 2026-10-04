@@ -92,7 +92,14 @@ function Shop.render()
 		Theme.round().Parent = band
 		Theme.stroke(C.Stroke, 2).Parent = band
 		Theme.gradient({ Theme.light(color, 0.3), color, Theme.dark(color, 0.25) }, 90).Parent = band
-		Theme.label({ Text = "RELIQUE " .. (TIER_NAMES[relic.tier] or ""), Size = UDim2.new(1, -16, 1, -6), Position = UDim2.fromOffset(8, 3), FontFace = Theme.Faces.Title, ZIndex = 4, Parent = band })
+		Theme.label({
+			Text = "RELIQUE " .. (TIER_NAMES[relic.tier] or ""),
+			Size = UDim2.new(1, -16, 1, -6),
+			Position = UDim2.fromOffset(8, 3),
+			FontFace = Theme.Faces.Title,
+			ZIndex = 4,
+			Parent = band,
+		})
 
 		local preview = new("Frame", { Size = UDim2.new(1, -16, 0, 130), Position = UDim2.fromOffset(8, 44), BackgroundTransparency = 1, ZIndex = 2, Parent = card })
 		local glow = new("Frame", {
@@ -108,7 +115,13 @@ function Shop.render()
 		Theme.gradient({ WHITE, WHITE }, 90, { 0.3, 1 }).Parent = glow
 		Components.relicViewport(preview, relic, true).ZIndex = 2
 		Theme.label({ Text = relic.name, Size = UDim2.new(1, -20, 0, 30), Position = UDim2.fromOffset(10, 176), FontFace = Theme.Faces.Title, StrokeThickness = 2.5, Parent = card })
-		Components.pill(card, "hourglass", "Ouverture : " .. tier.hatchTime .. " s", C.Gold, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 210), Size = UDim2.fromOffset(200, 30) })
+		Components.pill(
+			card,
+			"hourglass",
+			"Ouverture : " .. tier.hatchTime .. " s",
+			C.Gold,
+			{ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 210), Size = UDim2.fromOffset(200, 30) }
+		)
 
 		-- Probabilités
 		local odds = new("Frame", { Size = UDim2.new(1, -24, 0, 120), Position = UDim2.fromOffset(12, 248), BackgroundTransparency = 1, Parent = card })

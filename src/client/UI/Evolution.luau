@@ -129,7 +129,14 @@ local function renderDetail()
 		Theme.stroke(C.Gold, 2.5).Parent = maxBox
 		Theme.gradient({ Theme.dark(C.Gold, 0.4), Color3.fromRGB(20, 16, 8) }, 90).Parent = maxBox
 		Theme.sparkles(maxBox, 6, 9, 0.6)
-		Theme.label({ Text = "MAX\n★★★", Size = UDim2.fromScale(0.8, 0.5), Position = UDim2.fromScale(0.1, 0.25), FontFace = Theme.Faces.Title, TextColor3 = C.Gold, Parent = maxBox })
+		Theme.label({
+			Text = "MAX\n★★★",
+			Size = UDim2.fromScale(0.8, 0.5),
+			Position = UDim2.fromScale(0.1, 0.25),
+			FontFace = Theme.Faces.Title,
+			TextColor3 = C.Gold,
+			Parent = maxBox,
+		})
 	end
 
 	-- Conditions

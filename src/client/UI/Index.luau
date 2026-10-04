@@ -41,9 +41,19 @@ local function lockedCard(parent: Instance, rarityId: string, order: number)
 	Theme.corner(14).Parent = face
 	Theme.stroke(Theme.dark(tint, 0.35), 3).Parent = face
 	Theme.gradient({ Color3.fromRGB(30, 30, 40), Color3.fromRGB(14, 14, 20), Theme.dark(tint, 0.75) }, 90).Parent = face
-	local silhouette = new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.1), Size = UDim2.fromScale(0.62, 0.52), BackgroundTransparency = 1, Parent = face })
+	local silhouette =
+		new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.1), Size = UDim2.fromScale(0.62, 0.52), BackgroundTransparency = 1, Parent = face })
 	Icons.make("unit", silhouette, { px = 70, color = Color3.fromRGB(8, 8, 12), ink = Color3.fromRGB(8, 8, 12), shadow = false })
-	Theme.label({ Text = "?", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.16), Size = UDim2.fromScale(0.4, 0.3), FontFace = Theme.Faces.Title, TextColor3 = Theme.light(tint, 0.3), ZIndex = 3, Parent = face })
+	Theme.label({
+		Text = "?",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0.16),
+		Size = UDim2.fromScale(0.4, 0.3),
+		FontFace = Theme.Faces.Title,
+		TextColor3 = Theme.light(tint, 0.3),
+		ZIndex = 3,
+		Parent = face,
+	})
 	local strip = new("Frame", {
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.fromScale(0, 1),
@@ -54,7 +64,15 @@ local function lockedCard(parent: Instance, rarityId: string, order: number)
 		Parent = face,
 	})
 	Theme.corner(12).Parent = strip
-	Theme.label({ Text = "???", Size = UDim2.new(0.94, 0, 0.52, 0), Position = UDim2.fromScale(0.03, 0.04), FontFace = Theme.Faces.Title, TextColor3 = C.TextDim, ZIndex = 4, Parent = strip })
+	Theme.label({
+		Text = "???",
+		Size = UDim2.new(0.94, 0, 0.52, 0),
+		Position = UDim2.fromScale(0.03, 0.04),
+		FontFace = Theme.Faces.Title,
+		TextColor3 = C.TextDim,
+		ZIndex = 4,
+		Parent = strip,
+	})
 	Theme.label({
 		Text = info.name,
 		Size = UDim2.new(0.94, 0, 0.36, 0),

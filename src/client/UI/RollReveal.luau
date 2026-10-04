@@ -225,7 +225,12 @@ function RollReveal.show(payload)
 		task.delay(0.25, function()
 			SoundService:PlayLocalSound(rareSound)
 			flashScreen(info.rainbow and WHITE or info.color)
-			Notifications.announce(string.upper(info.name) .. " !", (def and def.name or "Un perso rare") .. " t'attend sur l'estrade !", info.rainbow and C.Magenta or info.color, true)
+			Notifications.announce(
+				string.upper(info.name) .. " !",
+				(def and def.name or "Un perso rare") .. " t'attend sur l'estrade !",
+				info.rainbow and C.Magenta or info.color,
+				true
+			)
 		end)
 	end
 	-- Les cartes restent un moment puis s'envolent.

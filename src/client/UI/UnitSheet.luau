@@ -132,9 +132,7 @@ function UnitSheet.statTile(parent: Instance, key: string, value: string, props:
 	return tile
 end
 
-export type SheetActions = {
-	{ text: string, color: Color3, icon: string?, onClick: () -> () }
-}
+export type SheetActions = { { text: string, color: Color3, icon: string?, onClick: () -> () } }
 
 -- Construit la fiche dans `parent` (prend toute la place). `actions` = boutons en bas à droite.
 function UnitSheet.build(parent: Instance, entry, actions: SheetActions?): Frame?

@@ -77,7 +77,8 @@ local function slotFrame(parent: Instance, x: number, uid: string?, label: strin
 		})
 	else
 		Theme.gradient({ Color3.fromRGB(30, 30, 42), Color3.fromRGB(14, 14, 20) }, 90).Parent = frame
-		local plus = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.4), Size = UDim2.fromOffset(60, 60), BackgroundTransparency = 1, Parent = frame })
+		local plus =
+			new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.4), Size = UDim2.fromOffset(60, 60), BackgroundTransparency = 1, Parent = frame })
 		Icons.make("unit", plus, { px = 60, color = Color3.fromRGB(90, 90, 115), ink = C.PanelDark })
 		Theme.label({
 			Text = "UNITÉ " .. label,
@@ -127,7 +128,10 @@ render = function()
 	Components.bigSymbol(refs.top, "plus", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.32, 0.5) })
 	slotFrame(refs.top, 0.36, slotB, "B")
 	Components.bigSymbol(refs.top, "arrowRight", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.68, 0.5) })
-	local result = new("Frame", { Name = "Result", Size = UDim2.new(0.28, 0, 1, 0), Position = UDim2.fromScale(0.72, 0), BackgroundColor3 = WHITE, ClipsDescendants = true, Parent = refs.top })
+	local result = new(
+		"Frame",
+		{ Name = "Result", Size = UDim2.new(0.28, 0, 1, 0), Position = UDim2.fromScale(0.72, 0), BackgroundColor3 = WHITE, ClipsDescendants = true, Parent = refs.top }
+	)
 	Theme.corner(14).Parent = result
 	Theme.rainbowStroke(result, 4)
 	Theme.gradient({ Color3.fromRGB(40, 20, 60), Color3.fromRGB(14, 10, 24) }, 90).Parent = result
@@ -142,7 +146,8 @@ render = function()
 		if desc then
 			local holder = new("Frame", { Size = UDim2.new(1, 0, 1, -34), Position = UDim2.fromOffset(0, 10), BackgroundTransparency = 1, Parent = result })
 			Components.characterViewport(holder, desc.look, true)
-			local name = Theme.label({ Text = desc.name, Size = UDim2.new(1, -10, 0, 24), Position = UDim2.new(0, 5, 1, -28), FontFace = Theme.Faces.Title, ZIndex = 3, Parent = result })
+			local name =
+				Theme.label({ Text = desc.name, Size = UDim2.new(1, -10, 0, 24), Position = UDim2.new(0, 5, 1, -28), FontFace = Theme.Faces.Title, ZIndex = 3, Parent = result })
 			Theme.gradient(Theme.RainbowColors, 0).Parent = name
 			Theme.label({
 				Text = "Puissance " .. Formulas.formatNumber(Formulas.power(preview)),
@@ -156,7 +161,14 @@ render = function()
 		end
 		sameUniverse = Formulas.describe(entryA).universe == Formulas.describe(entryB).universe
 	else
-		Theme.label({ Text = "?", Size = UDim2.fromScale(0.5, 0.42), Position = UDim2.fromScale(0.25, 0.22), FontFace = Theme.Faces.Title, TextColor3 = Color3.fromRGB(200, 160, 255), Parent = result })
+		Theme.label({
+			Text = "?",
+			Size = UDim2.fromScale(0.5, 0.42),
+			Position = UDim2.fromScale(0.25, 0.22),
+			FontFace = Theme.Faces.Title,
+			TextColor3 = Color3.fromRGB(200, 160, 255),
+			Parent = result,
+		})
 		Theme.label({ Text = "CROSSOVER", Size = UDim2.new(1, -16, 0, 24), Position = UDim2.new(0, 8, 0.7, 0), FontFace = Theme.Faces.Title, Parent = result })
 	end
 
@@ -193,11 +205,8 @@ render = function()
 		return eligible(entry)
 	end)
 	if #list == 0 then
-		Components.emptyState(
-			refs.list,
-			"Aucune unité éligible : fais évoluer des unités Épiques ou mieux au rang ★★ (menu Évolution) !",
-			"fusion"
-		).Size = UDim2.new(1, -20, 0, 140)
+		Components.emptyState(refs.list, "Aucune unité éligible : fais évoluer des unités Épiques ou mieux au rang ★★ (menu Évolution) !", "fusion").Size =
+			UDim2.new(1, -20, 0, 140)
 	end
 	for i, item in list do
 		if i > 36 then

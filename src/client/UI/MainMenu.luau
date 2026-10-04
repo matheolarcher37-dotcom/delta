@@ -168,7 +168,8 @@ local function eventCard(parent: Instance, event, order: number)
 	stroke.Parent = card
 	Theme.gradient({ Theme.dark(event.color, 0.25), Theme.dark(event.color, 0.65), Color3.fromRGB(14, 14, 20) }, 90).Parent = card
 	Theme.sparkles(card, 5, order * 17, 0.7)
-	local icon = new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 12), Size = UDim2.fromOffset(54, 54), BackgroundTransparency = 1, Parent = card })
+	local icon =
+		new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 12), Size = UDim2.fromOffset(54, 54), BackgroundTransparency = 1, Parent = card })
 	local iconName = ({ orage = "bolt", eclipse = "eye", pluie_or = "coin", lune_sang = "skull" })[event.id] or "star"
 	Icons.make(iconName, icon, { px = 54, ink = Theme.dark(event.color, 0.5) })
 	Theme.label({
@@ -260,7 +261,15 @@ local function buildEvent(gui: ScreenGui)
 		local box = Components.panel(bottom, { Size = UDim2.new(0.5, -6, 1, 0), Position = UDim2.new(x, x > 0 and 6 or 0, 0, 0) }, color)
 		local ic = new("Frame", { Position = UDim2.fromOffset(14, 18), Size = UDim2.fromOffset(56, 56), BackgroundTransparency = 1, Parent = box })
 		Icons.make(icon, ic, { px = 56, color = Theme.light(color, 0.3), ink = C.PanelDark })
-		Theme.label({ Text = title, Size = UDim2.new(1, -96, 0, 22), Position = UDim2.fromOffset(84, 12), FontFace = Theme.Faces.Title, TextColor3 = Theme.light(color, 0.3), TextXAlignment = Enum.TextXAlignment.Left, Parent = box })
+		Theme.label({
+			Text = title,
+			Size = UDim2.new(1, -96, 0, 22),
+			Position = UDim2.fromOffset(84, 12),
+			FontFace = Theme.Faces.Title,
+			TextColor3 = Theme.light(color, 0.3),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Parent = box,
+		})
 		local value = Theme.label({
 			Size = UDim2.new(1, -96, 0, 42),
 			Position = UDim2.fromOffset(84, 38),
