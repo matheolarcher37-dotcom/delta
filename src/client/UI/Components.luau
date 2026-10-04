@@ -1381,6 +1381,390 @@ function Components.traitChip(parent: Instance, traitId: string, size: UDim2, po
 	return chip
 end
 
+------------------------------------------------------------------------
+-- Blocs communs des menus (style « fiche d'unité » de référence)
+------------------------------------------------------------------------
+
+-- Panneau sombre de détail : fond presque noir, liseré clair, coins arrondis.
+function Components.sheet(parent: Instance, props: { [string]: any }?): Frame
+	local frame = new("Frame", {
+		Name = "Sheet",
+		BackgroundColor3 = WHITE,
+		Parent = parent,
+	})
+	if props then
+		for key, value in props do
+			(frame :: any)[key] = value
+		end
+	end
+	Theme.corner(16).Parent = frame
+	Theme.stroke(C.Stroke, 3).Parent = frame
+	Theme.gradient({ Color3.fromRGB(24, 24, 32), Color3.fromRGB(12, 12, 17) }, 90).Parent = frame
+	local edge = new("Frame", {
+		Name = "Edge",
+		Size = UDim2.new(1, -6, 1, -6),
+		Position = UDim2.fromOffset(3, 3),
+		BackgroundTransparency = 1,
+		Parent = frame,
+	})
+	Theme.corner(14).Parent = edge
+	Theme.stroke(Color3.fromRGB(120, 120, 145), 1.5, 0.5).Parent = edge
+	return frame
+end
+
+-- Grille de cartes défilante (navigable à la manette : la sélection fait défiler toute seule).
+function Components.cardGrid(parent: Instance, cell: Vector2, props: { [string]: any }?, gap: number?): ScrollingFrame
+	local scroll = Components.scroll(parent, props)
+	scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+	Theme.grid(cell, gap or 10, Enum.HorizontalAlignment.Left).Parent = scroll
+	Theme.padding(8).Parent = scroll
+	return scroll
+end
+
+-- Ligne de condition : pastille verte (coche) ou rouge (croix) + texte.
+function Components.requirement(parent: Instance, text: string, ok: boolean, order: number?, height: number?): Frame
+	local h = height or 30
+	local row = new("Frame", {
+		Name = "Requirement",
+		Size = UDim2.new(1, 0, 0, h),
+		BackgroundColor3 = ok and Color3.fromRGB(18, 60, 30) or Color3.fromRGB(70, 18, 22),
+		BackgroundTransparency = 0.25,
+		LayoutOrder = order or 0,
+		Parent = parent,
+	})
+	Theme.corner(8).Parent = row
+	Theme.stroke(ok and C.Green or C.Red, 1.5, 0.35).Parent = row
+	local dot = new("Frame", {
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 6, 0.5, 0),
+		Size = UDim2.fromOffset(h - 10, h - 10),
+		BackgroundColor3 = ok and C.Green or C.Red,
+		Parent = row,
+	})
+	Theme.round().Parent = dot
+	Theme.stroke(C.Stroke, 1.5).Parent = dot
+	Icons.make(ok and "check" or "close", dot, { px = 16, size = UDim2.fromScale(0.66, 0.66), shadow = false, ink = C.Stroke, zindex = dot.ZIndex + 1 })
+	Theme.label({
+		Text = text,
+		Size = UDim2.new(1, -h - 8, 1, -8),
+		Position = UDim2.fromOffset(h + 2, 4),
+		FontFace = Theme.Faces.Bold,
+		TextColor3 = ok and WHITE or Color3.fromRGB(255, 190, 190),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		StrokeThickness = 1.5,
+		MaxSize = 20,
+		Parent = row,
+	})
+	return row
+end
+
+-- Prix bien visible : pièce + montant doré. `kind` : "coins" (défaut) ou "crystals".
+function Components.price(parent: Instance, amount: number, props: { [string]: any }?, kind: string?): Frame
+	local frame = new("Frame", {
+		Name = "Price",
+		Size = UDim2.fromOffset(130, 30),
+		BackgroundColor3 = Color3.fromRGB(10, 10, 14),
+		BackgroundTransparency = 0.25,
+		Parent = parent,
+	})
+	if props then
+		for key, value in props do
+			(frame :: any)[key] = value
+		end
+	end
+	Theme.round().Parent = frame
+	Theme.stroke(C.Stroke, 2).Parent = frame
+	local h = frame.Size.Y.Offset > 0 and frame.Size.Y.Offset or 30
+	if kind == "crystals" then
+		Components.gem(frame, C.Cyan, math.floor(h * 0.5), UDim2.new(0, h * 0.55, 0.5, 0))
+	else
+		Components.coinIcon(frame, math.floor(h * 0.86), UDim2.new(0, h * 0.5, 0.5, 0))
+	end
+	Theme.label({
+		Name = "Amount",
+		Text = Formulas.formatNumber(amount),
+		Size = UDim2.new(1, -h - 8, 1, -6),
+		Position = UDim2.fromOffset(h + 2, 3),
+		FontFace = Theme.Faces.Heavy,
+		TextColor3 = kind == "crystals" and Color3.fromRGB(150, 236, 255) or C.Gold,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		StrokeThickness = 2,
+		Parent = frame,
+	})
+	return frame
+end
+
+-- Colore un prix en rouge si le joueur n'a pas assez.
+function Components.setPriceAffordable(price: Instance, affordable: boolean, kind: string?)
+	local label = price:FindFirstChild("Amount") :: TextLabel?
+	if label then
+		label.TextColor3 = affordable and (kind == "crystals" and Color3.fromRGB(150, 236, 255) or C.Gold) or Color3.fromRGB(255, 90, 90)
+	end
+end
+
+-- Pastille d'information : icône + texte sur fond sombre arrondi.
+function Components.pill(parent: Instance, icon: string?, text: string, color: Color3?, props: { [string]: any }?): Frame
+	local tint = color or WHITE
+	local frame = new("Frame", {
+		Name = "Pill",
+		Size = UDim2.fromOffset(180, 34),
+		BackgroundColor3 = Color3.fromRGB(12, 12, 18),
+		BackgroundTransparency = 0.2,
+		Parent = parent,
+	})
+	if props then
+		for key, value in props do
+			(frame :: any)[key] = value
+		end
+	end
+	Theme.round().Parent = frame
+	Theme.stroke(Theme.dark(tint, 0.25), 2, 0.2).Parent = frame
+	local h = frame.Size.Y.Offset > 0 and frame.Size.Y.Offset or 34
+	local x = 14
+	if icon then
+		local holder = new("Frame", {
+			Position = UDim2.fromOffset(6, 4),
+			Size = UDim2.fromOffset(h - 8, h - 8),
+			BackgroundTransparency = 1,
+			ZIndex = frame.ZIndex + 1,
+			Parent = frame,
+		})
+		Icons.make(icon, holder, { px = h - 8, color = tint, ink = C.PanelDark, zindex = frame.ZIndex + 1 })
+		x = h + 2
+	end
+	Theme.label({
+		Name = "Text",
+		Text = text,
+		Size = UDim2.new(1, -x - 12, 1, -8),
+		Position = UDim2.fromOffset(x, 4),
+		FontFace = Theme.Faces.Heavy,
+		TextColor3 = WHITE,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = frame.ZIndex + 1,
+		StrokeThickness = 1.5,
+		Parent = frame,
+	})
+	return frame
+end
+
+function Components.setPillText(pill: Instance, text: string)
+	local label = pill:FindFirstChild("Text") :: TextLabel?
+	if label then
+		label.Text = text
+	end
+end
+
+-- Pagination « ◀ Page 1 / 3 ▶ » (navigable à la manette).
+function Components.pager(parent: Instance, props: { [string]: any }?, onChange: (number) -> ())
+	local frame = new("Frame", {
+		Name = "Pager",
+		Size = UDim2.new(1, 0, 0, 44),
+		BackgroundTransparency = 1,
+		Parent = parent,
+	})
+	if props then
+		for key, value in props do
+			(frame :: any)[key] = value
+		end
+	end
+	local pager = { frame = frame, page = 1, pages = 1 }
+	local function arrow(icon: string, anchorX: number, delta: number)
+		return Components.button({
+			Text = "",
+			Icon = icon,
+			Color = C.Purple,
+			Size = UDim2.fromOffset(64, 42),
+			AnchorPoint = Vector2.new(anchorX, 0),
+			Position = UDim2.fromScale(anchorX, 0),
+			Parent = frame,
+			OnClick = function()
+				local target = math.clamp(pager.page + delta, 1, pager.pages)
+				if target ~= pager.page then
+					onChange(target)
+				end
+			end,
+		})
+	end
+	pager.prev = arrow("arrowLeft", 0, -1)
+	pager.next = arrow("arrowRight", 1, 1)
+	pager.label = Theme.label({
+		Text = "Page 1 / 1",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 7),
+		Size = UDim2.new(1, -160, 0, 28),
+		FontFace = Theme.Faces.Title,
+		TextColor3 = C.TextDim,
+		Parent = frame,
+	})
+	function pager.set(page: number, pages: number)
+		pager.page, pager.pages = page, math.max(1, pages)
+		pager.label.Text = "Page " .. page .. " / " .. pager.pages
+		frame.Visible = pager.pages > 1
+	end
+	return pager
+end
+
+-- Texte d'aide gris (bas des menus).
+function Components.hintText(parent: Instance, text: string, props: { [string]: any }?): TextLabel
+	local label = Theme.label({
+		Name = "Hint",
+		Text = text,
+		Size = UDim2.new(1, 0, 0, 22),
+		FontFace = Theme.Faces.Bold,
+		TextColor3 = C.TextDim,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		StrokeThickness = 1.5,
+		MaxSize = 18,
+		Parent = parent,
+	})
+	if props then
+		for key, value in props do
+			(label :: any)[key] = value
+		end
+	end
+	return label
+end
+
+-- Vignette d'objet (relique, épée...) : fond dégradé, contour coloré, aperçu, titre, sous-titre.
+export type ItemCardOptions = {
+	title: string,
+	subtitle: string?,
+	subtitleColor: Color3?,
+	color: Color3,
+	size: UDim2?,
+	layoutOrder: number?,
+	selected: boolean?,
+	badge: string?,
+	onClick: (() -> ())?,
+}
+
+function Components.itemCard(parent: Instance, opts: ItemCardOptions): (TextButton, Frame)
+	local card = new("TextButton", {
+		Name = "ItemCard",
+		Size = opts.size or UDim2.fromOffset(140, 170),
+		BackgroundTransparency = 1,
+		AutoButtonColor = false,
+		Text = "",
+		LayoutOrder = opts.layoutOrder or 0,
+		Parent = parent,
+	})
+	local scale = new("UIScale", { Parent = card })
+	local face = new("Frame", {
+		Name = "Face",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = WHITE,
+		BorderSizePixel = 0,
+		Parent = card,
+	})
+	Theme.corner(14).Parent = face
+	Theme.gradient({ Color3.fromRGB(46, 46, 64), Color3.fromRGB(22, 22, 32), Theme.dark(opts.color, 0.5) }, 90).Parent = face
+	Theme.stroke(opts.selected and C.Gold or opts.color, opts.selected and 5 or 3).Parent = face
+	local glow = new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.4),
+		Size = UDim2.fromScale(0.86, 0.6),
+		BackgroundColor3 = opts.color,
+		BackgroundTransparency = 0.6,
+		BorderSizePixel = 0,
+		Parent = face,
+	})
+	Theme.round().Parent = glow
+	Theme.gradient({ WHITE, WHITE }, 90, { 0.4, 1 }).Parent = glow
+	local preview = new("Frame", {
+		Name = "Preview",
+		Size = UDim2.new(1, -10, 0.66, 0),
+		Position = UDim2.fromOffset(5, 5),
+		BackgroundTransparency = 1,
+		ZIndex = 2,
+		Parent = face,
+	})
+	local strip = new("Frame", {
+		Name = "Strip",
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.fromScale(0, 1),
+		Size = UDim2.fromScale(1, opts.subtitle and 0.32 or 0.22),
+		BackgroundColor3 = BLACK,
+		BackgroundTransparency = 0.35,
+		BorderSizePixel = 0,
+		ZIndex = 3,
+		Parent = face,
+	})
+	Theme.corner(12).Parent = strip
+	Theme.label({
+		Name = "Title",
+		Text = opts.title,
+		Size = UDim2.new(0.94, 0, opts.subtitle and 0.5 or 0.8, 0),
+		Position = UDim2.fromScale(0.03, opts.subtitle and 0.05 or 0.1),
+		FontFace = Theme.Faces.Title,
+		ZIndex = 4,
+		Parent = strip,
+	})
+	if opts.subtitle then
+		Theme.label({
+			Name = "Subtitle",
+			Text = opts.subtitle,
+			Size = UDim2.new(0.94, 0, 0.38, 0),
+			Position = UDim2.fromScale(0.03, 0.56),
+			FontFace = Theme.Faces.Heavy,
+			TextColor3 = opts.subtitleColor or C.Gold,
+			ZIndex = 4,
+			StrokeThickness = 1.5,
+			Parent = strip,
+		})
+	end
+	if opts.badge then
+		local badge = new("Frame", {
+			Name = "Badge",
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -6, 0, 6),
+			Size = UDim2.fromOffset(0, 24),
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundColor3 = BLACK,
+			BackgroundTransparency = 0.3,
+			ZIndex = 5,
+			Parent = face,
+		})
+		Theme.round().Parent = badge
+		Theme.padding(8, 0).Parent = badge
+		Theme.label({
+			Text = opts.badge,
+			Size = UDim2.fromOffset(0, 22),
+			AutomaticSize = Enum.AutomaticSize.X,
+			TextScaled = false,
+			TextSize = 17,
+			FontFace = Theme.Faces.Heavy,
+			TextColor3 = C.Gold,
+			ZIndex = 6,
+			Parent = badge,
+		})
+	end
+	Components.interactive(card, scale, 1.05)
+	card.Activated:Connect(function()
+		Components.click()
+		if opts.onClick then
+			opts.onClick()
+		end
+	end)
+	return card, preview
+end
+
+-- Gros symbole entre deux emplacements (« + », « = », flèche).
+function Components.bigSymbol(parent: Instance, icon: string, props: { [string]: any }?): Frame
+	local holder = new("Frame", {
+		Name = "Symbol",
+		Size = UDim2.fromOffset(46, 46),
+		BackgroundTransparency = 1,
+		Parent = parent,
+	})
+	if props then
+		for key, value in props do
+			(holder :: any)[key] = value
+		end
+	end
+	Icons.make(icon, holder, { px = 46, ink = C.PanelDark })
+	return holder
+end
+
 function Components.clear(container: Instance)
 	for _, child in container:GetChildren() do
 		if not child:IsA("UIComponent") then

@@ -54,11 +54,12 @@ Theme.Fonts = {
 	Body = Enum.Font.FredokaOne,
 	Small = Enum.Font.GothamBold,
 }
+-- (indexé par le NOM de la police : plus robuste que l'EnumItem lui-même)
 local ENUM_TO_FACE = {
-	[Enum.Font.LuckiestGuy] = Theme.Faces.Title,
-	[Enum.Font.FredokaOne] = Theme.Faces.Bold,
-	[Enum.Font.GothamBold] = Theme.Faces.Medium,
-	[Enum.Font.GothamBlack] = Theme.Faces.Heavy,
+	LuckiestGuy = Theme.Faces.Title,
+	FredokaOne = Theme.Faces.Bold,
+	GothamBold = Theme.Faces.Medium,
+	GothamBlack = Theme.Faces.Heavy,
 }
 
 ------------------------------------------------------------------------
@@ -108,7 +109,7 @@ function Theme.new(className: string, props: { [string]: any }?, children: { Ins
 			if key == "Parent" then
 				parent = value
 			elseif key == "Font" and typeof(value) == "EnumItem" then
-				instance.FontFace = ENUM_TO_FACE[value] or Font.fromEnum(value)
+				instance.FontFace = ENUM_TO_FACE[value.Name] or Font.fromEnum(value)
 			elseif key ~= "Children" then
 				instance[key] = value
 			end

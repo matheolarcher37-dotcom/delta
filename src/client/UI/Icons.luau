@@ -268,6 +268,35 @@ local SHAPES: { [string]: { any } } = {
 	},
 }
 
+-- Formes ajoutées : coche, flèches, recharger, étoile pleine.
+SHAPES.check = {
+	r(0.33, 0.6, 0.16, 0.4, 0.5, -45),
+	r(0.6, 0.48, 0.16, 0.66, 0.5, 40),
+}
+SHAPES.arrowRight = {
+	r(0.42, 0.5, 0.52, 0.17, 0.5),
+	r(0.64, 0.37, 0.36, 0.17, 0.5, 40),
+	r(0.64, 0.63, 0.36, 0.17, 0.5, -40),
+}
+SHAPES.arrowLeft = {
+	r(0.58, 0.5, 0.52, 0.17, 0.5),
+	r(0.36, 0.37, 0.36, 0.17, 0.5, -40),
+	r(0.36, 0.63, 0.36, 0.17, 0.5, 40),
+}
+SHAPES.refresh = {
+	o(0.5, 0.52, 0.66, 0.13),
+	r(0.74, 0.2, 0.3, 0.3, 0.1, 45, true),
+	r(0.78, 0.3, 0.28, 0.14, 0.5, 70),
+	r(0.66, 0.22, 0.28, 0.14, 0.5, -10),
+}
+SHAPES.plus = {
+	r(0.5, 0.5, 0.2, 0.74, 0.5),
+	r(0.5, 0.5, 0.74, 0.2, 0.5),
+}
+SHAPES.minus = {
+	r(0.5, 0.5, 0.74, 0.2, 0.5),
+}
+
 -- Correspondance emoji -> icône (pour les nœuds de l'arbre et les données qui donnent un emoji).
 Icons.FromEmoji = {
 	["🍀"] = "clover",
