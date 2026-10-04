@@ -218,7 +218,8 @@ end
 
 -- Persos exposés sur les cases de la base : { [numéro de case] = uid } (hors équipe).
 -- Les unités placées à la main (« Remplacer l'unité », data.DisplayPins) gardent leur case ;
--- les autres cases se remplissent avec les plus puissants.
+-- les cases vidées exprès (DisplayPins = false) restent vides ; les autres se remplissent avec
+-- les plus puissants.
 function CharacterService:GetDisplayed(player: Player): { [number]: string }
 	local data = self.services.DataService:Get(player)
 	if not data then
@@ -226,10 +227,12 @@ function CharacterService:GetDisplayed(player: Player): { [number]: string }
 	end
 	local stats = Formulas.playerStats(data)
 	local maxSlots = math.min(stats.display, #self.services.PlotService.DisplaySlots)
-	local result, used = {}, {}
+	local result, used, keptEmpty = {}, {}, {}
 	for key, uid in data.DisplayPins or {} do
 		local slot = tonumber(key)
-		if slot and slot >= 1 and slot <= maxSlots and data.characters[uid] and not table.find(data.team, uid) and not used[uid] then
+		if slot and uid == false then
+			keptEmpty[slot] = true -- case vidée exprès : pas de remplissage automatique
+		elseif slot and slot >= 1 and slot <= maxSlots and data.characters[uid] and not table.find(data.team, uid) and not used[uid] then
 			result[slot] = uid
 			used[uid] = true
 		end
@@ -248,7 +251,7 @@ function CharacterService:GetDisplayed(player: Player): { [number]: string }
 	end)
 	local nextIndex = 1
 	for slot = 1, maxSlots do
-		if not result[slot] then
+		if not result[slot] and not keptEmpty[slot] then
 			local item = list[nextIndex]
 			if not item then
 				break

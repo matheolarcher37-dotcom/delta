@@ -67,15 +67,27 @@ local function refreshHints()
 	end
 end
 
+local notifiedTouch = false
+
+-- Prévient les abonnés quand le mode manette OU tactile change.
+local function notifyMode()
+	for _, callback in modeListeners do
+		task.spawn(callback, gamepad)
+	end
+end
+
 local function setGamepad(value: boolean)
 	if gamepad == value then
+		if touch ~= notifiedTouch then
+			notifiedTouch = touch
+			notifyMode()
+		end
 		return
 	end
 	gamepad = value
+	notifiedTouch = touch
 	refreshHints()
-	for _, callback in modeListeners do
-		task.spawn(callback, value)
-	end
+	notifyMode()
 	if value then
 		Console.focusCurrent()
 	else
@@ -308,6 +320,8 @@ function Console.init(gui: ScreenGui)
 		GuiService.GuiNavigationEnabled = true
 	end)
 	pcall(function()
+		-- Téléphone/tablette : tactile dès le départ, même avant le premier toucher.
+		touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 		detectMode(UserInputService:GetLastInputType())
 	end)
 	pcall(function()

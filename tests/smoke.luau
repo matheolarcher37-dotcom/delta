@@ -126,6 +126,14 @@ test("Machine ROULER : probabilités, prix, pitié", function()
 		last = price
 	end
 	assert(Formulas.rollPrice("rare", "dore") > Formulas.rollPrice("rare"), "l'aura n'augmente pas le prix")
+	-- Ce que la rareté garantit n'est pas facturé une 2e fois : un Secret (aura Arc-en-ciel et
+	-- trait de palier 3 garantis) coûte bien le prix annoncé.
+	assert(Formulas.rollPrice("secret", "arcenciel", "critique") == Economy.RollRarities.secret.price, "prix du Secret ≠ prix annoncé")
+	assert(Formulas.rollPrice("mythic", "arcenciel") < Formulas.rollPrice("secret", "arcenciel", "critique"), "Mythique Arc-en-ciel plus cher qu'un Secret")
+	-- Première collecte offerte : seulement jusqu'au Rare.
+	assert(Formulas.rollCollectFree({ FirstCollectDone = false }, "rare"), "Rare non offert")
+	assert(not Formulas.rollCollectFree({ FirstCollectDone = false }, "legendary"), "Légendaire offert")
+	assert(not Formulas.rollCollectFree({ FirstCollectDone = true }, "common"), "2e collecte offerte")
 	assert(Formulas.pityThreshold("legendary", 0.7) < Formulas.pityThreshold("legendary", 1), "pitié de l'arbre sans effet")
 	assert(#Economy.Upgrades >= 25 and #Economy.Upgrades <= 30, "25 à 30 améliorations attendues")
 end)

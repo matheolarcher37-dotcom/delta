@@ -213,6 +213,7 @@ render = function()
 			break
 		end
 		local card = Components.characterCard(refs.list, item.entry, {
+			selKey = item.uid,
 			size = UDim2.fromOffset(110, 142),
 			selected = item.uid == slotA or item.uid == slotB,
 			layoutOrder = i,

@@ -310,7 +310,9 @@ local function surface(part: BasePart, face: Enum.NormalId, name: string, pixels
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
 	gui.PixelsPerStud = pixelsPerStud
 	gui.LightInfluence = 1
-	gui.MaxDistance = 140
+	-- Distance d'affichage proportionnelle à la taille de la pièce (boss géants vus de plus loin).
+	local biggest = math.max(part.Size.X, part.Size.Y, part.Size.Z)
+	gui.MaxDistance = 55 * math.max(1, biggest / 2)
 	gui.ClipsDescendants = true
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.Parent = part

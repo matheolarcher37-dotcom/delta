@@ -152,6 +152,7 @@ local function renderUnits()
 	for i = (page - 1) * PAGE_SIZE + 1, math.min(#list, page * PAGE_SIZE) do
 		local item = list[i]
 		local card = Components.characterCard(grid, item.entry, {
+			selKey = item.uid,
 			inTeam = State.inTeam(item.uid),
 			selected = item.uid == selected,
 			layoutOrder = i,
@@ -402,13 +403,16 @@ render = function(force: boolean?)
 	lastKey = key
 	refs.selectedCard = nil
 	refs.autoEquip.Visible = tab == "units"
-	if tab == "items" then
-		renderItems()
-		renderItemDetail()
-	else
-		renderUnits()
-		renderSheet()
-	end
+	-- La carte choisie à la manette reste sélectionnée après la reconstruction.
+	Components.preserveSelection(window.content, function()
+		if tab == "items" then
+			renderItems()
+			renderItemDetail()
+		else
+			renderUnits()
+			renderSheet()
+		end
+	end)
 end
 
 function Inventory.init(gui: ScreenGui)

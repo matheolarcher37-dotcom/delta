@@ -50,7 +50,10 @@ function UnitSheet.stats(entry)
 	-- Le serveur (CombatService) applique la vitesse d'attaque de l'arbre en bonus de dégâts
 	-- par seconde : délai équivalent = délai / (1 + bonus).
 	local spa = Formulas.attackCooldown(entry) / (1 + math.max(0, tree.attackSpeed or 0))
-	local crit = Formulas.critChance(entry) + (tree.crit or 0)
+	-- Même calcul que le serveur : la chance de l'arbre n'est tirée que si le coup n'était
+	-- pas déjà critique (CombatService:DamageEnemy).
+	local baseCrit = math.clamp(Formulas.critChance(entry), 0, 1)
+	local crit = baseCrit + (1 - baseCrit) * (tree.crit or 0)
 	local critDamage = ((tree.critDamage or 2) - 1)
 	return {
 		dmg = damage,

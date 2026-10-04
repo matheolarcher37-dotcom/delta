@@ -27,9 +27,9 @@
     "Workspace": {
       "$properties": {
         "StreamingEnabled": true,
-        "StreamingMinRadius": 192,
-        "StreamingTargetRadius": 900,
-        "StreamingIntegrityMode": "PauseOutsideLoadedArea"
+        "StreamingMinRadius": 128,
+        "StreamingTargetRadius": 512,
+        "StreamingIntegrityMode": "MinimumRadiusPause"
       }
     },
     "Lighting": {

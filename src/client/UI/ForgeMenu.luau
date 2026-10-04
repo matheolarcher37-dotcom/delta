@@ -180,6 +180,7 @@ local function renderGrid()
 			color = sword.look.trail,
 			layoutOrder = i,
 			selected = sword.id == selected,
+			selKey = sword.id,
 			onClick = function()
 				selected = sword.id
 				render(true)
@@ -208,8 +209,10 @@ render = function(force: boolean?)
 		return
 	end
 	lastKey = key
-	renderGrid()
-	renderDetail()
+	Components.preserveSelection(window.content, function()
+		renderGrid()
+		renderDetail()
+	end)
 end
 
 function ForgeMenu.init(gui: ScreenGui)

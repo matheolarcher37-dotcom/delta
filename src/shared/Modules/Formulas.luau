@@ -337,10 +337,24 @@ function Formulas.rollPrice(rarityId: string, auraId: string?, traitId: string?)
 	local info = Formulas.rollRarity(rarityId)
 	local aura = Auras.get(auraId)
 	local trait = Traits.get(traitId)
-	local price = info.price * (aura and aura.multiplier or 1) * (trait and (1 + trait.tier * 0.3) or 1)
+	-- Ce que la rareté GARANTIT (aura Arc-en-ciel et trait rare du Secret, trait du Peu commun)
+	-- est déjà compris dans son prix de base : seul le « bonus » au-delà est compté.
+	local auraMult = (aura and aura.id ~= info.aura) and aura.multiplier or 1
+	local tierBonus = trait and math.max(0, trait.tier - (info.traitMinTier or 0)) or 0
+	local price = info.price * auraMult * (1 + tierBonus * 0.3)
 	-- Arrondi « joli » (2 chiffres significatifs).
 	local magnitude = 10 ^ math.max(0, math.floor(math.log10(math.max(price, 1))) - 1)
 	return math.floor(price / magnitude + 0.5) * magnitude
+end
+
+-- Le tout premier perso collecté est offert, mais seulement jusqu'à la rareté
+-- Economy.Roll.FreeCollectMaxOrder (sinon on pourrait rouler jusqu'à un Mythique gratuit).
+function Formulas.rollCollectFree(data, rarityId: string?): boolean
+	if not Economy.Roll.FirstCollectFree or not data or data.FirstCollectDone then
+		return false
+	end
+	local info = Economy.RollRarities[rarityId or "common"]
+	return info ~= nil and info.order <= (Economy.Roll.FreeCollectMaxOrder or 0)
 end
 
 -- Dégâts par seconde d'un perso (affichés au-dessus des persos tirés).

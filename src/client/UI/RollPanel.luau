@@ -79,8 +79,9 @@ local function setAuto(value: boolean)
 	end
 end
 
-local function collect(index: number)
-	local ok, message = State.invoke("CollectRolled", index)
+-- On envoie la CLÉ du perso (jamais sa position : la file bouge à chaque roulage).
+local function collect(key: string)
+	local ok, message = State.invoke("CollectRolled", key)
 	if type(message) == "string" then
 		Notifications.toast(message, ok and "success" or "error")
 	end
@@ -129,12 +130,16 @@ local function pityRow(parent: Instance, rarityId: string, order: number)
 	return { count = count, bar = bar }
 end
 
+local ROW_H = 38
+local PANEL_H = 276
+
 local function buildQueueRow(parent: Instance, item, index: number)
 	local rarityId = item.rarity or "common"
 	local info = Theme.rarity(rarityId)
+	local free = Formulas.rollCollectFree(State.data, rarityId)
 	local row = new("Frame", {
 		Name = "Queued" .. index,
-		Size = UDim2.new(1, 0, 0, 44),
+		Size = UDim2.new(1, -6, 0, ROW_H),
 		BackgroundColor3 = WHITE,
 		LayoutOrder = index,
 		Parent = parent,
@@ -148,34 +153,37 @@ local function buildQueueRow(parent: Instance, item, index: number)
 	Theme.gradient({ Theme.dark(info.rainbow and C.Magenta or info.color, 0.5), Color3.fromRGB(16, 16, 24) }, 0).Parent = row
 	Theme.label({
 		Text = characterName(item.id),
-		Size = UDim2.new(1, -96, 0, 20),
-		Position = UDim2.fromOffset(8, 3),
+		Size = UDim2.new(1, -96, 0, 18),
+		Position = UDim2.fromOffset(8, 2),
 		FontFace = Theme.Faces.Title,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = row,
 	})
-	local priceRow = new("Frame", { Size = UDim2.new(1, -96, 0, 16), Position = UDim2.fromOffset(8, 24), BackgroundTransparency = 1, Parent = row })
-	Components.coinIcon(priceRow, 15, UDim2.fromOffset(8, 8))
+	local priceRow = new("Frame", { Size = UDim2.new(1, -96, 0, 15), Position = UDim2.fromOffset(8, 20), BackgroundTransparency = 1, Parent = row })
+	Components.coinIcon(priceRow, 14, UDim2.fromOffset(8, 8))
 	Theme.label({
-		Text = Formulas.formatNumber(item.price or 0) .. "   ·   " .. info.name,
+		Text = (free and "OFFERT" or Formulas.formatNumber(item.price or 0)) .. "   ·   " .. info.name,
 		Size = UDim2.new(1, -20, 1, 0),
 		Position = UDim2.fromOffset(20, 0),
 		FontFace = Theme.Faces.Heavy,
-		TextColor3 = C.Gold,
+		TextColor3 = free and Color3.fromRGB(140, 255, 150) or C.Gold,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		StrokeThickness = 1.5,
 		Parent = priceRow,
 	})
-	local affordable = (State.data and State.data.coins or 0) >= (item.price or 0)
+	local affordable = free or (State.data and State.data.coins or 0) >= (item.price or 0)
+	local key = item.key
 	Components.button({
-		Text = "Prendre",
+		Text = free and "Offert" or "Prendre",
 		Color = affordable and C.Green or C.Gray,
-		Size = UDim2.fromOffset(82, 36),
-		Position = UDim2.new(1, -88, 0, 4),
+		Size = UDim2.fromOffset(82, ROW_H - 6),
+		Position = UDim2.new(1, -88, 0, 3),
 		TextSize = 18,
 		Parent = row,
 		OnClick = function()
-			collect(index)
+			if type(key) == "string" then
+				collect(key)
+			end
 		end,
 	})
 end
@@ -185,7 +193,7 @@ local function build(root: Frame)
 		Name = "RollPanel",
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -16, 0, 170),
-		Size = UDim2.fromOffset(250, 262),
+		Size = UDim2.fromOffset(250, PANEL_H),
 		BackgroundColor3 = WHITE,
 		Parent = root,
 	})
@@ -252,10 +260,21 @@ local function build(root: Frame)
 	refs.segments = segments
 
 	-- Pitié
+	Theme.label({
+		Name = "PityTitle",
+		Text = "GARANTIES (persos tirés)",
+		Size = UDim2.new(1, -24, 0, 14),
+		Position = UDim2.fromOffset(12, 92),
+		FontFace = Theme.Faces.Heavy,
+		TextColor3 = C.TextDim,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		StrokeThickness = 1.5,
+		Parent = panel,
+	})
 	local pity = new("Frame", {
 		Name = "PityRows",
 		Size = UDim2.new(1, -24, 0, 102),
-		Position = UDim2.fromOffset(12, 94),
+		Position = UDim2.fromOffset(12, 108),
 		BackgroundTransparency = 1,
 		Parent = panel,
 	})
@@ -305,18 +324,43 @@ local function build(root: Frame)
 		end,
 	})
 
-	-- Persos qui attendent sur l'estrade
-	local queue = new("Frame", {
-		Name = "Queue",
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -16, 0, 440),
-		Size = UDim2.fromOffset(250, 40),
-		AutomaticSize = Enum.AutomaticSize.Y,
+	-- Persos qui attendent sur l'estrade (tous : jusqu'à Economy.Roll.QueueMax). Sur PC/console,
+	-- entre le panneau et l'équipe (ancré par le bas) ; sur tactile, à gauche du panneau, loin du
+	-- bouton de saut. La liste défile si la place manque.
+	local queueBox = new("Frame", {
+		Name = "QueueBox",
+		Size = UDim2.fromOffset(256, 40),
 		BackgroundTransparency = 1,
+		Visible = false,
 		Parent = root,
 	})
-	Theme.list(Enum.FillDirection.Vertical, 5, Enum.HorizontalAlignment.Right).Parent = queue
+	refs.queueTitle = Theme.label({
+		Name = "Title",
+		Text = "",
+		Size = UDim2.new(1, -6, 0, 20),
+		FontFace = Theme.Faces.Title,
+		TextColor3 = C.Gold,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Parent = queueBox,
+	})
+	local queue = new("ScrollingFrame", {
+		Name = "Queue",
+		Position = UDim2.fromOffset(0, 24),
+		Size = UDim2.new(1, 0, 1, -24),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 5,
+		ScrollBarImageColor3 = C.Gold,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+		Selectable = false,
+		Parent = queueBox,
+	})
+	Theme.list(Enum.FillDirection.Vertical, 4, Enum.HorizontalAlignment.Left).Parent = queue
 	refs.queue = queue
+	refs.queueBox = queueBox
+	refs.root = root
 
 	Theme.onFrame(cooldown, function()
 		local left = cooldownUntil - os.clock()
@@ -403,28 +447,45 @@ local function refresh()
 	for _, item in info.queue do
 		table.insert(coinsOk, (State.data and State.data.coins or 0) >= (item.price or 0) and "1" or "0")
 	end
-	local key = table.concat(parts, "|") .. table.concat(coinsOk)
+	local key = table.concat(parts, "|") .. table.concat(coinsOk) .. tostring(State.data and State.data.FirstCollectDone)
 	if key ~= lastQueueKey then
 		lastQueueKey = key
 		Components.clear(refs.queue)
-		if #info.queue > 0 then
-			Theme.label({
-				Text = "SUR L'ESTRADE (" .. #info.queue .. ")",
-				Size = UDim2.new(1, 0, 0, 20),
-				FontFace = Theme.Faces.Title,
-				TextColor3 = C.Gold,
-				TextXAlignment = Enum.TextXAlignment.Right,
-				LayoutOrder = 0,
-				Parent = refs.queue,
-			})
-		end
+		refs.queueTitle.Text = "SUR L'ESTRADE (" .. #info.queue .. "/" .. Economy.Roll.QueueMax .. ")"
 		for i, item in info.queue do
-			if i > 4 then
-				break
-			end
 			buildQueueRow(refs.queue, item, i)
 		end
+		RollPanel.layoutQueue()
 	end
+end
+
+-- Place la liste de l'estrade selon l'appareil et la hauteur réellement libre.
+function RollPanel.layoutQueue()
+	local box, root = refs.queueBox, refs.root
+	if not box or not root then
+		return
+	end
+	local count = #State.rollInfo().queue
+	box.Visible = count > 0
+	local scale = math.max(0.1, Theme.getScale())
+	local height = root.AbsoluteSize.Y / scale
+	if height < 300 then
+		height = 770
+	end
+	local wanted = 24 + count * (ROW_H + 4)
+	local free
+	if Console.isTouch() then
+		-- À gauche du panneau ROULER, sous la bannière : le coin bas-droit est au bouton de saut.
+		box.AnchorPoint = Vector2.new(1, 0)
+		box.Position = UDim2.new(1, -16 - 250 - 10, 0, 170)
+		free = height - 170 - 120
+	else
+		-- Juste au-dessus de l'équipe (bas droite, 70 de haut à 14 du bord).
+		box.AnchorPoint = Vector2.new(1, 1)
+		box.Position = UDim2.new(1, -13, 1, -98)
+		free = height - 98 - (170 + PANEL_H + 8)
+	end
+	box.Size = UDim2.fromOffset(256, math.max(24 + ROW_H, math.min(wanted, free)))
 end
 
 function RollPanel.init(gui: ScreenGui, hudRoot: Frame?)
@@ -433,6 +494,8 @@ function RollPanel.init(gui: ScreenGui, hudRoot: Frame?)
 	refresh()
 	State.onChanged(refresh)
 	Console.setAction("roll", RollPanel.roll)
+	Console.onModeChanged(RollPanel.layoutQueue)
+	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(RollPanel.layoutQueue)
 end
 
 function RollPanel.panel(): Frame?

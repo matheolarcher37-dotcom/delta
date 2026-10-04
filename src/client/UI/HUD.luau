@@ -655,7 +655,8 @@ local function layoutForDevice()
 	-- Sur téléphone, le bouton de saut et le joystick occupent les coins du bas.
 	local touch = Console.isTouch()
 	if refs.team then
-		refs.team.Position = touch and UDim2.new(1, -16, 1, -190) or UDim2.new(1, -16, 1, -14)
+		-- Tactile : en haut à droite, au-dessus du panneau ROULER (loin du bouton de saut).
+		refs.team.Position = touch and UDim2.new(1, -16, 0, 162) or UDim2.new(1, -16, 1, -14)
 	end
 	if refs.gridScale then
 		refs.gridScale.Scale = touch and 0.78 or 1

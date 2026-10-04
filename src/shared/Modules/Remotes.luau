@@ -37,7 +37,7 @@ local FUNCTIONS = {
 	"EquipSword", -- (swordId) -> ok, message
 	"BuySkill", -- (nodeId) -> ok, message (arbre de compétences)
 	"Roll", -- () -> ok, résultats | message (machine ROULER)
-	"CollectRolled", -- (index dans RolledQueue) -> ok, message (acheter un perso tiré)
+	"CollectRolled", -- (clé du perso dans RolledQueue) -> ok, message (acheter un perso tiré)
 	"SetAutoRoll", -- (bool) -> ok, message
 	"PlaceUnit", -- (emplacement, uid | nil) -> ok, message (« Remplacer l'unité » d'une case de la base)
 }

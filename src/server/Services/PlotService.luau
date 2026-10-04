@@ -320,6 +320,7 @@ function PlotService:Start()
 			target = self.services.HubService:GetArenaEntrance()
 		end
 		if target then
+			PlotService.streamAround(player, target.Position)
 			character:PivotTo(target)
 			if self.services.TeamService then
 				task.delay(0.2, function()
@@ -337,17 +338,6 @@ function PlotService:Start()
 				local ok, err = pcall(self._updateDisplays, self, plot)
 				if not ok then
 					warn("[AnimeTycoon] Affichage de base : " .. tostring(err))
-				end
-			end
-		end
-	end)
-	-- Pièces qui roulent sur le tapis (seulement dans les bases occupées).
-	task.spawn(function()
-		while true do
-			task.wait(0.2)
-			for _, plot in plots do
-				if plot.owner and plot.coinPaths and plot.coinFolder and plot.coinFolder.Parent then
-					Conveyor.step(plot.coinFolder, plot.coinPaths, os.clock())
 				end
 			end
 		end
@@ -409,7 +399,9 @@ function PlotService:_assign(player: Player, data)
 		local root = character:WaitForChild("HumanoidRootPart", 10)
 		if root and playerPlots[player] == chosen then
 			task.wait(0.1)
-			character:PivotTo(self:GetSpawnCFrame(chosen))
+			local spawnCF = self:GetSpawnCFrame(chosen)
+			PlotService.streamAround(player, spawnCF.Position)
+			character:PivotTo(spawnCF)
 		end
 	end
 	if player.Character then
@@ -555,6 +547,8 @@ function PlotService:RefreshOwnerContent(player: Player, justBought: string?)
 		end
 	end
 	plot.coinPaths = coinPaths
+	-- Pièces sur le tapis : animées par chaque client (Controllers/CoinConveyor).
+	Conveyor.publish(plot.coinFolder, coinPaths, true)
 
 	-- Autels (incubateurs) selon les améliorations.
 	local stats = Formulas.playerStats(data)
@@ -724,7 +718,17 @@ function PlotService:DecorateUnit(_plot, model: Model, entry)
 	}, 2.4, 4.4 * scale + 1.2, 70, 6.5)
 end
 
--- « Remplacer l'unité » : place une unité précise sur une case (uid = nil pour libérer la case).
+-- Chargement progressif : demande au client de charger la zone d'arrivée AVANT une
+-- téléportation (sinon le joueur reste figé le temps que le décor arrive).
+function PlotService.streamAround(player: Player, position: Vector3)
+	pcall(function()
+		player:RequestStreamAroundAsync(position, 4)
+	end)
+end
+
+-- « Remplacer l'unité » : place une unité précise sur une case. uid = nil : la case reste VIDE
+-- (DisplayPins = false, pas de remplissage automatique) ; uid = "auto" : la case se remplit de
+-- nouveau toute seule avec les unités les plus fortes.
 function PlotService:PlaceUnit(player: Player, slot: any, uid: any)
 	local DataService = self.services.DataService
 	local data = DataService:Get(player)
@@ -738,6 +742,8 @@ function PlotService:PlaceUnit(player: Player, slot: any, uid: any)
 	end
 	local key = tostring(slot)
 	if uid == nil then
+		data.DisplayPins[key] = false
+	elseif uid == "auto" then
 		data.DisplayPins[key] = nil
 	else
 		if type(uid) ~= "string" or not data.characters[uid] then
@@ -761,6 +767,9 @@ function PlotService:PlaceUnit(player: Player, slot: any, uid: any)
 	end
 	if self.services.TeamService then
 		self.services.TeamService:RefreshTeam(player)
+	end
+	if uid == "auto" then
+		return true, "Remplissage automatique de l'emplacement #" .. slot
 	end
 	return true, uid and "Unité placée sur l'emplacement #" .. slot or "Emplacement libéré"
 end

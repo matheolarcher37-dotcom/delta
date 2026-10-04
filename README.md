@@ -43,7 +43,7 @@ mais rien n'est sauvegardé (un message te le rappelle en jeu).
 1. **Tu arrives** : une base t'est attribuée (6 bases par serveur) et ton nom s'affiche sur le portail.
 2. **Tu roules** : appuie sur le gros bouton rouge **ROULER** de la machine, au centre de ta base. Tu peux aussi utiliser le bouton ROULER du panneau à droite de l'écran.
    Les persos tirés apparaissent sur l'**estrade**. Chacun affiche sa rareté, ses dégâts (DPS), son nom et son prix en ¥.
-3. **Tu collectes** : approche-toi d'un perso et choisis **« Collecter »** pour l'acheter. Tu peux aussi cliquer sur « Prendre » dans le panneau. **Le tout premier est offert.**
+3. **Tu collectes** : approche-toi d'un perso et choisis **« Collecter »** pour l'acheter. Tu peux aussi cliquer sur « Prendre » dans le panneau. **Le tout premier est offert** (s'il est Rare ou moins).
 4. **Tu poses tes unités** : tes persos hors équipe se tiennent sur les **cases jaunes** de ta base et **remplissent ton coffre** (revenus).
    Sur une case, « **Remplacer l'unité** » ouvre un menu pour choisir qui s'y tient.
 5. **Tu combats** : tes persos équipés **te suivent** et attaquent tout seuls dans l'anneau qui entoure le hub.
@@ -69,7 +69,7 @@ mais rien n'est sauvegardé (un message te le rappelle en jeu).
 
 - **Rouler est gratuit, tu paies à la collecte.** Les prix augmentent avec l'aura et le trait du perso.
 - La jauge **« x10 Chance dans : N »** annonce un roulage où la chance est multipliée par 10.
-- Le panneau **« Garanties »** (la pitié) indique dans combien de roulages un Légendaire (150), un Mythique (1 200) ou un Secret (8 000) est garanti. L'arbre réduit ces seuils.
+- Le panneau **« Garanties (persos tirés) »** (la pitié) indique au bout de combien de persos tirés un Légendaire (150), un Mythique (1 200) ou un Secret (8 000) est garanti (un multi-tirage compte pour 2 ou 3 persos). L'arbre réduit ces seuils.
 - L'estrade garde 6 persos. Quand elle est pleine, ce sont les plus anciens et les moins rares qui partent ; **les Légendaires et plus ne partent jamais tout seuls**.
 - Les **reliques** existent toujours, comme source secondaire de persos : butin du boss, marchand de reliques au fond de la base, autels.
 
@@ -152,8 +152,9 @@ dans Studio : c'est le nom du modèle (ils portent l'étiquette `DecorSlot`).
 | **Grand Océan** (One Piece) | port, navires, phare, lagon |
 | **Ère des Pourfendeurs** (Demon Slayer) | la nuit : ville de l'ère Taishō, Domaine des Papillons, glycines, rocher fendu, mont Fujikasane, Train de l'Infini sur son viaduc |
 
-Le même univers est actif **en même temps sur tous les serveurs**. Le chargement progressif (*StreamingEnabled*) est activé
-pour que la grande carte tourne bien sur console et sur mobile.
+Le même univers est actif **en même temps sur tous les serveurs**. Le chargement progressif (*StreamingEnabled*) est activé :
+chaque joueur ne charge que les ~500 studs autour de lui (128 au minimum), la zone d'arrivée est chargée avant chaque
+téléportation, et les plus grands monuments restent visibles de loin en version simplifiée.
 
 ---
 

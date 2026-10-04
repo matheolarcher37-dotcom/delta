@@ -397,20 +397,33 @@ test("Machine ROULER : roulage, estrade, collecte offerte puis payante", functio
 	assert(#plot.rolledFolder:GetChildren() == 1, "modèle du perso tiré absent")
 	local univers = services.UniverseService:GetCurrent()
 	assert(table.find(univers.characters, results[1].id), "perso hors du pool de l'univers actuel")
-	-- Premier perso collecté : offert.
+	-- Premier perso collecté : offert (s'il est Rare ou moins).
 	data.FirstCollectDone = false
 	data.coins = 0
-	local okFree, msg = invoke("CollectRolled", alice, 1)
+	data.RolledQueue[1].rarity = "rare"
+	-- Une position (nombre) n'est jamais acceptée : seulement la clé du perso.
+	local okIndex = invoke("CollectRolled", alice, 1)
+	assert(not okIndex and #data.RolledQueue == 1, "collecte par position acceptée")
+	local okFree, msg = invoke("CollectRolled", alice, data.RolledQueue[1].key)
 	assert(okFree, "collecte offerte : " .. tostring(msg))
 	assert(#data.RolledQueue == 0 and #plot.rolledFolder:GetChildren() == 0, "estrade non vidée")
+	-- Un Légendaire n'est jamais offert, même pour la toute première collecte.
+	data.FirstCollectDone = false
+	rollNow(alice)
+	data.RolledQueue[1].rarity = "legendary"
+	local okLegend = invoke("CollectRolled", alice, data.RolledQueue[1].key)
+	assert(not okLegend and #data.RolledQueue == 1, "Légendaire offert gratuitement")
+	table.clear(data.RolledQueue)
+	data.FirstCollectDone = true
+	services.RollService:RenderStage(alice)
 	-- Ensuite on paie le prix.
 	rollNow(alice)
 	local price = data.RolledQueue[1].price
 	assert(price > 0, "prix nul")
-	local okPoor = invoke("CollectRolled", alice, 1)
+	local okPoor = invoke("CollectRolled", alice, data.RolledQueue[1].key)
 	assert(not okPoor, "collecte sans argent acceptée")
 	DataService:AddCoins(alice, price)
-	local okPaid, msg2 = invoke("CollectRolled", alice, 1)
+	local okPaid, msg2 = invoke("CollectRolled", alice, data.RolledQueue[1].key)
 	assert(okPaid, "collecte payante : " .. tostring(msg2))
 	assert(data.coins == 0, "prix non débité")
 	local count = 0
@@ -609,6 +622,21 @@ test("Cases d'unités : « Remplacer l'unité », silhouettes verrouillées", fu
 	assert(not table.find(data.team, teamUid), "le perso est resté dans l'équipe")
 	assert(invoke("EquipCharacter", alice, teamUid, true), "rééquiper")
 	assert(data.DisplayPins["1"] == nil, "le perso rééquipé est resté sur sa case")
+	-- « Libérer la case » : la case reste VIDE (pas de remplissage automatique), même avec
+	-- des unités disponibles ; « Remplissage auto » la rend de nouveau automatique.
+	local spare = 0
+	for id in data.characters do
+		if not table.find(data.team, id) then
+			spare += 1
+		end
+	end
+	assert(spare >= 2, "pas assez d'unités hors équipe pour le test")
+	assert(invoke("PlaceUnit", alice, 2, nil), "libération refusée")
+	assert(data.DisplayPins["2"] == false, "case non marquée vide")
+	assert(services.CharacterService:GetDisplayed(alice)[2] == nil, "la case libérée a été reremplie")
+	assert(plot.slots[2].state == "free", "case 2 non libre après libération")
+	assert(invoke("PlaceUnit", alice, 2, "auto"), "remplissage auto refusé")
+	assert(data.DisplayPins["2"] == nil and services.CharacterService:GetDisplayed(alice)[2] ~= nil, "remplissage auto sans effet")
 	-- Étiquette nom + étoiles + rareté au-dessus des unités exposées.
 	local tagged = 0
 	for _, model in plot.displayFolder:GetChildren() do
@@ -680,6 +708,11 @@ test("Migration d'une ancienne sauvegarde (v1)", function()
 	assert(data.FirstCollectDone == true, "un ancien joueur ne doit pas avoir de perso offert")
 	assert(data.coins == 1234 and data.characters["OLD-1"], "anciennes données perdues")
 	assert(data.upgrades.dojo and Economy.UpgradesById.dojo, "ancienne amélioration perdue")
+	-- Sauvegarde abîmée : les champs qui doivent être des tables sont réparés au lieu de planter.
+	local broken = DataService.migrate({ version = 1, Pity = 5, characters = "x", Skills = true, DisplayPins = { ["1"] = 3, ["2"] = false } })
+	assert(type(broken.Pity) == "table" and broken.Pity.legendary == 0, "Pity abîmé non réparé")
+	assert(type(broken.characters) == "table" and type(broken.Skills) == "table", "tables abîmées non réparées")
+	assert(broken.DisplayPins["1"] == nil and broken.DisplayPins["2"] == false, "cases abîmées mal nettoyées")
 	local plot = services.PlotService:GetPlot(carol)
 	assert(plot and plot.ownerFolder.Structures:FindFirstChild("dojo"), "structure de l'ancienne sauvegarde non construite")
 	removePlayer(carol)

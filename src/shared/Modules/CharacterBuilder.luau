@@ -292,7 +292,9 @@ local function newContext(model: Model, s: number, paint: string)
 		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
 		gui.PixelsPerStud = 60
 		gui.LightInfluence = 1
-		gui.MaxDistance = 140
+		-- Au-delà d'environ 55 studs (x la taille du perso) un visage ne fait que quelques pixels :
+		-- inutile de faire dessiner des centaines de SurfaceGui aux consoles et aux mobiles.
+		gui.MaxDistance = 55 * math.max(1, ctx.s or 1)
 		gui.ClipsDescendants = true
 		gui.Parent = part
 		return gui

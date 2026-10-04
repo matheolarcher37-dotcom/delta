@@ -31,7 +31,11 @@ function HubService:Challenge(player: Player)
 	if not character or not character:FindFirstChild("HumanoidRootPart") then
 		return
 	end
-	character:PivotTo(self:GetArenaEntrance())
+	local entrance = self:GetArenaEntrance()
+	if self.services.PlotService and self.services.PlotService.streamAround then
+		self.services.PlotService.streamAround(player, entrance.Position)
+	end
+	character:PivotTo(entrance)
 	if self.services.TeamService then
 		task.delay(0.2, function()
 			self.services.TeamService:TeleportTeam(player)

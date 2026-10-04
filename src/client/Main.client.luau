@@ -34,6 +34,7 @@ local Effects = require(Controllers.Effects)
 local AuraController = require(Controllers.AuraController)
 local NameTags = require(Controllers.NameTags)
 local WorldInteraction = require(Controllers.WorldInteraction)
+local CoinConveyor = require(Controllers.CoinConveyor)
 
 local gui = Theme.new("ScreenGui", {
 	Name = "AnimeTycoonUI",
@@ -44,19 +45,28 @@ local gui = Theme.new("ScreenGui", {
 })
 
 -- Échelle de l'interface : tout est dessiné pour un écran de 1280 x 720 puis agrandi ou réduit
--- (téléphone, PC, télé 4K). Sur télé (interface « à 3 mètres »), un peu plus grand encore.
+-- (téléphone, PC, télé 4K). On part de la zone sûre réelle (gui.AbsoluteSize, sans la barre de
+-- Roblox ni l'encoche) et on garde 770 de haut « logiques » : les fenêtres de 640 et leur barre
+-- d'indications manette (dessous) tiennent toujours à l'écran. Sur télé, un peu plus grand si la
+-- hauteur le permet.
+local LOGICAL_W, LOGICAL_H = 1280, 770
 local function updateScale()
-	local camera = workspace.CurrentCamera
-	if camera then
-		local size = camera.ViewportSize
-		local scale = math.min(size.X / 1280, size.Y / 720)
-		if Console.isTenFoot() then
-			scale *= 1.06
+	local size = gui.AbsoluteSize
+	if size.X < 10 or size.Y < 10 then
+		local camera = workspace.CurrentCamera
+		if not camera then
+			return
 		end
-		Theme.setScale(math.clamp(scale, 0.5, 3))
+		size = camera.ViewportSize
 	end
+	local scale = math.min(size.X / LOGICAL_W, size.Y / LOGICAL_H)
+	if Console.isTenFoot() then
+		scale = math.min(size.X * 1.06 / LOGICAL_W, size.Y / LOGICAL_H)
+	end
+	Theme.setScale(math.clamp(scale, 0.4, 3))
 end
 updateScale()
+gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateScale)
 workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(updateScale)
 if workspace.CurrentCamera then
 	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
@@ -132,6 +142,7 @@ end)
 safeInit("AuraController", AuraController.init)
 safeInit("NameTags", NameTags.init)
 safeInit("WorldInteraction", WorldInteraction.init)
+safeInit("CoinConveyor", CoinConveyor.init)
 
 updateScale()
 

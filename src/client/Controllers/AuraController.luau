@@ -56,6 +56,14 @@ end
 
 local function apply(model: Model)
 	clear(model)
+	-- Le modèle a pu quitter le jeu pendant l'attente du Torse : pas d'effets orphelins.
+	local present = false
+	pcall(function()
+		present = model:IsDescendantOf(Workspace)
+	end)
+	if not present then
+		return
+	end
 	local auraId = model:GetAttribute("Aura")
 	local aura = Auras.get(auraId)
 	if not aura then
@@ -73,8 +81,10 @@ local function apply(model: Model)
 	light.Color = aura.color
 	light.Range = 10 * scale
 	light.Brightness = 1.5
+	light.Enabled = false -- allumée chaque image selon la qualité et le plafond (MAX_LIGHTS)
 	light.Parent = torso
 	table.insert(state.instances, light)
+	state.light = light
 
 	if aura.effect == "lightning" then
 		table.insert(state.instances, particles(torso, aura.color, 12, 0.4 * scale))
@@ -130,6 +140,17 @@ local function watch(model: Instance)
 	end)
 end
 
+-- Qualité réelle des effets (Effects la pose, mode Auto compris) ; à défaut le réglage choisi.
+local MAX_LIGHTS = 6
+local function effectiveQuality(): string
+	local player = Players.LocalPlayer
+	if not player then
+		return "high"
+	end
+	local value = player:GetAttribute("FxQualityEffective") or player:GetAttribute("FxQuality")
+	return type(value) == "string" and value or "high"
+end
+
 function AuraController.init()
 	folder = Instance.new("Folder")
 	folder.Name = "AuraFX"
@@ -147,6 +168,10 @@ function AuraController.init()
 		local t = os.clock()
 		local camera = Workspace.CurrentCamera
 		local camPos = camera and camera.CFrame.Position or Vector3.zero
+		local quality = effectiveQuality()
+		local lowQuality = quality == "low"
+		local maxLights = lowQuality and 0 or (quality == "medium" and 3 or MAX_LIGHTS)
+		local lights = 0
 		for model, state in active do
 			if not model.Parent then
 				-- Perso K.O. ou détruit : on cache les effets.
@@ -156,7 +181,15 @@ function AuraController.init()
 				continue
 			end
 			local center = state.root.Position
-			local near = (center - camPos).Magnitude < 150
+			local distance = (center - camPos).Magnitude
+			local near = distance < 150
+			if state.light then
+				local on = distance < 60 and lights < maxLights
+				state.light.Enabled = on
+				if on then
+					lights += 1
+				end
+			end
 			for _, item in state.orbit do
 				local angle = t * item.speed + item.phase
 				local hue = state.aura.effect == "rainbow" and Color3.fromHSV((t * 0.3 + item.phase * 0.14) % 1, 0.8, 1) or nil
@@ -169,7 +202,6 @@ function AuraController.init()
 			end
 			-- Petits éclairs autour du perso (cœur blanc + halo coloré, parfois une branche).
 			if state.aura.effect == "lightning" and near and t >= state.nextBolt then
-				local lowQuality = Players.LocalPlayer and Players.LocalPlayer:GetAttribute("FxQuality") == "low"
 				state.nextBolt = t + rng:NextNumber(0.12, 0.4) * (lowQuality and 2 or 1)
 				local s = state.scale
 				local from = center + Vector3.new(rng:NextNumber(-1.8, 1.8), rng:NextNumber(-2, 3), rng:NextNumber(-1.8, 1.8)) * s

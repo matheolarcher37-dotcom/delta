@@ -230,6 +230,7 @@ local function renderList()
 	for i = (page - 1) * PAGE_SIZE + 1, math.min(#list, page * PAGE_SIZE) do
 		local item = list[i]
 		local card = Components.characterCard(refs.list, item.entry, {
+			selKey = item.uid,
 			selected = item.uid == selected,
 			layoutOrder = i,
 			onClick = function()
@@ -302,8 +303,11 @@ function Evolution.init(gui: ScreenGui)
 		local key = table.concat(parts, "|")
 		if key ~= lastKey then
 			lastKey = key
-			renderList()
-			renderDetail()
+			-- La carte choisie à la manette reste sélectionnée après la reconstruction.
+			Components.preserveSelection(window.content, function()
+				renderList()
+				renderDetail()
+			end)
 		end
 	end)
 end

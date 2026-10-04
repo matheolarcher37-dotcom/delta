@@ -99,8 +99,9 @@ function State.rollInfo()
 	return {
 		count = tonumber(data.RollCount) or 0,
 		x10Every = every,
-		x10In = math.max(0, every - counter % every),
-		x10Counter = counter % every,
+		-- Même calcul que le serveur (RollService:Roll) : x10 quand X10Counter + 1 >= x10Every.
+		x10In = math.max(1, every - counter),
+		x10Counter = math.min(counter, every),
 		pity = data.Pity or { legendary = 0, mythic = 0, secret = 0 },
 		autoRoll = data.AutoRoll == true,
 		autoUnlocked = stats.autoRoll == true,

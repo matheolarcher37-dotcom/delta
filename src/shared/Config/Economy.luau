@@ -169,7 +169,8 @@ Economy.Roll = {
 	-- Pitié : nombre de persos tirés (« rouleaux ») avant une rareté garantie (avant l'arbre).
 	Pity = { legendary = 150, mythic = 1200, secret = 8000 },
 	PityOrder = { "legendary", "mythic", "secret" },
-	FirstCollectFree = true, -- le tout premier perso collecté est offert (pour bien démarrer)
+	FirstCollectFree = true, -- le tout premier perso collecté est offert (pour bien démarrer)...
+	FreeCollectMaxOrder = 3, -- ... s'il est Rare ou moins (pas de Légendaire/Mythique gratuit)
 }
 
 -- Paliers d'ennemis dans la zone d'univers (anneau extérieur -> centre).

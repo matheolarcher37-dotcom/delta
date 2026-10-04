@@ -6,7 +6,7 @@
 -- Un chemin de pièces = { kind = "coin" | "gold" | "gem", interval = s, points = { Vector3 (monde) } } :
 -- point 1 = sortie de la buse, puis le tapis, le dernier point = l'intérieur du coffre.
 
-local TweenService = game:GetService("TweenService")
+local CollectionService = game:GetService("CollectionService")
 
 local Build = require(script.Parent.Build)
 local Kit = require(script.Parent.TycoonKit)
@@ -15,7 +15,6 @@ local Conveyor = {}
 
 local rgb = Color3.fromRGB
 local C = Kit.Colors
-local BELT_SPEED = 7 -- studs par seconde
 
 Conveyor.Styles = {
 	bronze = { body = C.Lacquer, trim = C.Gold, glow = rgb(255, 190, 80), coin = "coin", interval = 2.4, label = "x1" },
@@ -173,64 +172,36 @@ end
 -- Animation des pièces
 ------------------------------------------------------------------------
 
-local function makeCoin(parent: Instance, kind: string, position: Vector3): BasePart
-	if kind == "gem" then
-		return Kit.blob(parent, "Gemme", Vector3.new(0.9, 1.3, 0.9), CFrame.new(position), rgb(120, 230, 255), {
-			Material = Enum.Material.Neon,
-			CanCollide = false,
-			CanQuery = false,
-		})
+-- Les pièces sont animées CÔTÉ CLIENT (Controllers/CoinConveyor) : un tween serveur enverrait
+-- le CFrame de chaque pièce à chaque image à tous les joueurs proches. Le serveur ne fait que
+-- publier les chemins dans le dossier `folder` (un Configuration par chemin : attributs Kind,
+-- Interval et Points = "x,y,z;x,y,z;...") et l'étiquette CollectionService "CoinConveyor".
+Conveyor.Tag = "CoinConveyor"
+
+local function encodePoints(points: { Vector3 }): string
+	local parts = {}
+	for _, p in points do
+		table.insert(parts, string.format("%.2f,%.2f,%.2f", p.X, p.Y, p.Z))
 	end
-	local coin = Kit.coin(parent, CFrame.new(position), kind == "gold" and 1.9 or 1.4)
-	if kind == "gold" then
-		coin.Color = rgb(255, 225, 90)
-		coin.Material = Enum.Material.Neon
-	end
-	return coin
+	return table.concat(parts, ";")
 end
 
--- Fait apparaître une pièce et la fait voyager le long du chemin. Renvoie la durée du trajet.
-function Conveyor.spawn(parent: Instance, path): number
-	local points = path.points
-	local coin = makeCoin(parent, path.kind, points[1])
-	local elapsed = 0
-	for i = 2, #points do
-		local from, to = points[i - 1], points[i]
-		local duration
-		local style = Enum.EasingStyle.Linear
-		if i == 2 then
-			duration = 0.35 -- chute depuis la buse
-			style = Enum.EasingStyle.Quad
-		elseif i == #points then
-			duration = 0.3 -- saut dans le coffre
-			style = Enum.EasingStyle.Quad
-		else
-			duration = (to - from).Magnitude / BELT_SPEED
-		end
-		local target = CFrame.new(to) * CFrame.Angles(0, elapsed * 2, 0)
-		task.delay(elapsed, function()
-			pcall(function()
-				TweenService:Create(coin, TweenInfo.new(duration, style, Enum.EasingDirection.In), { CFrame = target }):Play()
-			end)
-		end)
-		elapsed += duration
-	end
-	task.delay(elapsed + 0.05, function()
-		pcall(function()
-			coin:Destroy()
-		end)
-	end)
-	return elapsed
-end
-
--- À appeler régulièrement : lâche une pièce par distributeur quand son intervalle est écoulé.
-function Conveyor.step(parent: Instance, paths, now: number)
-	for _, path in paths do
-		if not path.nextDrop or now >= path.nextDrop then
-			path.nextDrop = now + path.interval
-			Conveyor.spawn(parent, path)
+function Conveyor.publish(folder: Instance, paths, active: boolean)
+	for _, child in folder:GetChildren() do
+		if child:IsA("Configuration") then
+			child:Destroy()
 		end
 	end
+	for i, path in paths or {} do
+		local config = Instance.new("Configuration")
+		config.Name = "Chemin" .. i
+		config:SetAttribute("Kind", path.kind)
+		config:SetAttribute("Interval", path.interval)
+		config:SetAttribute("Points", encodePoints(path.points))
+		config.Parent = folder
+	end
+	folder:SetAttribute("Active", active)
+	CollectionService:AddTag(folder, Conveyor.Tag)
 end
 
 return Conveyor

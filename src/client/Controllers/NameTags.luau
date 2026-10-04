@@ -107,14 +107,16 @@ local function attach(model: Instance)
 			if isEnemy then
 				name.TextColor3 = isBoss and Color3.fromRGB(255, 80, 80) or Color3.fromRGB(255, 200, 200)
 			else
-				local rarityId = model:GetAttribute("RollRarity") or model:GetAttribute("Rarity") or "common"
+				local rollId = model:GetAttribute("RollRarity")
+				local rarityId = rollId or model:GetAttribute("Rarity") or "common"
 				local info = Theme.rarity(rarityId)
 				if info.rainbow then
 					name.TextColor3 = WHITE
 					nameGradient.Enabled = true
 				else
-					local rarity = Rarities.get(rarityId)
-					local color = (rarity and rarity.color) or info.color
+					-- Rareté de la machine (Peu commun compris) : couleurs de Theme ; sinon Config/Rarities.
+					local known = Rarities.List[rarityId]
+					local color = (not rollId and known and known.color) or info.color
 					name.TextColor3 = color:Lerp(WHITE, 0.2)
 				end
 			end

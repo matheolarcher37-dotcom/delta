@@ -86,6 +86,15 @@ local function register(model: Instance)
 			return
 		end
 		task.wait()
+		-- Le modèle a pu partir pendant l'attente (perso collecté, sorti du streaming) :
+		-- unregister est déjà passé, on ne crée pas d'entrée orpheline.
+		local stillHere = false
+		pcall(function()
+			stillHere = model:IsDescendantOf(Workspace)
+		end)
+		if not stillHere or rigs[model :: Model] then
+			return
+		end
 		local motors = {}
 		for _, descendant in model:GetDescendants() do
 			if descendant:IsA("Motor6D") and table.find(JOINTS, descendant.Name) then
@@ -332,9 +341,15 @@ function RigAnimator.init()
 		local t = os.clock()
 		for model, st in rigs do
 			if not model.Parent or not st.root.Parent then
-				-- Le modèle peut revenir (perso K.O. qui revient) : on garde l'état.
+				-- Le modèle peut revenir (perso K.O. qui revient) : on garde l'état un moment,
+				-- puis on l'oublie (sinon fuite).
+				st.goneSince = st.goneSince or t
+				if t - st.goneSince > 30 then
+					rigs[model] = nil
+				end
 				continue
 			end
+			st.goneSince = nil
 			local distance = (st.root.Position - camPos).Magnitude
 			setActive(st, distance < FAR)
 			if st.active then

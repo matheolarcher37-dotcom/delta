@@ -1050,6 +1050,7 @@ export type CardOptions = {
 	spin: boolean?,
 	hideLevel: boolean?,
 	caption: string?,
+	selKey: string?, -- clé pour retrouver la carte après une reconstruction (manette)
 }
 
 function Components.characterCard(parent: Instance, entry, options: CardOptions?)
@@ -1232,6 +1233,9 @@ function Components.characterCard(parent: Instance, entry, options: CardOptions?
 			opts.onClick()
 		end
 	end)
+	if opts.selKey then
+		card:SetAttribute("SelKey", opts.selKey)
+	end
 	return card
 end
 
@@ -1564,6 +1568,59 @@ function Components.setPillText(pill: Instance, text: string)
 end
 
 -- Pagination « ◀ Page 1 / 3 ▶ » (navigable à la manette).
+-- Reconstruit `container` avec fn() SANS perdre la sélection de la manette : la carte choisie
+-- (attribut "SelKey", sinon son nom) est resélectionnée après coup ; à défaut, on revient au
+-- bouton par défaut du menu ouvert. Sans manette, ne fait que fn().
+local GuiService = game:GetService("GuiService")
+
+local function selectionKey(selected: Instance, container: Instance): string?
+	local node: Instance? = selected
+	while node and node ~= container do
+		local key = node:GetAttribute("SelKey")
+		if key ~= nil then
+			return tostring(key)
+		end
+		node = node.Parent
+	end
+	return nil
+end
+
+function Components.preserveSelection(container: Instance, fn: () -> ())
+	local selected: Instance? = nil
+	pcall(function()
+		selected = GuiService.SelectedObject
+	end)
+	local inside, key = false, nil
+	if selected then
+		pcall(function()
+			inside = (selected :: Instance):IsDescendantOf(container)
+			if inside then
+				key = selectionKey(selected :: Instance, container)
+			end
+		end)
+	end
+	fn()
+	if not inside or not Console.isGamepad() then
+		return
+	end
+	local stillThere = false
+	pcall(function()
+		stillThere = (selected :: Instance):IsDescendantOf(container)
+	end)
+	if stillThere then
+		return
+	end
+	if key then
+		for _, object in container:GetDescendants() do
+			if object:IsA("GuiObject") and object:GetAttribute("SelKey") ~= nil and tostring(object:GetAttribute("SelKey")) == key then
+				Console.select(object)
+				return
+			end
+		end
+	end
+	task.defer(Console.focusCurrent)
+end
+
 function Components.pager(parent: Instance, props: { [string]: any }?, onChange: (number) -> ())
 	local frame = new("Frame", {
 		Name = "Pager",
@@ -1645,6 +1702,7 @@ export type ItemCardOptions = {
 	selected: boolean?,
 	badge: string?,
 	onClick: (() -> ())?,
+	selKey: string?,
 }
 
 function Components.itemCard(parent: Instance, opts: ItemCardOptions): (TextButton, Frame)
@@ -1754,6 +1812,9 @@ function Components.itemCard(parent: Instance, opts: ItemCardOptions): (TextButt
 			opts.onClick()
 		end
 	end)
+	if opts.selKey then
+		card:SetAttribute("SelKey", opts.selKey)
+	end
 	return card, preview
 end
 

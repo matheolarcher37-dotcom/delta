@@ -244,6 +244,7 @@ local function renderGrid()
 	for i = (page - 1) * PAGE_SIZE + 1, math.min(#list, page * PAGE_SIZE) do
 		local item = list[i]
 		local card = Components.characterCard(refs.grid, item.entry, {
+			selKey = item.uid,
 			selected = item.uid == selected,
 			inTeam = State.inTeam(item.uid),
 			layoutOrder = i,
@@ -281,8 +282,10 @@ render = function(force: boolean?)
 		return
 	end
 	lastKey = key
-	renderGrid()
-	renderDetail()
+	Components.preserveSelection(window.content, function()
+		renderGrid()
+		renderDetail()
+	end)
 end
 
 function TraitsMenu.init(gui: ScreenGui)

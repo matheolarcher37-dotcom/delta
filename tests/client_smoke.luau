@@ -392,7 +392,29 @@ test("Boucle de la base vue par le client : rouler, collecter, poser une unité"
 	for _ in data.characters do
 		owned += 1
 	end
-	local ok = State.invoke("CollectRolled", 1)
+	-- Le bouton « Prendre » du panneau envoie la CLÉ du perso (pas sa position).
+	local firstKey = State.data.RolledQueue[1].key
+	data.RolledQueue[1].rarity = "common" -- la collecte offerte ne vaut que jusqu'au Rare
+	local takeButton = nil
+	for _, d in alice.PlayerGui.AnimeTycoonUI:GetDescendants() do
+		if d.Name == "Queued1" then
+			for _, b in d:GetDescendants() do
+				if b:IsA("TextButton") then
+					takeButton = b
+					break
+				end
+			end
+		end
+	end
+	assert(takeButton, "bouton « Prendre » absent du panneau")
+	signalFor(takeButton, "Activated"):Fire()
+	task.wait(0.3)
+	local ok = true
+	for _, item in data.RolledQueue do
+		if item.key == firstKey then
+			ok = false
+		end
+	end
 	assert(ok, "collecte refusée")
 	local after = 0
 	for _ in data.characters do
@@ -420,7 +442,27 @@ test("Boucle de la base vue par le client : rouler, collecter, poser une unité"
 	assert(Menus.current() ~= "PlaceUnit", "le menu devrait se fermer après le choix")
 	-- 4) Libérer la case.
 	assert(services.PlotService:PlaceUnit(alice, 2, nil), "libération refusée")
-	assert(data.DisplayPins["2"] == nil, "case non libérée")
+	assert(data.DisplayPins["2"] == false, "case non libérée")
+	assert(services.CharacterService:GetDisplayed(alice)[2] == nil, "la case libérée a été reremplie")
+	-- Le menu ne se reconstruit pas à chaque synchro si rien n'a changé.
+	Remotes.event("OpenMenu"):FireClient(alice, "PlaceUnit", { slot = 2 })
+	task.wait(0.2)
+	local firstGrid = nil
+	for _, d in root:GetDescendants() do
+		if d.Name == "Card" and d:IsA("TextButton") then
+			firstGrid = d
+			break
+		end
+	end
+	assert(firstGrid, "aucune carte après réouverture")
+	services.DataService:Sync(alice)
+	task.wait(0.5)
+	local okAlive, gridParent = pcall(function()
+		return firstGrid.Parent
+	end)
+	assert(okAlive and gridParent ~= nil, "la grille a été reconstruite sans changement")
+	Menus.close("PlaceUnit")
+	assert(services.PlotService:PlaceUnit(alice, 2, "auto"), "remplissage auto refusé")
 	-- 5) Options : couper la secousse d'écran.
 	Menus.open("Options")
 	task.wait(0.1)

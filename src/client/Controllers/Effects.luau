@@ -86,6 +86,12 @@ end
 local function setQuality(name: string)
 	qualityName = name
 	Q = AttackFx.Quality[name] or AttackFx.Quality.high
+	-- Qualité EFFECTIVE (auto compris, baisse si le jeu rame) : lue par AuraController.
+	if player then
+		pcall(function()
+			player:SetAttribute("FxQualityEffective", name)
+		end)
+	end
 end
 
 local function refreshQuality()
@@ -3797,9 +3803,9 @@ function Effects.setup(gui: ScreenGui?, hudModule)
 	refreshQuality()
 	particleBudget = 600
 	if player then
-		for _, attribute in { "FxQuality", "FxShake", "FxFlash" } do
-			player:GetAttributeChangedSignal(attribute):Connect(refreshQuality)
-		end
+		-- FxShake / FxFlash sont relus à chaque effet : seul FxQuality change la qualité
+		-- (sinon on annulerait la baisse automatique décidée quand le jeu rame).
+		player:GetAttributeChangedSignal("FxQuality"):Connect(refreshQuality)
 	end
 	lastStep = now()
 	RunService.RenderStepped:Connect(step)

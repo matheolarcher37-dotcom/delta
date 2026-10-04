@@ -9,7 +9,7 @@
 -- Les reliques (HatchService) restent une source secondaire : butin du boss, marchand de
 -- reliques de la base, relique de bienvenue. Les deux donnent des persos identiques.
 --
--- Remotes : Roll() → ok, résultats | message ; CollectRolled(index) → ok, message ;
+-- Remotes : Roll() → ok, résultats | message ; CollectRolled(clé) → ok, message ;
 -- SetAutoRoll(bool) → ok, message ; BuySkill(nodeId) → ok, message ; RollResult (serveur → client).
 
 local Players = game:GetService("Players")
@@ -66,8 +66,8 @@ function RollService:Start()
 		end
 		return ok, result
 	end
-	Remotes.func("CollectRolled").OnServerInvoke = function(player, index)
-		local ok, message = self:Collect(player, index)
+	Remotes.func("CollectRolled").OnServerInvoke = function(player, key)
+		local ok, message = self:Collect(player, key)
 		Notify:FireClient(player, message, ok and "success" or "error")
 		return ok, message
 	end
@@ -93,7 +93,10 @@ function RollService:Start()
 					Notify:FireClient(player, "Ce n'est pas ta base !", "error")
 					return
 				end
-				self:Roll(player)
+				local ok, message = self:Roll(player)
+				if not ok and type(message) == "string" then
+					Notify:FireClient(player, message, "error")
+				end
 			end)
 		end
 	end
@@ -316,16 +319,24 @@ function RollService:Roll(player: Player, auto: boolean?)
 	local stats = Formulas.playerStats(data)
 	local now = os.clock()
 	if lastRoll[player] and now - lastRoll[player] < stats.rollCooldown - 0.05 then
-		return false, auto and nil or "La machine recharge..."
+		if auto then
+			return false, nil
+		end
+		return false, "La machine recharge..."
 	end
 	local count = stats.rollsPerPull
 	if not makeRoom(data.RolledQueue, count) then
 		lastRoll[player] = now
+		local message = "Estrade pleine de persos rares : collecte-les d'abord !"
+		if not auto then
+			return false, message -- l'appelant prévient le joueur (un seul message)
+		end
+		-- Auto-roulage : on prévient de temps en temps seulement.
 		if not warnedFull[player] or now - warnedFull[player] > 20 then
 			warnedFull[player] = now
-			Notify:FireClient(player, "Estrade pleine de persos rares : collecte-les d'abord !", "warning")
+			Notify:FireClient(player, message, "warning")
 		end
-		return false, "Estrade pleine : collecte tes persos d'abord !"
+		return false, nil
 	end
 	lastRoll[player] = now
 	data.RollCount += 1
@@ -373,11 +384,10 @@ end
 -- Collecte
 ------------------------------------------------------------------------
 
+-- Seule la CLÉ du perso est acceptée (jamais sa position : la file bouge à chaque roulage,
+-- on risquerait d'acheter un autre perso que celui choisi).
 local function findIndex(queue, ref): number?
-	if type(ref) == "number" then
-		local index = math.floor(ref)
-		return queue[index] and index or nil
-	elseif type(ref) == "string" then
+	if type(ref) == "string" then
 		for i, item in queue do
 			if item.key == ref then
 				return i
@@ -387,7 +397,7 @@ local function findIndex(queue, ref): number?
 	return nil
 end
 
--- Achète un perso tiré (`ref` = index dans RolledQueue, ou clé du perso).
+-- Achète un perso tiré (`ref` = clé du perso dans RolledQueue).
 function RollService:Collect(player: Player, ref: any)
 	local DataService = self.services.DataService
 	local data = DataService:Get(player)
@@ -402,7 +412,7 @@ function RollService:Collect(player: Player, ref: any)
 		return false, "Inventaire plein (" .. Economy.MaxCharacters .. ") ! Vends des persos."
 	end
 	local item = data.RolledQueue[index]
-	local free = Economy.Roll.FirstCollectFree and not data.FirstCollectDone
+	local free = Formulas.rollCollectFree(data, item.rarity)
 	local price = free and 0 or item.price
 	if data.coins < price then
 		return false, "Il te manque ¥ " .. Formulas.formatNumber(price - data.coins) .. " pour ce perso."
@@ -411,6 +421,7 @@ function RollService:Collect(player: Player, ref: any)
 		DataService:SpendCoins(player, price)
 	end
 	table.remove(data.RolledQueue, index)
+	local firstCollect = not data.FirstCollectDone
 	data.FirstCollectDone = true
 	local CharacterService = self.services.CharacterService
 	local entry = CharacterService:CreateEntry(item.id, item.aura, item.trait)
@@ -419,7 +430,7 @@ function RollService:Collect(player: Player, ref: any)
 	local uid = CharacterService:AddCharacter(player, entry)
 	data.stats.hatched += 1
 	DataService:Sync(player)
-	self:RenderStage(player)
+	self:RenderStage(player, nil, firstCollect)
 	local info = Economy.RollRarities[item.rarity]
 	if info.order >= 4 or isNew then
 		HatchReveal:FireClient(player, { uid = uid, entry = entry, source = "roll", rollRarity = item.rarity, isNew = isNew })
@@ -479,6 +490,8 @@ function RollService:BuySkill(player: Player, nodeId: any)
 	end
 	DataService:SpendCoins(player, node.cost)
 	data.Skills[nodeId] = true
+	-- Le palier « Chance x10 » a pu baisser : le compteur ne doit pas le dépasser.
+	data.X10Counter = math.min(data.X10Counter or 0, math.max(0, Formulas.playerStats(data).x10Every - 1))
 	DataService:Sync(player)
 	local plot = self.services.PlotService:GetPlot(player)
 	if plot and plot.skillRefs then
@@ -542,8 +555,17 @@ local function itemTagLines(item, def)
 	return lines
 end
 
+-- Texte de l'invite « Collecter » d'un perso de l'estrade (prix, ou « offert »).
+function RollService:_collectText(data, item): string
+	if Formulas.rollCollectFree(data, item.rarity) then
+		return "Collecter (offert)"
+	end
+	return "Collecter (¥" .. Formulas.formatNumber(item.price) .. ")"
+end
+
 -- Affiche les persos de RolledQueue sur l'estrade (`fresh` = persos qui viennent d'arriver).
-function RollService:RenderStage(player: Player, fresh: { any }?)
+-- `refreshPrompts` = remettre à jour le texte des invites (fin de la collecte offerte).
+function RollService:RenderStage(player: Player, fresh: { any }?, refreshPrompts: boolean?)
 	local data = self.services.DataService:Get(player)
 	local plot = self.services.PlotService:GetPlot(player)
 	if not data or not plot or not plot.machine or not plot.rolledFolder then
@@ -565,12 +587,16 @@ function RollService:RenderStage(player: Player, fresh: { any }?)
 		local entry = { id = item.id, level = 1, xp = 0, stars = item.stars or 1, aura = item.aura, trait = item.trait, rollRarity = item.rarity }
 		local existing = plot.stage[item.key]
 		if existing and existing.model.Parent then
+			if refreshPrompts and existing.prompt then
+				existing.prompt.ActionText = self:_collectText(data, item)
+			end
 			if existing.spot ~= i then
 				existing.model:PivotTo(spot.cf * CFrame.new(0, existing.rootHeight, 0))
 				existing.spot = i
 			end
 		else
 			local ok, model = pcall(self.services.CharacterService.BuildModel, self.services.CharacterService, player, item.key, entry, { anchored = true })
+			local promptRef = nil
 			if ok and model then
 				local rootHeight = CharacterFactory.rootHeight(model)
 				model.Name = "Tire_" .. item.key
@@ -582,7 +608,8 @@ function RollService:RenderStage(player: Player, fresh: { any }?)
 					root.CanCollide = false
 					local def = Characters.get(item.id)
 					Kit.unitTag(root, itemTagLines(item, def), 3, 4.4 * (model:GetAttribute("BaseScale") or 1) + 1.6, 70, 5.4)
-					local prompt = Props.prompt(root, "Collecter (¥" .. Formulas.formatNumber(item.price) .. ")", def.name, 9)
+					local prompt = Props.prompt(root, self:_collectText(data, item), def.name, 9)
+					promptRef = prompt
 					prompt.Triggered:Connect(function(who)
 						if who ~= plot.owner then
 							Notify:FireClient(who, "Ce n'est pas ta base !", "error")
@@ -593,7 +620,7 @@ function RollService:RenderStage(player: Player, fresh: { any }?)
 					end)
 				end
 				model.Parent = plot.rolledFolder
-				existing = { model = model, spot = i, rootHeight = rootHeight }
+				existing = { model = model, spot = i, rootHeight = rootHeight, prompt = promptRef }
 				plot.stage[item.key] = existing
 			else
 				warn("[AnimeTycoon] Perso tiré : " .. tostring(model))

@@ -62,6 +62,13 @@ end
 
 -- Mise à niveau des anciennes sauvegardes (après reconcile, qui ajoute les champs manquants).
 local function migrate(data)
+	-- Sauvegarde abîmée : tout champ qui devrait être une table et n'en est pas une est remis
+	-- à sa valeur par défaut (sinon la suite planterait).
+	for key, value in template() do
+		if type(value) == "table" and type(data[key]) ~= "table" then
+			data[key] = value
+		end
+	end
 	local version = tonumber(data.version) or 1
 	if version < 2 then
 		-- v1 -> v2 : nouveaux champs de la machine ROULER (déjà ajoutés par reconcile).
@@ -79,6 +86,11 @@ local function migrate(data)
 	end
 	if type(data.DisplayPins) ~= "table" then
 		data.DisplayPins = {}
+	end
+	for key, value in data.DisplayPins do
+		if type(value) ~= "string" and value ~= false then
+			data.DisplayPins[key] = nil -- uid, ou false = case laissée vide exprès
+		end
 	end
 	for _, key in { "legendary", "mythic", "secret" } do
 		data.Pity[key] = math.max(0, math.floor(tonumber(data.Pity[key]) or 0))
@@ -260,8 +272,19 @@ function DataService:_onPlayerAdded(player: Player)
 		return
 	end
 	data.lock = nil
-	reconcile(data, template())
-	migrate(data)
+	local okMigrate, migrateError = pcall(function()
+		reconcile(data, template())
+		migrate(data)
+	end)
+	if not okMigrate then
+		-- Sauvegarde illisible : on ne garde pas un profil à moitié chargé (rien ne serait
+		-- sauvegardé et le verrou resterait posé) ; on libère le verrou et on prévient le joueur.
+		warn("[AnimeTycoon] Sauvegarde illisible pour " .. player.Name .. " : " .. tostring(migrateError))
+		self:_releaseLock(player)
+		profiles[player] = nil
+		player:Kick("Ta sauvegarde n'a pas pu être lue. Réessaie dans un instant !")
+		return
+	end
 	profiles[player].data = data
 	profiles[player].loaded = true
 
@@ -275,6 +298,22 @@ function DataService:_onPlayerAdded(player: Player)
 			Notify:FireClient(player, "⚠️ Sauvegarde désactivée (API Services non autorisées dans Studio).", "warning")
 		end)
 	end
+end
+
+-- Retire notre verrou de la sauvegarde sans rien changer d'autre.
+function DataService:_releaseLock(player: Player)
+	if not storeAvailable or not store then
+		return
+	end
+	pcall(function()
+		(store :: DataStore):UpdateAsync(keyFor(player), function(current)
+			if type(current) ~= "table" or type(current.lock) ~= "table" or current.lock.jobId ~= game.JobId then
+				return nil
+			end
+			current.lock = nil
+			return current
+		end)
+	end)
 end
 
 function DataService:_onPlayerRemoving(player: Player)
