@@ -1133,16 +1133,14 @@ local function jacketBack(S, look, c)
 	end
 end
 
--- Manche de veste : empiècement bleu nuit sur le haut (côté torse sur les faces avant / arrière),
--- ombres franches, plis à l'encre, poignet resserré, main.
-local function jacketSleeve(S, look, c, side: string, inner: string?)
+-- Manche longue façon texture classique : ombres franches, plis à l'encre, poignet resserré.
+-- Sur la veste de ninja : empiècement bleu nuit en raglan sur le haut (côté torse).
+local function classicSleeve(S, look, c, side: string, inner: string?, handTop: number)
 	local sleeve = c.sleeve
-	local yoke = look.shoulders
-	local handTop = look.handTop or 0.9
+	local yoke = c.outfit == "jacket" and look.shoulders or nil
 	cloth(S, sleeve)
 	if side == "in" then
 		S:rect(0.5, handTop - 0.13, 1, 0.012, inkOf(sleeve), { z = 4 })
-		hand(S, c, side, false, handTop)
 		return
 	end
 	-- Ombres franches côté extérieur et sous le coude
@@ -1173,13 +1171,13 @@ local function jacketSleeve(S, look, c, side: string, inner: string?)
 			S:oval(0.5, 0.1, 1.3, 0.16, yoke, { stroke = inkOf(sleeve), strokeThickness = 1.3, z = 3 })
 		end
 	end
-	-- Poignet resserré : trait d'encre arrondi + bande
+	-- Poignet resserré : trait d'encre arrondi + bande (couleur du poignet si précisée)
 	S:line(0.0, handTop - 0.14, 0.5, handTop - 0.125, 0.024, inkOf(sleeve), { z = 5 })
 	S:line(0.5, handTop - 0.125, 1.0, handTop - 0.14, 0.024, inkOf(sleeve), { z = 5 })
-	S:rect(0.5, handTop - 0.06, 1, 0.11, lighten(sleeve, 0.04), { z = 4 })
-	ink(S, 0.2, handTop - 0.07, 0.42, handTop - 0.05, sleeve, 0.016)
-	ink(S, 0.6, handTop - 0.04, 0.8, handTop - 0.065, sleeve, 0.016)
-	hand(S, c, side, inner == "l", handTop)
+	local cuff = look.cuffColor or lighten(sleeve, 0.04)
+	S:rect(0.5, handTop - 0.06, 1, 0.11, cuff, { z = 4 })
+	ink(S, 0.2, handTop - 0.07, 0.42, handTop - 0.05, cuff, 0.016)
+	ink(S, 0.6, handTop - 0.04, 0.8, handTop - 0.065, cuff, 0.016)
 end
 
 -- Pantalon de ninja : pli de l'entrejambe en éventail, grandes ombres des cuisses, bas resserré.
@@ -1195,7 +1193,7 @@ local function ninjaPants(S, look, c, side: string, isLeft: boolean, inner: stri
 		-- Ombre de la cuisse côté extérieur + éventail de l'entrejambe
 		S:oval(1 - ix, 0.42, 0.6, 1.0, celShadow(bottom), { z = 1 })
 		S:oval(ix + d * 0.2, 0.1, 0.5, 0.3, celShadow(bottom), { z = 1 })
-		for i = 0, 3 do
+		for i = 0, side == "back" and 1 or 3 do
 			local y = 0.04 + i * 0.05
 			S:line(ix + d * 0.04, y, ix + d * (0.42 - i * 0.04), y + 0.03, 0.022, inkOf(bottom), { z = 4, fine = S.lite and i % 2 == 1 })
 		end
@@ -1227,7 +1225,7 @@ local function paintArm(S, look, c, side: string, isLeft: boolean)
 	local skin = c.skin
 	local sleeves = c.sleeves
 	local sleeve = c.sleeve
-	local handTop = 0.82
+	local handTop = look.handTop or (sleeves == "long" and 0.9 or 0.86)
 	-- Bord côté torse sur les faces avant / arrière ("l" ou "r" de la toile)
 	local inner = nil
 	if side == "front" then
@@ -1235,11 +1233,9 @@ local function paintArm(S, look, c, side: string, isLeft: boolean)
 	elseif side == "back" then
 		inner = isLeft and "r" or "l"
 	end
-	if c.outfit == "jacket" and sleeves == "long" then
-		jacketSleeve(S, look, c, side, inner)
-		return
-	end
-	if sleeves == "long" or sleeves == "wide" then
+	if sleeves == "long" then
+		classicSleeve(S, look, c, side, inner, handTop)
+	elseif sleeves == "wide" then
 		cloth(S, sleeve)
 		if side ~= "in" then
 			if inner then
@@ -1298,7 +1294,7 @@ local function paintArm(S, look, c, side: string, isLeft: boolean)
 		end
 	end
 	-- Épaules d'une autre couleur (veste de Maruto...)
-	if look.shoulders and not covered and (sleeves == "long" or sleeves == "wide") then
+	if look.shoulders and not covered and c.outfit ~= "jacket" and (sleeves == "long" or sleeves == "wide") then
 		local col = look.shoulders
 		S:rect(0.5, 0.12, 1, 0.24, col, { gradient = { lighten(col, 0.18), col }, z = 5 })
 		S:oval(0.5, 0.24, 1.2, 0.14, col, { stroke = inkOf(col), strokeThickness = 1.5, z = 4 })
@@ -1437,7 +1433,7 @@ local function paintLeg(S, look, c, side: string, isLeft: boolean)
 			-- Genou
 			fold(S, 0.32, 0.62, 0.68, 0.6, skin, { w = 0.05, z = 1 })
 		end
-	elseif look.pantsStyle == "ninja" then
+	elseif look.pantsStyle ~= "plain" then
 		ninjaPants(S, look, c, side, isLeft, inner)
 	else
 		cloth(S, bottom)
@@ -1493,6 +1489,9 @@ end
 -- Plis génériques du torse (aisselles, ventre).
 local function torsoFolds(S, color: Color3, o)
 	local opts = o or {}
+	-- Grandes ombres franches en "V" (texture classique)
+	shadowV(S, -0.02, 0.48, 0.3, 0.6, 0.0, 0.76, 0.17, color, 1)
+	shadowV(S, 1.02, 0.48, 0.7, 0.6, 1.0, 0.76, 0.17, color, 1)
 	fold(S, 0.02, 0.3, 0.36, 0.55, color)
 	fold(S, 0.98, 0.3, 0.64, 0.55, color)
 	if opts.belly ~= false then

@@ -525,7 +525,9 @@ HAIR.spiky = function(ctx, c, look)
 	local tip = look.hairTip
 	local band = wearsHeadband(look)
 	local L = look.hairLength or 1
-	cap(ctx, c, { color2 = under, backLength = 0.95, lift = band and 0.07 or 0.02, height = 0.9 })
+	cap(ctx, c, { back = false, lift = band and 0.07 or 0.02, height = 0.9 })
+	-- Nuque : mèches courtes plaquées (pas de volume rond)
+	ctx.ball("Head", "HairNape", Vector3.new(1.2, 0.7, 0.5), CFrame.new(0, 0.2, 0.42), under)
 	local center = Vector3.new(0, band and 0.74 or 0.68, 0.06)
 	-- Mèches couchées en écailles juste au-dessus du bandeau (cachent la calotte)
 	scales(ctx, c, shine, under, band and 0.6 or 0.5, 0.46 * L, { tip = tip })
@@ -555,7 +557,9 @@ HAIR.spiky = function(ctx, c, look)
 		ctx.spike("Head", c, Vector3.new(side * 0.5, 0.5, 0.0), Vector3.new(side, -0.2, 0.05), 0.55 * L, 0.44, { tip = tip, cross = false })
 		ctx.spike("Head", under, Vector3.new(side * 0.36, 0.3, 0.4), Vector3.new(side * 0.6, -0.6, 0.7), 0.4 * L, 0.42, { tip = tip, cross = false })
 	end
-	ctx.spike("Head", under, Vector3.new(0, 0.2, 0.5), Vector3.new(0, -0.7, 1), 0.42 * L, 0.46, { tip = tip, cross = false })
+	for _, x in { -0.25, 0, 0.25 } do
+		ctx.spike("Head", under, Vector3.new(x, 0.15, 0.5), Vector3.new(x, -1, 0.5), 0.4 * L, 0.42, { tip = tip, cross = false })
+	end
 	if not band then
 		-- Sans bandeau : frange en pointes sur le front
 		fringe(ctx, c, { -0.38, -0.13, 0.13, 0.38 }, { 0.42, 0.5, 0.46, 0.4 }, 0.34, { alt = shine, y = 0.56, spread = 0.7, tip = tip })
@@ -1324,7 +1328,7 @@ ACC.haori_checker = function(ctx, look)
 	-- Damier vert et noir
 	local green = look.accColor or Color3.fromRGB(40, 130, 90)
 	haoriBase(ctx, look, Color3.fromRGB(28, 28, 32), function(S, kind)
-		local cell = 0.4 -- taille d'une case (studs)
+		local cell = 0.52 -- taille d'une case (studs)
 		local cols = math.max(1, math.floor(S.w / cell + 0.5))
 		local rows = math.max(1, math.floor(S.h / cell + 0.5))
 		for r = 0, rows - 1 do
