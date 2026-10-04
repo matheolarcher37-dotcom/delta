@@ -1,4 +1,6 @@
--- Le Forgeron (stand du hub) : acheter et équiper des épées pour combattre soi-même.
+-- FORGERON (stand du hub) : acheter et équiper des épées pour combattre soi-même.
+-- À gauche les épées (prix bien visible), à droite la fiche de l'épée : aperçu 3D, tuiles de
+-- statistiques (dégâts, vitesse), portée, effet et bouton ACHETER / ÉQUIPER.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -10,6 +12,7 @@ local SwordBuilder = require(Shared.Modules.SwordBuilder)
 
 local Theme = require(script.Parent.Theme)
 local Components = require(script.Parent.Components)
+local UnitSheet = require(script.Parent.UnitSheet)
 local Menus = require(script.Parent.Menus)
 local Notifications = require(script.Parent.Notifications)
 local State = require(script.Parent.Parent.State)
@@ -18,9 +21,11 @@ local ForgeMenu = {}
 
 local C = Theme.Colors
 local new = Theme.new
+local WHITE = Color3.new(1, 1, 1)
+local ACCENT = Color3.fromRGB(240, 110, 40)
 
 local window
-local refs = {}
+local refs: { [string]: any } = {}
 local selected: string = Swords.Starter
 local render: (boolean?) -> ()
 
@@ -46,75 +51,99 @@ local function owned(id: string): boolean
 end
 
 local function renderDetail()
-	local panel = refs.detail
-	Components.clear(panel)
+	local holder = refs.detail
+	Components.clear(holder)
 	local sword = Swords.get(selected) or Swords.List[1]
 	local data = State.data
-	local preview = new("Frame", { Size = UDim2.new(1, -16, 0.42, 0), Position = UDim2.fromOffset(8, 6), BackgroundColor3 = C.PanelDark, Parent = panel })
+	local tint = sword.look.trail
+	local sheet = Components.sheet(holder, { Size = UDim2.fromScale(1, 1) })
+
+	local preview = new("Frame", {
+		Size = UDim2.new(0.5, -18, 1, -24),
+		Position = UDim2.fromOffset(12, 12),
+		BackgroundColor3 = WHITE,
+		ClipsDescendants = true,
+		Parent = sheet,
+	})
 	Theme.corner(12).Parent = preview
-	Theme.gradient({ sword.look.trail:Lerp(Color3.new(0, 0, 0), 0.55), C.PanelDark }, 90).Parent = preview
-	swordViewport(preview, sword, true)
+	Theme.stroke(Theme.dark(tint, 0.1), 2).Parent = preview
+	Theme.gradient({ Color3.fromRGB(30, 30, 40), Color3.fromRGB(14, 14, 20), Theme.dark(tint, 0.55) }, 90).Parent = preview
+	local glow = new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.55),
+		Size = UDim2.fromScale(0.9, 0.6),
+		BackgroundColor3 = tint,
+		BackgroundTransparency = 0.6,
+		BorderSizePixel = 0,
+		Parent = preview,
+	})
+	Theme.round().Parent = glow
+	Theme.gradient({ WHITE, WHITE }, 90, { 0.4, 1 }).Parent = glow
+	local view = new("Frame", { Size = UDim2.new(1, 0, 1, -80), Position = UDim2.fromOffset(0, 70), BackgroundTransparency = 1, ZIndex = 2, Parent = preview })
+	swordViewport(view, sword, true).ZIndex = 2
 	Theme.label({
-		Text = "🗡️ " .. sword.name,
-		Size = UDim2.new(1, -16, 0.07, 0),
-		Position = UDim2.new(0, 8, 0.44, 0),
-		Font = Theme.Fonts.Title,
-		TextColor3 = sword.look.trail:Lerp(Color3.new(1, 1, 1), 0.4),
-		Parent = panel,
+		Text = sword.name,
+		Position = UDim2.fromOffset(12, 10),
+		Size = UDim2.new(1, -24, 0, 32),
+		FontFace = Theme.Faces.Heavy,
+		TextColor3 = Theme.light(tint, 0.45),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 3,
+		Parent = preview,
 	})
 	Theme.label({
 		Text = sword.description,
-		Size = UDim2.new(1, -16, 0.06, 0),
-		Position = UDim2.new(0, 8, 0.51, 0),
-		Font = Theme.Fonts.Small,
+		Position = UDim2.fromOffset(12, 42),
+		Size = UDim2.new(1, -24, 0, 36),
+		FontFace = Theme.Faces.Bold,
 		TextColor3 = C.TextDim,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
 		TextWrapped = true,
-		Parent = panel,
+		ZIndex = 3,
+		StrokeThickness = 1,
+		MaxSize = 16,
+		Parent = preview,
 	})
-	local dps = sword.damage / sword.cooldown
-	local lines = {
-		{ "⚔️ Dégâts", Formulas.formatNumber(sword.damage) },
-		{ "⏱️ Vitesse", string.format("%.2f s", sword.cooldown) },
-		{ "💥 Dégâts / s", Formulas.formatNumber(math.floor(dps)) },
-		{ "📏 Portée", tostring(sword.range) .. " studs" },
-		{ "✨ Effet", FX_NAMES[sword.fx] or sword.fx },
-	}
-	for i, line in lines do
-		local y = 0.585 + (i - 1) * 0.055
-		Theme.label({
-			Text = line[1],
-			Size = UDim2.new(0.5, -8, 0.05, 0),
-			Position = UDim2.new(0, 10, y, 0),
-			TextXAlignment = Enum.TextXAlignment.Left,
-			Font = Theme.Fonts.Body,
-			Parent = panel,
-		})
-		Theme.label({
-			Text = line[2],
-			Size = UDim2.new(0.5, -10, 0.05, 0),
-			Position = UDim2.new(0.5, 0, y, 0),
-			TextXAlignment = Enum.TextXAlignment.Right,
-			Font = Theme.Fonts.Body,
-			TextColor3 = C.Gold,
-			Parent = panel,
-		})
-	end
+
+	local right = new("Frame", { Size = UDim2.new(0.5, -18, 1, -24), Position = UDim2.new(0.5, 6, 0, 12), BackgroundTransparency = 1, Parent = sheet })
+	local list = new("Frame", { Size = UDim2.new(1, 0, 0, 2 * 64), BackgroundTransparency = 1, Parent = right })
+	Theme.list(Enum.FillDirection.Vertical, 6, Enum.HorizontalAlignment.Center).Parent = list
+	UnitSheet.statTile(list, "dmg", Formulas.formatNumber(sword.damage), { LayoutOrder = 1 })
+	UnitSheet.statTile(list, "spa", string.format("%.2fs", sword.cooldown), { LayoutOrder = 2 })
+	local infos = new("Frame", { Size = UDim2.new(1, 0, 0, 3 * 42), Position = UDim2.fromOffset(0, 2 * 64 + 4), BackgroundTransparency = 1, Parent = right })
+	Theme.list(Enum.FillDirection.Vertical, 6, Enum.HorizontalAlignment.Center).Parent = infos
+	Components.pill(infos, "star", "Dégâts / s : " .. Formulas.formatNumber(math.floor(sword.damage / sword.cooldown)), C.Red, { Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 1 })
+	Components.pill(infos, "target", "Portée : " .. tostring(sword.range) .. " studs", C.Blue, { Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 2 })
+	Components.pill(infos, "bolt", "Effet : " .. (FX_NAMES[sword.fx] or tostring(sword.fx)), tint, { Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 3 })
+
 	local isOwned = owned(sword.id)
 	local isEquipped = data ~= nil and data.equippedSword == sword.id
-	local text, color
+	local text, color, icon
 	if isEquipped then
-		text, color = "✅ ÉQUIPÉE", C.PanelLight
+		text, color, icon = "ÉQUIPÉE", C.Gray, "check"
 	elseif isOwned then
-		text, color = "ÉQUIPER", C.Blue
+		text, color, icon = "ÉQUIPER", C.Blue, "sword"
 	else
-		text, color = "ACHETER · 💰 " .. Formulas.formatNumber(sword.price), C.Green
+		text, color, icon = "ACHETER", C.Green, "coin"
+	end
+	if not isOwned then
+		local price = Components.price(right, sword.price, {
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.new(0.5, 0, 1, -66),
+			Size = UDim2.new(1, 0, 0, 42),
+		})
+		Components.setPriceAffordable(price, data ~= nil and data.coins >= sword.price)
 	end
 	Components.button({
 		Text = text,
+		Icon = icon,
 		Color = color,
-		Size = UDim2.new(1, -16, 0, 48),
-		Position = UDim2.new(0, 8, 1, -56),
-		Parent = panel,
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.fromScale(0, 1),
+		Size = UDim2.new(1, 0, 0, 54),
+		Hint = "A",
+		Parent = right,
 		OnClick = function()
 			if isEquipped then
 				return
@@ -133,34 +162,33 @@ end
 
 local function renderGrid()
 	Components.clear(refs.grid)
+	refs.selectedCard = nil
 	local data = State.data
 	for i, sword in Swords.List do
-		local card = new("TextButton", {
-			Text = "",
-			AutoButtonColor = true,
-			BackgroundColor3 = sword.id == selected and C.PanelLight or C.Panel,
-			LayoutOrder = i,
-			Parent = refs.grid,
-		})
-		Theme.corner(12).Parent = card
-		Theme.stroke(sword.id == selected and C.Gold or sword.look.trail:Lerp(C.Stroke, 0.4), sword.id == selected and 3 or 2).Parent = card
-		local holder = new("Frame", { Size = UDim2.new(1, -8, 0.62, 0), Position = UDim2.fromOffset(4, 4), BackgroundTransparency = 1, Parent = card })
-		swordViewport(holder, sword, false)
-		Theme.label({ Text = sword.name, Size = UDim2.new(1, -8, 0.16, 0), Position = UDim2.new(0, 4, 0.63, 0), Font = Theme.Fonts.Body, TextScaled = true, Parent = card })
-		local status
+		local status, statusColor
 		if data and data.equippedSword == sword.id then
-			status = "✅ Équipée"
+			status, statusColor = "Équipée", C.Green
 		elseif owned(sword.id) then
-			status = "Possédée"
+			status, statusColor = "Possédée", C.Cyan
 		else
-			status = "💰 " .. Formulas.formatNumber(sword.price)
+			status, statusColor = Formulas.formatNumber(sword.price) .. " pièces", (data and data.coins >= sword.price) and C.Gold or Color3.fromRGB(255, 110, 110)
 		end
-		Theme.label({ Text = status, Size = UDim2.new(1, -8, 0.15, 0), Position = UDim2.new(0, 4, 0.81, 0), Font = Theme.Fonts.Small, TextColor3 = C.Gold, Parent = card })
-		card.MouseButton1Click:Connect(function()
-			Components.click()
-			selected = sword.id
-			render(true)
-		end)
+		local card, preview = Components.itemCard(refs.grid, {
+			title = sword.name,
+			subtitle = status,
+			subtitleColor = statusColor,
+			color = sword.look.trail,
+			layoutOrder = i,
+			selected = sword.id == selected,
+			onClick = function()
+				selected = sword.id
+				render(true)
+			end,
+		})
+		swordViewport(preview, sword, false)
+		if sword.id == selected then
+			refs.selectedCard = card
+		end
 	end
 end
 
@@ -170,7 +198,7 @@ render = function(force: boolean?)
 		return
 	end
 	local data = State.data
-	local parts = { selected, tostring(data and data.equippedSword), tostring(data and data.coins) }
+	local parts = { selected, tostring(data and data.equippedSword), tostring(data and math.floor(data.coins)) }
 	for id in (data and data.swords) or {} do
 		table.insert(parts, id)
 	end
@@ -185,51 +213,26 @@ render = function(force: boolean?)
 end
 
 function ForgeMenu.init(gui: ScreenGui)
-	window = Components.window(gui, "🗡️ LE FORGERON", C.Orange)
+	window = Components.window(gui, "FORGERON", ACCENT, UDim2.fromOffset(1180, 640), {
+		icon = "forge",
+		subtitle = "Touche 1 (manette : LB / RB) pour sortir ton épée",
+	})
 	local content = window.content
-	Theme.label({
-		Text = "Achète une épée et frappe toi-même les ennemis (touche 1 pour la sortir, clic pour frapper) !",
-		Size = UDim2.new(1, 0, 0, 30),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		Font = Theme.Fonts.Small,
-		TextColor3 = C.TextDim,
-		TextWrapped = true,
-		Parent = content,
-	})
-	refs.grid = new("ScrollingFrame", {
-		Size = UDim2.new(0.55, 0, 1, -40),
-		Position = UDim2.fromOffset(0, 40),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		ScrollBarThickness = 6,
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		CanvasSize = UDim2.new(),
-		Parent = content,
-	})
-	new("UIGridLayout", { CellSize = UDim2.fromOffset(120, 140), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = refs.grid })
-	Theme.padding(6).Parent = refs.grid
+	refs.grid = Components.cardGrid(content, Vector2.new(124, 160), { Name = "Grid", Size = UDim2.new(0.38, -8, 1, 0) }, 10)
 	refs.detail = new("Frame", {
-		Size = UDim2.new(0.44, 0, 1, -40),
-		Position = UDim2.new(0.56, 0, 0, 40),
-		BackgroundColor3 = C.PanelDark,
-		BackgroundTransparency = 0.2,
+		Name = "DetailHolder",
+		Size = UDim2.new(0.62, -8, 1, 0),
+		Position = UDim2.new(0.38, 8, 0, 0),
+		BackgroundTransparency = 1,
 		Parent = content,
 	})
-	Theme.corner(14).Parent = refs.detail
-	Theme.stroke(C.Stroke, 3).Parent = refs.detail
-
-	window.onClose = function()
-		Menus.closed("Forge")
-	end
-	Menus.register("Forge", {
-		open = function()
-			local data = State.data
-			selected = data and data.equippedSword or Swords.Starter
-			window.open()
-			render(true)
-		end,
-		close = window.close,
-	})
+	Components.registerWindow(Menus, "Forge", window, function()
+		local data = State.data
+		selected = data and data.equippedSword or Swords.Starter
+		render(true)
+	end, function()
+		return refs.selectedCard or window.firstSelectable()
+	end)
 	State.onChanged(function()
 		render()
 	end)

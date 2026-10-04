@@ -512,7 +512,7 @@ function Components.window(parent: Instance, title: string, accent: Color3?, siz
 	local titleLabel = Theme.label({
 		Name = "Title",
 		Text = title,
-		Size = UDim2.new(1, -230, 0, 40),
+		Size = UDim2.new(1, (opts.subtitle and opts.subtitle ~= "") and -530 or -150, 0, 40),
 		Position = UDim2.fromOffset(opts.icon and 78 or 22, 13),
 		FontFace = Theme.Faces.Title,
 		TextXAlignment = Enum.TextXAlignment.Left,

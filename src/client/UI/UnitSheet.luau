@@ -185,7 +185,7 @@ function UnitSheet.build(parent: Instance, entry, actions: SheetActions?): Frame
 	local portrait = new("Frame", {
 		Name = "Portrait",
 		Position = UDim2.fromOffset(12, 22),
-		Size = UDim2.new(0.56, -18, 1, -34),
+		Size = UDim2.new(0.52, -18, 1, -34),
 		BackgroundColor3 = WHITE,
 		ClipsDescendants = true,
 		Parent = sheet,
@@ -324,8 +324,8 @@ function UnitSheet.build(parent: Instance, entry, actions: SheetActions?): Frame
 	-- Statistiques (droite)
 	local right = new("Frame", {
 		Name = "Stats",
-		Position = UDim2.new(0.56, 0, 0, 22),
-		Size = UDim2.new(0.44, -12, 1, -34),
+		Position = UDim2.new(0.52, 0, 0, 22),
+		Size = UDim2.new(0.48, -12, 1, -34),
 		BackgroundTransparency = 1,
 		Parent = sheet,
 	})

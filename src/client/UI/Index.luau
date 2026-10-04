@@ -1,13 +1,14 @@
--- Index (collection) : tous les persos de chaque univers, découverts ou non. + Guide du jeu.
+-- INDICE (collection) : toutes les unités de chaque univers, découvertes ou non (un onglet par
+-- univers, LB / RB à la manette), avec la progression. + GUIDE du jeu (sections illustrées).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Rarities = require(Shared.Config.Rarities)
 local Characters = require(Shared.Config.Characters)
 local Universes = require(Shared.Config.Universes)
 
 local Theme = require(script.Parent.Theme)
+local Icons = require(script.Parent.Icons)
 local Components = require(script.Parent.Components)
 local Menus = require(script.Parent.Menus)
 local State = require(script.Parent.Parent.State)
@@ -16,18 +17,63 @@ local Index = {}
 
 local C = Theme.Colors
 local new = Theme.new
+local WHITE = Color3.new(1, 1, 1)
+local ACCENT = Color3.fromRGB(230, 40, 90)
 
 local window
 local guideWindow
-local list: ScrollingFrame
+local refs: { [string]: any } = {}
 local selectedUniverse = 1
-local tabs: Frame
+
+local function lockedCard(parent: Instance, rarityId: string, order: number)
+	local info = Theme.rarity(rarityId)
+	local tint = info.rainbow and C.Magenta or info.color
+	local card = new("TextButton", {
+		Name = "Locked",
+		BackgroundTransparency = 1,
+		AutoButtonColor = false,
+		Text = "",
+		LayoutOrder = order,
+		Parent = parent,
+	})
+	local scale = new("UIScale", { Parent = card })
+	local face = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, Parent = card })
+	Theme.corner(14).Parent = face
+	Theme.stroke(Theme.dark(tint, 0.35), 3).Parent = face
+	Theme.gradient({ Color3.fromRGB(30, 30, 40), Color3.fromRGB(14, 14, 20), Theme.dark(tint, 0.75) }, 90).Parent = face
+	local silhouette = new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.1), Size = UDim2.fromScale(0.62, 0.52), BackgroundTransparency = 1, Parent = face })
+	Icons.make("unit", silhouette, { px = 70, color = Color3.fromRGB(8, 8, 12), ink = Color3.fromRGB(8, 8, 12), shadow = false })
+	Theme.label({ Text = "?", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.16), Size = UDim2.fromScale(0.4, 0.3), FontFace = Theme.Faces.Title, TextColor3 = Theme.light(tint, 0.3), ZIndex = 3, Parent = face })
+	local strip = new("Frame", {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.fromScale(0, 1),
+		Size = UDim2.fromScale(1, 0.27),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 0.35,
+		ZIndex = 3,
+		Parent = face,
+	})
+	Theme.corner(12).Parent = strip
+	Theme.label({ Text = "???", Size = UDim2.new(0.94, 0, 0.52, 0), Position = UDim2.fromScale(0.03, 0.04), FontFace = Theme.Faces.Title, TextColor3 = C.TextDim, ZIndex = 4, Parent = strip })
+	Theme.label({
+		Text = info.name,
+		Size = UDim2.new(0.94, 0, 0.36, 0),
+		Position = UDim2.fromScale(0.03, 0.58),
+		FontFace = Theme.Faces.Heavy,
+		TextColor3 = info.rainbow and C.Cyan or Theme.light(tint, 0.2),
+		ZIndex = 4,
+		StrokeThickness = 1.5,
+		Parent = strip,
+	})
+	Components.interactive(card, scale, 1.04)
+	return card
+end
 
 local function render()
-	Components.clear(list)
+	Components.clear(refs.grid)
 	local data = State.data
 	local index = data and data.index or {}
-	local universe = Universes.List[selectedUniverse]
+	local universe = Universes.List[selectedUniverse] or Universes.List[1]
 	local found, total = 0, 0
 	for _, u in Universes.List do
 		for _, id in u.characters do
@@ -43,163 +89,212 @@ local function render()
 			fusions += 1
 		end
 	end
-	window.title.Text = "📖 INDEX · " .. found .. "/" .. total .. " persos · " .. fusions .. " crossovers"
-
+	window.subtitle.Text = "Total : " .. found .. " / " .. total .. "  ·  " .. fusions .. " Crossover"
+	local here = 0
 	for i, id in universe.characters do
 		local def = Characters.get(id)
-		local rarity = Rarities.get(def.rarity)
 		if index[id] then
-			local card = Components.characterCard(list, { id = id, level = 1, stars = 1 }, { size = UDim2.fromOffset(130, 165), layoutOrder = i })
-			local level = card:FindFirstChild("Level") :: TextLabel?
-			if level then
-				level.Text = "✔"
-			end
-		else
-			local card = new("Frame", { Size = UDim2.fromOffset(130, 165), BackgroundColor3 = C.PanelDark, LayoutOrder = i, Parent = list })
-			Theme.corner(14).Parent = card
-			Theme.stroke(rarity.color:Lerp(C.Stroke, 0.5), 3).Parent = card
-			Theme.label({ Text = "?", Size = UDim2.fromScale(0.6, 0.5), Position = UDim2.fromScale(0.2, 0.12), Font = Theme.Fonts.Title, TextColor3 = C.TextDim, Parent = card })
-			Theme.label({ Text = "???", Size = UDim2.new(0.94, 0, 0.13, 0), Position = UDim2.fromScale(0.03, 0.74), TextColor3 = C.TextDim, Parent = card })
-			Theme.label({
-				Text = rarity.name,
-				Size = UDim2.new(0.94, 0, 0.1, 0),
-				Position = UDim2.fromScale(0.03, 0.87),
-				TextColor3 = rarity.color,
-				Font = Theme.Fonts.Small,
+			here += 1
+			local card = Components.characterCard(refs.grid, { id = id, level = 1, stars = 1 }, { layoutOrder = i, hideLevel = true })
+			local badge = new("Frame", {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -6, 0, 6),
+				Size = UDim2.fromOffset(26, 26),
+				BackgroundColor3 = C.Green,
+				ZIndex = 6,
 				Parent = card,
 			})
+			Theme.round().Parent = badge
+			Theme.stroke(C.Stroke, 2).Parent = badge
+			Icons.make("check", badge, { px = 18, size = UDim2.fromScale(0.64, 0.64), shadow = false, zindex = 7 })
+			local stars = card:FindFirstChild("Stars", true)
+			if stars then
+				stars:Destroy()
+			end
+		else
+			lockedCard(refs.grid, def and def.rarity or "common", i)
 		end
 	end
+	local count = #universe.characters
+	Components.setPillText(refs.progressPill, universe.name .. " : " .. here .. " / " .. count)
+	refs.bar.set(count > 0 and here / count or 0)
+	refs.bar.setColor(universe.color)
 end
 
-local function buildTabs()
-	Components.clear(tabs)
-	for i, universe in Universes.List do
-		Components.button({
-			Text = universe.name,
-			Color = i == selectedUniverse and universe.color or Color3.fromRGB(80, 75, 110),
-			Size = UDim2.new(0.19, 0, 1, 0),
-			LayoutOrder = i,
-			Parent = tabs,
-			OnClick = function()
-				selectedUniverse = i
-				buildTabs()
-				render()
-			end,
-		})
-	end
-end
+------------------------------------------------------------------------
+-- Guide
+------------------------------------------------------------------------
 
 local GUIDE = {
 	{
-		"🌀 Les univers",
-		"Toutes les 30 minutes, la Zone d'Univers au centre change d'animé : Village Ninja, Académie Occulte, Planète des Guerriers, Grand Océan, Ère des Pourfendeurs. Ennemis, boss, reliques et décor changent avec !",
+		"dice",
+		"La machine ROULER",
+		"Appuie sur le gros bouton ROULER de ta base (ou X à la manette) : la machine tire des unités. Elles attendent sur l'estrade : prends celles que tu veux en payant leur prix !",
+		Color3.fromRGB(255, 180, 30),
 	},
 	{
-		"🎁 Les reliques",
-		"La Machine à Reliques de ta base vend les reliques de l'univers actuel (parchemins, doigts maudits, boules de cristal, fruits du démon...). Pose-les sur un autel : après quelques secondes, ouvre-les pour obtenir un perso !",
+		"upgrade",
+		"Les Améliorations",
+		"Dans l'arbre de compétences, achète plus de chance, des roulages plus rapides, 2 puis 3 unités par roulage, l'auto-roulage, plus de revenus et de dégâts...",
+		Color3.fromRGB(240, 170, 30),
 	},
 	{
-		"⚔️ Le combat",
-		"Tes persos équipés te suivent. Entre dans la Zone d'Univers : ils attaquent tout seuls les ennemis proches. Clique sur un ennemi pour le cibler. Les ennemis du centre sont plus forts mais rapportent plus. Un boss apparaît régulièrement !",
-	},
-	{ "📈 Grandir", "Tes persos gagnent de l'XP en combat et en s'entraînant sur ta base. Plus ils montent de niveau, plus ils GRANDISSENT et deviennent puissants." },
-	{
-		"✨ L'évolution",
-		"Au niveau max, fais évoluer un perso à l'Autel d'Éveil avec des matériaux de SON univers (ex : Fragments de Chakra pour le Village Ninja). On ne les trouve que quand son univers est actif !",
+		"pin",
+		"Les univers",
+		"Toutes les 30 minutes, l'univers change : Village Ninja, Académie Occulte, Planète des Guerriers, Grand Océan, Ère des Pourfendeurs. Ennemis, boss, unités et décor changent avec !",
+		Color3.fromRGB(168, 78, 255),
 	},
 	{
-		"🏠 Ta base",
-		"Les persos exposés sur ta base rapportent des pièces dans le coffre doré : marche dessus pour récupérer. Marche sur les boutons verts pour construire des améliorations (autels, dojo, fontaine...).",
+		"sword",
+		"Le combat",
+		"Tes unités équipées te suivent et attaquent seules les ennemis proches dans la Zone d'Univers. Un boss apparaît régulièrement au centre !",
+		Color3.fromRGB(236, 60, 70),
 	},
 	{
-		"🤝 Les échanges",
-		"Va au Coin des Échanges, assieds-toi d'un côté de la table : quand un autre joueur s'assoit en face, l'échange s'ouvre. Les persos verrouillés 🔒 ne peuvent pas être échangés.",
+		"chart",
+		"Grandir",
+		"Tes unités gagnent de l'XP en combat et sur ta base. Plus elles montent de niveau, plus elles grandissent et deviennent puissantes.",
+		Color3.fromRGB(70, 214, 96),
 	},
 	{
-		"🌀 La fusion Crossover",
-		"Au Portail Crossover, fusionne 2 persos de 2 univers différents (Épique+, ★★) pour créer un perso Crossover unique, comme « Renard de l'Infini » !",
+		"evolve",
+		"L'évolution",
+		"Au niveau max, fais évoluer une unité (menu Évolution) avec des matériaux de SON univers : on ne les trouve que quand son univers est actif !",
+		Color3.fromRGB(150, 70, 255),
 	},
-	{ "⚡ Les événements", "Orage Électrique, Éclipse du Néant, Pluie d'Or, Lune de Sang... Pendant un orage, la foudre peut donner l'aura Foudre aux persos de ta base !" },
+	{
+		"gem",
+		"Les traits",
+		"Chaque unité peut avoir un trait (Vif, Génie, Monarque...). Relance-le avec un Cristal de Trait dans le menu Traits.",
+		Color3.fromRGB(50, 200, 240),
+	},
+	{
+		"fusion",
+		"La fusion Crossover",
+		"Fusionne 2 unités de 2 univers différents (Épique+, ★★) pour créer un Crossover unique !",
+		Color3.fromRGB(255, 80, 170),
+	},
+	{
+		"gift",
+		"Les reliques",
+		"La Boutique vend les reliques de l'univers actuel. Pose-les sur un autel de ta base : après quelques secondes, ouvre-les pour obtenir une unité.",
+		Color3.fromRGB(64, 160, 255),
+	},
+	{
+		"swap",
+		"Les échanges",
+		"Au Coin des Échanges, assieds-toi à une table : quand un joueur s'assoit en face, l'échange s'ouvre. Les unités verrouillées ne peuvent pas être échangées.",
+		Color3.fromRGB(60, 140, 240),
+	},
+	{
+		"bolt",
+		"Les événements",
+		"Orage Électrique, Éclipse du Néant, Pluie d'Or, Lune de Sang... Pendant un orage, la foudre peut donner l'aura Foudre aux unités de ta base !",
+		Color3.fromRGB(255, 222, 50),
+	},
+	{
+		"robot",
+		"À la manette",
+		"A : choisir · B : fermer · X : ROULER · LB / RB : onglets · croix haut : menu principal.",
+		Color3.fromRGB(110, 120, 150),
+	},
 }
 
-function Index.init(gui: ScreenGui)
-	window = Components.window(gui, "📖 INDEX", C.Purple)
-	tabs = new("Frame", { Size = UDim2.new(1, 0, 0, 44), BackgroundTransparency = 1, Parent = window.content })
-	Theme.list(Enum.FillDirection.Horizontal, 6).Parent = tabs
-	list = new("ScrollingFrame", {
-		Size = UDim2.new(1, 0, 1, -54),
-		Position = UDim2.fromOffset(0, 54),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		ScrollBarThickness = 6,
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		CanvasSize = UDim2.new(),
-		Parent = window.content,
+local function buildGuide(gui: ScreenGui)
+	guideWindow = Components.window(gui, "GUIDE", Color3.fromRGB(110, 120, 150), UDim2.fromOffset(1180, 640), {
+		icon = "guide",
+		subtitle = "Tout ce qu'il faut savoir pour devenir le plus fort",
 	})
+	local scroll = Components.scroll(guideWindow.content, { Size = UDim2.fromScale(1, 1) })
 	new("UIGridLayout", {
-		CellSize = UDim2.fromOffset(130, 165),
-		CellPadding = UDim2.fromOffset(12, 12),
+		CellSize = UDim2.new(0.5, -12, 0, 118),
+		CellPadding = UDim2.fromOffset(12, 10),
 		SortOrder = Enum.SortOrder.LayoutOrder,
-		HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		Parent = list,
+		Parent = scroll,
 	})
-	Theme.padding(8).Parent = list
-	window.onClose = function()
-		Menus.closed("Index")
-	end
-	Menus.register("Index", {
-		open = function()
-			local current = State.universe()
-			selectedUniverse = current.index or 1
-			window.open()
-			buildTabs()
-			render()
-		end,
-		close = window.close,
-	})
-
-	guideWindow = Components.window(gui, "❔ GUIDE DU JOUEUR", Color3.fromRGB(90, 90, 130))
-	local scroll = new("ScrollingFrame", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		ScrollBarThickness = 6,
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		CanvasSize = UDim2.new(),
-		Parent = guideWindow.content,
-	})
-	Theme.list(Enum.FillDirection.Vertical, 10).Parent = scroll
 	Theme.padding(6).Parent = scroll
 	for i, section in GUIDE do
-		local frame = new("Frame", { Size = UDim2.new(1, -12, 0, 96), BackgroundColor3 = C.PanelDark, BackgroundTransparency = 0.2, LayoutOrder = i, Parent = scroll })
-		Theme.corner(12).Parent = frame
+		local color = section[4]
+		local frame = new("Frame", { Name = "Section", BackgroundColor3 = WHITE, LayoutOrder = i, Parent = scroll })
+		Theme.corner(14).Parent = frame
+		Theme.stroke(Theme.dark(color, 0.2), 2, 0.2).Parent = frame
+		Theme.gradient({ Theme.dark(color, 0.6), Color3.fromRGB(16, 16, 22) }, 0).Parent = frame
+		local tile = new("Frame", { Position = UDim2.fromOffset(12, 14), Size = UDim2.fromOffset(64, 64), BackgroundColor3 = WHITE, Parent = frame })
+		Theme.corner(14).Parent = tile
+		Theme.stroke(C.Stroke, 2.5).Parent = tile
+		Theme.gradient({ Theme.light(color, 0.3), color, Theme.dark(color, 0.35) }, 60).Parent = tile
+		Icons.make(section[1], tile, { px = 42, size = UDim2.fromScale(0.68, 0.68), ink = Theme.dark(color, 0.5) })
 		Theme.label({
-			Text = section[1],
-			Size = UDim2.new(1, -20, 0, 28),
-			Position = UDim2.fromOffset(10, 6),
-			Font = Theme.Fonts.Title,
+			Text = section[2],
+			Position = UDim2.fromOffset(88, 10),
+			Size = UDim2.new(1, -100, 0, 28),
+			FontFace = Theme.Faces.Title,
+			TextColor3 = Theme.light(color, 0.35),
 			TextXAlignment = Enum.TextXAlignment.Left,
-			TextColor3 = C.Gold,
 			Parent = frame,
 		})
-		local body = Theme.label({
-			Text = section[2],
-			Size = UDim2.new(1, -20, 0, 56),
-			Position = UDim2.fromOffset(10, 36),
+		Theme.label({
+			Text = section[3],
+			Position = UDim2.fromOffset(88, 40),
+			Size = UDim2.new(1, -100, 1, -48),
+			FontFace = Theme.Faces.Medium,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextYAlignment = Enum.TextYAlignment.Top,
 			TextWrapped = true,
-			Font = Theme.Fonts.Small,
-			Stroke = false,
+			StrokeThickness = 1,
+			MaxSize = 17,
 			Parent = frame,
 		})
-		new("UITextSizeConstraint", { MaxTextSize = 17, Parent = body })
 	end
-	guideWindow.onClose = function()
-		Menus.closed("Guide")
+	Components.registerWindow(Menus, "Guide", guideWindow)
+end
+
+function Index.init(gui: ScreenGui)
+	local tabs = {}
+	for i, universe in Universes.List do
+		table.insert(tabs, { id = tostring(i), text = universe.name })
 	end
-	Menus.register("Guide", { open = guideWindow.open, close = guideWindow.close })
+	window = Components.window(gui, "INDICE", ACCENT, UDim2.fromOffset(1180, 640), {
+		icon = "book",
+		tabs = tabs,
+		onTab = function(id)
+			selectedUniverse = tonumber(id) or 1
+			render()
+		end,
+	})
+	local content = window.content
+	local top = new("Frame", { Size = UDim2.new(1, 0, 0, 40), BackgroundTransparency = 1, Parent = content })
+	refs.progressPill = Components.pill(top, "book", "", ACCENT, { Size = UDim2.fromOffset(330, 36), Position = UDim2.fromOffset(0, 2) })
+	refs.bar = Components.progressBar(top, C.Gold, { Size = UDim2.new(1, -350, 0, 16), Position = UDim2.new(0, 346, 0.5, -8) })
+	refs.grid = Components.cardGrid(content, Vector2.new(170, 220), { Name = "Grid", Size = UDim2.new(1, 0, 1, -50), Position = UDim2.fromOffset(0, 50) }, 12)
+	local layout = refs.grid:FindFirstChildOfClass("UIGridLayout")
+	if layout then
+		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	end
+	Components.registerWindow(Menus, "Index", window, function()
+		local current = State.universe()
+		selectedUniverse = current.index or 1
+		window.setTab(tostring(selectedUniverse), true)
+		render()
+	end)
+	-- Reconstruit seulement si la collection a changé (pas à chaque gain de pièces).
+	local lastKey = ""
+	State.onChanged(function(data)
+		if not window.isOpen then
+			return
+		end
+		local keys = { tostring(selectedUniverse) }
+		for key in data.index or {} do
+			table.insert(keys, key)
+		end
+		table.sort(keys)
+		local key = table.concat(keys, ",")
+		if key ~= lastKey then
+			lastKey = key
+			render()
+		end
+	end)
+	buildGuide(gui)
 end
 
 return Index
