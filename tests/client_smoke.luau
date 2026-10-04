@@ -437,6 +437,117 @@ test("Effets de combat et récompenses", function()
 	expectNoNewWarnings(before, "effets")
 end)
 
+test("Effets signature : 40 persos (normal + spéciale), boss, nettoyage", function()
+	local before = #warnings
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local Effects = Harness.require(client.Controllers.Effects)
+	local AttackFx = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.AttackFx"))
+	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
+	-- Chaque perso jouable a un effet signature valide, joué par une famille existante.
+	local count = 0
+	for charId, fxId in AttackFx.Characters do
+		local sig = AttackFx.get(fxId)
+		assert(sig, "effet inconnu pour " .. charId .. " : " .. tostring(fxId))
+		assert(Effects.families[sig.family], "famille sans code : " .. tostring(sig.family))
+		count += 1
+	end
+	assert(count >= 40, "seulement " .. count .. " persos ont un effet signature")
+	for _, sig in AttackFx.Signatures do
+		assert(Effects.families[sig.family], "famille sans code : " .. tostring(sig.family))
+	end
+	for kind, fxId in AttackFx.Kinds do
+		assert(AttackFx.get(fxId), "type d'attaque " .. kind .. " sans effet")
+	end
+	-- L'attribut AttackFx est posé sur les persos.
+	local follower = nil
+	for _, model in workspaceService.Followers:GetChildren() do
+		follower = model
+	end
+	assert(follower, "aucun perso actif")
+	assert(type(follower:GetAttribute("AttackFx")) == "string", "attribut AttackFx absent")
+	local enemy = Harness.CollectionService:GetTagged("Enemy")[1]
+	assert(enemy, "aucun ennemi")
+
+	-- Horloge simulée : on joue chaque effet en entier, image par image.
+	local clock = 0
+	Effects.setClock(function()
+		return clock
+	end)
+	local function run(seconds)
+		for _ = 1, math.ceil(seconds * 20) do
+			clock += 1 / 20
+			Harness.services.RunService.RenderStepped:Fire(1 / 20)
+		end
+	end
+	local savedCamera = camera.CFrame
+	local p = enemy.PrimaryPart.CFrame.Position
+	camera.CFrame = CFrame.new(p + Vector3.new(0, 20, 40), p)
+	local ids = {}
+	for id in AttackFx.Signatures do
+		table.insert(ids, id)
+	end
+	table.sort(ids)
+	local peak = 0
+	for _, fxId in ids do
+		follower:SetAttribute("AttackFx", fxId)
+		for _, special in { false, true } do
+			Effects.handle("Hit", {
+				position = p,
+				amount = 4321,
+				crit = not special,
+				special = special,
+				kind = "punch",
+				color = Color3.new(1, 0.5, 0),
+				from = follower.PrimaryPart.CFrame.Position,
+				attacker = follower,
+				target = enemy,
+				owner = alice.UserId,
+			})
+			run(special and 1.6 or 0.4)
+			peak = math.max(peak, Effects.stats().parts)
+		end
+	end
+	-- Attaques de zone de chaque boss + coups de boss.
+	local savedName, savedBoss = enemy:GetAttribute("DisplayName"), enemy:GetAttribute("Boss")
+	enemy:SetAttribute("Boss", true)
+	for bossId in AttackFx.Bosses do
+		local def = Characters.Enemies[bossId]
+		enemy:SetAttribute("DisplayName", def and def.name or "?")
+		Effects.handle("Slam", { position = p - Vector3.new(0, 3, 0), radius = 20 })
+		Effects.handle("EnemyHit", { position = p + Vector3.new(3, 0, 0), from = p, amount = 99 })
+		run(1.2)
+		peak = math.max(peak, Effects.stats().parts)
+	end
+	enemy:SetAttribute("DisplayName", savedName)
+	enemy:SetAttribute("Boss", savedBoss)
+	Effects.handle("Death", { position = p, boss = true })
+	-- Qualité réduite (mobile / console) : les effets tournent encore.
+	Effects.setOption("FxQuality", "low")
+	assert(Effects.stats().quality == "low", "qualité non appliquée")
+	follower:SetAttribute("AttackFx", "hollow_purple")
+	Effects.handle("Hit", { position = p, amount = 1, special = true, attacker = follower, target = enemy, owner = alice.UserId })
+	Effects.setOption("FxShake", false)
+	Effects.setOption("FxFlash", false)
+	Effects.handle("Hit", { position = p, amount = 1, special = true, attacker = follower, target = enemy, owner = alice.UserId })
+	run(4)
+	Effects.setOption("FxQuality", "auto")
+	Effects.setOption("FxShake", true)
+	Effects.setOption("FxFlash", true)
+	-- Tout est nettoyé une fois les effets terminés.
+	run(4)
+	Effects.sweep()
+	local stats = Effects.stats()
+	print(string.format("   pic de pièces d'effet : %d ; restantes : %d ; animations : %d ; interrompues : %d", peak, stats.parts, stats.jobs, stats.dropped))
+	assert(stats.parts == 0, stats.parts .. " pièces d'effet non nettoyées")
+	assert(stats.jobs == 0, stats.jobs .. " animations encore actives")
+	assert(stats.lights == 0, stats.lights .. " lumières non libérées")
+	assert(peak <= 700, "trop de pièces simultanées : " .. peak)
+	follower:SetAttribute("AttackFx", AttackFx.forCharacter(nil, "punch"))
+	camera.CFrame = savedCamera
+	Effects.setClock(nil)
+	expectNoNewWarnings(before, "effets signature")
+end)
+
 test("Animations, auras et étiquettes (rendu de plusieurs images)", function()
 	local before = #warnings
 	for i = 1, 60 do
