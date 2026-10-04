@@ -12,7 +12,8 @@ local EVENTS = {
 	"CombatFX", -- (type, données) effets visuels
 	"Reward", -- (type, quantité, position) pièces/objets qui volent vers le joueur
 	"TradeState", -- état de l'échange en cours (ou nil)
-	"OpenMenu", -- (nomDuMenu) ouvre un menu côté client (prompts de proximité)
+	"OpenMenu", -- (nomDuMenu, argument?) ouvre un menu côté client (prompts de proximité)
+	"RollResult", -- { results = { {id, stars, rarity, price, dps, ...} }, pity = {...}, x10In = n } (machine ROULER)
 
 	-- Client -> Serveur
 	"SetTarget", -- (ennemi) cible prioritaire de l'équipe
@@ -34,6 +35,11 @@ local FUNCTIONS = {
 	"BuyTraitCrystal", -- () -> ok, message
 	"BuySword", -- (swordId) -> ok, message
 	"EquipSword", -- (swordId) -> ok, message
+	"BuySkill", -- (nodeId) -> ok, message (arbre de compétences)
+	"Roll", -- () -> ok, résultats | message (machine ROULER)
+	"CollectRolled", -- (index dans RolledQueue) -> ok, message (acheter un perso tiré)
+	"SetAutoRoll", -- (bool) -> ok, message
+	"PlaceUnit", -- (emplacement, uid | nil) -> ok, message (« Remplacer l'unité » d'une case de la base)
 }
 
 local Remotes = {}

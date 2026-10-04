@@ -7,6 +7,7 @@ local Characters = require(Shared.Config.Characters)
 local Universes = require(Shared.Config.Universes)
 local Economy = require(Shared.Config.Economy)
 local Traits = require(Shared.Config.Traits)
+local SkillTree = require(Shared.Config.SkillTree)
 
 local Formulas = {}
 
@@ -229,9 +230,11 @@ function Formulas.evolutionCost(entry)
 	}
 end
 
--- Statistiques dérivées des améliorations de base.
-function Formulas.upgradeStats(upgrades)
-	local stats = {
+-- Statistiques dérivées des améliorations de base ET de l'arbre de compétences (`skills`,
+-- facultatif : { [idDeNœud] = true }). Les champs de l'arbre (luck, rollsPerPull, damage, crit...)
+-- sont recopiés à plat ; `stats.tree` contient le détail (voir Config/SkillTree.luau).
+function Formulas.upgradeStats(upgrades, skills: { [string]: boolean }?)
+	local stats: { [string]: any } = {
 		incubators = Economy.BaseIncubators,
 		team = Economy.BaseTeamSlots,
 		display = Economy.BaseDisplaySlots,
@@ -241,7 +244,7 @@ function Formulas.upgradeStats(upgrades)
 		hatchSpeed = 1,
 	}
 	for _, upgrade in Economy.Upgrades do
-		if upgrades[upgrade.id] then
+		if upgrades and upgrades[upgrade.id] then
 			local effect = upgrade.effect
 			stats.incubators += effect.incubators or 0
 			stats.team += effect.team or 0
@@ -253,7 +256,96 @@ function Formulas.upgradeStats(upgrades)
 		end
 	end
 	stats.hatchSpeed = math.max(stats.hatchSpeed, 0.3)
+
+	local tree = SkillTree.stats(skills)
+	stats.tree = tree
+	stats.income += tree.income - 1
+	stats.xp += tree.xp
+	stats.combatCoins += tree.loot
+	stats.display = math.min(stats.display + tree.unitSlots, Economy.MaxDisplaySlots)
+	for _, key in
+		{
+			"luck",
+			"rollsPerPull",
+			"rollCooldown",
+			"x10Every",
+			"pityMult",
+			"autoRoll",
+			"damage",
+			"crit",
+			"critDamage",
+			"unitSlots",
+			"attackSpeed",
+			"auraLuck",
+			"traitLuck",
+			"walkSpeed",
+			"loot",
+		}
+	do
+		stats[key] = tree[key]
+	end
 	return stats
+end
+
+-- Statistiques complètes d'un joueur (améliorations + arbre) à partir de ses données.
+function Formulas.playerStats(data)
+	return Formulas.upgradeStats(data and data.upgrades, data and data.Skills)
+end
+
+------------------------------------------------------------------------
+-- Machine de roulage
+------------------------------------------------------------------------
+
+function Formulas.rollRarity(id: string?)
+	return Economy.RollRarities[id or "common"] or Economy.RollRarities.common
+end
+
+-- Probabilités (0-1) de chaque rareté de la machine pour une chance donnée.
+-- La chance multiplie les raretés Rare et plus (la racine carrée pour Peu commun) ; si le total
+-- déborde, ce sont les raretés les plus communes qui cèdent leur place (le Commun garde 5 %).
+function Formulas.rollOdds(luck: number?): { [string]: number }
+	local l = math.max(1, luck or 1)
+	local wanted = {}
+	for _, id in Economy.RollOrder do
+		local info = Economy.RollRarities[id]
+		if info.order >= 3 then
+			wanted[id] = info.odds * l
+		elseif info.order == 2 then
+			wanted[id] = info.odds * math.sqrt(l)
+		end
+	end
+	local odds = {}
+	local remaining = 95
+	for i = #Economy.RollOrder, 2, -1 do
+		local id = Economy.RollOrder[i]
+		local take = math.min(wanted[id] or 0, remaining)
+		odds[id] = take / 100
+		remaining -= take
+	end
+	odds.common = (100 - 95 + remaining) / 100
+	return odds
+end
+
+-- Seuil de pitié (nombre de persos tirés) d'une rareté, après l'arbre.
+function Formulas.pityThreshold(rarityId: string, pityMult: number?): number
+	local base = Economy.Roll.Pity[rarityId] or 0
+	return math.max(1, math.floor(base * (pityMult or 1) + 0.5))
+end
+
+-- Prix (en ¥ = pièces) d'un perso tiré : rareté de la machine, aura et trait.
+function Formulas.rollPrice(rarityId: string, auraId: string?, traitId: string?): number
+	local info = Formulas.rollRarity(rarityId)
+	local aura = Auras.get(auraId)
+	local trait = Traits.get(traitId)
+	local price = info.price * (aura and aura.multiplier or 1) * (trait and (1 + trait.tier * 0.3) or 1)
+	-- Arrondi « joli » (2 chiffres significatifs).
+	local magnitude = 10 ^ math.max(0, math.floor(math.log10(math.max(price, 1))) - 1)
+	return math.floor(price / magnitude + 0.5) * magnitude
+end
+
+-- Dégâts par seconde d'un perso (affichés au-dessus des persos tirés).
+function Formulas.dps(entry): number
+	return Formulas.power(entry) / math.max(0.2, Formulas.attackCooldown(entry))
 end
 
 -- Index (collection) : clé unique pour un perso ou une fusion.

@@ -19,6 +19,7 @@ local ORDER = {
 	"UniverseService",
 	"ShopService",
 	"HatchService",
+	"RollService",
 	"EvolutionService",
 	"FusionService",
 	"TraitService",

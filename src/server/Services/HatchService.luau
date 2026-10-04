@@ -165,7 +165,7 @@ function HatchService:Place(player: Player, slot: any, relicId: any)
 	if not relic then
 		return false, "Relique inconnue."
 	end
-	local stats = Formulas.upgradeStats(data.upgrades)
+	local stats = Formulas.playerStats(data)
 	local duration = math.max(3, math.floor(Economy.RelicTiers[relic.tier].hatchTime * stats.hatchSpeed))
 	DataService:AddRelic(player, relicId, -1)
 	data.incubators[key] = { relic = relicId, start = os.time(), duration = duration }

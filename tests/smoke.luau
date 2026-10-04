@@ -72,6 +72,64 @@ test("Formules : puissance, évolution, fusion", function()
 	assert(stats.incubators == 2 and stats.team == 4, "upgradeStats")
 end)
 
+test("Arbre de compétences : 40-60 nœuds hexagonaux cohérents", function()
+	local SkillTree = requireModule(Shared.Config.SkillTree)
+	assert(#SkillTree.Nodes >= 40 and #SkillTree.Nodes <= 60, "nombre de nœuds : " .. #SkillTree.Nodes)
+	local cells = {}
+	for _, n in SkillTree.Nodes do
+		local key = n.q .. "," .. n.r
+		assert(not cells[key], "deux nœuds sur la même case : " .. key)
+		cells[key] = n.id
+		assert(n.cost >= 0 and n.currency == "Coins", "coût invalide : " .. n.id)
+		assert(n.effect and n.effect.stat and SkillTree.Base[n.effect.stat] ~= nil, "effet invalide : " .. n.id)
+		assert(SkillTree.Branches[n.branch], "branche inconnue : " .. n.id)
+		for _, req in n.requires do
+			local r = SkillTree.get(req)
+			assert(r, n.id .. " : prérequis inconnu " .. req)
+			assert(SkillTree.distance(n.q, n.r, r.q, r.r) == 1, n.id .. " n'est pas voisin de " .. req)
+			assert(r.order < n.order, n.id .. " défini avant son prérequis " .. req)
+		end
+	end
+	local all = {}
+	for _, n in SkillTree.Nodes do
+		all[n.id] = true
+	end
+	local max = SkillTree.stats(all)
+	assert(max.rollsPerPull == 3, "multi-tirage maximum : " .. max.rollsPerPull)
+	assert(max.autoRoll == true and max.luck > 3 and max.rollCooldown >= SkillTree.Limits.rollCooldown, "statistiques maximales")
+	local none = SkillTree.stats({})
+	assert(none.rollsPerPull == 1 and none.luck == 1 and none.autoRoll == false, "statistiques de départ")
+	-- Coûts croissants le long de chaque branche.
+	for _, n in SkillTree.Nodes do
+		for _, req in n.requires do
+			assert(SkillTree.get(req).cost <= n.cost, n.id .. " coûte moins que son prérequis")
+		end
+	end
+end)
+
+test("Machine ROULER : probabilités, prix, pitié", function()
+	for _, luck in { 1, 2.5, 10, 35 } do
+		local odds = Formulas.rollOdds(luck)
+		local total = 0
+		for _, id in Economy.RollOrder do
+			assert(odds[id] and odds[id] >= 0, "probabilité manquante : " .. id)
+			total += odds[id]
+		end
+		assert(math.abs(total - 1) < 1e-6, "total des probabilités ≠ 1 (chance " .. luck .. ")")
+		assert(odds.common >= 0.05 - 1e-9, "le Commun doit garder 5 %")
+	end
+	assert(Formulas.rollOdds(2).legendary > Formulas.rollOdds(1).legendary, "la chance n'augmente pas les Légendaires")
+	local last = 0
+	for _, id in Economy.RollOrder do
+		local price = Formulas.rollPrice(id)
+		assert(price > last, "prix non croissants : " .. id)
+		last = price
+	end
+	assert(Formulas.rollPrice("rare", "dore") > Formulas.rollPrice("rare"), "l'aura n'augmente pas le prix")
+	assert(Formulas.pityThreshold("legendary", 0.7) < Formulas.pityThreshold("legendary", 1), "pitié de l'arbre sans effet")
+	assert(#Economy.Upgrades >= 25 and #Economy.Upgrades <= 30, "25 à 30 améliorations attendues")
+end)
+
 test("Construction de tous les persos (★1 à ★3)", function()
 	local total, maxParts = 0, 0
 	for id in Characters.List do
@@ -268,8 +326,20 @@ test("Bases des joueurs + toutes les améliorations", function()
 	-- Accès interne : on enregistre la base pour ce joueur via _assign simplifié.
 	PlotService:_assign(fakePlayer, {})
 	assert(PlotService:GetPlot(fakePlayer) == plot, "base non attribuée")
-	assert(#plot.ownerFolder.Structures:GetChildren() > 10, "structures manquantes")
-	print("   pièces d'une base complète : " .. countParts(plot.model))
+	assert(#plot.ownerFolder.Structures:GetChildren() == #Economy.Upgrades, "structures manquantes")
+	-- Chaque bouton est dans la zone de jeu (hors bande de déco de 10 studs).
+	local Structures = requireModule(Server.Modules.TycoonStructures)
+	local limit = Structures.Spots.inner - 3.8
+	for _, upgrade in Economy.Upgrades do
+		local pad = Structures.padPosition(upgrade.id)
+		assert(pad, "bouton sans position : " .. upgrade.id)
+		assert(math.abs(pad.X) <= limit and math.abs(pad.Z) <= limit, "bouton hors de la zone de jeu : " .. upgrade.id)
+	end
+	assert(#plot.slots == 24 and plot.machine.prompt and plot.skillRefs.prompt, "machine / cases / arbre manquants")
+	assert(plot.model:FindFirstChild("Decor") and #plot.signLabels >= 2, "déco de base ou panneau manquant")
+	local total = countParts(plot.model)
+	print("   pièces d'une base complète : " .. total .. " (déco : " .. countParts(plot.model.Decor) .. ")")
+	assert(total < 9000, "base trop lourde : " .. total .. " pièces")
 end)
 
 Harness.finish()

@@ -5,6 +5,7 @@
 --   * Workspace > World > Zone > Decor : le décor du 1er univers ; les 4 autres sont dans
 --     ServerStorage > DecorsUnivers (glisse-les dans Workspace pour les voir / modifier)
 --   * Workspace > World > Plots > Plot1 : une base d'exemple avec toutes les améliorations
+--     (déco du 1er univers) ; la déco de base des 5 univers est dans ServerStorage > DecorsBase
 --   * Workspace > GaleriePersos : tous les persos et ennemis (modifiables, repris par le jeu)
 --   * ServerStorage > ModelesDeco : dossier (vide) pour les modèles de la Boîte à outils qui
 --     remplacent les arbres, rochers, maisons... de la carte (même nom que l'élément, ex. "ArbreGeant")
@@ -91,14 +92,24 @@ end
 ------------------------------------------------------------------------
 
 local PlotService = Harness.require(Server.Services.PlotService)
+local BaseDecor = Harness.require(Server.World.BaseDecor)
+local Kit = Harness.require(Server.Modules.TycoonKit)
+local TycoonMachine = Harness.require(Server.Modules.TycoonMachine)
+-- Déco de base des 5 univers : ServerStorage > DecorsBase (modifiable dans Studio).
+local oldDecors = game:GetService("ServerStorage"):FindFirstChild("DecorsBase")
+if oldDecors then
+	oldDecors:Destroy()
+end
+BaseDecor.buildAllTemplates(Universes.List)
 local allUpgrades = {}
 for _, upgrade in Economy.Upgrades do
 	allUpgrades[upgrade.id] = true
 end
+local exampleData = { upgrades = allUpgrades, coins = 0, stash = 0, Skills = {}, DisplayPins = {}, RolledQueue = {} }
 PlotService:Init({
 	DataService = {
 		Get = function()
-			return { upgrades = allUpgrades, coins = 0, stash = 0 }
+			return exampleData
 		end,
 	},
 	CharacterService = {
@@ -111,15 +122,37 @@ local example = { UserId = 1, DisplayName = "Exemple", SetAttribute = function()
 PlotService:_assign(example, {})
 local plot = PlotService:GetPlot(example)
 local displayIds = { "ninja_maruto", "occ_goju", "sai_goko", "oce_loffy", "pou_tanjiru", "occ_sukana", "ninja_sasuki", "pou_rengoko", "sai_vejeta", "oce_zoru" }
+local displayed = {}
 for slot, id in displayIds do
 	local entry = { id = id, level = 10 + slot * 8, stars = (slot % 3) + 1 }
 	local model = CharacterBuilder.build(Formulas.describe(entry).look, { scale = Formulas.visualScale(entry), anchored = true, name = id })
 	model:PivotTo(PlotService:GetDisplayCFrame(plot, slot) * CFrame.new(0, model:GetAttribute("RootHeight"), 0))
+	PlotService:DecorateUnit(plot, model, entry)
 	model.Parent = plot.displayFolder
+	displayed[slot] = id
 end
-for _, label in plot.signLabels do
-	label.Text = "BASE D'EXEMPLE"
+PlotService:RefreshSlots(example, displayed)
+-- Quelques persos d'exemple sur l'estrade de la machine ROULER.
+local rolledIds = { { "ninja_sakoura", "uncommon" }, { "ninja_konohamaro", "common" }, { "ninja_itochi", "mythic" } }
+for i, pair in rolledIds do
+	local info = Economy.RollRarities[pair[2]]
+	local entry = { id = pair[1], level = 1, stars = 1 }
+	local model = CharacterBuilder.build(Formulas.describe(entry).look, { anchored = true, name = "Tire_" .. pair[1] })
+	local spot = plot.machine.spots[i]
+	model:PivotTo(spot.cf * CFrame.new(0, model:GetAttribute("RootHeight"), 0))
+	Kit.unitTag(model.PrimaryPart, {
+		{ text = info.name, colors = info.gradient, weight = 0.9 },
+		{ text = "DPS " .. math.floor(Formulas.dps(entry)), color = Color3.fromRGB(230, 230, 230), font = Enum.Font.GothamBold, weight = 0.5 },
+		{ text = Characters.get(pair[1]).name, color = Color3.new(1, 1, 1), weight = 1 },
+		{ text = "¥" .. Formulas.formatNumber(Formulas.rollPrice(pair[2])), color = Color3.fromRGB(255, 215, 60), weight = 0.9 },
+	}, 3, 6, 70, 5.4)
+	model.Parent = plot.rolledFolder
+	TycoonMachine.lightSpot(plot.machine, i, info.color, info.order >= 5)
 end
+TycoonMachine.setX10(plot.machine, 4, 10)
+plot.machine.universeLabel.Text = "Univers : " .. Universes.List[1].name
+TycoonMachine.setPity(plot.machine, { legendary = 45, mythic = 415, secret = 5300 })
+BaseDecor.setSign(plot, "BASE D'EXEMPLE")
 plot.model:SetAttribute("OwnerId", nil)
 print("bases :", count(world.Plots), "pièces")
 
