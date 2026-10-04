@@ -265,7 +265,7 @@ test("Remplissage : plusieurs persos, auras, fusion", function()
 	task.wait(0.5)
 end)
 
-for _, menuName in { "Inventory", "Index", "Guide", "Shop", "Evolution", "Fusion", "MainMenu", "Event", "SkillTree", "Traits", "Forge" } do
+for _, menuName in { "Inventory", "Index", "Guide", "Shop", "Evolution", "Fusion", "MainMenu", "Event", "SkillTree", "Traits", "Forge", "PlaceUnit", "Options" } do
 	test("Menu " .. menuName, function()
 		local before = #warnings
 		Menus.open(menuName)
@@ -370,6 +370,66 @@ test("Révélation des persos tirés (RollResult)", function()
 	end
 	task.wait(3.2)
 	expectNoNewWarnings(before, "révélation du roulage")
+end)
+
+test("Boucle de la base vue par le client : rouler, collecter, poser une unité", function()
+	local before = #warnings
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local RollPanel = Harness.require(client.UI.RollPanel)
+	local State = Harness.require(client.State)
+	local Remotes = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Remotes"))
+	local data = services.DataService:Get(alice)
+	local rolls = received.RollResult or 0
+	-- 1) Rouler depuis le panneau du HUD : le serveur répond par RollResult (révélation).
+	RollPanel.roll()
+	task.wait(0.3)
+	assert((received.RollResult or 0) > rolls, "pas de RollResult reçu après le roulage")
+	assert(#data.RolledQueue >= 1, "rien sur l'estrade")
+	task.wait(0.3)
+	assert(State.data and #State.data.RolledQueue >= 1, "l'estrade n'est pas synchronisée côté client")
+	-- 2) Collecter le 1er perso de l'estrade (le tout premier est offert).
+	local owned = 0
+	for _ in data.characters do
+		owned += 1
+	end
+	local ok = State.invoke("CollectRolled", 1)
+	assert(ok, "collecte refusée")
+	local after = 0
+	for _ in data.characters do
+		after += 1
+	end
+	assert(after == owned + 1, "le perso collecté n'a pas été ajouté")
+	task.wait(3.5)
+	-- 3) « Remplacer l'unité » : le serveur ouvre le menu, on choisit une carte.
+	Remotes.event("OpenMenu"):FireClient(alice, "PlaceUnit", { slot = 2 })
+	task.wait(0.2)
+	assert(Menus.current() == "PlaceUnit", "le menu PlaceUnit ne s'est pas ouvert")
+	local root = alice.PlayerGui.AnimeTycoonUI:FindFirstChild("WindowRoot_EMPLACEMENT")
+	assert(root, "fenêtre EMPLACEMENT absente")
+	local card = nil
+	for _, d in root:GetDescendants() do
+		if d.Name == "Card" and d:IsA("TextButton") then
+			card = d
+			break
+		end
+	end
+	assert(card, "aucune carte d'unité dans le menu PlaceUnit")
+	signalFor(card, "Activated"):Fire()
+	task.wait(0.3)
+	assert(data.DisplayPins["2"] ~= nil, "l'unité n'a pas été posée sur la case 2")
+	assert(Menus.current() ~= "PlaceUnit", "le menu devrait se fermer après le choix")
+	-- 4) Libérer la case.
+	assert(services.PlotService:PlaceUnit(alice, 2, nil), "libération refusée")
+	assert(data.DisplayPins["2"] == nil, "case non libérée")
+	-- 5) Options : couper la secousse d'écran.
+	Menus.open("Options")
+	task.wait(0.1)
+	local Options = Harness.require(client.UI.Options)
+	Options.set("FxShake", false)
+	assert(alice:GetAttribute("FxShake") == false, "réglage FxShake non appliqué")
+	Options.set("FxShake", true)
+	Menus.close("Options")
+	expectNoNewWarnings(before, "boucle de la base")
 end)
 
 test("Manette : indications A/B et sélection automatique", function()

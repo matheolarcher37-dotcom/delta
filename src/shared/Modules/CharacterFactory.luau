@@ -130,12 +130,20 @@ end
 function CharacterFactory.build(id: string?, stars: number?, look, options)
 	local opts = options or {}
 	local template = CharacterFactory.templateFor(id, stars)
+	local model
 	if template then
-		local model = template:Clone()
+		model = template:Clone()
 		model.Name = opts.name or model.Name
-		return CharacterFactory.prepare(model, opts)
+		model = CharacterFactory.prepare(model, opts)
+	else
+		model = CharacterBuilder.build(look, opts)
 	end
-	return CharacterBuilder.build(look, opts)
+	-- Chargement progressif (StreamingEnabled) : un perso arrive toujours en entier chez le
+	-- client (animations, étiquettes et effets ont besoin de toutes ses pièces).
+	pcall(function()
+		model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	end)
+	return model
 end
 
 -- Modèle ancré pour les aperçus des menus.

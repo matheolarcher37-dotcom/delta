@@ -34,6 +34,7 @@ MainMenu.Entries = {
 	{ menu = "Forge", text = "Forgeron", icon = "forge", color = Color3.fromRGB(240, 110, 40), color2 = Color3.fromRGB(120, 40, 20) },
 	{ menu = "Guide", text = "Guide", icon = "guide", color = Color3.fromRGB(110, 120, 150), color2 = Color3.fromRGB(40, 44, 70) },
 	{ travel = "trade", text = "Échanges", icon = "swap", color = Color3.fromRGB(60, 140, 240), color2 = Color3.fromRGB(30, 50, 140) },
+	{ menu = "Options", text = "Options", icon = "eye", color = Color3.fromRGB(120, 130, 160), color2 = Color3.fromRGB(50, 56, 80) },
 }
 
 local menuWindow

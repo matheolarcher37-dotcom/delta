@@ -114,10 +114,27 @@ function Notifications.init(gui: ScreenGui)
 	end)
 end
 
+-- Le serveur prévient souvent lui-même (Notify) en plus de la réponse d'une RemoteFunction :
+-- un même message reçu deux fois en moins de 1,5 s ne s'affiche qu'une fois.
+local recentToasts: { [string]: number } = {}
+local toastKeys = 0
+
 function Notifications.toast(text: string, kind: string?)
-	if not toastContainer then
+	if not toastContainer or type(text) ~= "string" or text == "" then
 		return
 	end
+	local now = os.clock()
+	if recentToasts[text] and now - recentToasts[text] < 1.5 then
+		return
+	end
+	if recentToasts[text] == nil then
+		toastKeys += 1
+		if toastKeys > 200 then
+			table.clear(recentToasts)
+			toastKeys = 1
+		end
+	end
+	recentToasts[text] = now
 	local info = KINDS[kind or "info"] or KINDS.info
 	toastCount += 1
 	local holder = new("Frame", {

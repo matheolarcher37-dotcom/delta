@@ -40,6 +40,8 @@ function CharacterService:ApplyAttributes(model: Model, player: Player, uid: str
 	model:SetAttribute("OwnerId", player.UserId)
 	model:SetAttribute("DisplayName", desc and desc.name or "?")
 	model:SetAttribute("Rarity", desc and desc.rarity or "common")
+	-- Rareté obtenue à la machine ROULER (Commun... Secret) : couleur de l'étiquette côté client.
+	model:SetAttribute("RollRarity", entry.rollRarity)
 	model:SetAttribute("Level", entry.level)
 	model:SetAttribute("Stars", entry.stars or 1)
 	model:SetAttribute("Aura", entry.aura)
