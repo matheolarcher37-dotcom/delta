@@ -233,7 +233,7 @@ local function newContext(model: Model, s: number, paint: string)
 		end
 		if opts.tip then
 			local tipFrame = face * CFrame.new(0, length * 0.62, 0)
-			ctx.blade(limbName, opts.tip, tipFrame, length * 0.4, width * 0.42, thick + 0.02)
+			ctx.blade(limbName, opts.tip, tipFrame, length * 0.38, width * 0.38, thick + 0.01)
 		end
 	end
 
@@ -272,9 +272,15 @@ local function newContext(model: Model, s: number, paint: string)
 	end
 
 	-- Mèche arrondie (ellipsoïde), pour les cheveux souples.
-	function ctx.strand(limbName: string, color: Color3, from: Vector3, dir: Vector3, length: number, width: number, depth: number?)
+	-- `extra` : profondeur (nombre) ou couleur du bout (Color3).
+	function ctx.strand(limbName: string, color: Color3, from: Vector3, dir: Vector3, length: number, width: number, extra: any?)
 		local d = dir.Unit
-		return ctx.ball(limbName, "HairStrand", Vector3.new(width, length, depth or width * 0.8), alongY(from + d * (length * 0.45), d), color)
+		local depth = type(extra) == "number" and extra or width * 0.8
+		local part = ctx.ball(limbName, "HairStrand", Vector3.new(width, length, depth), alongY(from + d * (length * 0.45), d), color)
+		if typeof(extra) == "Color3" then
+			ctx.ball(limbName, "HairStrandTip", Vector3.new(width * 0.72, length * 0.4, depth * 0.75), alongY(from + d * (length * 0.75), d), extra)
+		end
+		return part
 	end
 
 	-- Peinture (SurfaceGui dans le monde, pièces fines dans les aperçus).
@@ -403,14 +409,14 @@ local function hairTones(c: Color3, look): (Color3, Color3)
 	if lum < 0.16 then
 		-- Cheveux noirs : reflets bleutés comme dans les animés
 		under = c:Lerp(Color3.new(0, 0, 0), 0.4)
-		shine = c:Lerp(Color3.fromRGB(95, 110, 160), 0.45)
+		shine = c:Lerp(Color3.fromRGB(80, 95, 140), 0.3)
 	elseif lum > 0.82 then
 		-- Cheveux blancs / argentés : ombres bleu-gris
 		under = c:Lerp(Color3.fromRGB(150, 160, 195), 0.45)
 		shine = WHITE
 	else
 		under = c:Lerp(Color3.fromRGB(120, 60, 30), 0.32)
-		shine = c:Lerp(WHITE, 0.4)
+		shine = c:Lerp(WHITE, 0.28)
 	end
 	return look.hairUnder or under, look.hairShine or shine
 end
@@ -428,8 +434,8 @@ local function cap(ctx, color: Color3, o)
 		ctx.ball(
 			"Head",
 			"HairNape",
-			Vector3.new(1.34 + grow, length, 0.96 + grow * 0.5),
-			CFrame.new(0, 0.42 - length / 2 + (opts.napeLift or 0), 0.2),
+			Vector3.new(1.24 + grow, length, 0.9 + grow * 0.5),
+			CFrame.new(0, 0.42 - length / 2 + (opts.napeLift or 0), 0.19),
 			opts.color2 or color
 		)
 	end
@@ -473,42 +479,83 @@ end
 
 local HAIR = {}
 
+-- Couronne de pointes vue de face : chaque pointe = { angle dans le plan de face (degrés, 0 = vers
+-- le haut, + vers la droite de l'observateur), inclinaison vers l'arrière (degrés, + = arrière),
+-- longueur, largeur, couleur?, cross? (lame en travers), r? (enfoncement de la base) }.
+local function crown(ctx, color: Color3, center: Vector3, list, o)
+	local opts = o or {}
+	for _, e in list do
+		local a, b = math.rad(e[1]), math.rad(e[2])
+		local dir = Vector3.new(-math.sin(a) * math.cos(b), math.cos(a) * math.cos(b), math.sin(b))
+		local base = center + dir * (e.r or opts.r or 0.3)
+		ctx.spike("Head", e[5] or color, base, dir, e[3] * (opts.scale or 1), e[4], { tip = e.cross and opts.tip or nil, cross = e.cross or false })
+	end
+end
+
+-- Mèches couchées en écailles tout autour de la calotte, de la hauteur `y0` vers le haut :
+-- elles cachent la calotte lisse et donnent l'aspect "cheveux" (rang avant + côtés/arrière).
+-- o = { front = false (pas de rang avant), lift (pente vers le haut), tip }
+local function scales(ctx, c: Color3, shine: Color3, under: Color3, y0: number, length: number, o)
+	local opts = o or {}
+	local lift = opts.lift or 1
+	if opts.front ~= false then
+		for i, x in { -0.46, -0.23, 0, 0.23, 0.46 } do
+			local z = -math.sqrt(math.max(0, 0.36 - x * x)) + 0.06
+			ctx.spike("Head", i % 2 == 0 and c or shine, Vector3.new(x, y0, z), Vector3.new(x * 1.2, lift, -0.55), length, 0.5, { cross = false, thickness = 0.16 })
+		end
+	end
+	for i, a in { 20, 55, 90, 125, 160 } do
+		local r = math.rad(a)
+		ctx.spike(
+			"Head",
+			i % 2 == 0 and under or c,
+			Vector3.new(math.cos(r) * 0.52, y0 - 0.04, math.sin(r) * 0.52 + 0.05),
+			Vector3.new(math.cos(r), 0.9 * lift, math.sin(r)),
+			length,
+			0.52,
+			{ cross = false, thickness = 0.16 }
+		)
+	end
+end
+
 HAIR.spiky = function(ctx, c, look)
 	-- Tignasse en pointes compactes (Maruto, comme "Kid Naruto") : calotte + couronne de pointes
-	-- qui rayonnent au-dessus du bandeau, quelques pointes sur les côtés et dans la nuque.
+	-- qui rayonnent en étoile au-dessus du bandeau, pointes sur les côtés et dans la nuque.
 	local under, shine = hairTones(c, look)
 	local tip = look.hairTip
 	local band = wearsHeadband(look)
-	cap(ctx, c, { color2 = under, backLength = 1.3, lift = band and 0.06 or 0 })
-	local center = Vector3.new(0, 0.66, 0.06)
-	local radii = Vector3.new(0.6, 0.36, 0.62)
 	local L = look.hairLength or 1
-	ctx.burst("Head", center, radii, c, {
-		{ 0, 0, 0.7 * L, 0.62 },
-		{ 270, 30, 0.66 * L, 0.6, shine },
-		{ 220, 38, 0.7 * L, 0.62 },
-		{ 320, 38, 0.7 * L, 0.62, shine },
-		{ 180, 50, 0.72 * L, 0.62, nil, lift = 0.25 },
-		{ 0, 50, 0.72 * L, 0.62, nil, lift = 0.25 },
-		{ 135, 45, 0.66 * L, 0.6, under },
-		{ 45, 45, 0.66 * L, 0.6, under },
-		{ 90, 35, 0.66 * L, 0.6, under },
-		{ 200, 78, 0.66 * L, 0.56, nil, lift = 0.05 },
-		{ 340, 78, 0.66 * L, 0.56, shine, lift = 0.05 },
-		{ 240, 70, 0.56 * L, 0.54, shine, lift = 0.45 },
-		{ 300, 70, 0.56 * L, 0.54, nil, lift = 0.45 },
-		{ 270, 68, 0.5 * L, 0.5, nil, lift = 0.7 },
-		{ 155, 80, 0.6 * L, 0.56, under, lift = 0.0 },
-		{ 25, 80, 0.6 * L, 0.56, under, lift = 0.0 },
-		{ 110, 85, 0.55 * L, 0.54, under, lift = -0.1 },
-		{ 70, 85, 0.55 * L, 0.54, under, lift = -0.1 },
-	}, { tip = tip, sink = 0.72 })
-	-- Pointes qui dépassent sur les côtés, sous le haut du bandeau
+	cap(ctx, c, { color2 = under, backLength = 0.95, lift = band and 0.07 or 0.02, height = 0.9 })
+	local center = Vector3.new(0, band and 0.74 or 0.68, 0.06)
+	-- Mèches couchées en écailles juste au-dessus du bandeau (cachent la calotte)
+	scales(ctx, c, shine, under, band and 0.6 or 0.5, 0.46 * L, { tip = tip })
+	crown(ctx, c, center, {
+		-- rang du milieu (silhouette de face, en étoile)
+		{ 0, 5, 0.66, 0.62, nil, cross = true },
+		{ -30, 0, 0.66, 0.6, nil, cross = true },
+		{ 30, 0, 0.66, 0.6, shine, cross = true },
+		{ -58, 0, 0.7, 0.6, nil, cross = true },
+		{ 58, 0, 0.7, 0.6, nil, cross = true },
+		{ -86, 5, 0.66, 0.56, under, cross = true },
+		{ 86, 5, 0.66, 0.56, under, cross = true },
+		-- rang de devant (penché vers l'avant)
+		{ -45, -35, 0.5, 0.56, shine },
+		{ -12, -38, 0.5, 0.56 },
+		{ 18, -35, 0.5, 0.56, shine },
+		{ 50, -32, 0.5, 0.54 },
+		-- rang de derrière
+		{ -65, 40, 0.58, 0.58, under },
+		{ -25, 45, 0.6, 0.6, under },
+		{ 20, 45, 0.6, 0.6, under },
+		{ 62, 40, 0.58, 0.58, under },
+		{ 0, 75, 0.55, 0.58, under, r = 0.36 },
+	}, { tip = tip, scale = L })
+	-- Pointes qui dépassent sur les côtés, sous le haut du bandeau, et dans la nuque
 	for _, side in { -1, 1 } do
-		ctx.spike("Head", c, Vector3.new(side * 0.52, 0.5, 0.05), Vector3.new(side, -0.25, 0.1), 0.42 * L, 0.36, { tip = tip })
-		ctx.spike("Head", under, Vector3.new(side * 0.4, 0.3, 0.42), Vector3.new(side * 0.7, -0.5, 0.6), 0.42 * L, 0.38, { tip = tip })
+		ctx.spike("Head", c, Vector3.new(side * 0.5, 0.5, 0.0), Vector3.new(side, -0.2, 0.05), 0.55 * L, 0.44, { tip = tip, cross = false })
+		ctx.spike("Head", under, Vector3.new(side * 0.36, 0.3, 0.4), Vector3.new(side * 0.6, -0.6, 0.7), 0.4 * L, 0.42, { tip = tip, cross = false })
 	end
-	ctx.spike("Head", under, Vector3.new(0, 0.2, 0.56), Vector3.new(0, -0.6, 1), 0.45 * L, 0.42, { tip = tip })
+	ctx.spike("Head", under, Vector3.new(0, 0.2, 0.5), Vector3.new(0, -0.7, 1), 0.42 * L, 0.46, { tip = tip, cross = false })
 	if not band then
 		-- Sans bandeau : frange en pointes sur le front
 		fringe(ctx, c, { -0.38, -0.13, 0.13, 0.38 }, { 0.42, 0.5, 0.46, 0.4 }, 0.34, { alt = shine, y = 0.56, spread = 0.7, tip = tip })
@@ -516,22 +563,19 @@ HAIR.spiky = function(ctx, c, look)
 end
 
 HAIR.short = function(ctx, c, look)
-	-- Coupe courte (sabreur, soldat) : calotte serrée + petites mèches courtes en brosse.
+	-- Coupe courte (sabreur, soldat, élève) : calotte + mèches courtes couchées en écailles,
+	-- petite frange ; dessous plus sombre (nuque dégradée).
 	local under, shine = hairTones(c, look)
-	cap(ctx, c, { grow = 0.02, height = 0.78, color2 = under, backLength = 1.25 })
-	ctx.burst("Head", Vector3.new(0, 0.6, 0.04), Vector3.new(0.6, 0.32, 0.62), c, {
-		{ 270, 30, 0.3, 0.4, shine },
-		{ 220, 45, 0.3, 0.4 },
-		{ 320, 45, 0.3, 0.4 },
-		{ 0, 10, 0.3, 0.42 },
-		{ 170, 60, 0.28, 0.4 },
-		{ 10, 60, 0.28, 0.4 },
-		{ 90, 50, 0.3, 0.42, under },
-	}, { lift = 0.6, sink = 0.85 })
-	fringe(ctx, c, { -0.3, -0.05, 0.22 }, { 0.26, 0.3, 0.24 }, 0.32, { alt = shine, y = 0.52, spread = 0.6 })
-	for _, side in { -1, 1 } do
-		ctx.lock("Head", under, Vector3.new(side * 0.6, 0.35, 0.05), Vector3.new(side * 0.05, -1, 0), 0.32, 0.4, { facing = Vector3.new(side, 0, 0) })
-	end
+	local L = look.hairLength or 1
+	cap(ctx, c, { grow = 0.02, height = 0.8, color2 = under, backLength = 1.15 })
+	scales(ctx, c, shine, under, 0.5, 0.4 * L, { lift = 1.1 })
+	-- Petites pointes sur le dessus
+	crown(ctx, c, Vector3.new(0, 0.62, 0.05), {
+		{ -25, -10, 0.36, 0.44, shine },
+		{ 20, 10, 0.36, 0.44 },
+		{ 0, 50, 0.34, 0.44, under },
+	}, { scale = L })
+	fringe(ctx, c, { -0.3, -0.06, 0.2 }, { 0.26, 0.32, 0.26 }, 0.32, { alt = shine, y = 0.54, spread = 0.6 })
 end
 
 HAIR.wild = function(ctx, c, look)
@@ -541,6 +585,7 @@ HAIR.wild = function(ctx, c, look)
 	local tilt = look.hairTilt or 0
 	local L = look.hairLength or 1
 	cap(ctx, c, { color2 = under, backLength = 1.35 })
+	scales(ctx, c, shine, under, 0.5, 0.46 * L, { front = false, tip = tip })
 	-- Frange en pointes
 	fringe(ctx, c, { -0.36, -0.1, 0.16, 0.4 }, { 0.5, 0.44, 0.4, 0.46 }, 0.36, { alt = shine, y = 0.56, spread = 0.75, out = 0.25, tip = tip })
 	ctx.burst("Head", Vector3.new(0, 0.62, 0.05), Vector3.new(0.6, 0.34, 0.62), c, {
@@ -582,6 +627,7 @@ HAIR.spiky_back = function(ctx, c, look)
 	-- Mèches qui encadrent le visage + pointes dressées vers l'arrière (ninja vengeur)
 	local under, shine = hairTones(c, look)
 	cap(ctx, c, { color2 = under, backLength = 1.3 })
+	scales(ctx, c, shine, under, 0.48, 0.42, { front = false })
 	sidelocks(ctx, c, 0.95, 0.32, 0.5)
 	fringe(ctx, c, { -0.32, -0.08, 0.2 }, { 0.62, 0.5, 0.42 }, 0.34, { alt = shine, y = 0.56, spread = 0.6 })
 	ctx.burst("Head", Vector3.new(0, 0.55, 0.15), Vector3.new(0.58, 0.36, 0.55), c, {
@@ -596,21 +642,28 @@ HAIR.spiky_back = function(ctx, c, look)
 end
 
 HAIR.long = function(ctx, c, look)
-	-- Longs cheveux lisses : frange, mèches qui encadrent le visage, nappe dans le dos.
+	-- Longs cheveux lisses : frange écartée sur le front, longues mèches de côté, nappe dans le dos.
 	local under, shine = hairTones(c, look)
 	local tip = look.hairTip
-	cap(ctx, c, { back = false, height = 0.8 })
+	cap(ctx, c, { back = false, height = 0.84 })
 	local length = look.hairLength or 2.4
-	ctx.ball("Head", "HairBack", Vector3.new(1.34, length, 0.6), CFrame.new(0, TOP - 0.1 - length / 2 + 0.25, 0.42), under)
-	ctx.ball("Head", "HairBack", Vector3.new(1.3, length * 0.92, 0.5), CFrame.new(0, TOP - 0.1 - length / 2 + 0.25, 0.5), c)
+	ctx.ball("Head", "HairBack", Vector3.new(1.34, length, 0.6), CFrame.new(0, TOP - 0.1 - length / 2 + 0.25, 0.4), under)
+	ctx.ball("Head", "HairBack", Vector3.new(1.28, length * 0.94, 0.5), CFrame.new(0, TOP - 0.1 - length / 2 + 0.2, 0.5), c)
 	if tip then
-		ctx.ball("Head", "HairTip", Vector3.new(1.2, 0.8, 0.52), CFrame.new(0, TOP - length + 0.1, 0.5), tip)
+		ctx.ball("Head", "HairTip", Vector3.new(1.18, 0.8, 0.52), CFrame.new(0, TOP - length + 0.1, 0.5), tip)
 	end
 	for _, side in { -1, 1 } do
-		ctx.ball("Head", "HairSide", Vector3.new(0.26, 1.5, 0.9), CFrame.new(side * 0.6, 0.0, 0.12), under)
+		ctx.ball("Head", "HairSide", Vector3.new(0.28, 1.5, 0.95), CFrame.new(side * 0.6, 0.0, 0.1), under)
+		-- Mèche longue qui encadre le visage (deux tons)
+		ctx.strand("Head", c, Vector3.new(side * 0.62, 0.45, -0.28), Vector3.new(side * 0.14, -1, -0.06), 1.25, 0.24, 0.2)
+		ctx.strand("Head", shine, Vector3.new(side * 0.6, 0.45, -0.36), Vector3.new(side * 0.12, -1, -0.08), 0.7, 0.12, 0.1)
 	end
-	sidelocks(ctx, c, 1.35, 0.36, 0.5, { tip = tip })
-	fringe(ctx, c, { -0.3, -0.06, 0.18, 0.38 }, { 0.42, 0.48, 0.44, 0.36 }, 0.34, { alt = shine, y = 0.56, spread = 0.35 })
+	if look.forehead then
+		-- Front dégagé, raie au milieu : deux mèches courbées
+		fringe(ctx, c, { -0.28, 0.28 }, { 0.34, 0.34 }, 0.42, { y = 0.58, spread = 1.1, out = 0.1, thickness = 0.16 })
+	else
+		fringe(ctx, c, { -0.36, -0.13, 0.1, 0.34 }, { 0.36, 0.42, 0.4, 0.34 }, 0.36, { alt = shine, y = 0.58, spread = 0.5, thickness = 0.16 })
+	end
 end
 
 HAIR.ponytail = function(ctx, c, look)
@@ -634,19 +687,18 @@ HAIR.side_ponytail = function(ctx, c, look)
 end
 
 HAIR.ponytail_spiky = function(ctx, c, look)
-	-- Queue d'ananas (stratège) : cheveux tirés vers l'arrière, touffe en pointes sur le haut.
+	-- Queue d'ananas (stratège) : cheveux tirés vers l'arrière, touffe en pointes en éventail.
 	local under, shine = hairTones(c, look)
-	cap(ctx, c, { color2 = under, backLength = 1.2, height = 0.78 })
-	sidelocks(ctx, c, 0.55, 0.28, 0.45)
-	ctx.ball("Head", "HairTie", Vector3.new(0.3, 0.24, 0.3), CFrame.new(0, 0.85, 0.42), darken(c, 0.45))
-	ctx.burst("Head", Vector3.new(0, 0.95, 0.45), Vector3.new(0.15, 0.1, 0.15), c, {
-		{ 0, 30, 0.6, 0.42 },
-		{ 180, 30, 0.6, 0.42, shine },
-		{ 90, 35, 0.62, 0.42, under },
-		{ 270, 20, 0.6, 0.42 },
-		{ 45, 50, 0.55, 0.4, under },
-		{ 135, 50, 0.55, 0.4 },
-	}, { lift = 1.2, sink = 1 })
+	cap(ctx, c, { color2 = under, backLength = 1.05, height = 0.8 })
+	sidelocks(ctx, c, 0.5, 0.26, 0.45)
+	local tie = Vector3.new(0, 0.82, 0.42)
+	ctx.ball("Head", "HairTie", Vector3.new(0.3, 0.22, 0.3), CFrame.new(tie) * CFrame.Angles(0.5, 0, 0), darken(c, 0.5))
+	local center = tie + Vector3.new(0, 0.05, 0.05)
+	for _, e in { { 0, 20, 0.6 }, { -35, 30, 0.55 }, { 35, 30, 0.55 }, { -65, 45, 0.48 }, { 65, 45, 0.48 }, { -15, 55, 0.5 }, { 15, 55, 0.5 } } do
+		local a, b = math.rad(e[1]), math.rad(e[2])
+		local dir = Vector3.new(-math.sin(a) * math.cos(b), math.cos(a) * math.cos(b), math.sin(b))
+		ctx.spike("Head", math.abs(e[1]) > 50 and under or (e[1] == 0 and shine or c), center + dir * 0.06, dir, e[3], 0.36, { cross = false, thickness = 0.16 })
+	end
 end
 
 HAIR.slick = function(ctx, c, look)
@@ -659,6 +711,7 @@ HAIR.slick_up = function(ctx, c, look)
 	-- Cheveux dressés vers le haut et l'arrière, côtés plus sombres (fléau, prince guerrier)
 	local under, shine = hairTones(c, look)
 	cap(ctx, c, { color2 = under, backLength = 1.3, height = 0.82 })
+	scales(ctx, c, shine, under, 0.48, 0.5, { lift = 1.8, tip = look.hairTip })
 	ctx.burst("Head", Vector3.new(0, 0.64, 0.05), Vector3.new(0.56, 0.32, 0.6), c, {
 		{ 270, 30, 0.7, 0.52, shine, lift = 0.9 },
 		{ 230, 35, 0.7, 0.5, nil, lift = 0.8 },
@@ -687,6 +740,7 @@ HAIR.flame_spiky = function(ctx, c, look)
 	local under, shine = hairTones(c, look)
 	local tip = look.hairTip
 	cap(ctx, c, { color2 = under, backLength = 1.35, grow = 0.04 })
+	scales(ctx, c, shine, under, 0.5, 0.5, { front = false, tip = tip })
 	fringe(ctx, c, { -0.38, -0.12, 0.14, 0.4 }, { 0.5, 0.42, 0.42, 0.5 }, 0.36, { alt = shine, y = 0.58, spread = 0.9, out = 0.3, tip = tip })
 	ctx.burst("Head", Vector3.new(0, 0.62, 0.1), Vector3.new(0.6, 0.34, 0.6), c, {
 		{ 270, 35, 0.75, 0.55, shine, lift = 0.5 },
@@ -705,23 +759,25 @@ HAIR.flame_spiky = function(ctx, c, look)
 end
 
 HAIR.flame = function(ctx, c, look)
-	-- Flamme dressée (prince guerrier) : front dégagé en pointe, grande flamme vers le haut.
+	-- Flamme dressée (prince guerrier) : front dégagé en pointe ("V"), grande flamme en éventail.
 	local under, shine = hairTones(c, look)
 	local tip = look.hairTip
-	cap(ctx, c, { color2 = under, backLength = 1.2, height = 0.8 })
-	ctx.burst("Head", Vector3.new(0, 0.7, 0.08), Vector3.new(0.5, 0.3, 0.55), c, {
-		{ 0, 0, 1.15, 0.62, nil, lift = 1.5 },
-		{ 270, 25, 1.0, 0.58, shine, lift = 1.4 },
-		{ 220, 35, 0.95, 0.56, nil, lift = 1.3 },
-		{ 320, 35, 0.95, 0.56, shine, lift = 1.3 },
-		{ 180, 40, 0.9, 0.55, nil, lift = 1.1 },
-		{ 0, 40, 0.9, 0.55, nil, lift = 1.1 },
-		{ 90, 30, 0.95, 0.58, under, lift = 1.2 },
-		{ 135, 45, 0.85, 0.54, under, lift = 1 },
-		{ 45, 45, 0.85, 0.54, under, lift = 1 },
-	}, { tip = tip, sink = 0.8 })
+	cap(ctx, c, { color2 = under, backLength = 1.1, height = 0.84 })
+	scales(ctx, c, shine, under, 0.5, 0.5, { lift = 2.2, tip = tip })
+	crown(ctx, c, Vector3.new(0, 0.75, 0.12), {
+		{ 0, 12, 1.15, 0.66, nil, cross = true },
+		{ -20, 8, 1.0, 0.62, shine, cross = true },
+		{ 20, 8, 1.0, 0.62, nil, cross = true },
+		{ -40, 12, 0.85, 0.6 },
+		{ 40, 12, 0.85, 0.6, shine },
+		{ -58, 18, 0.65, 0.56, under },
+		{ 58, 18, 0.65, 0.56, under },
+		{ -10, 40, 0.95, 0.62, under },
+		{ 12, 40, 0.95, 0.62, under },
+		{ 0, -20, 0.8, 0.6, shine },
+	}, { tip = tip, r = 0.22 })
 	-- Pointe de cheveux au milieu du front (racine en "V")
-	ctx.lock("Head", c, Vector3.new(0, 0.62, -0.6), Vector3.new(0, -1, -0.15), 0.3, 0.36)
+	ctx.lock("Head", c, Vector3.new(0, 0.62, -0.62), Vector3.new(0, -1, -0.15), 0.32, 0.38)
 end
 
 HAIR.curly = function(ctx, c, look)
@@ -752,6 +808,7 @@ HAIR.messy = function(ctx, c, look)
 	-- Tignasse en bataille (pirate au chapeau de paille...) : mèches courtes en tous sens.
 	local under, shine = hairTones(c, look)
 	cap(ctx, c, { color2 = under, backLength = 1.3 })
+	scales(ctx, c, shine, under, 0.48, 0.42, { front = false })
 	fringe(ctx, c, { -0.38, -0.14, 0.1, 0.34 }, { 0.44, 0.52, 0.4, 0.48 }, 0.34, { alt = shine, y = 0.56, spread = 0.9, out = 0.2 })
 	ctx.burst("Head", Vector3.new(0, 0.6, 0.05), Vector3.new(0.6, 0.34, 0.62), c, {
 		{ 230, 40, 0.42, 0.42, shine, lift = 0.6 },
@@ -795,13 +852,17 @@ HAIR.topknot = function(ctx, c, look)
 end
 
 HAIR.bowl = function(ctx, c, look)
-	-- Coupe au bol bien nette et brillante.
-	local _, shine = hairTones(c, look)
-	ctx.ball("Head", "Bowl", Vector3.new(1.4, 1.05, 1.42), CFrame.new(0, 0.35, 0.02), c, { Reflectance = 0.06 })
-	ctx.vcyl("Head", "BowlSides", 0.42, 1.38, CFrame.new(0, 0.18, 0.02), c, { Reflectance = 0.06 })
-	ctx.ball("Head", "BowlShine", Vector3.new(0.6, 0.12, 0.3), CFrame.new(-0.18, 0.8, -0.42) * CFrame.Angles(0.4, 0, 0.1), shine, { Transparency = 0.2 })
-	-- Le dos descend jusqu'à la nuque
-	ctx.ball("Head", "BowlBack", Vector3.new(1.36, 1.2, 0.9), CFrame.new(0, 0.05, 0.24), c)
+	-- Coupe au bol bien nette et brillante : frange droite au ras des sourcils, côtés jusqu'à la mâchoire.
+	local under, shine = hairTones(c, look)
+	ctx.ball("Head", "BowlDome", Vector3.new(1.4, 0.9, 1.42), CFrame.new(0, 0.6, 0.02), c, { Reflectance = 0.05 })
+	ctx.vcyl("Head", "Bowl", 0.36, 1.4, CFrame.new(0, 0.42, 0.02), c, { Reflectance = 0.05 })
+	-- Côtés et nuque (plus bas que la frange)
+	ctx.ball("Head", "BowlBack", Vector3.new(1.3, 1.25, 0.9), CFrame.new(0, 0.12, 0.22), under)
+	for _, side in { -1, 1 } do
+		ctx.ball("Head", "BowlSide", Vector3.new(0.24, 0.95, 0.85), CFrame.new(side * 0.62, 0.1, 0.02), c)
+	end
+	-- Reflet en bandeau sur le dessus (cheveux brillants)
+	ctx.ball("Head", "BowlShine", Vector3.new(0.7, 0.1, 0.34), CFrame.new(-0.12, 0.86, -0.38) * CFrame.Angles(0.5, 0, 0.12), shine)
 end
 
 HAIR.bob = function(ctx, c, look)
@@ -871,14 +932,15 @@ end
 local function headbandBase(ctx, look, tilt: number, scratched: boolean)
 	local band = look.headbandColor or Color3.fromRGB(22, 34, 84)
 	local y = look.headbandY or 0.4
+	local BAND_R = look.headbandRadius or WRAP_R
 	local rot = CFrame.Angles(0, 0, tilt)
 	local frame = CFrame.new(0, y, 0) * rot
-	ctx.vcyl("Head", "Headband", 0.36, 2 * WRAP_R, frame, band)
+	ctx.vcyl("Head", "Headband", 0.36, 2 * BAND_R, frame, band)
 	local metal = look.plateColor or METAL
 	local ink = Color3.fromRGB(70, 82, 100)
 	for i = -1, 1 do
 		local a = i * math.rad(24)
-		local r = WRAP_R + 0.02
+		local r = BAND_R + 0.02
 		local cf = frame * CFrame.new(-math.sin(a) * r, 0, -math.cos(a) * r) * CFrame.Angles(0, a, 0)
 		local plate = ctx.add("Head", "Plate", Vector3.new(0.3, 0.3, 0.05), cf, metal, { Material = Enum.Material.Metal, Reflectance = 0.15 })
 		paintPanel(ctx, plate, Enum.NormalId.Front, function(canvas)
@@ -894,9 +956,9 @@ local function headbandBase(ctx, look, tilt: number, scratched: boolean)
 			end
 		end)
 	end
-	ctx.ball("Head", "Knot", Vector3.new(0.24, 0.22, 0.18), frame * CFrame.new(0, 0, WRAP_R + 0.06), band)
-	ctx.strand("Head", band, (frame * CFrame.new(-0.06, -0.03, WRAP_R + 0.08)).Position, Vector3.new(-0.3, -1, 0.5), 0.7, 0.14)
-	ctx.strand("Head", band, (frame * CFrame.new(0.06, -0.03, WRAP_R + 0.08)).Position, Vector3.new(0.35, -1, 0.4), 0.62, 0.14)
+	ctx.ball("Head", "Knot", Vector3.new(0.24, 0.22, 0.18), frame * CFrame.new(0, 0, BAND_R + 0.06), band)
+	ctx.strand("Head", band, (frame * CFrame.new(-0.06, -0.03, BAND_R + 0.08)).Position, Vector3.new(-0.3, -1, 0.5), 0.7, 0.14)
+	ctx.strand("Head", band, (frame * CFrame.new(0.06, -0.03, BAND_R + 0.08)).Position, Vector3.new(0.35, -1, 0.4), 0.62, 0.14)
 end
 
 ACC.headband = function(ctx, look)
@@ -1184,8 +1246,8 @@ end
 ACC.collar_high = function(ctx, look)
 	-- Col montant qui cache le bas du visage (manteau à nuages, uniforme à col haut)
 	local color = look.collarColor or look.topAccent or look.top or Color3.fromRGB(30, 30, 40)
-	ctx.vcyl("Torso", "HighCollar", 0.62, 1.5, CFrame.new(0, 1.2, 0), color)
-	ctx.vcyl("Torso", "HighCollarLining", 0.03, 1.36, CFrame.new(0, 1.52, 0), look.collarLining or Painter.shade(color, 0.4))
+	ctx.vcyl("Torso", "HighCollar", 0.56, 1.5, CFrame.new(0, 1.0, 0), color)
+	ctx.vcyl("Torso", "HighCollarLining", 0.03, 1.36, CFrame.new(0, 1.28, 0), look.collarLining or Painter.shade(color, 0.4))
 end
 
 ACC.collar_gold = function(ctx, look)
@@ -1430,10 +1492,10 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 		-- Cheveux visibles sous le chapeau : nuque, mèches sur les côtés et frange en bataille.
 		local under, shine = hairTones(hairColor, look)
 		cap(ctx, under, { height = 0.7, lift = -0.06, backLength = 1.3 })
-		fringe(ctx, hairColor, { -0.38, -0.14, 0.1, 0.34 }, { 0.38, 0.46, 0.36, 0.42 }, 0.34, { alt = shine, y = 0.42, spread = 0.9, out = 0.2 })
+		fringe(ctx, hairColor, { -0.36, -0.12, 0.12, 0.36 }, { 0.3, 0.36, 0.3, 0.32 }, 0.32, { alt = shine, y = 0.36, spread = 0.45, out = 0.06 })
 		for _, side in { -1, 1 } do
-			ctx.spike("Head", hairColor, Vector3.new(side * 0.56, 0.2, -0.05), Vector3.new(side, -0.6, 0.0), 0.38, 0.38)
-			ctx.spike("Head", under, Vector3.new(side * 0.3, 0.05, 0.55), Vector3.new(side * 0.4, -0.6, 1), 0.42, 0.42)
+			ctx.lock("Head", hairColor, Vector3.new(side * 0.6, 0.3, -0.1), Vector3.new(side * 0.15, -1, 0), 0.4, 0.36, { facing = Vector3.new(side, 0, 0.2), thickness = 0.12 })
+			ctx.spike("Head", under, Vector3.new(side * 0.3, 0.05, 0.55), Vector3.new(side * 0.3, -0.8, 0.8), 0.36, 0.42, { cross = false })
 		end
 	end
 

@@ -558,7 +558,10 @@ local TEETH = Color3.fromRGB(232, 236, 242)
 local function mouth(T, look, skin: Color3, y: number)
 	local face = look.face or "calm"
 	local lip = Painter.shade(skin, 0.4)
-	local w = look.mouthWidth or (face == "fierce" and 0.44 or 0.2)
+	local w = look.mouthWidth or (face == "fierce" and 0.3 or 0.2)
+	if look.blush and not look.mouthWidth then
+		w *= 0.75
+	end
 	if face == "fierce" then
 		-- Sourire confiant, dents serrées (comme la référence "Kid Naruto")
 		T.box(0, y, w, 0.075, TEETH, { corner = 0.4, stroke = INK, strokeThickness = 1.6, gradient = { WHITE, TEETH, Color3.fromRGB(190, 200, 215) }, z = 2 })
@@ -600,11 +603,11 @@ local function faceMarks(T, look, skin: Color3, eyeX: number, eyeY: number)
 	local accColor = look.accColor
 	if has(look, "whiskers") then
 		-- Trois moustaches de renard par joue
-		local ink = look.whiskerColor or Painter.shade(skin, 0.62)
+		local ink = look.whiskerColor or Painter.shade(skin, 0.5)
 		for _, s in { -1, 1 } do
 			for i = 0, 2 do
 				local y = eyeY - 0.17 - i * 0.065
-				T.line(s * 0.3, y + 0.01 - i * 0.008, s * 0.47, y + 0.025 - i * 0.03, 0.018, ink, { z = 7 })
+				T.line(s * 0.3, y + 0.01 - i * 0.008, s * 0.46, y + 0.025 - i * 0.03, 0.015, ink, { z = 7 })
 			end
 		end
 	end
