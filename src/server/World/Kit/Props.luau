@@ -232,7 +232,12 @@ function Props.lamppost(parent: Instance, base: Vector3, style: string?, glow: C
 	end
 	Core.vcyl(parent, "LampBase", cf, 1.2, 1.4, rgb(46, 44, 46), Enum.Material.Metal)
 	Core.vcyl(parent, "LampPost", cf * CFrame.new(0, 1.2, 0), 9, 0.55, rgb(46, 44, 46), Enum.Material.Metal)
-	deco(parent, "LampCage", Vector3.new(1.6, 2, 1.6), cf * CFrame.new(0, 11.2, 0), rgb(46, 44, 46), Enum.Material.Metal)
+	deco(parent, "LampCage", Vector3.new(1.8, 0.3, 1.8), cf * CFrame.new(0, 10.2, 0), rgb(46, 44, 46), Enum.Material.Metal)
+	for _, x in { -0.8, 0.8 } do
+		for _, z in { -0.8, 0.8 } do
+			deco(parent, "LampCage", Vector3.new(0.18, 2, 0.18), cf * CFrame.new(x, 11.2, z), rgb(46, 44, 46), Enum.Material.Metal)
+		end
+	end
 	local lamp = deco(parent, "Lamp", Vector3.new(1.3, 1.7, 1.3), cf * CFrame.new(0, 11.2, 0), g, Enum.Material.Neon)
 	for _, p in Core.pyramid(parent, "LampHat", cf * CFrame.new(0, 12.2, 0), 2.2, 2.2, 0.9, rgb(46, 44, 46), Enum.Material.Metal) do
 		p.CanCollide = false

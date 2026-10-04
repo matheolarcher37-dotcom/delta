@@ -144,7 +144,7 @@ local function cluster(model: Instance, rng: Random, center: Vector3, radius: nu
 		leaf(model, center + dir * dist, size, tone(pal, t, rng))
 	end
 	-- petits bourgeons en surface : silhouette détaillée et irrégulière, plus clairs au soleil
-	local buds = math.max(2, count - 1)
+	local buds = math.max(2, count - (count >= 6 and 1 or 2))
 	for i = 1, buds do
 		local a = turn + 0.5 + i / buds * math.pi * 2 + rng:NextNumber(-0.5, 0.5)
 		local y = rng:NextNumber(-0.1, 0.95)
@@ -156,7 +156,7 @@ local function cluster(model: Instance, rng: Random, center: Vector3, radius: nu
 		local t = 0.55 + 0.4 * y + (outward and 0.1 * dir:Dot(outward) or 0)
 		leaf(model, center + dir * radius * rng:NextNumber(0.88, 1.05), radius * rng:NextNumber(0.34, 0.48), tone(pal, t, rng))
 	end
-	for _ = 1, 2 do
+	for _ = 1, (count >= 6 and 2 or 1) do
 		local a = rng:NextNumber(0, math.pi * 2)
 		local pos = center + hdir(a) * radius * rng:NextNumber(0.1, 0.4) + UP * radius * 0.78 * f
 		leaf(model, pos, radius * rng:NextNumber(0.4, 0.55), tone(pal, rng:NextNumber(0.84, 1), rng))
@@ -181,7 +181,7 @@ end
 
 export type Detail = "hero" | "normal" | "low"
 
-local PUFFS = { hero = 6, normal = 5, low = 3 }
+local PUFFS = { hero = 6, normal = 4, low = 3 }
 
 -- Feuillu (chêne / hêtre stylisé). H = 30.
 local function buildBroadleaf(model: Model, rng: Random, pal: { Color3 }, detail: Detail, trunkColor: Color3)
@@ -189,7 +189,7 @@ local function buildBroadleaf(model: Model, rng: Random, pal: { Color3 }, detail
 	local d0 = H * 0.09
 	local pts = trunk(model, rng, H * 0.4, d0, d0 * 0.58, trunkColor, detail == "low" and 3 or 4, 0.03)
 	if detail ~= "low" then
-		roots(model, rng, d0, 5, trunkColor)
+		roots(model, rng, d0, detail == "hero" and 5 or 4, trunkColor)
 		if rng:NextNumber() < 0.6 then
 			knot(model, pts[2] + hdir(rng:NextNumber(0, 6.28)) * d0 * 0.45 + UP * H * 0.05, d0 * 0.5, shade(trunkColor, -0.08))
 		end
@@ -213,7 +213,7 @@ local function buildBroadleaf(model: Model, rng: Random, pal: { Color3 }, detail
 		local length = H * rng:NextNumber(0.25, 0.32)
 		local mid, tip = limb(model, start, dir, length, d0 * 0.45, trunkColor, 0.5)
 		table.insert(tips, { tip, hdir(a) })
-		if detail ~= "low" and rng:NextNumber() < (detail == "hero" and 0.9 or 0.6) then
+		if detail ~= "low" and rng:NextNumber() < (detail == "hero" and 0.9 or 0.45) then
 			local side = rng:NextNumber() < 0.5 and -1 or 1
 			local subDir = tilted(a + side * rng:NextNumber(0.5, 0.8), rng:NextNumber(0.6, 1.0))
 			local subTip = mid + subDir * length * 0.48
@@ -245,7 +245,7 @@ local function buildGiant(model: Model, rng: Random, pal: { Color3 }, detail: De
 		end
 	end
 	local top = pts[#pts]
-	local count = detail == "low" and 4 or 6
+	local count = detail == "low" and 4 or (detail == "hero" and 6 or 5)
 	local turn = rng:NextNumber(0, math.pi * 2)
 	local puffs = PUFFS[detail]
 	for i = 1, count do
@@ -257,7 +257,7 @@ local function buildGiant(model: Model, rng: Random, pal: { Color3 }, detail: De
 		local length = H * rng:NextNumber(0.22, 0.3)
 		local mid, tip = limb(model, start, dir, length, d0 * 0.42, trunkColor, 0.45)
 		cluster(model, rng, tip + UP * H * 0.03, H * rng:NextNumber(0.1, 0.125), pal, puffs, hdir(a), 0.8)
-		if detail ~= "low" then
+		if detail == "hero" or (detail == "normal" and i % 2 == 0) then
 			local subDir = tilted(a + rng:NextNumber(-0.9, 0.9), rng:NextNumber(0.5, 0.8))
 			local subTip = mid + subDir * length * 0.42
 			wood(model, "Branch", mid, subTip, d0 * 0.22, trunkColor)
@@ -878,66 +878,84 @@ function Nature.rock(
 	return model
 end
 
--- Falaise en strates : grands blocs empilés (couches alternées), dessus herbeux et éboulis.
--- `cf` = pied de la falaise au centre, -Z local = face visible. Rôles de sol facultatifs
--- (`role` = roche, `topRole` = herbe du dessus) pour suivre l'univers.
+-- Falaise naturelle : face de roche faite de gros blocs inclinés et superposés (arêtes vives,
+-- hauteurs irrégulières), pente d'herbe praticable côté terre (`ramp`), touffes d'herbe au bord
+-- et éboulis au pied. `cf` = pied de la falaise au centre, -Z local = face rocheuse visible.
+-- Rôles de sol facultatifs (`role` = roche, `topRole` = herbe du dessus) pour suivre l'univers.
 function Nature.cliff(
 	parent: Instance,
 	cf: CFrame,
 	width: number,
 	height: number,
 	depth: number,
-	options: { rng: Random?, color: Color3?, top: Color3?, role: string?, topRole: string?, slot: string?, rubble: boolean? }?
+	options: { rng: Random?, color: Color3?, top: Color3?, role: string?, topRole: string?, slot: string?, rubble: boolean?, ramp: number? }?
 ): Model
 	local o = options or {}
 	local rng = o.rng or Random.new()
 	local color = o.color or rgb(132, 122, 110)
 	local model = Core.slot(parent, o.slot or "Falaise", cf, height)
-	local layers = math.max(2, math.floor(height / 9))
-	local layerH = height / layers
-	for l = 0, layers - 1 do
-		local inset = l * rng:NextNumber(0.6, 1.6)
-		local pieces = math.max(1, math.floor(width / 26))
-		for k = 0, pieces - 1 do
-			local w = width / pieces * rng:NextNumber(1.05, 1.25)
-			local x = -width / 2 + (k + 0.5) * width / pieces + rng:NextNumber(-2, 2)
-			local h = layerH * rng:NextNumber(1.05, 1.3)
-			local nuance = ((l + k) % 2 == 0 and 0.04 or -0.05) + rng:NextNumber(-0.04, 0.04)
-			local part = Build.part(
-				model,
-				"Cliff",
-				Vector3.new(w, h, depth - inset),
-				cf * CFrame.new(x, l * layerH + h / 2 - 0.5, inset / 2 + rng:NextNumber(-1, 1)) * CFrame.Angles(rng:NextNumber(-0.04, 0.04), rng:NextNumber(-0.08, 0.08), rng:NextNumber(-0.05, 0.05)),
-				shade(color, nuance),
-				{ Material = Enum.Material.Rock }
-			)
-			if o.role then
-				Core.solRole(part, o.role, nuance)
+	local function rockBlock(size: Vector3, at: CFrame, nuance: number)
+		local part = Build.part(model, "Cliff", size, at, shade(color, nuance), { Material = Enum.Material.Rock })
+		if o.role then
+			Core.solRole(part, o.role, nuance)
+		end
+		return part
+	end
+	-- colonnes de blocs le long de la face
+	local columns = math.max(2, math.floor(width / 12))
+	local tops = {}
+	for k = 0, columns - 1 do
+		local x = -width / 2 + (k + 0.5) * width / columns + rng:NextNumber(-2, 2)
+		local colH = height * rng:NextNumber(0.75, 1.12)
+		table.insert(tops, { x, colH })
+		local y = -2
+		local tier = 0
+		while y < colH - 2 do
+			local h = math.min(colH - y, height * rng:NextNumber(0.35, 0.6))
+			local w = width / columns * rng:NextNumber(1.1, 1.5)
+			local d = depth * rng:NextNumber(0.45, 0.75)
+			local z = -depth / 2 + d / 2 + rng:NextNumber(-2.5, 2) + tier * rng:NextNumber(0.5, 2)
+			local at = cf * CFrame.new(x, y + h / 2, z) * CFrame.Angles(rng:NextNumber(-0.12, 0.12), rng:NextNumber(-0.35, 0.35), rng:NextNumber(-0.14, 0.14))
+			rockBlock(Vector3.new(w, h, d), at, ((k + tier) % 2 == 0 and 0.05 or -0.06) + rng:NextNumber(-0.04, 0.04))
+			y += h * rng:NextNumber(0.7, 0.9)
+			tier += 1
+		end
+		-- éperon (bloc pointu) qui dépasse parfois du haut
+		if rng:NextNumber() < 0.35 then
+			local at = cf * CFrame.new(x + rng:NextNumber(-3, 3), colH - 1, -depth / 2 + rng:NextNumber(4, 8)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0)
+			for _, part in Core.pyramid(model, "CliffSpur", at, rng:NextNumber(6, 10), rng:NextNumber(6, 10), rng:NextNumber(4, 9), shade(color, 0.08), Enum.Material.Rock) do
+				if o.role then
+					Core.solRole(part, o.role, 0.08)
+				end
 			end
 		end
 	end
+	-- dos de la falaise : masse de roche + pente d'herbe vers l'intérieur des terres
+	rockBlock(Vector3.new(width * 0.96, height, depth * 0.5), cf * CFrame.new(0, height / 2 - 1, depth * 0.2), -0.02)
 	if o.top then
-		local cap = Build.part(model, "CliffTop", Vector3.new(width * 1.02, 1.4, depth), cf * CFrame.new(0, height + 0.4, layers * 0.6), o.top, { Material = LEAF })
+		local rampLen = o.ramp or math.clamp(height * 1.3, 12, 34)
+		local ramp = Build.wedge(model, "CliffSlope", Vector3.new(width * 0.98, height + 0.6, rampLen), cf * CFrame.new(0, (height + 0.6) / 2 - 0.6, depth * 0.45 + rampLen / 2) * CFrame.Angles(0, math.pi, 0), o.top, {
+			Material = LEAF,
+		})
+		if o.topRole then
+			Core.solRole(ramp, o.topRole)
+		end
+		local cap = Build.part(model, "CliffTop", Vector3.new(width * 0.98, 1.2, depth * 0.62), cf * CFrame.new(0, height - 0.1, depth * 0.14), o.top, { Material = LEAF })
 		if o.topRole then
 			Core.solRole(cap, o.topRole)
 		end
-		for _ = 1, math.max(2, math.floor(width / 14)) do
-			local lip = Core.ellipsoid(
-				model,
-				"CliffGrass",
-				Vector3.new(rng:NextNumber(8, 14), rng:NextNumber(2.2, 3.4), rng:NextNumber(5, 8)),
-				cf * CFrame.new(rng:NextNumber(-width / 2, width / 2), height + 0.6, -depth / 2 + layers * 0.8 + rng:NextNumber(0, 2)),
-				shade(o.top, rng:NextNumber(-0.06, 0.06)),
-				LEAF
-			)
-			if o.topRole then
-				Core.solRole(lip, o.topRole, rng:NextNumber(-0.06, 0.06))
+		for _, t in tops do
+			if t[2] > height * 0.9 and rng:NextNumber() < 0.7 then
+				local lip = Core.ellipsoid(model, "CliffGrass", Vector3.new(rng:NextNumber(8, 14), rng:NextNumber(1.6, 3), rng:NextNumber(6, 9)), cf * CFrame.new(t[1], math.min(t[2], height * 1.05) + 0.4, -depth * 0.12), shade(o.top, rng:NextNumber(-0.06, 0.06)), LEAF)
+				if o.topRole then
+					Core.solRole(lip, o.topRole, rng:NextNumber(-0.06, 0.06))
+				end
 			end
 		end
 	end
 	if o.rubble ~= false then
-		for _ = 1, math.max(2, math.floor(width / 16)) do
-			Nature.rock(model, cf * CFrame.new(rng:NextNumber(-width / 2, width / 2), 0, -depth / 2 - rng:NextNumber(1, 5)), rng:NextNumber(3, 7), {
+		for _ = 1, math.max(2, math.floor(width / 14)) do
+			Nature.rock(model, cf * CFrame.new(rng:NextNumber(-width / 2, width / 2), -1, -depth / 2 - rng:NextNumber(1, 6)), rng:NextNumber(3, 8), {
 				rng = rng,
 				color = shade(color, -0.06),
 				slot = "Eboulis",

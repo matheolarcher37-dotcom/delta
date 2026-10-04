@@ -101,7 +101,7 @@ WorldBuilder.Hills = {
 
 -- Caps rocheux au bord de l'île : arcs { de, à } en degrés.
 WorldBuilder.CliffArcs = { { -28, 16 }, { 98, 142 }, { 204, 236 } }
-WorldBuilder.CliffRadius = 628
+WorldBuilder.CliffRadius = 646
 
 -- Étang et ruisseau.
 WorldBuilder.Pond = { center = polar(180, 482), radius = 26 }
@@ -139,7 +139,7 @@ end
 -- Vrai si `pos` est dans un cap rocheux (bord de l'île).
 function WorldBuilder.inCliffs(pos: Vector3, margin: number?): boolean
 	local r = flat(pos).Magnitude
-	if r < WorldBuilder.CliffRadius - 24 - (margin or 0) then
+	if r < WorldBuilder.CliffRadius - 40 - (margin or 0) then
 		return false
 	end
 	local deg = math.deg(math.atan2(pos.Z, pos.X))
@@ -259,9 +259,9 @@ local function buildIsland(world: Folder)
 			local r = WorldBuilder.CliffRadius + rng:NextNumber(-4, 8)
 			local pos = polar(deg, r)
 			local out = flat(pos).Unit
-			local h = edge and rng:NextNumber(8, 14) or rng:NextNumber(16, 32)
-			local cf = CFrame.lookAt(pos, pos + out) * CFrame.Angles(0, rng:NextNumber(-0.2, 0.2), 0)
-			Nature.cliff(cliffs, cf, rng:NextNumber(70, 90), h, rng:NextNumber(36, 48), {
+			local h = edge and rng:NextNumber(8, 13) or rng:NextNumber(15, 30)
+			local cf = CFrame.lookAt(pos, pos + out) * CFrame.Angles(0, rng:NextNumber(-0.15, 0.15), 0)
+			Nature.cliff(cliffs, cf, rng:NextNumber(66, 84), h, rng:NextNumber(22, 30), {
 				rng = rng,
 				color = ROCK,
 				top = GRASS,
