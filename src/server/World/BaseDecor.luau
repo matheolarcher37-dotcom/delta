@@ -25,7 +25,6 @@ local Kit = require(script.Parent.Parent.Modules.TycoonKit)
 local BaseDecor = {}
 
 local rgb = Color3.fromRGB
-local C = Kit.Colors
 local H = Layout.PlotSize / 2 -- 70
 local W = H - 5 -- ligne des murs (milieu de la bande de 10 studs)
 local GATE = 11 -- demi-ouverture du portail

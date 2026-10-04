@@ -11,6 +11,7 @@ local Economy = require(Shared.Config.Economy)
 local Characters = require(Shared.Config.Characters)
 local Layout = require(Shared.Config.Layout)
 local Formulas = require(Shared.Modules.Formulas)
+local SkillTree = require(Shared.Config.SkillTree)
 local Remotes = require(Shared.Modules.Remotes)
 local CharacterFactory = require(Shared.Modules.CharacterFactory)
 
@@ -351,6 +352,19 @@ function CombatService:DamageEnemy(player: Player, record, amount: number, info)
 	if not record or not record.alive then
 		return
 	end
+	-- Arbre de compétences : dégâts, vitesse (en DPS équivalent), critiques et dégâts critiques.
+	local data = self.services.DataService and self.services.DataService:Get(player)
+	if data and data.Skills and next(data.Skills) ~= nil then
+		local tree = SkillTree.stats(data.Skills)
+		amount *= tree.damage * (1 + tree.attackSpeed)
+		if info and info.crit then
+			amount *= tree.critDamage / 2 -- les coups critiques de base font x2
+		elseif tree.crit > 0 and rng:NextNumber() < tree.crit then
+			amount *= tree.critDamage
+			info = table.clone(info or {})
+			info.crit = true
+		end
+	end
 	record.hp -= amount
 	record.damageBy[player] = (record.damageBy[player] or 0) + amount
 	record.model:SetAttribute("HP", math.max(0, math.floor(record.hp)))
@@ -401,7 +415,7 @@ end
 
 local function coinMultiplier(self, player: Player): number
 	local data = self.services.DataService:Get(player)
-	local stats = data and Formulas.upgradeStats(data.upgrades)
+	local stats = data and Formulas.playerStats(data)
 	local eventMult = self.services.EventService and self.services.EventService:CoinMultiplier() or 1
 	return (stats and stats.combatCoins or 1) * eventMult
 end

@@ -16,7 +16,6 @@ local Kit = require(script.Parent.TycoonKit)
 local Machine = {}
 
 local rgb = Color3.fromRGB
-local C = Kit.Colors
 
 Machine.TopY = 2.4 -- hauteur du dessus de l'estrade
 Machine.Spots = { -15, -9, -3, 3, 9, 15 } -- X des places (le perso regarde vers -Z)

@@ -117,9 +117,9 @@ SkillTree.Nodes = {
 	node("degats", "degats4", "Dégâts IV", "⚔️", 0, 4, 170000, { "degats3" }, "damage", 0.3, "+30 % de dégâts."),
 	node("degats", "degats5", "Dégâts V", "⚔️", 0, 5, 1000000, { "degats4" }, "damage", 0.5, "+50 % de dégâts."),
 	node("degats", "frappe", "Frappe Titanesque", "💥", 0, 6, 12000000, { "degats5" }, "damage", 1, "+100 % de dégâts !"),
-	node("degats", "vitesse1", "Vitesse I", "💨", -1, 2, 5000, { "degats1" }, "attackSpeed", 0.05, "Ton équipe attaque 5 % plus vite."),
-	node("degats", "vitesse2", "Vitesse II", "💨", -1, 3, 40000, { "vitesse1" }, "attackSpeed", 0.07, "Attaques 7 % plus rapides."),
-	node("degats", "vitesse3", "Vitesse III", "💨", -1, 4, 260000, { "vitesse2" }, "attackSpeed", 0.1, "Attaques 10 % plus rapides."),
+	node("degats", "vitesse1", "Vitesse I", "💨", -1, 2, 5000, { "degats1" }, "attackSpeed", 0.05, "Ton équipe frappe plus vite : +5 % de DPS."),
+	node("degats", "vitesse2", "Vitesse II", "💨", -1, 3, 40000, { "vitesse1" }, "attackSpeed", 0.07, "Frappes plus rapides : +7 % de DPS."),
+	node("degats", "vitesse3", "Vitesse III", "💨", -1, 4, 260000, { "vitesse2" }, "attackSpeed", 0.1, "Frappes plus rapides : +10 % de DPS."),
 
 	-- CRITIQUE (bas-gauche)
 	node("critique", "crit1", "Critique I", "🎯", -1, 1, 900, { "coeur" }, "crit", 0.03, "+3 % de chance de coup critique."),

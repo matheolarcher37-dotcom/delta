@@ -137,7 +137,7 @@ function CharacterService:_tick(player: Player, s)
 	if not data then
 		return
 	end
-	local stats = Formulas.upgradeStats(data.upgrades)
+	local stats = Formulas.playerStats(data)
 	local coinMult = self.services.EventService and self.services.EventService:CoinMultiplier() or 1
 	local total = 0
 	local xpGain = Economy.PassiveXP * stats.xp
@@ -185,7 +185,7 @@ function CharacterService:AddCharacter(player: Player, entry): string?
 	data.characters[uid] = entry
 	data.index[Formulas.indexKey(entry)] = true
 	-- Équipe automatiquement si l'équipe n'est pas pleine.
-	local stats = Formulas.upgradeStats(data.upgrades)
+	local stats = Formulas.playerStats(data)
 	if #data.team < stats.team then
 		table.insert(data.team, uid)
 	end
@@ -211,15 +211,27 @@ function CharacterService:RemoveCharacter(player: Player, uid: string)
 	DataService:Sync(player)
 end
 
--- Persos exposés sur la base : hors équipe, triés par puissance.
-function CharacterService:GetDisplayed(player: Player): { string }
+-- Persos exposés sur les cases de la base : { [numéro de case] = uid } (hors équipe).
+-- Les unités placées à la main (« Remplacer l'unité », data.DisplayPins) gardent leur case ;
+-- les autres cases se remplissent avec les plus puissants.
+function CharacterService:GetDisplayed(player: Player): { [number]: string }
 	local data = self.services.DataService:Get(player)
 	if not data then
 		return {}
 	end
+	local stats = Formulas.playerStats(data)
+	local maxSlots = math.min(stats.display, #self.services.PlotService.DisplaySlots)
+	local result, used = {}, {}
+	for key, uid in data.DisplayPins or {} do
+		local slot = tonumber(key)
+		if slot and slot >= 1 and slot <= maxSlots and data.characters[uid] and not table.find(data.team, uid) and not used[uid] then
+			result[slot] = uid
+			used[uid] = true
+		end
+	end
 	local list = {}
 	for uid, entry in data.characters do
-		if not table.find(data.team, uid) then
+		if not used[uid] and not table.find(data.team, uid) then
 			table.insert(list, { uid = uid, power = Formulas.power(entry) })
 		end
 	end
@@ -229,10 +241,16 @@ function CharacterService:GetDisplayed(player: Player): { string }
 		end
 		return a.power > b.power
 	end)
-	local stats = Formulas.upgradeStats(data.upgrades)
-	local result = {}
-	for i = 1, math.min(#list, stats.display, #self.services.PlotService.DisplaySlots) do
-		result[i] = list[i].uid
+	local nextIndex = 1
+	for slot = 1, maxSlots do
+		if not result[slot] then
+			local item = list[nextIndex]
+			if not item then
+				break
+			end
+			result[slot] = item.uid
+			nextIndex += 1
+		end
 	end
 	return result
 end
@@ -280,6 +298,9 @@ function CharacterService:Refresh(player: Player)
 				model.PrimaryPart.CanCollide = false
 				CollectionService:AddTag(model, "DisplayCharacter")
 				model:PivotTo(target * CFrame.new(0, CharacterFactory.rootHeight(model), 0))
+				if self.services.PlotService.DecorateUnit then
+					self.services.PlotService:DecorateUnit(plot, model, entry)
+				end
 				model.Parent = plot.displayFolder
 				s.models[uid] = { model = model, signature = signature, slot = slot }
 			end
@@ -296,6 +317,9 @@ function CharacterService:Refresh(player: Player)
 			info.model:Destroy()
 			s.models[uid] = nil
 		end
+	end
+	if self.services.PlotService.RefreshSlots then
+		self.services.PlotService:RefreshSlots(player, displayed)
 	end
 end
 
@@ -376,11 +400,17 @@ function CharacterService:SetEquipped(player: Player, uid: any, equip: boolean)
 		if index then
 			return true
 		end
-		local stats = Formulas.upgradeStats(data.upgrades)
+		local stats = Formulas.playerStats(data)
 		if #data.team >= stats.team then
 			return false, "Équipe pleine (" .. stats.team .. " max). Débloque plus de places dans ta base !"
 		end
 		table.insert(data.team, uid)
+		-- Une unité de l'équipe quitte sa case de la base.
+		for key, pinned in data.DisplayPins or {} do
+			if pinned == uid then
+				data.DisplayPins[key] = nil
+			end
+		end
 	else
 		if not index then
 			return true
@@ -406,7 +436,7 @@ function CharacterService:AutoEquip(player: Player)
 	table.sort(list, function(a, b)
 		return a.power > b.power
 	end)
-	local stats = Formulas.upgradeStats(data.upgrades)
+	local stats = Formulas.playerStats(data)
 	data.team = {}
 	for i = 1, math.min(stats.team, #list) do
 		table.insert(data.team, list[i].uid)
