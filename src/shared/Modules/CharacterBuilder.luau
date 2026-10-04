@@ -656,7 +656,7 @@ HAIR.long = function(ctx, c, look)
 	end
 	if look.forehead then
 		-- Front dégagé, raie au milieu : deux mèches courbées
-		fringe(ctx, c, { -0.28, 0.28 }, { 0.34, 0.34 }, 0.42, { y = 0.58, spread = 1.1, out = 0.1, thickness = 0.16 })
+		fringe(ctx, c, { -0.3, -0.12, 0.12, 0.3 }, { 0.36, 0.26, 0.26, 0.36 }, 0.26, { y = 0.6, spread = 2.2, out = 0.08, thickness = 0.12 })
 	else
 		fringe(ctx, c, { -0.36, -0.13, 0.1, 0.34 }, { 0.36, 0.42, 0.4, 0.34 }, 0.36, { alt = shine, y = 0.58, spread = 0.5, thickness = 0.16 })
 	end
@@ -1503,7 +1503,7 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 		-- Cheveux visibles sous le chapeau : nuque, mèches sur les côtés et frange en bataille.
 		local under, shine = hairTones(hairColor, look)
 		cap(ctx, under, { height = 0.7, lift = -0.06, backLength = 1.3 })
-		fringe(ctx, hairColor, { -0.36, -0.12, 0.12, 0.36 }, { 0.3, 0.36, 0.3, 0.32 }, 0.32, { alt = shine, y = 0.36, spread = 0.45, out = 0.06 })
+		fringe(ctx, hairColor, { -0.4, -0.15, 0.12, 0.38 }, { 0.2, 0.24, 0.2, 0.22 }, 0.28, { alt = shine, y = 0.34, spread = 0.6, out = 0.04, thickness = 0.1 })
 		for _, side in { -1, 1 } do
 			ctx.lock("Head", hairColor, Vector3.new(side * 0.6, 0.3, -0.1), Vector3.new(side * 0.15, -1, 0), 0.4, 0.36, { facing = Vector3.new(side, 0, 0.2), thickness = 0.12 })
 			ctx.spike("Head", under, Vector3.new(side * 0.3, 0.05, 0.55), Vector3.new(side * 0.3, -0.8, 0.8), 0.36, 0.42, { cross = false })
