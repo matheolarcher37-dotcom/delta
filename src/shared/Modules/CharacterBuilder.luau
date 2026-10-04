@@ -248,8 +248,8 @@ local function newContext(model: Model, s: number, paint: string)
 			local unit = Vector3.new(math.sin(ph) * math.cos(th), math.cos(ph), math.sin(ph) * math.sin(th))
 			local point = center + Vector3.new(unit.X * radii.X, unit.Y * radii.Y, unit.Z * radii.Z) * (opts.sink or 0.8)
 			local normal = Vector3.new(unit.X / radii.X, unit.Y / radii.Y, unit.Z / radii.Z).Unit
-			local dir = (normal + Vector3.new(0, e.lift or opts.lift or 0.35, 0)).Unit
-			ctx.spike(limbName, e[5] or color, point, dir, e[3], e[4], { tip = opts.tip, cross = e.cross })
+			local dir = (normal + Vector3.new(0, e[6] or opts.lift or 0.35, 0)).Unit
+			ctx.spike(limbName, e[5] or color, point, dir, e[3], e[4], { tip = opts.tip })
 		end
 	end
 
@@ -487,8 +487,8 @@ local function crown(ctx, color: Color3, center: Vector3, list, o)
 	for _, e in list do
 		local a, b = math.rad(e[1]), math.rad(e[2])
 		local dir = Vector3.new(-math.sin(a) * math.cos(b), math.cos(a) * math.cos(b), math.sin(b))
-		local base = center + dir * (e.r or opts.r or 0.3)
-		ctx.spike("Head", e[5] or color, base, dir, e[3] * (opts.scale or 1), e[4], { tip = e.cross and opts.tip or nil, cross = e.cross or false })
+		local base = center + dir * (e[7] or opts.r or 0.3)
+		ctx.spike("Head", e[5] or color, base, dir, e[3] * (opts.scale or 1), e[4], { tip = e[6] and opts.tip or nil, cross = e[6] or false })
 	end
 end
 
@@ -531,13 +531,13 @@ HAIR.spiky = function(ctx, c, look)
 	scales(ctx, c, shine, under, band and 0.6 or 0.5, 0.46 * L, { tip = tip })
 	crown(ctx, c, center, {
 		-- rang du milieu (silhouette de face, en étoile)
-		{ 0, 5, 0.66, 0.62, nil, cross = true },
-		{ -30, 0, 0.66, 0.6, nil, cross = true },
-		{ 30, 0, 0.66, 0.6, shine, cross = true },
-		{ -58, 0, 0.7, 0.6, nil, cross = true },
-		{ 58, 0, 0.7, 0.6, nil, cross = true },
-		{ -86, 5, 0.66, 0.56, under, cross = true },
-		{ 86, 5, 0.66, 0.56, under, cross = true },
+		{ 0, 5, 0.66, 0.62, nil, true },
+		{ -30, 0, 0.66, 0.6, nil, true },
+		{ 30, 0, 0.66, 0.6, shine, true },
+		{ -58, 0, 0.7, 0.6, nil, true },
+		{ 58, 0, 0.7, 0.6, nil, true },
+		{ -86, 5, 0.66, 0.56, under, true },
+		{ 86, 5, 0.66, 0.56, under, true },
 		-- rang de devant (penché vers l'avant)
 		{ -45, -35, 0.5, 0.56, shine },
 		{ -12, -38, 0.5, 0.56 },
@@ -548,7 +548,7 @@ HAIR.spiky = function(ctx, c, look)
 		{ -25, 45, 0.6, 0.6, under },
 		{ 20, 45, 0.6, 0.6, under },
 		{ 62, 40, 0.58, 0.58, under },
-		{ 0, 75, 0.55, 0.58, under, r = 0.36 },
+		{ 0, 75, 0.55, 0.58, under, nil, 0.36 },
 	}, { tip = tip, scale = L })
 	-- Pointes qui dépassent sur les côtés, sous le haut du bandeau, et dans la nuque
 	for _, side in { -1, 1 } do
@@ -589,19 +589,19 @@ HAIR.wild = function(ctx, c, look)
 	-- Frange en pointes
 	fringe(ctx, c, { -0.36, -0.1, 0.16, 0.4 }, { 0.5, 0.44, 0.4, 0.46 }, 0.36, { alt = shine, y = 0.56, spread = 0.75, out = 0.25, tip = tip })
 	ctx.burst("Head", Vector3.new(0, 0.62, 0.05), Vector3.new(0.6, 0.34, 0.62), c, {
-		{ 0, 0, 0.95 * L, 0.6, nil, lift = 1 },
-		{ 270, 30, 0.85 * L, 0.56, shine, lift = 0.9 },
-		{ 225, 35, 0.95 * L, 0.58, nil, lift = 0.8 },
-		{ 315, 35, 0.95 * L, 0.58, shine, lift = 0.8 },
-		{ 180, 50, 0.9 * L, 0.56, nil, lift = 0.6 },
-		{ 0, 50, 0.9 * L, 0.56, nil, lift = 0.6 },
-		{ 135, 45, 0.9 * L, 0.56, under, lift = 0.7 },
-		{ 45, 45, 0.9 * L, 0.56, under, lift = 0.7 },
-		{ 90, 40, 0.9 * L, 0.56, under, lift = 0.6 },
-		{ 160, 80, 0.7 * L, 0.5, under, lift = 0.3 },
-		{ 20, 80, 0.7 * L, 0.5, under, lift = 0.3 },
-		{ 200, 75, 0.62 * L, 0.48, nil, lift = 0.35 },
-		{ 340, 75, 0.62 * L, 0.48, nil, lift = 0.35 },
+		{ 0, 0, 0.95 * L, 0.6, nil, 1 },
+		{ 270, 30, 0.85 * L, 0.56, shine, 0.9 },
+		{ 225, 35, 0.95 * L, 0.58, nil, 0.8 },
+		{ 315, 35, 0.95 * L, 0.58, shine, 0.8 },
+		{ 180, 50, 0.9 * L, 0.56, nil, 0.6 },
+		{ 0, 50, 0.9 * L, 0.56, nil, 0.6 },
+		{ 135, 45, 0.9 * L, 0.56, under, 0.7 },
+		{ 45, 45, 0.9 * L, 0.56, under, 0.7 },
+		{ 90, 40, 0.9 * L, 0.56, under, 0.6 },
+		{ 160, 80, 0.7 * L, 0.5, under, 0.3 },
+		{ 20, 80, 0.7 * L, 0.5, under, 0.3 },
+		{ 200, 75, 0.62 * L, 0.48, nil, 0.35 },
+		{ 340, 75, 0.62 * L, 0.48, nil, 0.35 },
 	}, { tip = tip, sink = 0.75, lift = 0.6 })
 	if tilt ~= 0 then
 		-- Mèches couchées d'un côté (ninja copieur)
@@ -631,13 +631,13 @@ HAIR.spiky_back = function(ctx, c, look)
 	sidelocks(ctx, c, 0.95, 0.32, 0.5)
 	fringe(ctx, c, { -0.32, -0.08, 0.2 }, { 0.62, 0.5, 0.42 }, 0.34, { alt = shine, y = 0.56, spread = 0.6 })
 	ctx.burst("Head", Vector3.new(0, 0.55, 0.15), Vector3.new(0.58, 0.36, 0.55), c, {
-		{ 90, 40, 0.85, 0.56, nil, lift = 0.1 },
-		{ 60, 55, 0.8, 0.54, shine, lift = 0.15 },
-		{ 120, 55, 0.8, 0.54, nil, lift = 0.15 },
-		{ 30, 75, 0.62, 0.5, under, lift = 0 },
-		{ 150, 75, 0.62, 0.5, under, lift = 0 },
-		{ 90, 75, 0.7, 0.54, under, lift = -0.1 },
-		{ 0, 20, 0.5, 0.48, nil, lift = 0.6 },
+		{ 90, 40, 0.85, 0.56, nil, 0.1 },
+		{ 60, 55, 0.8, 0.54, shine, 0.15 },
+		{ 120, 55, 0.8, 0.54, nil, 0.15 },
+		{ 30, 75, 0.62, 0.5, under, 0 },
+		{ 150, 75, 0.62, 0.5, under, 0 },
+		{ 90, 75, 0.7, 0.54, under, -0.1 },
+		{ 0, 20, 0.5, 0.48, nil, 0.6 },
 	}, { sink = 0.8 })
 end
 
@@ -713,15 +713,15 @@ HAIR.slick_up = function(ctx, c, look)
 	cap(ctx, c, { color2 = under, backLength = 1.3, height = 0.82 })
 	scales(ctx, c, shine, under, 0.48, 0.5, { lift = 1.8, tip = look.hairTip })
 	ctx.burst("Head", Vector3.new(0, 0.64, 0.05), Vector3.new(0.56, 0.32, 0.6), c, {
-		{ 270, 30, 0.7, 0.52, shine, lift = 0.9 },
-		{ 230, 35, 0.7, 0.5, nil, lift = 0.8 },
-		{ 310, 35, 0.7, 0.5, shine, lift = 0.8 },
-		{ 0, 0, 0.8, 0.56, nil, lift = 1 },
-		{ 180, 50, 0.62, 0.5, nil, lift = 0.7 },
-		{ 0, 50, 0.62, 0.5, nil, lift = 0.7 },
-		{ 90, 40, 0.65, 0.52, under, lift = 0.6 },
-		{ 135, 55, 0.55, 0.48, under, lift = 0.4 },
-		{ 45, 55, 0.55, 0.48, under, lift = 0.4 },
+		{ 270, 30, 0.7, 0.52, shine, 0.9 },
+		{ 230, 35, 0.7, 0.5, nil, 0.8 },
+		{ 310, 35, 0.7, 0.5, shine, 0.8 },
+		{ 0, 0, 0.8, 0.56, nil, 1 },
+		{ 180, 50, 0.62, 0.5, nil, 0.7 },
+		{ 0, 50, 0.62, 0.5, nil, 0.7 },
+		{ 90, 40, 0.65, 0.52, under, 0.6 },
+		{ 135, 55, 0.55, 0.48, under, 0.4 },
+		{ 45, 55, 0.55, 0.48, under, 0.4 },
 	}, { tip = look.hairTip, sink = 0.8 })
 end
 
@@ -743,15 +743,15 @@ HAIR.flame_spiky = function(ctx, c, look)
 	scales(ctx, c, shine, under, 0.5, 0.5, { front = false, tip = tip })
 	fringe(ctx, c, { -0.38, -0.12, 0.14, 0.4 }, { 0.5, 0.42, 0.42, 0.5 }, 0.36, { alt = shine, y = 0.58, spread = 0.9, out = 0.3, tip = tip })
 	ctx.burst("Head", Vector3.new(0, 0.62, 0.1), Vector3.new(0.6, 0.34, 0.6), c, {
-		{ 270, 35, 0.75, 0.55, shine, lift = 0.5 },
-		{ 230, 45, 0.8, 0.55, nil, lift = 0.3 },
-		{ 310, 45, 0.8, 0.55, nil, lift = 0.3 },
-		{ 180, 60, 0.8, 0.55, nil, lift = 0.1 },
-		{ 0, 60, 0.8, 0.55, nil, lift = 0.1 },
-		{ 135, 55, 0.85, 0.55, under, lift = 0 },
-		{ 45, 55, 0.85, 0.55, under, lift = 0 },
-		{ 90, 50, 0.85, 0.58, under, lift = -0.1 },
-		{ 0, 0, 0.7, 0.55, nil, lift = 0.3 },
+		{ 270, 35, 0.75, 0.55, shine, 0.5 },
+		{ 230, 45, 0.8, 0.55, nil, 0.3 },
+		{ 310, 45, 0.8, 0.55, nil, 0.3 },
+		{ 180, 60, 0.8, 0.55, nil, 0.1 },
+		{ 0, 60, 0.8, 0.55, nil, 0.1 },
+		{ 135, 55, 0.85, 0.55, under, 0 },
+		{ 45, 55, 0.85, 0.55, under, 0 },
+		{ 90, 50, 0.85, 0.58, under, -0.1 },
+		{ 0, 0, 0.7, 0.55, nil, 0.3 },
 	}, { tip = tip, sink = 0.75 })
 	for _, side in { -1, 1 } do
 		ctx.spike("Head", c, Vector3.new(side * 0.55, 0.3, 0.1), Vector3.new(side, -0.3, 0.4), 0.55, 0.42, { tip = tip })
@@ -765,9 +765,9 @@ HAIR.flame = function(ctx, c, look)
 	cap(ctx, c, { color2 = under, backLength = 1.1, height = 0.84 })
 	scales(ctx, c, shine, under, 0.5, 0.5, { lift = 2.2, tip = tip })
 	crown(ctx, c, Vector3.new(0, 0.75, 0.12), {
-		{ 0, 12, 1.15, 0.66, nil, cross = true },
-		{ -20, 8, 1.0, 0.62, shine, cross = true },
-		{ 20, 8, 1.0, 0.62, nil, cross = true },
+		{ 0, 12, 1.15, 0.66, nil, true },
+		{ -20, 8, 1.0, 0.62, shine, true },
+		{ 20, 8, 1.0, 0.62, nil, true },
 		{ -40, 12, 0.85, 0.6 },
 		{ 40, 12, 0.85, 0.6, shine },
 		{ -58, 18, 0.65, 0.56, under },
@@ -811,14 +811,14 @@ HAIR.messy = function(ctx, c, look)
 	scales(ctx, c, shine, under, 0.48, 0.42, { front = false })
 	fringe(ctx, c, { -0.38, -0.14, 0.1, 0.34 }, { 0.44, 0.52, 0.4, 0.48 }, 0.34, { alt = shine, y = 0.56, spread = 0.9, out = 0.2 })
 	ctx.burst("Head", Vector3.new(0, 0.6, 0.05), Vector3.new(0.6, 0.34, 0.62), c, {
-		{ 230, 40, 0.42, 0.42, shine, lift = 0.6 },
-		{ 320, 50, 0.4, 0.42, nil, lift = 0.4 },
-		{ 0, 10, 0.42, 0.44, nil, lift = 0.8 },
-		{ 160, 60, 0.42, 0.42, nil, lift = 0.2 },
-		{ 20, 65, 0.42, 0.42, nil, lift = 0.1 },
-		{ 100, 50, 0.45, 0.44, under, lift = 0.2 },
-		{ 60, 70, 0.4, 0.42, under, lift = -0.2 },
-		{ 130, 75, 0.4, 0.42, under, lift = -0.3 },
+		{ 230, 40, 0.42, 0.42, shine, 0.6 },
+		{ 320, 50, 0.4, 0.42, nil, 0.4 },
+		{ 0, 10, 0.42, 0.44, nil, 0.8 },
+		{ 160, 60, 0.42, 0.42, nil, 0.2 },
+		{ 20, 65, 0.42, 0.42, nil, 0.1 },
+		{ 100, 50, 0.45, 0.44, under, 0.2 },
+		{ 60, 70, 0.4, 0.42, under, -0.2 },
+		{ 130, 75, 0.4, 0.42, under, -0.3 },
 	}, { sink = 0.82 })
 	for _, side in { -1, 1 } do
 		ctx.spike("Head", c, Vector3.new(side * 0.56, 0.3, -0.05), Vector3.new(side, -0.6, 0.0), 0.36, 0.36)

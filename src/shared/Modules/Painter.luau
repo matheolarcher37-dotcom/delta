@@ -175,7 +175,7 @@ function PartCanvas:rect(x: number, y: number, w: number, h: number, color: Colo
 		local padX, padY = pad / self.w, pad / self.h
 		if transparency >= 0.95 then
 			-- Anneau seul : petits points le long du contour.
-			local n = 22
+			local n = 14
 			for i = 0, n - 1 do
 				local a = i / n * math.pi * 2
 				local px, py = x + w / 2 * math.cos(a), y + h / 2 * math.sin(a)
@@ -449,6 +449,7 @@ local function faceTools(S, centerY: number)
 		return 0.5 - (ys - centerY) / S.h
 	end
 	T.X, T.Y = X, Y
+	T.lite = S.lite
 	function T.oval(x: number, y: number, w: number, h: number, color: Color3, o: RectOptions?)
 		return S:oval(X(x), Y(y), w, h, color, o)
 	end
@@ -480,7 +481,7 @@ local function eye(T, look, cx: number, cy: number, s: number, k: number)
 	local ix, iy = cx + s * W * 0.03, cy - H * 0.04
 	T.oval(ix, iy, IW, IH, iris, {
 		gradient = { darken(iris, 0.62), darken(iris, 0.12), lighten(iris, 0.38) },
-		stroke = darken(iris, 0.75),
+		stroke = not T.lite and darken(iris, 0.75) or nil,
 		strokeThickness = 1,
 		z = 3,
 	})
@@ -528,7 +529,7 @@ local function eye(T, look, cx: number, cy: number, s: number, k: number)
 		T.line(outerX - s * 0.03 * k, outerY + 0.005, outerX + s * 0.02 * k, outerY + 0.06 * k, 0.02 * k, lash, { z = 7 })
 	end
 	-- Trait inférieur (moitié extérieure)
-	T.line(cx - s * W * 0.1, cy - H * 0.5, cx + s * W * 0.5, cy - H * 0.36, 0.016 * k, lash, { transparency = 0.25, z = 7 })
+	T.line(cx - s * W * 0.1, cy - H * 0.5, cx + s * W * 0.5, cy - H * 0.36, 0.016 * k, lash, { transparency = 0.25, z = 7, fine = T.lite })
 end
 
 local function brows(T, look, skin: Color3, eyeX: number, eyeY: number, k: number)
@@ -549,7 +550,7 @@ local function brows(T, look, skin: Color3, eyeX: number, eyeY: number, k: numbe
 		local cx = s * eyeX
 		-- Sourcil effilé : épais côté intérieur, fin vers l'extérieur
 		T.line(cx - s * half, by - tilt / 2, cx + s * half, by + tilt / 2 + 0.01, thick, color, { z = 8 })
-		T.line(cx + s * half * 0.2, by + tilt * 0.1 + 0.005, cx + s * half * 1.15, by + tilt / 2 - 0.005, thick * 0.6, color, { z = 8 })
+		T.line(cx + s * half * 0.2, by + tilt * 0.1 + 0.005, cx + s * half * 1.15, by + tilt / 2 - 0.005, thick * 0.6, color, { z = 8, fine = T.lite })
 	end
 end
 
@@ -722,6 +723,7 @@ function Painter.face(plates, look, mode: string?, geom)
 	local S = newSheet(canvas, geom.width, geom.height)
 	S.lite = mode == "parts"
 	local T = faceTools(S, geom.centerY)
+	T.lite = S.lite
 	local hideEyes = has(look, "blindfold")
 	local eyeY = look.eyeY or 0.03
 	local eyeX = look.eyeX or 0.25
@@ -1035,7 +1037,8 @@ end
 
 -- Trait d'encre net (pli dessiné).
 local function ink(S, x0: number, y0: number, x1: number, y1: number, color: Color3, th: number?, z: number?)
-	S:line(x0, y0, x1, y1, th or 0.022, inkOf(color), { z = z or 5 })
+	-- Aperçus "pièces" : seuls les traits principaux (épaisseur par défaut) sont gardés.
+	S:line(x0, y0, x1, y1, th or 0.022, inkOf(color), { z = z or 5, fine = S.lite and th ~= nil })
 end
 
 -- Ombre franche en "V" (deux bandes qui se rejoignent) : grands plis de la veste.
@@ -1049,7 +1052,7 @@ end
 local function furCollar(S, y0: number, y1: number, color: Color3, z: number)
 	local cool = color:Lerp(Color3.fromRGB(120, 140, 182), 0.42)
 	S:rect(0.5, (y0 + y1) / 2, 1, y1 - y0, color, { gradient = { cool, color, lighten(color, 0.2) }, z = z })
-	local n = math.max(3, math.floor(S.w / 0.16 + 0.5))
+	local n = math.max(3, math.floor(S.w / (S.lite and 0.3 or 0.16) + 0.5))
 	for i = 0, n - 1 do
 		local x = (i + 0.5) / n
 		S:box(x, y1 - S:dy(0.01), 0.11, 0.11, i % 2 == 0 and color or lighten(color, 0.12), { rotation = 45, z = z })
@@ -1086,9 +1089,9 @@ local function jacketFront(S, look, c)
 	edgeShade(S, "r", 0.13, top)
 	-- Traits de plis
 	ink(S, 0.08, 0.56, 0.24, 0.6, top)
-	ink(S, 0.14, 0.7, 0.3, 0.68, top)
+	ink(S, 0.14, 0.7, 0.3, 0.68, top, 0.021)
 	ink(S, 0.92, 0.56, 0.76, 0.6, top)
-	ink(S, 0.86, 0.7, 0.7, 0.69, top)
+	ink(S, 0.86, 0.7, 0.7, 0.69, top, 0.021)
 	ink(S, 0.44, 0.75, 0.62, 0.72, top, 0.02)
 	-- Empiècement bleu nuit (épaules + haut de la poitrine), bord inférieur en deux lobes
 	S:rect(0.5, 0.28, 1, 0.28, yoke, { gradient = { shade(yoke, 0.25), yoke, lighten(yoke, 0.08) }, z = 3 })
@@ -1153,7 +1156,7 @@ local function jacketSleeve(S, look, c, side: string, inner: string?)
 	-- Plis
 	local d = inner == "l" and 1 or -1
 	ink(S, 0.5 - d * 0.35, 0.34, 0.5 - d * 0.1, 0.3, sleeve)
-	ink(S, 0.5 + d * 0.05, 0.48, 0.5 + d * 0.3, 0.45, sleeve)
+	ink(S, 0.5 + d * 0.05, 0.48, 0.5 + d * 0.3, 0.45, sleeve, 0.021)
 	ink(S, 0.5 - d * 0.3, 0.58, 0.5 - d * 0.05, 0.62, sleeve)
 	ink(S, 0.5 + d * 0.1, 0.68, 0.5 + d * 0.35, 0.7, sleeve, 0.018)
 	if yoke then
@@ -1194,7 +1197,7 @@ local function ninjaPants(S, look, c, side: string, isLeft: boolean, inner: stri
 		S:oval(ix + d * 0.2, 0.1, 0.5, 0.3, celShadow(bottom), { z = 1 })
 		for i = 0, 3 do
 			local y = 0.04 + i * 0.05
-			S:line(ix + d * 0.04, y, ix + d * (0.42 - i * 0.04), y + 0.03, 0.022, inkOf(bottom), { z = 4 })
+			S:line(ix + d * 0.04, y, ix + d * (0.42 - i * 0.04), y + 0.03, 0.022, inkOf(bottom), { z = 4, fine = S.lite and i % 2 == 1 })
 		end
 		ink(S, 0.5 - d * 0.1, 0.42, 0.5 + d * 0.15, 0.38, bottom)
 		ink(S, 0.5 - d * 0.25, 0.58, 0.5 - d * 0.05, 0.62, bottom)
