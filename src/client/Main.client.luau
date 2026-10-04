@@ -10,8 +10,13 @@ local Controllers = script.Parent.Controllers
 
 local Theme = require(UI.Theme)
 local Menus = require(UI.Menus)
+local Console = require(UI.Console)
 local Notifications = require(UI.Notifications)
 local HUD = require(UI.HUD)
+local RollPanel = require(UI.RollPanel)
+local RollReveal = require(UI.RollReveal)
+local MainMenu = require(UI.MainMenu)
+local SkillTreeMenu = require(UI.SkillTreeMenu)
 local Inventory = require(UI.Inventory)
 local Shop = require(UI.Shop)
 local HatchReveal = require(UI.HatchReveal)
@@ -36,12 +41,17 @@ local gui = Theme.new("ScreenGui", {
 	Parent = player:WaitForChild("PlayerGui"),
 })
 
--- Adapte la taille du HUD aux petits écrans (mobile).
+-- Échelle de l'interface : tout est dessiné pour un écran de 1280 x 720 puis agrandi ou réduit
+-- (téléphone, PC, télé 4K). Sur télé (interface « à 3 mètres »), un peu plus grand encore.
 local function updateScale()
 	local camera = workspace.CurrentCamera
 	if camera then
 		local size = camera.ViewportSize
-		Theme.setScale(math.clamp(math.min(size.X / 1280, size.Y / 760), 0.55, 1.1))
+		local scale = math.min(size.X / 1280, size.Y / 720)
+		if Console.isTenFoot() then
+			scale *= 1.06
+		end
+		Theme.setScale(math.clamp(scale, 0.5, 3))
 	end
 end
 updateScale()
@@ -58,11 +68,27 @@ local function safeInit(name: string, fn: () -> ())
 end
 
 safeInit("Menus", Menus.init)
+safeInit("Console", function()
+	Console.init(gui)
+end)
+updateScale()
+safeInit("HUD", function()
+	HUD.init(gui)
+end)
+safeInit("RollPanel", function()
+	RollPanel.init(gui, HUD.root())
+end)
 safeInit("Notifications", function()
 	Notifications.init(gui)
 end)
-safeInit("HUD", function()
-	HUD.init(gui)
+safeInit("RollReveal", function()
+	RollReveal.init(gui)
+end)
+safeInit("MainMenu", function()
+	MainMenu.init(gui)
+end)
+safeInit("SkillTreeMenu", function()
+	SkillTreeMenu.init(gui)
 end)
 safeInit("Inventory", function()
 	Inventory.init(gui)
@@ -101,11 +127,16 @@ safeInit("WorldInteraction", WorldInteraction.init)
 
 updateScale()
 
+-- Manette : croix haut = menu principal.
+Console.setAction("mainMenu", function()
+	Menus.open("MainMenu")
+end)
+
 -- Barre d'outils visible : c'est là que se trouve l'épée du joueur.
 pcall(function()
 	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
 end)
 
 task.delay(2, function()
-	Notifications.announce("ANIME TYCOON", "Collectionne, entraîne et fais évoluer les héros de 5 univers !", Color3.fromRGB(255, 190, 60))
+	Notifications.announce("ANIME TYCOON", "Roule, collectionne et fais évoluer les héros de 5 univers !", Color3.fromRGB(255, 190, 60))
 end)

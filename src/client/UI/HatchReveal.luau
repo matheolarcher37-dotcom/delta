@@ -15,6 +15,7 @@ local Remotes = require(Shared.Modules.Remotes)
 
 local Theme = require(script.Parent.Theme)
 local Components = require(script.Parent.Components)
+local Console = require(script.Parent.Console)
 local Menus = require(script.Parent.Menus)
 local Notifications = require(script.Parent.Notifications)
 local State = require(script.Parent.Parent.State)
@@ -40,8 +41,12 @@ revealSound.Parent = SoundService
 -- Choix de relique
 ------------------------------------------------------------------------
 
+local TIER_COLORS = { Color3.fromRGB(64, 160, 255), Color3.fromRGB(176, 92, 255), Color3.fromRGB(255, 190, 40) }
+local firstPickerCard: GuiObject? = nil
+
 local function renderPicker()
 	Components.clear(pickerList)
+	firstPickerCard = nil
 	local data = State.data
 	if not data then
 		return
@@ -53,50 +58,31 @@ local function renderPicker()
 			local owned = data.relics[relic.id] or 0
 			if owned > 0 then
 				order += 1
-				local card = new("TextButton", {
-					Size = UDim2.fromOffset(150, 190),
-					BackgroundColor3 = C.PanelLight,
-					AutoButtonColor = false,
-					Text = "",
-					LayoutOrder = order,
-					Parent = pickerList,
-				})
-				Theme.corner(14).Parent = card
-				Theme.stroke(universe.color, 3).Parent = card
-				local holder = new("Frame", { Size = UDim2.new(1, -8, 0.6, 0), Position = UDim2.fromOffset(4, 4), BackgroundTransparency = 1, Parent = card })
-				Components.relicViewport(holder, relic, true)
-				Theme.label({ Text = relic.name, Size = UDim2.new(0.94, 0, 0.13, 0), Position = UDim2.fromScale(0.03, 0.62), Parent = card })
-				Theme.label({ Text = "× " .. owned, Size = UDim2.new(0.94, 0, 0.1, 0), Position = UDim2.fromScale(0.03, 0.76), TextColor3 = C.Gold, Parent = card })
 				local hatch = math.max(3, math.floor(Economy.RelicTiers[relic.tier].hatchTime * stats.hatchSpeed))
-				Theme.label({
-					Text = "⏳ " .. hatch .. "s · " .. universe.name,
-					Size = UDim2.new(0.94, 0, 0.09, 0),
-					Position = UDim2.fromScale(0.03, 0.88),
-					TextColor3 = C.TextDim,
-					Font = Theme.Fonts.Small,
-					Parent = card,
+				local card, preview = Components.itemCard(pickerList, {
+					title = relic.name,
+					subtitle = "Ouverture " .. hatch .. " s",
+					color = TIER_COLORS[relic.tier] or universe.color,
+					badge = "× " .. owned,
+					size = UDim2.fromOffset(150, 190),
+					layoutOrder = order,
+					onClick = function()
+						local ok, success = pcall(function()
+							return Remotes.func("PlaceRelic"):InvokeServer(pickerSlot, relic.id)
+						end)
+						if ok and success then
+							Notifications.toast(relic.name .. " posée sur l'autel #" .. pickerSlot .. " !", "success")
+							Menus.close("PlaceRelic")
+						end
+					end,
 				})
-				card.Activated:Connect(function()
-					Components.click()
-					local ok, success = pcall(function()
-						return Remotes.func("PlaceRelic"):InvokeServer(pickerSlot, relic.id)
-					end)
-					if ok and success then
-						Notifications.toast(relic.name .. " posée sur l'autel #" .. pickerSlot .. " !", "success")
-						Menus.close("PlaceRelic")
-					end
-				end)
+				Components.relicViewport(preview, relic, true)
+				firstPickerCard = firstPickerCard or card
 			end
 		end
 	end
 	if order == 0 then
-		Theme.label({
-			Text = "Tu n'as aucune relique ! Achète-en à la Machine à Reliques (à gauche de l'autel d'éveil).",
-			Size = UDim2.new(1, -20, 0, 60),
-			TextColor3 = C.TextDim,
-			TextWrapped = true,
-			Parent = pickerList,
-		})
+		Components.emptyState(pickerList, "Tu n'as aucune relique ! La Boutique de ta base en vend.", "gift")
 	end
 end
 
@@ -241,6 +227,7 @@ local function playReveal(info)
 		Parent = text,
 	})
 	local closeButton = Components.button({
+		Hint = "A",
 		Text = "Génial !",
 		Color = rarity.color,
 		Size = UDim2.fromOffset(180, 46),
@@ -248,6 +235,7 @@ local function playReveal(info)
 		Parent = text,
 	})
 	closeButton.ZIndex = 34
+	Console.select(closeButton)
 
 	local done = false
 	local function finish()
@@ -270,40 +258,22 @@ local function playReveal(info)
 end
 
 function HatchReveal.init(gui: ScreenGui)
-	pickerWindow = Components.window(gui, "🎁 CHOISIS UNE RELIQUE", C.Purple, UDim2.fromScale(0.6, 0.6))
-	pickerList = new("ScrollingFrame", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		ScrollBarThickness = 6,
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		CanvasSize = UDim2.new(),
-		Parent = pickerWindow.content,
+	pickerWindow = Components.window(gui, "RELIQUES", C.Purple, UDim2.fromOffset(900, 520), {
+		icon = "gift",
 	})
-	new("UIGridLayout", { CellSize = UDim2.fromOffset(150, 190), CellPadding = UDim2.fromOffset(10, 10), SortOrder = Enum.SortOrder.LayoutOrder, Parent = pickerList })
-	Theme.padding(6).Parent = pickerList
-	pickerWindow.onClose = function()
-		Menus.closed("PlaceRelic")
-	end
-	Menus.register("PlaceRelic", {
-		open = function(slot)
-			pickerSlot = tonumber(slot) or 1
-			pickerWindow.title.Text = "🎁 RELIQUE POUR L'AUTEL #" .. pickerSlot
-			pickerWindow.open()
-			renderPicker()
-		end,
-		close = pickerWindow.close,
-	})
+	pickerList = Components.cardGrid(pickerWindow.content, Vector2.new(150, 190), { Size = UDim2.fromScale(1, 1) }, 12)
+	Components.registerWindow(Menus, "PlaceRelic", pickerWindow, function(slot)
+		pickerSlot = tonumber(slot) or 1
+		pickerWindow.title.Text = "RELIQUE POUR L'AUTEL #" .. pickerSlot
+		renderPicker()
+	end, function()
+		return firstPickerCard or pickerWindow.firstSelectable()
+	end)
 
-	overlay = new("Frame", {
-		Name = "RevealOverlay",
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.fromRGB(10, 8, 20),
-		BackgroundTransparency = 1,
-		Visible = false,
-		ZIndex = 30,
-		Parent = gui,
-	})
+	-- Calque de révélation (coordonnées logiques 1280 x 720, comme le reste de l'interface).
+	overlay = Theme.scaledRoot(gui, "RevealOverlay", 30)
+	overlay.BackgroundColor3 = Color3.fromRGB(10, 8, 20)
+	overlay.Visible = false
 
 	Remotes.event("HatchReveal").OnClientEvent:Connect(function(info)
 		Menus.close()
