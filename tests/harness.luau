@@ -353,6 +353,8 @@ function Harness.env(scriptInstance)
 		Vector2 = roblox.Vector2,
 		CFrame = CFrameProxy,
 		Color3 = roblox.Color3,
+		Font = roblox.Font,
+		Rect = roblox.Rect,
 		UDim = roblox.UDim,
 		UDim2 = roblox.UDim2,
 		Enum = roblox.Enum,
