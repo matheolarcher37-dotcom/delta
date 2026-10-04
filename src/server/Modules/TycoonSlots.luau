@@ -22,7 +22,8 @@ function Slots.buildSlot(parent: Instance, index: number, cf: CFrame, radius: nu
 	model:SetAttribute("Slot", index)
 	Kit.hexTile(model, "Bord", cf * CFrame.new(0, height - 0.1, 0), radius + 0.45, height - 0.1, RIM, { Material = Enum.Material.Slate })
 	local top = Kit.hexTile(model, "Dalle", cf * CFrame.new(0, height, 0), radius, 0.3, YELLOW, { Material = Enum.Material.SmoothPlastic })
-	local inner = Kit.hexTile(model, "Motif", cf * CFrame.new(0, height + 0.02, 0), radius * 0.72, 0.05, YELLOW_DARK, { Material = Enum.Material.SmoothPlastic, CanCollide = false })
+	local inner =
+		Kit.hexTile(model, "Motif", cf * CFrame.new(0, height + 0.02, 0), radius * 0.72, 0.05, YELLOW_DARK, { Material = Enum.Material.SmoothPlastic, CanCollide = false })
 	-- Repère invisible au centre : porte l'invite et les étiquettes.
 	local anchor = Build.deco(model, "Repere", Vector3.new(1, 0.2, 1), cf * CFrame.new(0, height + 0.1, 0), YELLOW, { Transparency = 1 })
 	local prompt = Instance.new("ProximityPrompt")

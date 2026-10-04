@@ -359,7 +359,11 @@ function RollService:Roll(player: Player, auto: boolean?)
 		local info = Economy.RollRarities[item.rarity]
 		if info.order >= PROTECTED_ORDER then
 			local def = Characters.get(item.id)
-			Announce:FireAllClients("✨ " .. player.DisplayName .. " ✨", "a tiré " .. def.name .. " (" .. info.name .. ") à la machine ROULER !", info.order >= 7 and Color3.fromRGB(255, 255, 255) or info.color)
+			Announce:FireAllClients(
+				"✨ " .. player.DisplayName .. " ✨",
+				"a tiré " .. def.name .. " (" .. info.name .. ") à la machine ROULER !",
+				info.order >= 7 and Color3.fromRGB(255, 255, 255) or info.color
+			)
 		end
 	end
 	return true, results
@@ -577,7 +581,7 @@ function RollService:RenderStage(player: Player, fresh: { any }?)
 				if root then
 					root.CanCollide = false
 					local def = Characters.get(item.id)
-					Kit.unitTag(root, itemTagLines(item, def), 3.6, 4.4 * (model:GetAttribute("BaseScale") or 1) + 1.8, 80)
+					Kit.unitTag(root, itemTagLines(item, def), 3, 4.4 * (model:GetAttribute("BaseScale") or 1) + 1.6, 70, 5.4)
 					local prompt = Props.prompt(root, "Collecter (¥" .. Formulas.formatNumber(item.price) .. ")", def.name, 9)
 					prompt.Triggered:Connect(function(who)
 						if who ~= plot.owner then

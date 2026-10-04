@@ -161,7 +161,8 @@ S.distributeur3 = {
 	pad = { -39, -22 },
 	build = function(ctx)
 		dropper(ctx, Spots.droppers[3], "crystal")
-		local crystal = Kit.blob(ctx.folder, "Cristal", Vector3.new(1.6, 3, 1.6), ctx.at(Spots.beltX - 7.5, 16.5, Spots.droppers[3]), rgb(140, 235, 255), { Material = Enum.Material.Neon })
+		local crystal =
+			Kit.blob(ctx.folder, "Cristal", Vector3.new(1.6, 3, 1.6), ctx.at(Spots.beltX - 7.5, 16.5, Spots.droppers[3]), rgb(140, 235, 255), { Material = Enum.Material.Neon })
 		spin(crystal, "Y", 1.5, 0.5)
 	end,
 }
@@ -214,7 +215,14 @@ S.tatami = {
 			Build.part(ctx.folder, "Barre", Vector3.new(8.6, 0.4, 0.4), rack * CFrame.new(0, y, 0), C.WoodDark, { Material = Enum.Material.Wood })
 		end
 		for i = -3, 3 do
-			Build.deco(ctx.folder, "Bokken", Vector3.new(0.25, 4.6, 0.25), rack * CFrame.new(i * 1.1, 3.4, -0.35) * CFrame.Angles(0.15, 0, 0), C.WoodLight, { Material = Enum.Material.Wood })
+			Build.deco(
+				ctx.folder,
+				"Bokken",
+				Vector3.new(0.25, 4.6, 0.25),
+				rack * CFrame.new(i * 1.1, 3.4, -0.35) * CFrame.Angles(0.15, 0, 0),
+				C.WoodLight,
+				{ Material = Enum.Material.Wood }
+			)
 		end
 	end,
 }
@@ -323,7 +331,14 @@ S.ramen = {
 		end
 		Kit.roof(ctx.folder, cf * CFrame.new(0, 8.8, 0), 15.6, 11, 2.6, rgb(150, 40, 40), { name = "ToitRamen" })
 		for i = -2, 2 do
-			Build.deco(ctx.folder, "Noren", Vector3.new(2.2, 2.4, 0.1), cf * CFrame.new(i * 2.4, 7.2, -4.1), i % 2 == 0 and C.Lacquer or rgb(240, 236, 226), { Material = Enum.Material.Fabric })
+			Build.deco(
+				ctx.folder,
+				"Noren",
+				Vector3.new(2.2, 2.4, 0.1),
+				cf * CFrame.new(i * 2.4, 7.2, -4.1),
+				i % 2 == 0 and C.Lacquer or rgb(240, 236, 226),
+				{ Material = Enum.Material.Fabric }
+			)
 		end
 		for i = -2, 2 do
 			Kit.cylinder(ctx.folder, "Bol", 0.6, 1, cf * CFrame.new(i * 2.2, 4.45, -2.6), rgb(240, 236, 226), { CanCollide = false })
@@ -443,10 +458,17 @@ S.torii = { -- « Pagode à Trois Toits »
 			local h = tier == 1 and 5 or 4
 			Build.part(ctx.folder, "Etage", Vector3.new(size, h, size), cf * CFrame.new(0, y + h / 2, 0), C.Lacquer)
 			for i = 0, 3 do
-				Build.deco(ctx.folder, "Porte", Vector3.new(size * 0.36, h * 0.6, 0.2), cf * CFrame.Angles(0, i * math.pi / 2, 0) * CFrame.new(0, y + h * 0.45, -size / 2 - 0.1), C.PaperLight, {
-					Material = Enum.Material.Neon,
-					Transparency = 0.3,
-				})
+				Build.deco(
+					ctx.folder,
+					"Porte",
+					Vector3.new(size * 0.36, h * 0.6, 0.2),
+					cf * CFrame.Angles(0, i * math.pi / 2, 0) * CFrame.new(0, y + h * 0.45, -size / 2 - 0.1),
+					C.PaperLight,
+					{
+						Material = Enum.Material.Neon,
+						Transparency = 0.3,
+					}
+				)
 			end
 			y += h
 			Kit.eave(ctx.folder, cf * CFrame.new(0, y, 0), size, 2.2, 1.6)
@@ -475,7 +497,15 @@ S.horloge = {
 		Build.part(ctx.folder, "Cabine", Vector3.new(5, 4, 5), base * CFrame.new(0, 21.4, 0), C.Plaster, { Material = Enum.Material.Plaster })
 		Kit.roof(ctx.folder, base * CFrame.new(0, 23.4, 0), 7.6, 7.6, 3, C.RoofTile, { ornament = true })
 		Kit.cylinder(ctx.folder, "Cadran", 0.3, 4.4, base * CFrame.new(0, 21.4, -2.6) * CFrame.Angles(math.rad(90), 0, 0), rgb(250, 245, 230), { CanCollide = false })
-		Kit.cylinder(ctx.folder, "Bord", 0.25, 4.9, base * CFrame.new(0, 21.4, -2.55) * CFrame.Angles(math.rad(90), 0, 0), C.Gold, { Material = Enum.Material.Metal, CanCollide = false })
+		Kit.cylinder(
+			ctx.folder,
+			"Bord",
+			0.25,
+			4.9,
+			base * CFrame.new(0, 21.4, -2.55) * CFrame.Angles(math.rad(90), 0, 0),
+			C.Gold,
+			{ Material = Enum.Material.Metal, CanCollide = false }
+		)
 		local hand = Build.deco(ctx.folder, "Aiguille", Vector3.new(0.25, 1.8, 0.2), base * CFrame.new(0, 21.9, -2.85), rgb(30, 30, 30))
 		spin(hand, "Z", 1.2)
 		Build.deco(ctx.folder, "Aiguille2", Vector3.new(0.3, 1.2, 0.2), base * CFrame.new(0.4, 21.4, -2.85) * CFrame.Angles(0, 0, math.rad(-70)), rgb(30, 30, 30))
@@ -504,7 +534,15 @@ S.jardin = {
 			Build.part(ctx.folder, "MainCourante", Vector3.new(7.4, 0.3, 0.3), center * CFrame.new(0, 3.6, z), C.Lacquer)
 		end
 		for _ = 1, 5 do
-			Kit.cylinder(ctx.folder, "Nenuphar", 0.1, rng:NextNumber(0.9, 1.4), center * CFrame.new(rng:NextNumber(-5, 5), 0.8, 1 + rng:NextNumber(-2.5, 2.5)), rgb(90, 170, 80), { CanCollide = false })
+			Kit.cylinder(
+				ctx.folder,
+				"Nenuphar",
+				0.1,
+				rng:NextNumber(0.9, 1.4),
+				center * CFrame.new(rng:NextNumber(-5, 5), 0.8, 1 + rng:NextNumber(-2.5, 2.5)),
+				rgb(90, 170, 80),
+				{ CanCollide = false }
+			)
 		end
 		Kit.sakura(ctx.folder, (center * CFrame.new(-6.5, 0.5, -6.5)).Position, 1, rng)
 		Kit.sakura(ctx.folder, (center * CFrame.new(6.5, 0.5, -6.5)).Position, 0.9, rng, rgb(255, 160, 196))
@@ -533,7 +571,14 @@ S.dojo = {
 					Transparency = 0.25,
 				})
 				for k = 1, 2 do
-					Build.deco(ctx.folder, "Croisillon", Vector3.new(w / 5 - 1.2, 0.18, 0.25), cf * CFrame.new(x + w / 10, 2.4 + k * 1.9, -d / 2 - 0.14), C.WoodDark, { Material = Enum.Material.Wood })
+					Build.deco(
+						ctx.folder,
+						"Croisillon",
+						Vector3.new(w / 5 - 1.2, 0.18, 0.25),
+						cf * CFrame.new(x + w / 10, 2.4 + k * 1.9, -d / 2 - 0.14),
+						C.WoodDark,
+						{ Material = Enum.Material.Wood }
+					)
 				end
 			end
 		end
@@ -561,7 +606,14 @@ S.arene2 = { -- gradins derrière la cour
 		local z0 = Spots.court.z1 + 1
 		for step = 0, 3 do
 			local h = 0.8 + step * 0.9
-			Build.part(ctx.folder, "Gradin", Vector3.new(36, h, 1.7), ctx.at(0, h / 2, z0 + 0.85 + step * 1.7), C.WoodLight:Lerp(C.Wood, step * 0.25), { Material = Enum.Material.WoodPlanks })
+			Build.part(
+				ctx.folder,
+				"Gradin",
+				Vector3.new(36, h, 1.7),
+				ctx.at(0, h / 2, z0 + 0.85 + step * 1.7),
+				C.WoodLight:Lerp(C.Wood, step * 0.25),
+				{ Material = Enum.Material.WoodPlanks }
+			)
 		end
 		for _, side in { -1, 1 } do
 			Build.part(ctx.folder, "Joue", Vector3.new(1, 4.4, 7), ctx.at(side * 18.5, 2.2, z0 + 3.4), C.WoodDark, { Material = Enum.Material.Wood })
@@ -591,7 +643,14 @@ S.coffre = { -- « Coffre du Shogun »
 		for _, x in { -2.6, 0, 2.6 } do
 			Build.deco(ctx.folder, "Bande", Vector3.new(0.5, 5.5, 5), base * CFrame.new(x, 3.8, 0), C.Gold, { Material = Enum.Material.Metal })
 		end
-		Build.deco(ctx.folder, "Embleme", Vector3.new(1.6, 1.6, 0.3), base * CFrame.new(0, 3.2, -2.45) * CFrame.Angles(0, 0, math.rad(45)), C.Gold, { Material = Enum.Material.Neon })
+		Build.deco(
+			ctx.folder,
+			"Embleme",
+			Vector3.new(1.6, 1.6, 0.3),
+			base * CFrame.new(0, 3.2, -2.45) * CFrame.Angles(0, 0, math.rad(45)),
+			C.Gold,
+			{ Material = Enum.Material.Neon }
+		)
 		for i = 1, 8 do
 			Kit.coin(ctx.folder, base * CFrame.new(-3 + i * 0.7, 6.55 + (i % 3) * 0.25, -1 + (i % 2)) * CFrame.Angles(0.3 * (i % 3), 0, 0.2), 1.3)
 		end
@@ -614,7 +673,14 @@ S.tour = { -- « Tours de Guet » (yagura dans l'angle du fond)
 				end
 			end
 			for i = 0, 3 do
-				Build.deco(ctx.folder, "Fenetre", Vector3.new(size * 0.35, 1.2, 0.2), cf * CFrame.Angles(0, i * math.pi / 2, 0) * CFrame.new(0, y + h * 0.6, -size / 2 - 0.1), rgb(40, 30, 28), { Material = Enum.Material.Wood })
+				Build.deco(
+					ctx.folder,
+					"Fenetre",
+					Vector3.new(size * 0.35, 1.2, 0.2),
+					cf * CFrame.Angles(0, i * math.pi / 2, 0) * CFrame.new(0, y + h * 0.6, -size / 2 - 0.1),
+					rgb(40, 30, 28),
+					{ Material = Enum.Material.Wood }
+				)
 			end
 			y += h
 			Kit.eave(ctx.folder, cf * CFrame.new(0, y, 0), size, 2.2, 1.6)
@@ -697,9 +763,16 @@ S.sanctuaire = {
 		local cf = ctx.at(28, 0, 50)
 		local w, d = 24, 12
 		for i = 0, 2 do
-			Build.part(ctx.folder, "Terrasse", Vector3.new(w + 8 - i * 2.4, 1, d + 6 - i * 1.6), cf * CFrame.new(0, 0.5 + i, -0.4 + i * 0.3), C.Marble:Lerp(C.StoneMid, 0.2 - i * 0.08), {
-				Material = Enum.Material.Marble,
-			})
+			Build.part(
+				ctx.folder,
+				"Terrasse",
+				Vector3.new(w + 8 - i * 2.4, 1, d + 6 - i * 1.6),
+				cf * CFrame.new(0, 0.5 + i, -0.4 + i * 0.3),
+				C.Marble:Lerp(C.StoneMid, 0.2 - i * 0.08),
+				{
+					Material = Enum.Material.Marble,
+				}
+			)
 		end
 		local floorY = 3
 		for i = 0, 6 do
@@ -714,7 +787,8 @@ S.sanctuaire = {
 		Kit.roof(ctx.folder, cf * CFrame.new(0, floorY + 11, 0), w + 7, d + 8, 4.6, C.RoofTile, { ornament = true, name = "ToitSanctuaire" })
 		Build.part(ctx.folder, "Etage", Vector3.new(w * 0.5, 3.6, d * 0.55), cf * CFrame.new(0, floorY + 17.2, 0), C.Lacquer)
 		Kit.roof(ctx.folder, cf * CFrame.new(0, floorY + 19, 0), w * 0.6, d * 0.85, 3.4, C.RoofTile, { ornament = true, name = "ToitSanctuaireHaut" })
-		local orb = Build.ball(ctx.folder, "JoyauCeleste", 3.6, (cf * CFrame.new(0, floorY + 27, 0)).Position, rgb(255, 230, 120), { Material = Enum.Material.Neon, CanCollide = false })
+		local orb =
+			Build.ball(ctx.folder, "JoyauCeleste", 3.6, (cf * CFrame.new(0, floorY + 27, 0)).Position, rgb(255, 230, 120), { Material = Enum.Material.Neon, CanCollide = false })
 		orb:SetAttribute("Bob", 1)
 		CollectionService:AddTag(orb, "Spin")
 		if not ctx.ghost then

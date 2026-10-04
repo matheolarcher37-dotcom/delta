@@ -145,11 +145,12 @@ for i, pair in rolledIds do
 		{ text = "DPS " .. math.floor(Formulas.dps(entry)), color = Color3.fromRGB(230, 230, 230), font = Enum.Font.GothamBold, weight = 0.5 },
 		{ text = Characters.get(pair[1]).name, color = Color3.new(1, 1, 1), weight = 1 },
 		{ text = "¥" .. Formulas.formatNumber(Formulas.rollPrice(pair[2])), color = Color3.fromRGB(255, 215, 60), weight = 0.9 },
-	}, 3.6, 6.2, 80)
+	}, 3, 6, 70, 5.4)
 	model.Parent = plot.rolledFolder
 	TycoonMachine.lightSpot(plot.machine, i, info.color, info.order >= 5)
 end
 TycoonMachine.setX10(plot.machine, 4, 10)
+plot.machine.universeLabel.Text = "Univers : " .. Universes.List[1].name
 TycoonMachine.setPity(plot.machine, { legendary = 45, mythic = 415, secret = 5300 })
 BaseDecor.setSign(plot, "BASE D'EXEMPLE")
 plot.model:SetAttribute("OwnerId", nil)

@@ -263,7 +263,25 @@ function Formulas.upgradeStats(upgrades, skills: { [string]: boolean }?)
 	stats.xp += tree.xp
 	stats.combatCoins += tree.loot
 	stats.display = math.min(stats.display + tree.unitSlots, Economy.MaxDisplaySlots)
-	for _, key in { "luck", "rollsPerPull", "rollCooldown", "x10Every", "pityMult", "autoRoll", "damage", "crit", "critDamage", "unitSlots", "attackSpeed", "auraLuck", "traitLuck", "walkSpeed", "loot" } do
+	for _, key in
+		{
+			"luck",
+			"rollsPerPull",
+			"rollCooldown",
+			"x10Every",
+			"pityMult",
+			"autoRoll",
+			"damage",
+			"crit",
+			"critDamage",
+			"unitSlots",
+			"attackSpeed",
+			"auraLuck",
+			"traitLuck",
+			"walkSpeed",
+			"loot",
+		}
+	do
 		stats[key] = tree[key]
 	end
 	return stats

@@ -92,15 +92,29 @@ local function themedWall(model: Instance, spec)
 				local x = -length / 2 + length * i / n
 				local postH = spec.postHeight or (topY + 0.6)
 				if spec.postShape == "round" then
-					Build.part(seg, "Poteau", Vector3.new(postH, spec.postSize or 1.6, spec.postSize or 1.6), cf * P(x, postH / 2, 0) * CFrame.Angles(0, 0, math.rad(90)), spec.postColor, {
-						Shape = Enum.PartType.Cylinder,
-						Material = spec.postMat or Enum.Material.Wood,
-					})
+					Build.part(
+						seg,
+						"Poteau",
+						Vector3.new(postH, spec.postSize or 1.6, spec.postSize or 1.6),
+						cf * P(x, postH / 2, 0) * CFrame.Angles(0, 0, math.rad(90)),
+						spec.postColor,
+						{
+							Shape = Enum.PartType.Cylinder,
+							Material = spec.postMat or Enum.Material.Wood,
+						}
+					)
 					if spec.postCap then
 						Build.ball(seg, "Boule", (spec.postSize or 1.6) * 1.2, (cf * P(x, postH + 0.5, 0)).Position, spec.postCap, { Material = Enum.Material.SmoothPlastic })
 					end
 				else
-					Build.deco(seg, "Poteau", Vector3.new(spec.postSize or 0.7, bodyH, t + 0.15), cf * P(x, baseH + bodyH / 2, 0), spec.postColor, { Material = spec.postMat or Enum.Material.Wood })
+					Build.deco(
+						seg,
+						"Poteau",
+						Vector3.new(spec.postSize or 0.7, bodyH, t + 0.15),
+						cf * P(x, baseH + bodyH / 2, 0),
+						spec.postColor,
+						{ Material = spec.postMat or Enum.Material.Wood }
+					)
 				end
 				if spec.onPost then
 					spec.onPost(seg, cf * P(x, 0, 0), i, n)
@@ -236,9 +250,16 @@ local function buildNinja(model: Model, rng: Random)
 	for _, side in { -1, 1 } do
 		Build.part(gate, "Pilier", Vector3.new(3, 17, 3), g * P(side * (GATE + 1.5), 8.5, 0), rgb(150, 100, 60), { Material = Enum.Material.Wood })
 		Build.part(gate, "PiedPilier", Vector3.new(3.8, 1.4, 3.8), g * P(side * (GATE + 1.5), 0.7, 0), rgb(120, 115, 108), { Material = Enum.Material.Cobblestone })
-		local door = Build.part(gate, "Porte", Vector3.new(10, 13, 0.8), g * P(side * (GATE - 0.2), 6.7, 1.8) * CFrame.Angles(0, side * math.rad(78), 0) * P(side * -5, 0, 0), rgb(70, 120, 74), {
-			Material = Enum.Material.WoodPlanks,
-		})
+		local door = Build.part(
+			gate,
+			"Porte",
+			Vector3.new(10, 13, 0.8),
+			g * P(side * (GATE - 0.2), 6.7, 1.8) * CFrame.Angles(0, side * math.rad(78), 0) * P(side * -5, 0, 0),
+			rgb(70, 120, 74),
+			{
+				Material = Enum.Material.WoodPlanks,
+			}
+		)
 		emblemText(door, Enum.NormalId.Front, side < 0 and "あ" or "ん", rgb(255, 230, 120), Enum.Font.GothamBlack)
 	end
 	Build.part(gate, "Linteau", Vector3.new(GATE * 2 + 8, 2, 3.6), g * P(0, 16.5, 0), rgb(150, 100, 60), { Material = Enum.Material.Wood })
@@ -325,7 +346,14 @@ local function buildOcculte(model: Model, rng: Random)
 		Build.wedge(gate, "Bec", Vector3.new(2.6, 1.2, 2.6), g * P(side * (GATE + 7.2), 19.6, 0) * CFrame.Angles(0, side > 0 and math.rad(90) or math.rad(-90), 0), rgb(24, 22, 26))
 	end
 	ownerSign(gate, g * P(0, 15.9, -0.9), Vector3.new(12, 2.4, 0.5), rgb(20, 18, 24), Enum.Material.Wood, rgb(210, 170, 255))
-	local rope = Build.part(gate, "Shimenawa", Vector3.new(GATE * 2 + 2, 1.1, 1.1), g * P(0, 12.4, 0), rgb(214, 186, 120), { Shape = Enum.PartType.Cylinder, Material = Enum.Material.Fabric })
+	local rope = Build.part(
+		gate,
+		"Shimenawa",
+		Vector3.new(GATE * 2 + 2, 1.1, 1.1),
+		g * P(0, 12.4, 0),
+		rgb(214, 186, 120),
+		{ Shape = Enum.PartType.Cylinder, Material = Enum.Material.Fabric }
+	)
 	local _ = rope
 	for k = -3, 3 do
 		Build.deco(gate, "Shide", Vector3.new(0.6, 1.8, 0.08), g * P(k * 3, 11.1, -0.6) * CFrame.Angles(0, 0, math.rad(k % 2 == 0 and 8 or -8)), rgb(250, 250, 245))
@@ -367,7 +395,8 @@ end
 
 local function dragonBall(parent: Instance, position: Vector3, stars: number)
 	local ball = Build.ball(parent, "DragonBall", 1.8, position, rgb(255, 150, 30), { Material = Enum.Material.Glass, Transparency = 0.1 })
-	local stand = Build.part(parent, "Support", Vector3.new(1.6, 1.4, 1.6), CFrame.new(position - Vector3.new(0, 1.5, 0)), rgb(230, 230, 236), { Material = Enum.Material.Concrete })
+	local stand =
+		Build.part(parent, "Support", Vector3.new(1.6, 1.4, 1.6), CFrame.new(position - Vector3.new(0, 1.5, 0)), rgb(230, 230, 236), { Material = Enum.Material.Concrete })
 	local _ = stand
 	local star = Build.deco(parent, "Etoiles", Vector3.new(1.2, 1.2, 0.05), CFrame.new(position + Vector3.new(0, 0, -0.92)), rgb(255, 150, 30), { Transparency = 1 })
 	emblemText(star, Enum.NormalId.Front, string.rep("★", stars), rgb(220, 30, 30))
@@ -392,7 +421,14 @@ local function capsuleDome(parent: Instance, cf: CFrame, radius: number, label: 
 	end
 	local door = Build.part(dome, "Porte", Vector3.new(2.6, 3.6, 0.4), cf * P(0, 1.8, -radius + 0.4), rgb(70, 80, 100), { Material = Enum.Material.Metal })
 	if label then
-		local plate = Build.part(dome, "Logo", Vector3.new(5, 1.2, 0.2), cf * P(0, radius * 1.05, -radius * 0.42) * CFrame.Angles(math.rad(-30), 0, 0), rgb(246, 246, 250), { Transparency = 1 })
+		local plate = Build.part(
+			dome,
+			"Logo",
+			Vector3.new(5, 1.2, 0.2),
+			cf * P(0, radius * 1.05, -radius * 0.42) * CFrame.Angles(math.rad(-30), 0, 0),
+			rgb(246, 246, 250),
+			{ Transparency = 1 }
+		)
 		emblemText(plate, Enum.NormalId.Front, label, rgb(60, 120, 220), Enum.Font.GothamBlack)
 	end
 	local _ = door
@@ -459,16 +495,30 @@ local function buildSaiyan(model: Model, rng: Random)
 		local trunk = Build.model(model, "Palmier")
 		local pos = base
 		for k = 0, 4 do
-			Build.part(trunk, "Tronc", Vector3.new(1.2 - k * 0.1, 2.4, 1.2 - k * 0.1), CFrame.new(pos + Vector3.new(0, 1.2, 0)) * CFrame.Angles(0, 0, math.rad(6)), rgb(150, 110, 70), {
-				Material = Enum.Material.Wood,
-			})
+			Build.part(
+				trunk,
+				"Tronc",
+				Vector3.new(1.2 - k * 0.1, 2.4, 1.2 - k * 0.1),
+				CFrame.new(pos + Vector3.new(0, 1.2, 0)) * CFrame.Angles(0, 0, math.rad(6)),
+				rgb(150, 110, 70),
+				{
+					Material = Enum.Material.Wood,
+				}
+			)
 			pos += Vector3.new(0.25, 2.3, 0)
 		end
 		for k = 0, 5 do
 			local a = k * math.pi / 3
-			Kit.blob(trunk, "Palme", Vector3.new(6, 0.5, 2), CFrame.new(pos + Vector3.new(math.cos(a) * 2.6, -0.6, math.sin(a) * 2.6)) * CFrame.Angles(0, -a, math.rad(-18)), rgb(70, 160, 60), {
-				Material = Enum.Material.Grass,
-			})
+			Kit.blob(
+				trunk,
+				"Palme",
+				Vector3.new(6, 0.5, 2),
+				CFrame.new(pos + Vector3.new(math.cos(a) * 2.6, -0.6, math.sin(a) * 2.6)) * CFrame.Angles(0, -a, math.rad(-18)),
+				rgb(70, 160, 60),
+				{
+					Material = Enum.Material.Grass,
+				}
+			)
 		end
 	end
 	local _ = rng
@@ -484,7 +534,14 @@ local function barrel(parent: Instance, cf: CFrame)
 		Material = Enum.Material.WoodPlanks,
 	})
 	for _, y in { 0.6, 2.2 } do
-		Build.deco(parent, "Cercle", Vector3.new(0.25, 2.3, 2.3), cf * P(0, y, 0) * CFrame.Angles(0, 0, math.rad(90)), rgb(70, 70, 76), { Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal })
+		Build.deco(
+			parent,
+			"Cercle",
+			Vector3.new(0.25, 2.3, 2.3),
+			cf * P(0, y, 0) * CFrame.Angles(0, 0, math.rad(90)),
+			rgb(70, 70, 76),
+			{ Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal }
+		)
 	end
 end
 
@@ -581,7 +638,14 @@ local function buildOcean(model: Model, rng: Random)
 		for _, side in { -1, 1 } do
 			Build.wedge(a, "Patte", Vector3.new(0.8, 1.6, 1.4), anchorCF * P(side * 2.6, 1.8, 0) * CFrame.Angles(0, side > 0 and math.rad(90) or math.rad(-90), 0), rgb(60, 62, 70))
 		end
-		Build.part(a, "Anneau", Vector3.new(0.3, 1.6, 1.6), anchorCF * P(0, 8, 0) * CFrame.Angles(0, math.rad(90), 0), rgb(60, 62, 70), { Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal })
+		Build.part(
+			a,
+			"Anneau",
+			Vector3.new(0.3, 1.6, 1.6),
+			anchorCF * P(0, 8, 0) * CFrame.Angles(0, math.rad(90), 0),
+			rgb(60, 62, 70),
+			{ Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal }
+		)
 	end
 	local _ = rng
 end
@@ -596,9 +660,16 @@ local function wisteriaCluster(parent: Instance, top: Vector3, rng: Random, leng
 	local len = length or 3
 	for k = 0, 2 do
 		local size = (1.5 - k * 0.35)
-		Kit.blob(parent, "Glycine", Vector3.new(size, len * 0.5, size), CFrame.new(top - Vector3.new(rng:NextNumber(-0.3, 0.3), k * len * 0.33, rng:NextNumber(-0.3, 0.3))), WISTERIA[rng:NextInteger(1, #WISTERIA)], {
-			Material = Enum.Material.Grass,
-		})
+		Kit.blob(
+			parent,
+			"Glycine",
+			Vector3.new(size, len * 0.5, size),
+			CFrame.new(top - Vector3.new(rng:NextNumber(-0.3, 0.3), k * len * 0.33, rng:NextNumber(-0.3, 0.3))),
+			WISTERIA[rng:NextInteger(1, #WISTERIA)],
+			{
+				Material = Enum.Material.Grass,
+			}
+		)
 	end
 end
 
@@ -678,9 +749,16 @@ local function buildPourfendeur(model: Model, rng: Random)
 	for _, side in { -1, 1 } do
 		Build.part(gate, "Pilier", Vector3.new(2.6, 14, 2.6), g * P(side * (GATE + 1.3), 7, 0), rgb(46, 36, 32), { Material = Enum.Material.Wood })
 		Build.part(gate, "PilierArriere", Vector3.new(1.6, 11, 1.6), g * P(side * (GATE + 1.3), 5.5, 4), rgb(46, 36, 32), { Material = Enum.Material.Wood })
-		Build.part(gate, "Porte", Vector3.new(9.6, 11, 0.7), g * P(side * (GATE - 0.2), 5.7, 4.6) * CFrame.Angles(0, side * math.rad(80), 0) * P(side * -4.8, 0, 0), rgb(60, 44, 36), {
-			Material = Enum.Material.WoodPlanks,
-		})
+		Build.part(
+			gate,
+			"Porte",
+			Vector3.new(9.6, 11, 0.7),
+			g * P(side * (GATE - 0.2), 5.7, 4.6) * CFrame.Angles(0, side * math.rad(80), 0) * P(side * -4.8, 0, 0),
+			rgb(60, 44, 36),
+			{
+				Material = Enum.Material.WoodPlanks,
+			}
+		)
 		checkerBanner(gate, g * P(side * (GATE + 5.5), FLOOR, -3) * CFrame.Angles(0, side > 0 and math.pi or 0, 0))
 	end
 	Build.part(gate, "Linteau", Vector3.new(GATE * 2 + 6, 1.8, 3), g * P(0, 13.6, 0.6), rgb(46, 36, 32), { Material = Enum.Material.Wood })

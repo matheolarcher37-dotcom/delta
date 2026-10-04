@@ -63,9 +63,16 @@ function Props.skillTree(parent: Instance, cf: CFrame, lecternCF: CFrame)
 	end
 	for k = 0, 4 do
 		local a = k * math.pi * 2 / 5 + 0.3
-		Build.part(model, "Racine", Vector3.new(1.2, 1, 4.4), cf * CFrame.new(math.cos(a) * 2.6, 1.6, math.sin(a) * 2.6) * CFrame.Angles(0, -a + math.pi / 2, 0) * CFrame.Angles(math.rad(18), 0, 0), bark, {
-			Material = Enum.Material.Wood,
-		})
+		Build.part(
+			model,
+			"Racine",
+			Vector3.new(1.2, 1, 4.4),
+			cf * CFrame.new(math.cos(a) * 2.6, 1.6, math.sin(a) * 2.6) * CFrame.Angles(0, -a + math.pi / 2, 0) * CFrame.Angles(math.rad(18), 0, 0),
+			bark,
+			{
+				Material = Enum.Material.Wood,
+			}
+		)
 	end
 	-- Branches.
 	local top = p
@@ -143,8 +150,22 @@ function Props.skillTree(parent: Instance, cf: CFrame, lecternCF: CFrame)
 	-- Pupitre (lutrin de pierre) avec l'invite qui ouvre l'écran de l'arbre.
 	local lectern = Build.model(model, "Pupitre")
 	Build.part(lectern, "Pied", Vector3.new(2.2, 3.2, 1.6), lecternCF * CFrame.new(0, 1.6, 0), C.StoneMid, { Material = Enum.Material.Slate })
-	local desk = Build.part(lectern, "Plateau", Vector3.new(3.6, 0.5, 2.6), lecternCF * CFrame.new(0, 3.5, 0) * CFrame.Angles(math.rad(-25), 0, 0), C.StoneDark, { Material = Enum.Material.Slate })
-	local book = Build.deco(lectern, "Grimoire", Vector3.new(2.8, 0.25, 1.9), desk.CFrame * CFrame.new(0, 0.35, 0), rgb(120, 230, 255), { Material = Enum.Material.Neon, Transparency = 0.2 })
+	local desk = Build.part(
+		lectern,
+		"Plateau",
+		Vector3.new(3.6, 0.5, 2.6),
+		lecternCF * CFrame.new(0, 3.5, 0) * CFrame.Angles(math.rad(-25), 0, 0),
+		C.StoneDark,
+		{ Material = Enum.Material.Slate }
+	)
+	local book = Build.deco(
+		lectern,
+		"Grimoire",
+		Vector3.new(2.8, 0.25, 1.9),
+		desk.CFrame * CFrame.new(0, 0.35, 0),
+		rgb(120, 230, 255),
+		{ Material = Enum.Material.Neon, Transparency = 0.2 }
+	)
 	Kit.light(book, rgb(120, 230, 255), 10, 1.4)
 	local p2 = prompt(desk, "Ouvrir l'arbre", "Arbre de compétences", 12)
 	model:SetAttribute("OpensMenu", "SkillTree")

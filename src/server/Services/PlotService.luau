@@ -579,7 +579,13 @@ function PlotService:_buildPad(player: Player, plot, parent: Instance, upgrade)
 	local cf = toWorld(plot, pos.X, 0, pos.Z)
 	local model, refs = Kit.buyButton(parent, cf, "Pad_" .. upgrade.id)
 	local tierTag = upgrade.tier and ("Palier " .. upgrade.tier .. " · ") or ""
-	local _, boardRefs = Kit.priceBoard(refs.pad, (upgrade.icon or "") .. " " .. upgrade.name, tierTag .. Kit.effectText(upgrade.effect), "¥ " .. Formulas.formatNumber(upgrade.price), Vector3.new(0, 5.4, 0))
+	local _, boardRefs = Kit.priceBoard(
+		refs.pad,
+		(upgrade.icon or "") .. " " .. upgrade.name,
+		tierTag .. Kit.effectText(upgrade.effect),
+		"¥ " .. Formulas.formatNumber(upgrade.price),
+		Vector3.new(0, 5.4, 0)
+	)
 	for key, value in boardRefs do
 		refs[key] = value
 	end
@@ -715,7 +721,7 @@ function PlotService:DecorateUnit(_plot, model: Model, entry)
 		{ name = "Nom", text = desc.name, colors = gradient, font = Enum.Font.LuckiestGuy, weight = 1.3 },
 		{ name = "Etoiles", text = string.rep("★", entry.stars or 1), color = rgb(255, 210, 50), font = Enum.Font.GothamBlack, weight = 0.8 },
 		{ name = "Rarete", text = rarityName, colors = gradient, font = Enum.Font.GothamBlack, weight = 0.7 },
-	}, 3, 4.4 * scale + 1.4, 90)
+	}, 2.4, 4.4 * scale + 1.2, 70, 6.5)
 end
 
 -- « Remplacer l'unité » : place une unité précise sur une case (uid = nil pour libérer la case).

@@ -500,7 +500,7 @@ function Kit.priceBoard(adornee: BasePart, title: string, effectLine: string, pr
 	gui.Name = "PriceGui"
 	gui.Size = UDim2.new(4.6, 120, 2.3, 60)
 	gui.StudsOffsetWorldSpace = offset
-	gui.AlwaysOnTop = true
+	gui.AlwaysOnTop = false
 	gui.LightInfluence = 0
 	gui.MaxDistance = 200
 	gui.Adornee = adornee
@@ -728,11 +728,11 @@ end
 -- Étiquette d'une unité (au-dessus de la tête), style jeux de tirage :
 --   lignes = liste de { text, colors = {..} | color, font?, weight (hauteur relative) }
 -- Nommée « AnimeTag » : le client n'ajoute alors pas sa propre étiquette.
-function Kit.unitTag(adornee: BasePart, lines: { any }, heightStuds: number, offsetY: number, maxDistance: number?): BillboardGui
+function Kit.unitTag(adornee: BasePart, lines: { any }, heightStuds: number, offsetY: number, maxDistance: number?, widthStuds: number?): BillboardGui
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "AnimeTag"
 	gui.Adornee = adornee
-	gui.Size = UDim2.new(8, 60, heightStuds, 24)
+	gui.Size = UDim2.new(widthStuds or 5.6, 16, heightStuds, 10)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, offsetY, 0)
 	gui.LightInfluence = 0
 	gui.MaxDistance = maxDistance or 90
@@ -746,7 +746,15 @@ function Kit.unitTag(adornee: BasePart, lines: { any }, heightStuds: number, off
 	local y = 0
 	for i, line in lines do
 		local h = (line.weight or 1) / total
-		local label = Kit.text(gui, line.name or ("Ligne" .. i), line.text, UDim2.fromScale(0, y), UDim2.fromScale(1, h), line.colors and Color3.new(1, 1, 1) or (line.color or Color3.new(1, 1, 1)), line.font)
+		local label = Kit.text(
+			gui,
+			line.name or ("Ligne" .. i),
+			line.text,
+			UDim2.fromScale(0, y),
+			UDim2.fromScale(1, h),
+			line.colors and Color3.new(1, 1, 1) or (line.color or Color3.new(1, 1, 1)),
+			line.font
+		)
 		if line.colors then
 			Kit.gradient(label, line.colors, line.rotation or 90)
 		end

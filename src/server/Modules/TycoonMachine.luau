@@ -18,9 +18,9 @@ local Machine = {}
 local rgb = Color3.fromRGB
 
 Machine.TopY = 2.4 -- hauteur du dessus de l'estrade
-Machine.Spots = { -15, -9, -3, 3, 9, 15 } -- X des places (le perso regarde vers -Z)
-Machine.ButtonX = -27
-Machine.PityX = 27
+Machine.Spots = { 15, 9, 3, -3, -9, -15 } -- X des places, de gauche à droite vu du joueur (le perso regarde vers -Z)
+Machine.ButtonX = 27 -- à gauche vu du joueur qui arrive par l'entrée
+Machine.PityX = -27
 
 local DARK = rgb(46, 50, 64)
 local DARK2 = rgb(34, 37, 48)
@@ -157,10 +157,11 @@ local function buildButton(model: Model, cf: CFrame, refs)
 	Kit.hexTile(model, "BoutonCadre", hexCF * CFrame.new(0, 0.35, 0), 3.3, 0.35, rgb(30, 30, 36), { Material = Enum.Material.Metal })
 	local buttonParts = Kit.hexTile(model, "Bouton", hexCF * CFrame.new(0, 0.85, 0), 2.9, 0.6, RED, { Material = Enum.Material.SmoothPlastic })
 	Kit.hexTile(model, "BoutonLueur", hexCF * CFrame.new(0, 0.92, 0), 2.35, 0.08, rgb(255, 90, 90), { Material = Enum.Material.Neon, CanCollide = false })
-	local label = Build.deco(model, "BoutonTexte", Vector3.new(4.4, 0.05, 1.6), hexCF * CFrame.new(0, 0.97, 0), RED, { Transparency = 1 })
-	local gui = surface(label, Enum.NormalId.Top, 60)
-	local text = Kit.text(gui, "Texte", "ROULER", UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Color3.new(1, 1, 1), Enum.Font.LuckiestGuy, RED_DARK)
-	text.Rotation = 180 -- lisible depuis l'avant (le pupitre regarde vers -Z)
+	-- Plaque couchée sur le bouton : sa face avant regarde vers le haut du pupitre, le haut du
+	-- texte part vers le fond → lisible par le joueur qui se tient devant.
+	local label = Build.deco(model, "BoutonTexte", Vector3.new(4.4, 1.6, 0.05), hexCF * CFrame.new(0, 0.98, 0) * CFrame.Angles(math.rad(90), 0, 0), RED, { Transparency = 1 })
+	local gui = surface(label, Enum.NormalId.Front, 60)
+	Kit.text(gui, "Texte", "ROULER", UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Color3.new(1, 1, 1), Enum.Font.LuckiestGuy, RED_DARK)
 	local glow = Kit.light(buttonParts[1], rgb(255, 70, 70), 14, 1.2)
 	refs.buttonParts = buttonParts
 	refs.buttonGlow = glow
@@ -336,7 +337,14 @@ local function buildArch(model: Model, cf: CFrame, refs)
 	CollectionService:AddTag(emblem, "Spin")
 	-- Projecteurs suspendus au linteau, braqués sur l'estrade.
 	for i, x in Machine.Spots do
-		local lamp = Build.deco(model, "Projecteur" .. i, Vector3.new(1.2, 1.2, 1.6), beamCF * CFrame.new(x, -2.4, -1.2) * CFrame.Angles(math.rad(-50), 0, 0), DARK2, { Material = Enum.Material.Metal })
+		local lamp = Build.deco(
+			model,
+			"Projecteur" .. i,
+			Vector3.new(1.2, 1.2, 1.6),
+			beamCF * CFrame.new(x, -2.4, -1.2) * CFrame.Angles(math.rad(-50), 0, 0),
+			DARK2,
+			{ Material = Enum.Material.Metal }
+		)
 		Build.deco(model, "ProjecteurVerre", Vector3.new(0.9, 0.9, 0.1), lamp.CFrame * CFrame.new(0, 0, -0.85), rgb(255, 245, 210), { Material = Enum.Material.Neon })
 	end
 	refs.sign = sign
