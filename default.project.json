@@ -26,7 +26,10 @@
     },
     "Workspace": {
       "$properties": {
-        "StreamingEnabled": false
+        "StreamingEnabled": true,
+        "StreamingMinRadius": 192,
+        "StreamingTargetRadius": 900,
+        "StreamingIntegrityMode": "PauseOutsideLoadedArea"
       }
     },
     "Lighting": {
@@ -34,7 +37,10 @@
         "Technology": "Future",
         "Brightness": 2.5,
         "ClockTime": 13.5,
-        "GlobalShadows": true
+        "GlobalShadows": true,
+        "ShadowSoftness": 0.18,
+        "EnvironmentDiffuseScale": 1,
+        "EnvironmentSpecularScale": 0.8
       }
     },
     "SoundService": {

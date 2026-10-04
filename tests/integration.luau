@@ -441,6 +441,23 @@ test("Rotation d'univers", function()
 	task.wait(2.6)
 	local after = UniverseService:GetCurrent().id
 	assert(before ~= after, "l'univers n'a pas changé")
+	-- toute la carte suit : décor de l'anneau / île / horizon et panneaux des arches du hub
+	local zone = game:GetService("Workspace").World.Zone
+	assert(zone.Decor:GetAttribute("UniverseId") == after, "décor de la carte non changé")
+	task.wait(1.2)
+	local Universes = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Universes"))
+	local expected = UniverseService.upper(Universes.get(after).name)
+	local panels = Harness.CollectionService:GetTagged("UniversePanel")
+	assert(#panels >= 1, "panneaux d'univers du hub absents")
+	for _, panel in panels do
+		for _, gui in panel:GetChildren() do
+			if gui:IsA("SurfaceGui") then
+				local title = gui:FindFirstChild("Title")
+				assert(title and string.find(title.Text, expected, 1, true), "panneau non mis à jour : " .. tostring(title and title.Text))
+				assert(string.find(gui:FindFirstChild("Timer").Text, ":", 1, true), "compte à rebours absent")
+			end
+		end
+	end
 	local enemy = services.CombatService:NearestEnemy(Vector3.zero, 500)
 	assert(enemy and string.find(enemy.defId, string.sub(after, 1, 3)), "ennemis non renouvelés")
 end)

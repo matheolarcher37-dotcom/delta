@@ -190,9 +190,32 @@ end)
 test("Décors des 5 univers", function()
 	local UniverseDecor = requireModule(Server.World.UniverseDecor)
 	local zone = Workspace.World.Zone
+	-- chaque univers a son propre module (repère emblématique) et reste dans le budget de pièces
+	local signature = {
+		ninja = "TourDuChef",
+		occulte = "Pagode",
+		saiyan = "AreneDuTournoi",
+		ocean = "Navire",
+		pourfendeur = "PortePourfendeurs",
+	}
+	local BUDGET = 45000
 	for _, universe in Universes.List do
 		local decor = UniverseDecor.apply(universe, zone)
-		print(string.format("   %-24s %4d pièces", universe.name, countParts(decor)))
+		local parts = countParts(decor)
+		print(string.format("   %-24s %4d pièces", universe.name, parts))
+		assert(parts <= BUDGET, universe.id .. " : trop de pièces (" .. parts .. " > " .. BUDGET .. ")")
+		local found = false
+		for _, item in decor:GetDescendants() do
+			if item:IsA("Model") and item:GetAttribute("Slot") == signature[universe.id] then
+				found = true
+				break
+			end
+		end
+		assert(found, universe.id .. " : repère « " .. tostring(signature[universe.id]) .. " » absent (module d'univers manquant ?)")
+		for _, folderName in { "Anneau", "Ile", "Horizon" } do
+			assert(decor:FindFirstChild(folderName), universe.id .. " : dossier " .. folderName .. " absent (toute la carte doit changer)")
+		end
+		assert(universe.theme.sol and universe.theme.sol.herbe and universe.theme.ciel, universe.id .. " : sol / ciel absents")
 	end
 end)
 
