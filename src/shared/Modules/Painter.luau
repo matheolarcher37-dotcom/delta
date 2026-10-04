@@ -467,7 +467,9 @@ local function eye(T, look, cx: number, cy: number, s: number, k: number)
 	local iris = look.eyes or Color3.fromRGB(80, 55, 40)
 	local face = look.face or "calm"
 	local lash = look.lashColor or INK
-	local W, H = (look.eyeWidth or 0.26) * k, (look.eyeHeight or 0.19) * k
+	-- Forme selon le caractère : yeux plissés (air sévère), ronds et grands (persos féminins)
+	local defaultH = (face == "angry" or face == "smirk") and 0.155 or ((look.blush or look.lashes) and 0.21 or 0.19)
+	local W, H = (look.eyeWidth or 0.26) * k, (look.eyeHeight or defaultH) * k
 	local tilt = (LID_TILT[face] or 0) * k
 	if look.eyeShadow then
 		-- Pigments autour des yeux (mode Ermite...)
