@@ -938,7 +938,9 @@ function Components.characterModel(look, id: string?, stars: number?): Model
 		cached = CharacterFactory.buildPreview(id, stars, look)
 		previewCache[signature] = cached
 	end
-	return cached:Clone()
+	local model = cached:Clone()
+	model:SetAttribute("CharId", id)
+	return model
 end
 
 function Components.viewport(parent: Instance, model: Model, focus: Vector3, distance: number, props: { [string]: any }?, spin: boolean?): ViewportFrame
