@@ -1,5 +1,5 @@
--- Étiquettes au-dessus des persos et ennemis : "LV.67" en jaune (comme la miniature du jeu),
--- nom coloré selon la rareté, étoiles d'évolution et barre de vie.
+-- Étiquettes au-dessus des persos et ennemis (même style que l'interface) : niveau « Nv.67 » doré,
+-- étoiles d'évolution, nom coloré selon la rareté (arc-en-ciel pour Secret), trait et barre de vie.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -10,22 +10,22 @@ local Rarities = require(Shared.Config.Rarities)
 local Auras = require(Shared.Config.Auras)
 local Traits = require(Shared.Config.Traits)
 
+local Theme = require(script.Parent.Parent.UI.Theme)
+
 local NameTags = {}
 
 local player = Players.LocalPlayer
+local WHITE = Color3.new(1, 1, 1)
 
-local function makeLabel(parent: Instance, text: string, size: UDim2, position: UDim2, color: Color3, font: Enum.Font): TextLabel
-	local label = Instance.new("TextLabel")
-	label.BackgroundTransparency = 1
-	label.Size = size
-	label.Position = position
-	label.Text = text
-	label.TextColor3 = color
-	label.TextScaled = true
-	label.Font = font
-	label.TextStrokeTransparency = 0
-	label.TextStrokeColor3 = Color3.fromRGB(20, 15, 20)
-	label.Parent = parent
+local function makeLabel(parent: Instance, size: UDim2, position: UDim2, color: Color3, face: Font, stroke: number): TextLabel
+	local label = Theme.label({
+		Size = size,
+		Position = position,
+		TextColor3 = color,
+		FontFace = face,
+		StrokeThickness = stroke,
+		Parent = parent,
+	})
 	return label
 end
 
@@ -56,31 +56,35 @@ local function attach(model: Instance)
 		gui.AlwaysOnTop = isBoss
 		gui.Parent = root
 
-		local level = makeLabel(gui, "", UDim2.fromScale(1, 0.42), UDim2.fromScale(0, 0), Color3.fromRGB(255, 230, 40), Enum.Font.LuckiestGuy)
-		local name = makeLabel(gui, "", UDim2.fromScale(1, 0.3), UDim2.fromScale(0, 0.42), Color3.new(1, 1, 1), Enum.Font.FredokaOne)
-		local traitLabel = makeLabel(gui, "", UDim2.fromScale(1, 0.26), UDim2.fromScale(0, -0.26), Color3.new(1, 1, 1), Enum.Font.FredokaOne)
-		local bar, fill = nil, nil
+		local level = makeLabel(gui, UDim2.fromScale(1, 0.4), UDim2.fromScale(0, 0), Color3.fromRGB(255, 230, 40), Theme.Faces.Title, 2.5)
+		Theme.gradient({ Color3.fromRGB(255, 250, 190), Color3.fromRGB(255, 196, 40) }, 90).Parent = level
+		local name = makeLabel(gui, UDim2.fromScale(1, 0.3), UDim2.fromScale(0, 0.42), WHITE, Theme.Faces.Heavy, 2)
+		local nameGradient = Theme.gradient(Theme.RainbowColors, 0)
+		nameGradient.Enabled = false
+		nameGradient.Parent = name
+		local traitLabel = makeLabel(gui, UDim2.fromScale(1, 0.24), UDim2.fromScale(0, -0.24), WHITE, Theme.Faces.Heavy, 1.5)
+		local fill = nil
+		local fillGradient = nil
 		if isEnemy or isFollower then
-			bar = Instance.new("Frame")
-			bar.Size = UDim2.fromScale(0.86, 0.17)
+			local bar = Instance.new("Frame")
+			bar.Name = "HealthBar"
+			bar.Size = UDim2.fromScale(0.86, 0.16)
 			bar.Position = UDim2.fromScale(0.07, 0.78)
-			bar.BackgroundColor3 = Color3.fromRGB(30, 25, 35)
+			bar.BackgroundColor3 = Color3.fromRGB(16, 14, 20)
 			bar.BorderSizePixel = 0
 			bar.Parent = gui
-			local corner = Instance.new("UICorner")
-			corner.CornerRadius = UDim.new(0.5, 0)
-			corner.Parent = bar
-			local stroke = Instance.new("UIStroke")
-			stroke.Thickness = 2
-			stroke.Color = Color3.fromRGB(15, 10, 15)
-			stroke.Parent = bar
+			Theme.round().Parent = bar
+			Theme.stroke(Color3.fromRGB(8, 6, 10), 2).Parent = bar
 			fill = Instance.new("Frame")
+			fill.Name = "Fill"
 			fill.Size = UDim2.fromScale(1, 1)
-			fill.BackgroundColor3 = isEnemy and Color3.fromRGB(240, 60, 70) or Color3.fromRGB(80, 230, 110)
+			fill.BackgroundColor3 = WHITE
 			fill.BorderSizePixel = 0
 			fill.Parent = bar
-			local fillCorner = corner:Clone()
-			fillCorner.Parent = fill
+			Theme.round().Parent = fill
+			local color = isEnemy and Color3.fromRGB(240, 60, 70) or Color3.fromRGB(80, 230, 110)
+			fillGradient = Theme.gradient({ Theme.light(color, 0.35), color, Theme.dark(color, 0.2) }, 90)
+			fillGradient.Parent = fill
 		end
 
 		local function refresh()
@@ -92,27 +96,42 @@ local function attach(model: Instance)
 			end
 			local lvl = model:GetAttribute("Level") or 1
 			local stars = model:GetAttribute("Stars") or 1
-			level.Text = "LV." .. lvl .. (isEnemy and "" or ("  " .. string.rep("★", stars)))
+			level.Text = "Nv." .. lvl .. (isEnemy and "" or ("  " .. string.rep("★", stars)))
 			local displayName = model:GetAttribute("DisplayName") or model.Name
 			local aura = Auras.get(model:GetAttribute("Aura"))
 			name.Text = (aura and ("[" .. aura.name .. "] ") or "") .. displayName
 			local trait = Traits.get(model:GetAttribute("Trait"))
 			traitLabel.Text = trait and ("◆ " .. trait.name) or ""
-			traitLabel.TextColor3 = trait and trait.color or Color3.new(1, 1, 1)
+			traitLabel.TextColor3 = trait and trait.color or WHITE
+			nameGradient.Enabled = false
 			if isEnemy then
 				name.TextColor3 = isBoss and Color3.fromRGB(255, 80, 80) or Color3.fromRGB(255, 200, 200)
 			else
-				local rarity = Rarities.get(model:GetAttribute("Rarity") or "common")
-				name.TextColor3 = rarity.color:Lerp(Color3.new(1, 1, 1), 0.2)
+				local rarityId = model:GetAttribute("RollRarity") or model:GetAttribute("Rarity") or "common"
+				local info = Theme.rarity(rarityId)
+				if info.rainbow then
+					name.TextColor3 = WHITE
+					nameGradient.Enabled = true
+				else
+					local rarity = Rarities.get(rarityId)
+					local color = (rarity and rarity.color) or info.color
+					name.TextColor3 = color:Lerp(WHITE, 0.2)
+				end
 			end
 			if fill then
 				local hp = model:GetAttribute("HP") or 1
 				local maxHp = model:GetAttribute("MaxHP") or 1
-				fill.Size = UDim2.fromScale(math.clamp(hp / maxHp, 0, 1), 1)
+				local ratio = math.clamp(hp / maxHp, 0, 1)
+				fill.Size = UDim2.fromScale(ratio, 1)
+				fill.Visible = ratio > 0.01
+				if fillGradient and not isEnemy then
+					local color = ratio > 0.35 and Color3.fromRGB(80, 230, 110) or Color3.fromRGB(240, 70, 70)
+					fillGradient.Color = Theme.sequence({ Theme.light(color, 0.35), color, Theme.dark(color, 0.2) })
+				end
 			end
 		end
 		refresh()
-		for _, attribute in { "Level", "Stars", "HP", "MaxHP", "Aura", "DisplayName", "Trait" } do
+		for _, attribute in { "Level", "Stars", "HP", "MaxHP", "Aura", "DisplayName", "Trait", "RollRarity" } do
 			model:GetAttributeChangedSignal(attribute):Connect(refresh)
 		end
 		if isFollower and not isMine then

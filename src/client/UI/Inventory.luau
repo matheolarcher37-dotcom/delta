@@ -92,7 +92,7 @@ local function renderSheet()
 		},
 		{
 			text = entry.locked and "Déverrouiller" or "Verrouiller",
-			icon = "lock",
+			icon = not entry.locked and "lock" or nil,
 			color = C.Blue,
 			onClick = function()
 				call("ToggleLock", uid)
@@ -100,7 +100,6 @@ local function renderSheet()
 		},
 		{
 			text = confirmingSell and "Confirmer ?" or ("Vendre " .. Formulas.formatNumber(Formulas.sellValue(entry))),
-			icon = "coin",
 			color = C.Red,
 			onClick = function()
 				if entry.locked then
