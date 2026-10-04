@@ -1,8 +1,12 @@
--- Construit les persos d'animé au format avatar Roblox R6 (comme les jeux d'animé récents) :
---   * corps R6 standard (Torso 2x2x1, bras et jambes 1x2x1) avec les articulations officielles
---     ("Neck", "Left Shoulder"...) : les animations par défaut de Roblox fonctionnent dessus ;
---   * tête arrondie avec un visage d'animé dessiné (Painter) ;
---   * tenue peinte sur le torse, mèches de cheveux en ellipsoïdes, accessoires 3D.
+-- Construit les persos d'animé au format avatar Roblox R6 CLASSIQUE (comme les avatars des jeux
+-- d'animé : "Kid Naruto" de la Boîte à outils, les unités des jeux de tirage...) :
+--   * proportions R6 exactes : Torso 2x2x1, bras et jambes 1x2x1, tête classique (Part 2x1x1 +
+--     SpecialMesh "Head" à l'échelle 1.25), articulations officielles ("Neck", "Left Shoulder"...) :
+--     les animations par défaut de Roblox fonctionnent dessus ;
+--   * visage façon décalque d'animé, dessiné par Painter sur des plaques invisibles qui épousent
+--     la courbe de la tête (il suit la tête de face comme de 3/4) ;
+--   * vêtements façon "Shirt / Pants" classiques peints sur toutes les faces (Painter.dress) ;
+--   * coiffures en volume (calotte + mèches en deux tons) et accessoires 3D.
 --
 -- Le modèle est construit pieds au sol en (0,0,0), face vers -Z, puis déplacé via PivotTo.
 -- Pour remplacer un perso par ton propre modèle (fait dans Studio ou avec des objets du catalogue),
@@ -14,23 +18,40 @@ local CharacterBuilder = {}
 
 local WHITE = Color3.fromRGB(255, 255, 255)
 local BLACK = Color3.fromRGB(25, 22, 28)
-local METAL = Color3.fromRGB(195, 200, 210)
+local METAL = Color3.fromRGB(190, 198, 210)
 local GOLD = Color3.fromRGB(255, 200, 60)
 
--- Tête : bloc arrondi (face avant plate pour le visage).
-local HEAD_W, HEAD_H, HEAD_D, HEAD_R = 1.38, 1.24, 1.3, 0.25
+-- Tête classique : la pièce fait 2x1x1, le maillage "Head" (échelle 1.25) se voit comme un
+-- cylindre vertical arrondi de 1.2 x 1.2 x 1.2 studs centré sur la pièce.
+local HEAD_PART = Vector3.new(2, 1, 1)
+local HEAD_MESH_SCALE = Vector3.new(1.25, 1.25, 1.25)
+local HEAD_R = 0.6 -- rayon visible
+local HEAD_H = 1.2 -- hauteur visible
 local TOP = HEAD_H / 2
-local FRONT = -HEAD_D / 2
-local BACK = HEAD_D / 2
+local FRONT = -HEAD_R
+-- Rayon d'un objet qui entoure la tête (bandeau, masque...) : au-dessus des plaques du visage.
+local WRAP_R = 0.665
+
+-- Plaques du visage : 6 facettes de 20° (de -60° à +60°) qui suivent la courbe de la tête.
+local FACETS = 6
+local FACE_ARC = math.rad(120)
+local FACE_EDGE_R = 0.645
+local FACE_Y0, FACE_Y1 = -0.5, 0.46
+CharacterBuilder.Face = {
+	width = HEAD_R * FACE_ARC, -- largeur "déroulée" du visage (studs le long de la courbe)
+	height = FACE_Y1 - FACE_Y0,
+	centerY = (FACE_Y0 + FACE_Y1) / 2, -- hauteur du centre des plaques (repère de la tête)
+}
 
 CharacterBuilder.RootHeight = 3 -- hauteur du HumanoidRootPart au-dessus du sol (échelle 1)
-CharacterBuilder.Height = 4 + HEAD_H -- haut de la tête (échelle 1)
+CharacterBuilder.Height = 4.5 + TOP -- haut de la tête (échelle 1)
 CharacterBuilder.HipHeight = 0 -- R6 : la hauteur vient des jambes
+CharacterBuilder.HeadRadius = HEAD_R
 
 local CENTERS = {
 	HumanoidRootPart = CFrame.new(0, 3, 0),
 	Torso = CFrame.new(0, 3, 0),
-	Head = CFrame.new(0, 4 + HEAD_H / 2, 0),
+	Head = CFrame.new(0, 4.5, 0),
 	["Left Arm"] = CFrame.new(-1.5, 3, 0),
 	["Right Arm"] = CFrame.new(1.5, 3, 0),
 	["Left Leg"] = CFrame.new(-0.5, 1, 0),
@@ -40,7 +61,7 @@ local CENTERS = {
 local SIZES = {
 	HumanoidRootPart = Vector3.new(2, 2, 1),
 	Torso = Vector3.new(2, 2, 1),
-	Head = Vector3.new(HEAD_W - 2 * HEAD_R, HEAD_H, HEAD_D),
+	Head = HEAD_PART,
 	["Left Arm"] = Vector3.new(1, 2, 1),
 	["Right Arm"] = Vector3.new(1, 2, 1),
 	["Left Leg"] = Vector3.new(1, 2, 1),
@@ -54,7 +75,7 @@ local ROT_R = CFrame.new(0, 0, 0, 0, 0, 1, 0, 1, 0, -1, 0, 0)
 
 local JOINTS = {
 	{ "RootJoint", "HumanoidRootPart", "Torso", Vector3.new(0, 0, 0), Vector3.new(0, 0, 0), ROT_A },
-	{ "Neck", "Torso", "Head", Vector3.new(0, 1, 0), Vector3.new(0, -HEAD_H / 2, 0), ROT_A },
+	{ "Neck", "Torso", "Head", Vector3.new(0, 1, 0), Vector3.new(0, -0.5, 0), ROT_A },
 	{ "Left Shoulder", "Torso", "Left Arm", Vector3.new(-1, 0.5, 0), Vector3.new(0.5, 0.5, 0), ROT_L },
 	{ "Right Shoulder", "Torso", "Right Arm", Vector3.new(1, 0.5, 0), Vector3.new(-0.5, 0.5, 0), ROT_R },
 	{ "Left Hip", "Torso", "Left Leg", Vector3.new(-1, -1, 0), Vector3.new(-0.5, 1, 0), ROT_L },
@@ -90,17 +111,10 @@ end
 ------------------------------------------------------------------------
 
 local function newContext(model: Model, s: number, paint: string)
-	local ctx = { model = model, s = s, limbs = {}, paint = paint }
+	local ctx = { model = model, s = s, limbs = {}, paint = paint, count = 0 }
 
-	-- Crée une pièce soudée à un membre. `offset` est relatif au centre du membre (échelle 1).
-	function ctx.add(limbName: string, name: string, size: Vector3, offset: CFrame, color: Color3, props: { [string]: any }?): Part
-		local limb = ctx.limbs[limbName]
-		local part = Instance.new("Part")
-		part.Name = name
-		part.Size = size * s
-		part.CFrame = scaled(CENTERS[limbName] * offset, s)
-		part.Color = color
-		part.Material = Enum.Material.SmoothPlastic
+	local function finish(part: BasePart, limbName: string)
+		part.Material = part.Material == Enum.Material.Plastic and Enum.Material.SmoothPlastic or part.Material
 		part.TopSurface = Enum.SurfaceType.Smooth
 		part.BottomSurface = Enum.SurfaceType.Smooth
 		part.CanCollide = false
@@ -108,13 +122,8 @@ local function newContext(model: Model, s: number, paint: string)
 		part.CanQuery = false
 		part.Massless = true
 		part.Anchored = false
-		if props then
-			local target: any = part
-			for key, value in props do
-				target[key] = value
-			end
-		end
 		part.Parent = model
+		local limb = ctx.limbs[limbName]
 		if limb then
 			local weld = Instance.new("Weld")
 			weld.Name = "Weld"
@@ -123,6 +132,24 @@ local function newContext(model: Model, s: number, paint: string)
 			weld.C0 = limb.CFrame:Inverse() * part.CFrame
 			weld.Parent = part
 		end
+		ctx.count += 1
+	end
+
+	-- Crée une pièce soudée à un membre. `offset` est relatif au centre du membre (échelle 1).
+	function ctx.add(limbName: string, name: string, size: Vector3, offset: CFrame, color: Color3, props: { [string]: any }?): Part
+		local part = Instance.new("Part")
+		part.Name = name
+		part.Size = size * s
+		part.CFrame = scaled(CENTERS[limbName] * offset, s)
+		part.Color = color
+		part.Material = Enum.Material.SmoothPlastic
+		if props then
+			local target: any = part
+			for key, value in props do
+				target[key] = value
+			end
+		end
+		finish(part, limbName)
 		return part
 	end
 
@@ -142,7 +169,7 @@ local function newContext(model: Model, s: number, paint: string)
 		return part
 	end
 
-	-- Cylindre vertical.
+	-- Cylindre vertical (anneau autour de la tête, chapeau...).
 	function ctx.vcyl(limbName: string, name: string, height: number, diameter: number, offset: CFrame, color: Color3, props: { [string]: any }?): Part
 		return ctx.cyl(limbName, name, height, diameter, offset * CFrame.Angles(0, 0, math.pi / 2), color, props)
 	end
@@ -160,103 +187,98 @@ local function newContext(model: Model, s: number, paint: string)
 		return first
 	end
 
-	-- Lame triangulaire (deux WedgeParts dos à dos) dans le plan (droite, haut) du repère `frame`.
+	-- Coin (WedgePart) : pente vers l'avant (-Z) et le haut, face verticale à l'arrière.
+	function ctx.wedge(limbName: string, name: string, size: Vector3, offset: CFrame, color: Color3): WedgePart
+		local part = Instance.new("WedgePart")
+		part.Name = name
+		part.Size = size * s
+		part.CFrame = scaled(CENTERS[limbName] * offset, s)
+		part.Color = color
+		part.Material = Enum.Material.SmoothPlastic
+		finish(part, limbName)
+		return part
+	end
+
+	-- Lame triangulaire (deux WedgeParts dos à dos) dans le plan (droite, haut) du repère `frame` :
+	-- base de largeur `width` en (0,0,0), pointe à `length` le long de l'axe Y.
 	local HALF_A = CFrame.fromMatrix(Vector3.zero, Vector3.new(0, 0, 1), Vector3.new(0, 1, 0), Vector3.new(-1, 0, 0))
 	local HALF_B = CFrame.fromMatrix(Vector3.zero, Vector3.new(0, 0, -1), Vector3.new(0, 1, 0), Vector3.new(1, 0, 0))
-	function ctx.blade(limbName: string, color: Color3, frame: CFrame, length: number, width: number, thickness: number)
+	function ctx.blade(limbName: string, color: Color3, frame: CFrame, length: number, width: number, thickness: number, name: string?)
 		for i, half in { HALF_A, HALF_B } do
 			local side = i == 1 and 1 or -1
 			local cf = frame * CFrame.new(side * width / 4, length / 2, 0) * half
-			local limb = ctx.limbs[limbName]
-			local part = Instance.new("WedgePart")
-			part.Name = "HairSpike"
-			part.Size = Vector3.new(thickness, length, width / 2) * s
-			part.CFrame = scaled(CENTERS[limbName] * cf, s)
-			part.Color = color
-			part.Material = Enum.Material.SmoothPlastic
-			part.TopSurface = Enum.SurfaceType.Smooth
-			part.BottomSurface = Enum.SurfaceType.Smooth
-			part.CanCollide = false
-			part.CanTouch = false
-			part.CanQuery = false
-			part.Massless = true
-			part.Parent = ctx.model
-			local weld = Instance.new("Weld")
-			weld.Name = "Weld"
-			weld.Part0 = limb
-			weld.Part1 = part
-			weld.C0 = limb.CFrame:Inverse() * part.CFrame
-			weld.Parent = part
+			ctx.wedge(limbName, name or "HairSpike", Vector3.new(thickness, length, width / 2), cf, color)
 		end
 	end
 
-	-- Pique pointue (deux lames croisées : une large, une plus étroite) partant de `from`
-	-- dans la direction `dir`. `shine` : pointe claire (reflet) ; `tip` : bout d'une autre couleur.
-	function ctx.spike(limbName: string, color: Color3, from: Vector3, dir: Vector3, length: number, width: number, tip: Color3?, shine: Color3?)
-		local frame = alongY(from, dir)
-		local thin = math.clamp(width * 0.16, 0.08, 0.13)
-		-- La lame large fait face à l'extérieur (vue de face / de côté), l'autre donne l'épaisseur.
+	-- Pique de cheveux épaisse partant de `from` dans la direction `dir` : une lame large tournée
+	-- vers l'extérieur (bien lisible de face) + une lame plus étroite en travers (volume de profil).
+	function ctx.spike(limbName: string, color: Color3, from: Vector3, dir: Vector3, length: number, width: number, o)
+		local opts = o or {}
+		local d = dir.Unit
 		local outward = Vector3.new(from.X, 0, from.Z - 0.05)
-		local face = frame
+		local face = alongY(from, d)
 		if outward.Magnitude > 0.05 then
-			local n = outward.Unit - dir.Unit * outward.Unit:Dot(dir.Unit)
+			local n = outward.Unit - d * outward.Unit:Dot(d)
 			if n.Magnitude > 0.1 then
-				local d = dir.Unit
 				face = CFrame.fromMatrix(from, d:Cross(n.Unit).Unit, d, n.Unit)
 			end
 		end
-		ctx.blade(limbName, color, face, length, width, thin)
-		ctx.blade(limbName, color, face * CFrame.Angles(0, math.pi / 2, 0), length * 0.92, width * 0.55, thin)
-		if tip then
-			local tipFrame = face * CFrame.new(0, length * 0.6, 0)
-			ctx.blade(limbName, tip, tipFrame, length * 0.41, width * 0.44, thin + 0.02)
-			ctx.blade(limbName, tip, tipFrame * CFrame.Angles(0, math.pi / 2, 0), length * 0.38, width * 0.26, thin + 0.02)
+		local thick = opts.thickness or math.clamp(width * 0.34, 0.08, 0.22)
+		ctx.blade(limbName, color, face, length, width, thick)
+		if opts.cross ~= false then
+			ctx.blade(limbName, opts.crossColor or color, face * CFrame.Angles(0, math.pi / 2, 0), length * 0.9, width * 0.55, thick)
 		end
-		if shine then
-			-- Reflet : triangle clair sur la face extérieure de la mèche
-			ctx.blade(limbName, shine, face * CFrame.new(0, length * 0.22, thin / 2 + 0.015), length * 0.66, width * 0.4, 0.03)
+		if opts.tip then
+			local tipFrame = face * CFrame.new(0, length * 0.62, 0)
+			ctx.blade(limbName, opts.tip, tipFrame, length * 0.38, width * 0.38, thick + 0.01)
 		end
 	end
 
 	-- Mèches qui jaillissent d'un volume ellipsoïdal (centre, demi-axes) : liste de
-	-- { angle autour (degrés, 0 = droite, 90 = arrière), angle depuis le haut (degrés), longueur, largeur, couleur?, reflet? }.
-	function ctx.burst(limbName: string, center: Vector3, radii: Vector3, color: Color3, list, shine: Color3?, tip: Color3?, lift: number?)
+	-- { angle autour (degrés, 0 = droite du perso vue de face = -X... voir plus bas), angle depuis
+	--   le haut (degrés), longueur, largeur, couleur? }.
+	-- Angle autour : 0 = côté +X, 90 = arrière (+Z), 180 = côté -X, 270 = avant (-Z).
+	function ctx.burst(limbName: string, center: Vector3, radii: Vector3, color: Color3, list, o)
+		local opts = o or {}
 		for _, e in list do
 			local th, ph = math.rad(e[1]), math.rad(e[2])
 			local unit = Vector3.new(math.sin(ph) * math.cos(th), math.cos(ph), math.sin(ph) * math.sin(th))
-			local point = center + Vector3.new(unit.X * radii.X, unit.Y * radii.Y, unit.Z * radii.Z) * 0.82
+			local point = center + Vector3.new(unit.X * radii.X, unit.Y * radii.Y, unit.Z * radii.Z) * (opts.sink or 0.8)
 			local normal = Vector3.new(unit.X / radii.X, unit.Y / radii.Y, unit.Z / radii.Z).Unit
-			local dir = (normal + Vector3.new(0, lift or 0.35, 0)).Unit
-			ctx.spike(limbName, e[5] or color, point, dir, e[3], e[4], tip, e[6] and shine or nil)
+			local dir = (normal + Vector3.new(0, e[6] or opts.lift or 0.35, 0)).Unit
+			ctx.spike(limbName, e[5] or color, point, dir, e[3], e[4], { tip = opts.tip })
 		end
 	end
 
-	-- Mèche plate (une lame tournée vers l'avant), idéale pour la frange.
-	function ctx.lock(limbName: string, color: Color3, from: Vector3, dir: Vector3, length: number, width: number, tip: Color3?, shine: Color3?)
+	-- Mèche plate tournée vers l'avant (frange, mèches qui encadrent le visage).
+	function ctx.lock(limbName: string, color: Color3, from: Vector3, dir: Vector3, length: number, width: number, o)
+		local opts = o or {}
 		local up = dir.Unit
-		local right = up:Cross(Vector3.new(0, 0, 1))
+		local facing = opts.facing or Vector3.new(0, 0, 1)
+		local right = up:Cross(facing)
 		if right.Magnitude < 0.1 then
 			right = Vector3.new(1, 0, 0)
 		end
 		right = right.Unit
 		local back = right:Cross(up).Unit
 		local frame = CFrame.fromMatrix(from, right, up, back)
-		ctx.blade(limbName, color, frame, length, width, 0.16)
-		if tip then
-			ctx.blade(limbName, tip, frame * CFrame.new(0, length * 0.6, -0.01), length * 0.4, width * 0.42, 0.17)
-		end
-		if shine then
-			ctx.blade(limbName, shine, frame * CFrame.new(0, length * 0.08, -0.1), length * 0.62, width * 0.34, 0.04)
+		ctx.blade(limbName, color, frame, length, width, opts.thickness or 0.14, "HairLock")
+		if opts.tip then
+			ctx.blade(limbName, opts.tip, frame * CFrame.new(0, length * 0.6, -0.01), length * 0.4, width * 0.42, (opts.thickness or 0.14) + 0.01, "HairLock")
 		end
 	end
 
 	-- Mèche arrondie (ellipsoïde), pour les cheveux souples.
-	function ctx.strand(limbName: string, color: Color3, from: Vector3, dir: Vector3, length: number, width: number, tip: Color3?)
+	-- `extra` : profondeur (nombre) ou couleur du bout (Color3).
+	function ctx.strand(limbName: string, color: Color3, from: Vector3, dir: Vector3, length: number, width: number, extra: any?)
 		local d = dir.Unit
-		ctx.ball(limbName, "Strand", Vector3.new(width, length, width * 0.8), alongY(from + d * (length * 0.45), d), color)
-		if tip then
-			ctx.ball(limbName, "StrandTip", Vector3.new(width * 0.72, length * 0.4, width * 0.6), alongY(from + d * (length * 0.75), d), tip)
+		local depth = type(extra) == "number" and extra or width * 0.8
+		local part = ctx.ball(limbName, "HairStrand", Vector3.new(width, length, depth), alongY(from + d * (length * 0.45), d), color)
+		if typeof(extra) == "Color3" then
+			ctx.ball(limbName, "HairStrandTip", Vector3.new(width * 0.72, length * 0.4, depth * 0.75), alongY(from + d * (length * 0.75), d), extra)
 		end
+		return part
 	end
 
 	-- Peinture (SurfaceGui dans le monde, pièces fines dans les aperçus).
@@ -268,9 +290,9 @@ local function newContext(model: Model, s: number, paint: string)
 		gui.Name = name
 		gui.Face = face
 		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-		gui.PixelsPerStud = 40
-		gui.LightInfluence = 0.8
-		gui.MaxDistance = 110
+		gui.PixelsPerStud = 60
+		gui.LightInfluence = 1
+		gui.MaxDistance = 140
 		gui.ClipsDescendants = true
 		gui.Parent = part
 		return gui
@@ -282,6 +304,24 @@ end
 ------------------------------------------------------------------------
 -- Corps R6
 ------------------------------------------------------------------------
+
+-- Plaques invisibles qui portent le visage : chaque facette couvre une portion [u0, u1]
+-- de la largeur "déroulée" du visage (u = 0 à gauche vue de face, 1 à droite).
+local function facePlates(ctx)
+	local plates = {}
+	local half = FACE_ARC / FACETS / 2
+	local apothem = FACE_EDGE_R * math.cos(half)
+	local width = 2 * FACE_EDGE_R * math.sin(half)
+	for i = 0, FACETS - 1 do
+		local u0, u1 = i / FACETS, (i + 1) / FACETS
+		-- angle depuis l'avant, positif vers la droite de l'observateur (-X)
+		local phi = ((u0 + u1) / 2 - 0.5) * FACE_ARC
+		local cf = CFrame.new(-math.sin(phi) * apothem, (FACE_Y0 + FACE_Y1) / 2, -math.cos(phi) * apothem) * CFrame.Angles(0, phi, 0)
+		local plate = ctx.add("Head", "FacePlate", Vector3.new(width, FACE_Y1 - FACE_Y0, 0.02), cf, WHITE, { Transparency = 1, CastShadow = false })
+		table.insert(plates, { part = plate, u0 = u0, u1 = u1 })
+	end
+	return plates
+end
 
 local function buildBody(ctx, look)
 	local model, s = ctx.model, ctx.s
@@ -320,8 +360,17 @@ local function buildBody(ctx, look)
 			part.CanQuery = name == "Torso" or name == "Head"
 			part.Massless = true
 		end
+		if name == "Head" then
+			-- Tête Roblox classique
+			local mesh = Instance.new("SpecialMesh")
+			mesh.Name = "Mesh"
+			mesh.MeshType = Enum.MeshType.Head
+			mesh.Scale = HEAD_MESH_SCALE
+			mesh.Parent = part
+		end
 		part.Parent = model
 		ctx.limbs[name] = part
+		ctx.count += 1
 	end
 
 	for _, joint in JOINTS do
@@ -336,23 +385,9 @@ local function buildBody(ctx, look)
 		motor.Parent = ctx.limbs[parentName]
 	end
 
-	-- Tête arrondie : côtés + arêtes en cylindres + petit dôme.
-	ctx.add("Head", "HeadSide", Vector3.new(HEAD_W, HEAD_H, HEAD_D - 2 * HEAD_R), CFrame.new(), skin)
-	for _, sx in { -1, 1 } do
-		for _, sz in { -1, 1 } do
-			ctx.vcyl("Head", "HeadEdge", HEAD_H, 2 * HEAD_R, CFrame.new(sx * (HEAD_W / 2 - HEAD_R), 0, sz * (HEAD_D / 2 - HEAD_R)), skin)
-		end
-	end
-	ctx.ball("Head", "Cranium", Vector3.new(HEAD_W, 0.36, HEAD_D), CFrame.new(0, TOP, 0), skin)
-	-- Oreilles
-	for _, side in { -1, 1 } do
-		ctx.ball("Head", "Ear", Vector3.new(0.14, 0.34, 0.24), CFrame.new(side * (HEAD_W / 2 + 0.03), -0.02, 0.08), darken(skin, 0.05))
-	end
-
-	-- Visage et tenue peints.
+	-- Visage (décalque peint sur les plaques) et tenue peinte.
 	if not has(look, "boar_head") then
-		local faceTarget = ctx.paint == "parts" and "parts" or nil
-		Painter.face(ctx.limbs.Head, look, faceTarget)
+		Painter.face(facePlates(ctx), look, ctx.paint == "parts" and "parts" or nil, CharacterBuilder.Face)
 	end
 	Painter.dress(ctx.limbs, look, ctx.paint == "parts" and "parts" or nil)
 end
@@ -360,28 +395,6 @@ end
 ------------------------------------------------------------------------
 -- Coiffures (repère de la tête : centre de la tête, face vers -Z)
 ------------------------------------------------------------------------
-
-local function cap(ctx, c: Color3, height: number)
-	ctx.rounded("Head", "HairCap", Vector3.new(HEAD_W + 0.12, height, HEAD_D + 0.12), CFrame.new(0, TOP + 0.14 - height / 2, 0.02), c, HEAD_R + 0.06)
-	ctx.ball("Head", "HairDome", Vector3.new(HEAD_W + 0.12, 0.42, HEAD_D + 0.12), CFrame.new(0, TOP + 0.12, 0.02), c)
-end
-
-local function back(ctx, c: Color3, length: number)
-	ctx.rounded("Head", "HairBack", Vector3.new(HEAD_W + 0.12, length, 0.5), CFrame.new(0, TOP + 0.1 - length / 2, BACK - 0.12), c, 0.2)
-end
-
-local function sides(ctx, c: Color3, length: number)
-	for _, side in { -1, 1 } do
-		ctx.add("Head", "HairSide", Vector3.new(0.16, length, HEAD_D - 0.1), CFrame.new(side * (HEAD_W / 2 + 0.05), TOP + 0.1 - length / 2, 0.08), c)
-	end
-end
-
--- Mèches plates qui tombent sur le front.
-local function fringe(ctx, c: Color3, xs: { number }, length: number, width: number, spread: number?, y: number?, z: number?)
-	for _, x in xs do
-		ctx.lock("Head", c, Vector3.new(x, y or (TOP - 0.02), z or (FRONT - 0.08)), Vector3.new(x * (spread or 0.45), -1, -0.2), length, width)
-	end
-end
 
 local function wearsHeadband(look): boolean
 	return has(look, "headband") or has(look, "headband_tilted") or has(look, "headband_scratched")
@@ -393,84 +406,172 @@ local function hairTones(c: Color3, look): (Color3, Color3)
 	local under, shine
 	if lum < 0.16 then
 		-- Cheveux noirs : reflets bleutés comme dans les animés
-		under = c:Lerp(Color3.new(0, 0, 0), 0.45)
-		shine = c:Lerp(Color3.fromRGB(105, 125, 185), 0.5)
+		under = c:Lerp(Color3.new(0, 0, 0), 0.4)
+		shine = c:Lerp(Color3.fromRGB(80, 95, 140), 0.3)
 	elseif lum > 0.82 then
 		-- Cheveux blancs / argentés : ombres bleu-gris
-		under = c:Lerp(Color3.fromRGB(140, 155, 195), 0.5)
+		under = c:Lerp(Color3.fromRGB(150, 160, 195), 0.45)
 		shine = WHITE
 	else
-		under = c:Lerp(Color3.fromRGB(150, 70, 40), 0.3)
-		shine = c:Lerp(WHITE, 0.55)
+		under = c:Lerp(Color3.fromRGB(120, 60, 30), 0.32)
+		shine = c:Lerp(WHITE, 0.28)
 	end
 	return look.hairUnder or under, look.hairShine or shine
 end
 CharacterBuilder.hairTones = hairTones
 
--- Volume de base (ellipsoïdes dans la teinte sombre) : donne une silhouette ronde et pleine.
-local function mass(ctx, under: Color3, o)
+-- Calotte : volume de cheveux qui recouvre le haut du crâne (front dégagé au-dessus de `hairline`).
+-- o = { grow, height, lift, back (false = sans nuque), backLength, color2 (couleur de la nuque) }
+local function cap(ctx, color: Color3, o)
 	local opts = o or {}
-	local grow = opts.grow or 0.18
-	local h = opts.height or 0.95
-	ctx.ball("Head", "HairMass", Vector3.new(HEAD_W + grow, h, HEAD_D + grow), CFrame.new(0, TOP - 0.1 + (opts.lift or 0), 0.05), under)
+	local grow = opts.grow or 0
+	local h = opts.height or 0.84
+	ctx.ball("Head", "HairCap", Vector3.new(1.36 + grow, h, 1.38 + grow), CFrame.new(0, 0.5 + (opts.lift or 0), 0.03), color)
 	if opts.back ~= false then
-		local length = opts.backLength or 1.1
-		-- Grand ellipsoïde qui enveloppe toute la moitié arrière du crâne (nuque et côtés)
-		ctx.ball("Head", "HairMassBack", Vector3.new(HEAD_W + 0.42, length * 1.2, 1.3), CFrame.new(0, TOP - 0.52 - (length - 1.1) / 2, 0.2), under)
+		local length = opts.backLength or 1.4
+		ctx.ball("Head", "HairNape", Vector3.new(1.24 + grow, length, 0.9 + grow * 0.5), CFrame.new(0, 0.42 - length / 2 + (opts.napeLift or 0), 0.19), opts.color2 or color)
+	end
+end
+
+-- Mèches de côté (devant les oreilles), de `y` vers le bas.
+local function sidelocks(ctx, color: Color3, length: number, width: number?, y: number?, o)
+	for _, side in { -1, 1 } do
+		ctx.lock(
+			"Head",
+			color,
+			Vector3.new(side * 0.58, y or 0.42, -0.14),
+			Vector3.new(side * 0.12, -1, -0.05),
+			length,
+			width or 0.34,
+			{ facing = Vector3.new(side, 0, 0.3), thickness = 0.12, tip = o and o.tip }
+		)
+	end
+end
+
+-- Frange : mèches plates qui tombent sur le front (xs = positions, de gauche à droite vu de face).
+local function fringe(ctx, color: Color3, xs: { number }, length: number, width: number, o)
+	local opts = o or {}
+	for i, x in xs do
+		local c = color
+		if opts.alt and i % 2 == 0 then
+			c = opts.alt
+		end
+		local z = -math.sqrt(math.max(0, 0.69 * 0.69 - x * x)) - 0.02
+		ctx.lock(
+			"Head",
+			c,
+			Vector3.new(x, opts.y or 0.5, z),
+			Vector3.new(x * (opts.spread or 0.5), -1, -(opts.out or 0.15)),
+			(type(length) == "table" and length[i]) or length,
+			width,
+			{ facing = Vector3.new(-x * 0.6, 0, 1), thickness = opts.thickness, tip = opts.tip }
+		)
 	end
 end
 
 local HAIR = {}
 
-HAIR.short = function(ctx, c, look)
-	-- Coupe courte en brosse (sabreur) : volume serré + petites mèches dressées
-	local under, shine = hairTones(c, look)
-	mass(ctx, under, { grow = 0.26, height = 0.8, lift = 0.02, backLength = 0.9 })
-	for i = 0, 6 do
-		local a = (i / 7) * math.pi * 2 + 0.2
-		local dx, dz = math.cos(a), math.sin(a)
-		ctx.spike("Head", c, Vector3.new(dx * 0.4, TOP + 0.08, dz * 0.38 + 0.05), Vector3.new(dx * 0.8, 1, dz * 0.8), 0.42, 0.55, look.hairTip, dz < 0 and shine or nil)
+-- Couronne de pointes vue de face : chaque pointe = { angle dans le plan de face (degrés, 0 = vers
+-- le haut, + vers la droite de l'observateur), inclinaison vers l'arrière (degrés, + = arrière),
+-- longueur, largeur, couleur?, cross? (lame en travers), r? (enfoncement de la base) }.
+local function crown(ctx, color: Color3, center: Vector3, list, o)
+	local opts = o or {}
+	for _, e in list do
+		local a, b = math.rad(e[1]), math.rad(e[2])
+		local dir = Vector3.new(-math.sin(a) * math.cos(b), math.cos(a) * math.cos(b), math.sin(b))
+		local base = center + dir * (e[7] or opts.r or 0.3)
+		ctx.spike("Head", e[5] or color, base, dir, e[3] * (opts.scale or 1), e[4], { tip = e[6] and opts.tip or nil, cross = e[6] or false })
 	end
-	ctx.spike("Head", c, Vector3.new(0, TOP + 0.12, 0.05), Vector3.new(0.1, 1, 0.2), 0.45, 0.6, look.hairTip, shine)
-	fringe(ctx, c, { -0.38, -0.12, 0.14, 0.4 }, 0.3, 0.34, 0.5, TOP + 0.02)
-	for _, side in { -1, 1 } do
-		ctx.lock("Head", under, Vector3.new(side * (HEAD_W / 2 + 0.04), 0.3, 0.1), Vector3.new(side * 0.05, -1, 0), 0.4, 0.5)
+end
+
+-- Mèches couchées en écailles tout autour de la calotte, de la hauteur `y0` vers le haut :
+-- elles cachent la calotte lisse et donnent l'aspect "cheveux" (rang avant + côtés/arrière).
+-- o = { front = false (pas de rang avant), lift (pente vers le haut), tip }
+local function scales(ctx, c: Color3, shine: Color3, under: Color3, y0: number, length: number, o)
+	local opts = o or {}
+	local lift = opts.lift or 1
+	if opts.front ~= false then
+		for i, x in { -0.46, -0.23, 0, 0.23, 0.46 } do
+			local z = -math.sqrt(math.max(0, 0.36 - x * x)) + 0.06
+			ctx.spike("Head", i % 2 == 0 and c or shine, Vector3.new(x, y0, z), Vector3.new(x * 1.2, lift, -0.55), length, 0.5, { cross = false, thickness = 0.16 })
+		end
+	end
+	for i, a in { 20, 55, 90, 125, 160 } do
+		local r = math.rad(a)
+		ctx.spike(
+			"Head",
+			i % 2 == 0 and under or c,
+			Vector3.new(math.cos(r) * 0.52, y0 - 0.04, math.sin(r) * 0.52 + 0.05),
+			Vector3.new(math.cos(r), 0.9 * lift, math.sin(r)),
+			length,
+			0.52,
+			{ cross = false, thickness = 0.16 }
+		)
 	end
 end
 
 HAIR.spiky = function(ctx, c, look)
-	-- Grosse tignasse en pointes (Maruto) : volume plein d'où jaillissent des pointes en étoile
+	-- Tignasse en pointes compactes (Maruto, comme "Kid Naruto") : calotte + couronne de pointes
+	-- qui rayonnent en étoile au-dessus du bandeau, pointes sur les côtés et dans la nuque.
 	local under, shine = hairTones(c, look)
-	local center = Vector3.new(0, TOP + 0.05, 0.1)
-	local radii = Vector3.new(HEAD_W / 2 + 0.2, 0.55, HEAD_D / 2 + 0.18)
-	mass(ctx, under, { grow = 0.2, height = 1.0 })
-	ctx.ball("Head", "HairVolume", radii * 2, CFrame.new(center), c)
-	ctx.burst("Head", center, radii, c, {
-		{ 250, 15, 0.95, 0.95, nil, true },
-		{ 340, 20, 0.95, 0.9, nil, true },
-		{ 160, 20, 0.95, 0.9 },
-		{ 70, 25, 0.9, 0.9 },
-		{ 225, 55, 0.9, 0.95, nil, true },
-		{ 270, 50, 0.85, 0.9, nil, true },
-		{ 315, 55, 0.9, 0.95, nil, true },
-		{ 0, 65, 0.9, 0.9 },
-		{ 180, 65, 0.9, 0.9 },
-		{ 45, 60, 0.85, 0.9, under },
-		{ 90, 55, 0.85, 0.9, under },
-		{ 135, 60, 0.85, 0.9, under },
-		{ 20, 95, 0.7, 0.8 },
-		{ 160, 95, 0.7, 0.8 },
-		{ 60, 100, 0.75, 0.8, under },
-		{ 120, 100, 0.75, 0.8, under },
-	}, shine, look.hairTip, 0.3)
-	-- Frange en pointes (par-dessus le bandeau s'il y en a un)
-	local y, z = TOP + 0.02, FRONT - 0.1
-	if wearsHeadband(look) then
-		y, z = TOP + 0.16, FRONT - 0.2
+	local tip = look.hairTip
+	local band = wearsHeadband(look)
+	local L = look.hairLength or 1
+	cap(ctx, c, { back = false, lift = band and 0.07 or 0.02, height = 0.9 })
+	-- Nuque : mèches courtes plaquées (pas de volume rond)
+	ctx.ball("Head", "HairNape", Vector3.new(1.2, 0.7, 0.5), CFrame.new(0, 0.2, 0.42), under)
+	local center = Vector3.new(0, band and 0.74 or 0.68, 0.06)
+	-- Mèches couchées en écailles juste au-dessus du bandeau (cachent la calotte)
+	scales(ctx, c, shine, under, band and 0.6 or 0.5, 0.46 * L, { tip = tip })
+	crown(ctx, c, center, {
+		-- rang du milieu (silhouette de face, en étoile)
+		{ 0, 5, 0.66, 0.62, nil, true },
+		{ -30, 0, 0.66, 0.6, nil, true },
+		{ 30, 0, 0.66, 0.6, shine, true },
+		{ -58, 0, 0.7, 0.6, nil, true },
+		{ 58, 0, 0.7, 0.6, nil, true },
+		{ -86, 5, 0.66, 0.56, under, true },
+		{ 86, 5, 0.66, 0.56, under, true },
+		-- rang de devant (penché vers l'avant)
+		{ -45, -35, 0.5, 0.56, shine },
+		{ -12, -38, 0.5, 0.56 },
+		{ 18, -35, 0.5, 0.56, shine },
+		{ 50, -32, 0.5, 0.54 },
+		-- rang de derrière
+		{ -65, 40, 0.58, 0.58, under },
+		{ -25, 45, 0.6, 0.6, under },
+		{ 20, 45, 0.6, 0.6, under },
+		{ 62, 40, 0.58, 0.58, under },
+		{ 0, 75, 0.55, 0.58, under, nil, 0.36 },
+	}, { tip = tip, scale = L })
+	-- Pointes qui dépassent sur les côtés, sous le haut du bandeau, et dans la nuque
+	for _, side in { -1, 1 } do
+		ctx.spike("Head", c, Vector3.new(side * 0.5, 0.5, 0.0), Vector3.new(side, -0.2, 0.05), 0.55 * L, 0.44, { tip = tip, cross = false })
+		ctx.spike("Head", under, Vector3.new(side * 0.36, 0.3, 0.4), Vector3.new(side * 0.6, -0.6, 0.7), 0.4 * L, 0.42, { tip = tip, cross = false })
 	end
-	for i, x in { -0.5, -0.25, 0, 0.25, 0.5 } do
-		ctx.lock("Head", c, Vector3.new(x, y, z), Vector3.new(x * 0.9, -1, -0.25), 0.44, 0.44, look.hairTip, (i % 2 == 0) and shine or nil)
+	for _, x in { -0.25, 0, 0.25 } do
+		ctx.spike("Head", under, Vector3.new(x, 0.15, 0.5), Vector3.new(x, -1, 0.5), 0.4 * L, 0.42, { tip = tip, cross = false })
 	end
+	if not band then
+		-- Sans bandeau : frange en pointes sur le front
+		fringe(ctx, c, { -0.38, -0.13, 0.13, 0.38 }, { 0.42, 0.5, 0.46, 0.4 }, 0.34, { alt = tip or shine, y = 0.56, spread = 0.7 })
+	end
+end
+
+HAIR.short = function(ctx, c, look)
+	-- Coupe courte (sabreur, soldat, élève) : calotte + mèches courtes couchées en écailles,
+	-- petite frange ; dessous plus sombre (nuque dégradée).
+	local under, shine = hairTones(c, look)
+	local L = look.hairLength or 1
+	cap(ctx, c, { grow = 0.02, height = 0.8, color2 = under, backLength = 1.15 })
+	scales(ctx, c, shine, under, 0.5, 0.4 * L, { lift = 1.1 })
+	-- Petites pointes sur le dessus
+	crown(ctx, c, Vector3.new(0, 0.62, 0.05), {
+		{ -25, -10, 0.36, 0.44, shine },
+		{ 20, 10, 0.36, 0.44 },
+		{ 0, 50, 0.34, 0.44, under },
+	}, { scale = L })
+	fringe(ctx, c, { -0.3, -0.06, 0.2 }, { 0.26, 0.32, 0.26 }, 0.32, { alt = shine, y = 0.54, spread = 0.6 })
 end
 
 HAIR.wild = function(ctx, c, look)
@@ -478,258 +579,309 @@ HAIR.wild = function(ctx, c, look)
 	local under, shine = hairTones(c, look)
 	local tip = look.hairTip
 	local tilt = look.hairTilt or 0
-	mass(ctx, under, { height = 1.0 })
-	ctx.lock("Head", c, Vector3.new(-0.34, TOP + 0.02, FRONT - 0.06), Vector3.new(-0.35, -1, -0.3), 0.62, 0.48, tip, shine)
-	ctx.lock("Head", c, Vector3.new(0.05, TOP + 0.06, FRONT - 0.06), Vector3.new(0.2, -1, -0.3), 0.5, 0.44, tip)
-	ctx.lock("Head", c, Vector3.new(0.42, TOP + 0.02, FRONT - 0.06), Vector3.new(0.6, -0.8, -0.3), 0.56, 0.44, tip, shine)
-	for i = 0, 6 do
-		local a = (i / 7) * math.pi * 2 + 0.3
-		local dx, dz = math.cos(a), math.sin(a)
-		ctx.spike("Head", c, Vector3.new(dx * 0.42, TOP + 0.12, dz * 0.4 + 0.05), Vector3.new(dx + tilt, 1.05, dz * 0.9 + 0.15), 1.2, 0.92, tip, dz < 0.2 and shine or nil)
+	local L = look.hairLength or 1
+	cap(ctx, c, { color2 = under, backLength = 1.35 })
+	scales(ctx, c, shine, under, 0.5, 0.46 * L, { front = false, tip = tip })
+	-- Frange en pointes
+	fringe(ctx, c, { -0.36, -0.1, 0.16, 0.4 }, { 0.5, 0.44, 0.4, 0.46 }, 0.36, { alt = shine, y = 0.56, spread = 0.75, out = 0.25, tip = tip })
+	ctx.burst("Head", Vector3.new(0, 0.62, 0.05), Vector3.new(0.6, 0.34, 0.62), c, {
+		{ 0, 0, 0.95 * L, 0.6, nil, 1 },
+		{ 270, 30, 0.85 * L, 0.56, shine, 0.9 },
+		{ 225, 35, 0.95 * L, 0.58, nil, 0.8 },
+		{ 315, 35, 0.95 * L, 0.58, shine, 0.8 },
+		{ 180, 50, 0.9 * L, 0.56, nil, 0.6 },
+		{ 0, 50, 0.9 * L, 0.56, nil, 0.6 },
+		{ 135, 45, 0.9 * L, 0.56, under, 0.7 },
+		{ 45, 45, 0.9 * L, 0.56, under, 0.7 },
+		{ 90, 40, 0.9 * L, 0.56, under, 0.6 },
+		{ 160, 80, 0.7 * L, 0.5, under, 0.3 },
+		{ 20, 80, 0.7 * L, 0.5, under, 0.3 },
+		{ 200, 75, 0.62 * L, 0.48, nil, 0.35 },
+		{ 340, 75, 0.62 * L, 0.48, nil, 0.35 },
+	}, { tip = tip, sink = 0.75, lift = 0.6 })
+	if tilt ~= 0 then
+		-- Mèches couchées d'un côté (ninja copieur)
+		ctx.spike("Head", c, Vector3.new(0, 0.85, 0.05), Vector3.new(tilt * 2, 1, 0.2), 0.9 * L, 0.6, { tip = tip })
+		ctx.spike("Head", shine, Vector3.new(tilt * 0.3, 0.8, -0.2), Vector3.new(tilt * 2.2, 0.8, -0.2), 0.8 * L, 0.55, { tip = tip })
 	end
-	ctx.spike("Head", c, Vector3.new(0, TOP + 0.18, 0), Vector3.new(0.1 + tilt, 1, 0.1), 1.2, 0.95, tip, shine)
 	for _, side in { -1, 1 } do
-		ctx.spike("Head", c, Vector3.new(side * 0.62, 0.25, 0.1), Vector3.new(side + tilt * 0.5, -0.2, 0.2), 0.85, 0.74, tip)
+		ctx.spike("Head", c, Vector3.new(side * 0.55, 0.35, 0.0), Vector3.new(side, -0.2, 0.15), 0.5 * L, 0.42, { tip = tip })
 	end
-	for _, x in { -0.35, 0.35 } do
-		ctx.spike("Head", under, Vector3.new(x, 0.1, BACK - 0.08), Vector3.new(x, -0.4, 1), 0.9, 0.78)
-	end
+	ctx.spike("Head", under, Vector3.new(0, 0.15, 0.55), Vector3.new(0, -0.4, 1), 0.6 * L, 0.5, { tip = tip })
 end
 
 HAIR.tall_spiky = function(ctx, c, look)
 	HAIR.wild(ctx, c, look)
 	-- Très longue crinière jusqu'aux jambes.
-	for _, x in { -0.35, 0, 0.35 } do
-		ctx.spike("Head", c, Vector3.new(x, 0.35, BACK - 0.1), Vector3.new(x * 0.3, -1, 0.25), 3.4, 1.22, look.hairTip)
+	for _, x in { -0.3, 0, 0.3 } do
+		ctx.spike("Head", c, Vector3.new(x, 0.3, 0.5), Vector3.new(x * 0.3, -1, 0.25), 3.0, 1.0, { tip = look.hairTip })
 	end
-	ctx.strand("Head", c, Vector3.new(0, 0.5, BACK - 0.15), Vector3.new(0, -1, 0.4), 2.6, 1.1)
+	ctx.strand("Head", c, Vector3.new(0, 0.4, 0.55), Vector3.new(0, -1, 0.35), 2.4, 1.0)
 end
 
 HAIR.spiky_back = function(ctx, c, look)
 	-- Mèches qui encadrent le visage + pointes dressées vers l'arrière (ninja vengeur)
 	local under, shine = hairTones(c, look)
-	mass(ctx, under, { height = 0.92 })
-	for _, side in { -1, 1 } do
-		ctx.lock("Head", c, Vector3.new(side * 0.52, TOP - 0.02, FRONT - 0.07), Vector3.new(side * 0.12, -1, -0.06), 1.15, 0.34, nil, side < 0 and shine or nil)
-	end
-	ctx.lock("Head", c, Vector3.new(-0.14, TOP + 0.02, FRONT - 0.07), Vector3.new(-0.3, -1, -0.25), 0.66, 0.38, nil, shine)
-	ctx.lock("Head", c, Vector3.new(0.18, TOP + 0.02, FRONT - 0.07), Vector3.new(0.32, -1, -0.25), 0.54, 0.34)
-	ctx.lock("Head", c, Vector3.new(-0.38, TOP, FRONT - 0.06), Vector3.new(-0.15, -1, -0.2), 0.5, 0.3)
-	for _, p in { { -0.42, 0.2 }, { 0, 0.4 }, { 0.42, 0.2 }, { -0.25, -0.1 }, { 0.25, -0.1 }, { 0, -0.28 } } do
-		ctx.spike(
-			"Head",
-			p[2] < 0 and under or c,
-			Vector3.new(p[1], TOP - 0.05 + p[2] * 0.4, 0.3),
-			Vector3.new(p[1] * 0.8, 0.45 + p[2], 1),
-			1.1,
-			0.86,
-			look.hairTip,
-			p[2] > 0.1 and shine or nil
-		)
-	end
+	cap(ctx, c, { color2 = under, backLength = 1.3 })
+	scales(ctx, c, shine, under, 0.48, 0.42, { front = false })
+	sidelocks(ctx, c, 0.95, 0.32, 0.5)
+	fringe(ctx, c, { -0.32, -0.08, 0.2 }, { 0.62, 0.5, 0.42 }, 0.34, { alt = shine, y = 0.56, spread = 0.6 })
+	ctx.burst("Head", Vector3.new(0, 0.55, 0.15), Vector3.new(0.58, 0.36, 0.55), c, {
+		{ 90, 40, 0.85, 0.56, nil, 0.1 },
+		{ 60, 55, 0.8, 0.54, shine, 0.15 },
+		{ 120, 55, 0.8, 0.54, nil, 0.15 },
+		{ 30, 75, 0.62, 0.5, under, 0 },
+		{ 150, 75, 0.62, 0.5, under, 0 },
+		{ 90, 75, 0.7, 0.54, under, -0.1 },
+		{ 0, 20, 0.5, 0.48, nil, 0.6 },
+	}, { sink = 0.8 })
 end
 
 HAIR.long = function(ctx, c, look)
-	-- Longs cheveux lisses : frange, mèches qui encadrent le visage, nappe dans le dos
+	-- Longs cheveux lisses : frange écartée sur le front, longues mèches de côté, nappe dans le dos.
 	local under, shine = hairTones(c, look)
 	local tip = look.hairTip
-	mass(ctx, c, { height = 0.9, back = false })
-	ctx.ball("Head", "HairBack", Vector3.new(HEAD_W + 0.14, 2.7, 0.62), CFrame.new(0, TOP - 1.25, BACK - 0.05), under)
+	cap(ctx, c, { back = false, height = 0.84 })
+	local length = look.hairLength or 2.4
+	ctx.ball("Head", "HairBack", Vector3.new(1.34, length, 0.6), CFrame.new(0, TOP - 0.1 - length / 2 + 0.25, 0.4), under)
+	ctx.ball("Head", "HairBack", Vector3.new(1.28, length * 0.94, 0.5), CFrame.new(0, TOP - 0.1 - length / 2 + 0.2, 0.5), c)
 	if tip then
-		ctx.ball("Head", "HairTip", Vector3.new(HEAD_W + 0.1, 1.0, 0.6), CFrame.new(0, TOP - 2.3, BACK - 0.02), tip)
+		ctx.ball("Head", "HairTip", Vector3.new(1.18, 0.8, 0.52), CFrame.new(0, TOP - length + 0.1, 0.5), tip)
 	end
-	-- Reflet en bandeau sur le dessus (anneau de lumière des animés)
-	ctx.ball("Head", "HairShine", Vector3.new(HEAD_W + 0.2, 0.12, HEAD_D + 0.2), CFrame.new(0, TOP - 0.08, 0.05) * CFrame.Angles(0.15, 0, 0), shine, { Transparency = 0.15 })
 	for _, side in { -1, 1 } do
-		ctx.add("Head", "HairSide", Vector3.new(0.18, 1.9, HEAD_D - 0.25), CFrame.new(side * (HEAD_W / 2 + 0.07), TOP - 0.85, 0.15), under)
-		ctx.lock("Head", c, Vector3.new(side * 0.52, TOP - 0.02, FRONT - 0.06), Vector3.new(side * 0.04, -1, -0.04), 1.6, 0.38, tip, side < 0 and shine or nil)
+		ctx.ball("Head", "HairSide", Vector3.new(0.28, 1.5, 0.95), CFrame.new(side * 0.6, 0.0, 0.1), under)
+		-- Mèche longue qui encadre le visage (deux tons)
+		ctx.strand("Head", c, Vector3.new(side * 0.62, 0.45, -0.28), Vector3.new(side * 0.14, -1, -0.06), 1.25, 0.24, 0.2)
+		ctx.strand("Head", shine, Vector3.new(side * 0.6, 0.45, -0.36), Vector3.new(side * 0.12, -1, -0.08), 0.7, 0.12, 0.1)
 	end
-	for i, x in { -0.3, -0.05, 0.22 } do
-		ctx.lock("Head", c, Vector3.new(x, TOP + 0.02, FRONT - 0.08), Vector3.new(x * 0.3, -1, -0.2), 0.48, 0.4, nil, i == 2 and shine or nil)
+	if look.forehead then
+		-- Front dégagé, raie au milieu : deux mèches courbées
+		fringe(ctx, c, { -0.3, -0.12, 0.12, 0.3 }, { 0.36, 0.26, 0.26, 0.36 }, 0.26, { y = 0.6, spread = 2.2, out = 0.08, thickness = 0.12 })
+	else
+		fringe(ctx, c, { -0.36, -0.13, 0.1, 0.34 }, { 0.36, 0.42, 0.4, 0.34 }, 0.36, { alt = shine, y = 0.58, spread = 0.5, thickness = 0.16 })
 	end
 end
 
 HAIR.ponytail = function(ctx, c, look)
-	cap(ctx, c, 0.48)
-	back(ctx, c, 0.95)
-	sides(ctx, c, 0.85)
-	fringe(ctx, c, { -0.3, 0, 0.3 }, 0.42, 0.36)
-	for _, side in { -1, 1 } do
-		ctx.lock("Head", c, Vector3.new(side * 0.52, TOP - 0.02, FRONT - 0.04), Vector3.new(side * 0.06, -1, -0.04), 1.0, 0.3)
-	end
-	ctx.ball("Head", "Tie", Vector3.new(0.34, 0.3, 0.3), CFrame.new(0, 0.3, BACK + 0.12), darken(c, 0.45))
-	ctx.strand("Head", c, Vector3.new(0, 0.32, BACK + 0.18), Vector3.new(0, -1, 0.35), 2.0, 0.6, look.hairTip)
+	-- Cheveux tirés en queue de cheval (Itochi, Mako...) : frange, mèches de côté, longue queue.
+	local under, shine = hairTones(c, look)
+	cap(ctx, c, { color2 = under, backLength = 1.25 })
+	sidelocks(ctx, c, look.sidelockLength or 0.9, 0.3, 0.5)
+	fringe(ctx, c, { -0.24, 0.02, 0.26 }, { 0.42, 0.36, 0.3 }, 0.32, { alt = shine, y = 0.56, spread = 0.7 })
+	ctx.ball("Head", "HairTie", Vector3.new(0.3, 0.26, 0.26), CFrame.new(0, 0.05, 0.64), darken(c, 0.45))
+	ctx.strand("Head", c, Vector3.new(0, 0.05, 0.7), Vector3.new(0, -1, 0.3), look.tailLength or 1.7, 0.42, 0.34)
+	ctx.strand("Head", under, Vector3.new(0, -0.1, 0.72), Vector3.new(0, -1, 0.2), (look.tailLength or 1.7) * 0.8, 0.3, 0.3)
 end
 
 HAIR.side_ponytail = function(ctx, c, look)
-	cap(ctx, c, 0.48)
-	back(ctx, c, 0.95)
-	sides(ctx, c, 0.8)
-	fringe(ctx, c, { -0.3, 0, 0.3 }, 0.42, 0.36)
-	ctx.ball("Head", "Tie", Vector3.new(0.3, 0.3, 0.3), CFrame.new(0.72, 0.35, 0.25), darken(c, 0.45))
-	ctx.strand("Head", c, Vector3.new(0.78, 0.35, 0.3), Vector3.new(0.5, -1, 0.3), 1.6, 0.55, look.hairTip)
+	local under, shine = hairTones(c, look)
+	cap(ctx, c, { color2 = under, backLength = 1.25 })
+	sidelocks(ctx, c, 0.8, 0.3, 0.5)
+	fringe(ctx, c, { -0.3, -0.05, 0.2 }, { 0.4, 0.44, 0.38 }, 0.34, { alt = shine, y = 0.56, spread = 0.4 })
+	ctx.ball("Head", "HairTie", Vector3.new(0.26, 0.26, 0.26), CFrame.new(0.62, 0.3, 0.25), darken(c, 0.45))
+	ctx.strand("Head", c, Vector3.new(0.7, 0.3, 0.3), Vector3.new(0.4, -1, 0.3), 1.3, 0.42)
 end
 
 HAIR.ponytail_spiky = function(ctx, c, look)
-	cap(ctx, c, 0.45)
-	back(ctx, c, 0.8)
-	sides(ctx, c, 0.65)
-	fringe(ctx, c, { -0.38, 0.38 }, 0.4, 0.32)
-	ctx.ball("Head", "Tie", Vector3.new(0.3, 0.26, 0.3), CFrame.new(0, TOP + 0.18, 0.45), darken(c, 0.45))
-	for _, p in { { 0, 0 }, { -0.25, 0.4 }, { 0.25, -0.4 } } do
-		ctx.spike("Head", c, Vector3.new(p[1] * 0.4, TOP + 0.25, 0.5), Vector3.new(p[2], 1, 0.7), 0.85, 0.68, look.hairTip)
+	-- Queue d'ananas (stratège) : cheveux tirés vers l'arrière, touffe en pointes en éventail.
+	local under, shine = hairTones(c, look)
+	cap(ctx, c, { color2 = under, backLength = 1.05, height = 0.8 })
+	sidelocks(ctx, c, 0.5, 0.26, 0.45)
+	local tie = Vector3.new(0, 0.82, 0.42)
+	ctx.ball("Head", "HairTie", Vector3.new(0.3, 0.22, 0.3), CFrame.new(tie) * CFrame.Angles(0.5, 0, 0), darken(c, 0.5))
+	local center = tie + Vector3.new(0, 0.05, 0.05)
+	for _, e in { { 0, 20, 0.6 }, { -35, 30, 0.55 }, { 35, 30, 0.55 }, { -65, 45, 0.48 }, { 65, 45, 0.48 }, { -15, 55, 0.5 }, { 15, 55, 0.5 } } do
+		local a, b = math.rad(e[1]), math.rad(e[2])
+		local dir = Vector3.new(-math.sin(a) * math.cos(b), math.cos(a) * math.cos(b), math.sin(b))
+		ctx.spike("Head", math.abs(e[1]) > 50 and under or (e[1] == 0 and shine or c), center + dir * 0.06, dir, e[3], 0.36, { cross = false, thickness = 0.16 })
 	end
 end
 
 HAIR.slick = function(ctx, c, look)
-	cap(ctx, c, 0.48)
-	back(ctx, c, 1.1)
-	sides(ctx, c, 0.65)
-	ctx.lock("Head", c, Vector3.new(-0.3, TOP + 0.05, FRONT - 0.03), Vector3.new(-1, -0.4, -0.1), 0.6, 0.32)
-	local _ = look
+	local under, shine = hairTones(c, look)
+	cap(ctx, c, { color2 = under, backLength = 1.3 })
+	ctx.lock("Head", shine, Vector3.new(-0.25, 0.62, -0.5), Vector3.new(-1, -0.5, -0.1), 0.5, 0.3)
 end
 
 HAIR.slick_up = function(ctx, c, look)
-	-- Cheveux dressés vers le haut et l'arrière, côtés rasés plus sombres (fléau, prince guerrier)
+	-- Cheveux dressés vers le haut et l'arrière, côtés plus sombres (fléau, prince guerrier)
 	local under, shine = hairTones(c, look)
-	mass(ctx, c, { grow = 0.3, height = 0.9, back = false })
-	-- Côtés et nuque rasés, plus sombres
-	ctx.ball("Head", "HairMassBack", Vector3.new(HEAD_W + 0.38, 1.2, 1.3), CFrame.new(0, TOP - 0.5, 0.2), under)
-	for _, p in { { -0.4, -0.3 }, { 0, -0.38 }, { 0.4, -0.3 }, { -0.25, 0.1 }, { 0.25, 0.1 }, { 0, 0.32 } } do
-		ctx.spike("Head", c, Vector3.new(p[1], TOP + 0.08, p[2]), Vector3.new(p[1] * 0.5, 1, 0.35 + p[2] * 0.3), 1.2, 0.84, look.hairTip, p[2] < 0 and shine or nil)
-	end
-	ctx.spike("Head", c, Vector3.new(0, TOP + 0.12, 0), Vector3.new(0, 1, 0.15), 1.4, 0.95, look.hairTip, shine)
-	for _, x in { -0.3, 0.3 } do
-		ctx.spike("Head", c, Vector3.new(x, TOP - 0.05, BACK - 0.2), Vector3.new(x * 0.6, 0.3, 1), 0.85, 0.75, look.hairTip)
-	end
+	cap(ctx, c, { color2 = under, backLength = 1.3, height = 0.82 })
+	scales(ctx, c, shine, under, 0.48, 0.5, { lift = 1.8, tip = look.hairTip })
+	ctx.burst("Head", Vector3.new(0, 0.64, 0.05), Vector3.new(0.56, 0.32, 0.6), c, {
+		{ 270, 30, 0.7, 0.52, shine, 0.9 },
+		{ 230, 35, 0.7, 0.5, nil, 0.8 },
+		{ 310, 35, 0.7, 0.5, shine, 0.8 },
+		{ 0, 0, 0.8, 0.56, nil, 1 },
+		{ 180, 50, 0.62, 0.5, nil, 0.7 },
+		{ 0, 50, 0.62, 0.5, nil, 0.7 },
+		{ 90, 40, 0.65, 0.52, under, 0.6 },
+		{ 135, 55, 0.55, 0.48, under, 0.4 },
+		{ 45, 55, 0.55, 0.48, under, 0.4 },
+	}, { tip = look.hairTip, sink = 0.8 })
 end
 
 HAIR.mohawk = function(ctx, c, look)
+	local under, _ = hairTones(c, look)
+	-- Côtés rasés (ombre), crête de pointes au milieu
+	cap(ctx, under, { height = 0.7, backLength = 1.1, grow = -0.02 })
 	for i = 0, 4 do
-		local z = FRONT + 0.15 + i * 0.25
-		ctx.spike("Head", c, Vector3.new(0, TOP + 0.05, z), Vector3.new(0, 1, (i - 2) * 0.25), 0.75 + (i == 1 and 0.2 or 0), 0.4, look.hairTip)
+		local z = -0.45 + i * 0.24
+		ctx.spike(
+			"Head",
+			c,
+			Vector3.new(0, 0.82, z),
+			Vector3.new(0, 1, (i - 1.5) * 0.35),
+			0.62 + (i == 1 and 0.15 or 0),
+			0.42,
+			{ tip = look.hairTip, cross = false, thickness = 0.22 }
+		)
 	end
-	ctx.add("Head", "Crest", Vector3.new(0.3, 0.2, HEAD_D), CFrame.new(0, TOP + 0.08, 0), c)
 end
 
 HAIR.flame_spiky = function(ctx, c, look)
+	-- Crinière de flammes (pilier de la flamme) : mèches dorées à bouts rouges balayées vers l'arrière.
+	local under, shine = hairTones(c, look)
 	local tip = look.hairTip
-	cap(ctx, c, 0.5)
-	back(ctx, c, 1.0)
-	sides(ctx, c, 0.75)
-	fringe(ctx, c, { -0.42, -0.14, 0.14, 0.42 }, 0.45, 0.34, 0.9)
-	-- Piques balayées vers l'arrière comme des flammes.
-	for i = 0, 6 do
-		local x = -0.6 + i * 0.2
-		ctx.spike("Head", c, Vector3.new(x, TOP + 0.05, 0.0), Vector3.new(x * 0.8, 0.7, 1), 1.0, 0.7, tip)
-	end
+	cap(ctx, c, { color2 = under, backLength = 1.35, grow = 0.04 })
+	scales(ctx, c, shine, under, 0.5, 0.5, { front = false, tip = tip })
+	fringe(ctx, c, { -0.38, -0.12, 0.14, 0.4 }, { 0.5, 0.42, 0.42, 0.5 }, 0.36, { alt = shine, y = 0.58, spread = 0.9, out = 0.3, tip = tip })
+	ctx.burst("Head", Vector3.new(0, 0.62, 0.1), Vector3.new(0.6, 0.34, 0.6), c, {
+		{ 270, 35, 0.75, 0.55, shine, 0.5 },
+		{ 230, 45, 0.8, 0.55, nil, 0.3 },
+		{ 310, 45, 0.8, 0.55, nil, 0.3 },
+		{ 180, 60, 0.8, 0.55, nil, 0.1 },
+		{ 0, 60, 0.8, 0.55, nil, 0.1 },
+		{ 135, 55, 0.85, 0.55, under, 0 },
+		{ 45, 55, 0.85, 0.55, under, 0 },
+		{ 90, 50, 0.85, 0.58, under, -0.1 },
+		{ 0, 0, 0.7, 0.55, nil, 0.3 },
+	}, { tip = tip, sink = 0.75 })
 	for _, side in { -1, 1 } do
-		ctx.spike("Head", c, Vector3.new(side * 0.62, 0.2, 0.2), Vector3.new(side, -0.2, 0.6), 0.8, 0.65, tip)
+		ctx.spike("Head", c, Vector3.new(side * 0.55, 0.3, 0.1), Vector3.new(side, -0.3, 0.4), 0.55, 0.42, { tip = tip })
 	end
 end
 
 HAIR.flame = function(ctx, c, look)
-	local tip = look.hairTip or c
-	sides(ctx, c, 0.5)
-	cap(ctx, c, 0.4)
-	ctx.ball("Head", "Flame1", Vector3.new(1.35, 0.9, 1.3), CFrame.new(0, TOP + 0.4, 0.08), c)
-	ctx.ball("Head", "Flame2", Vector3.new(1.0, 0.95, 0.95), CFrame.new(0, TOP + 0.95, 0.15), c)
-	ctx.spike("Head", tip, Vector3.new(0, TOP + 1.1, 0.2), Vector3.new(0, 1, 0.15), 1.0, 0.94)
-	for _, side in { -1, 1 } do
-		ctx.spike("Head", c, Vector3.new(side * 0.42, TOP + 0.45, 0.1), Vector3.new(side * 0.6, 1, 0.1), 0.9, 0.74, tip)
-	end
-	fringe(ctx, c, { 0 }, 0.4, 0.36)
+	-- Flamme dressée (prince guerrier) : front dégagé en pointe ("V"), grande flamme en éventail.
+	local under, shine = hairTones(c, look)
+	local tip = look.hairTip
+	cap(ctx, c, { color2 = under, backLength = 1.1, height = 0.84 })
+	scales(ctx, c, shine, under, 0.5, 0.5, { lift = 2.2, tip = tip })
+	crown(ctx, c, Vector3.new(0, 0.75, 0.12), {
+		{ 0, 12, 1.15, 0.66, nil, true },
+		{ -20, 8, 1.0, 0.62, shine, true },
+		{ 20, 8, 1.0, 0.62, nil, true },
+		{ -40, 12, 0.85, 0.6 },
+		{ 40, 12, 0.85, 0.6, shine },
+		{ -58, 18, 0.65, 0.56, under },
+		{ 58, 18, 0.65, 0.56, under },
+		{ -10, 40, 0.95, 0.62, under },
+		{ 12, 40, 0.95, 0.62, under },
+		{ 0, -20, 0.8, 0.6, shine },
+	}, { tip = tip, r = 0.22 })
+	-- Pointe de cheveux au milieu du front (racine en "V")
+	ctx.lock("Head", c, Vector3.new(0, 0.62, -0.62), Vector3.new(0, -1, -0.15), 0.32, 0.38)
 end
 
 HAIR.curly = function(ctx, c, look)
-	back(ctx, c, 1.1)
-	sides(ctx, c, 0.95)
-	local bumps = {
-		Vector3.new(-0.45, TOP + 0.1, FRONT + 0.1),
-		Vector3.new(0.05, TOP + 0.15, FRONT + 0.05),
-		Vector3.new(0.5, TOP + 0.1, FRONT + 0.12),
-		Vector3.new(-0.5, TOP + 0.2, 0.15),
-		Vector3.new(0, TOP + 0.3, 0.05),
-		Vector3.new(0.5, TOP + 0.2, 0.15),
-		Vector3.new(-0.3, TOP + 0.15, BACK - 0.1),
-		Vector3.new(0.3, TOP + 0.15, BACK - 0.1),
-		Vector3.new(-0.72, 0.25, 0.1),
-		Vector3.new(0.72, 0.25, 0.1),
+	-- Tignasse bouclée (tireur au long nez) : grosses boucles rondes tout autour.
+	local under, shine = hairTones(c, look)
+	cap(ctx, under, { grow = 0.06, backLength = 1.3 })
+	local curls = {
+		{ -0.42, 0.66, -0.4 },
+		{ 0.0, 0.74, -0.46 },
+		{ 0.42, 0.66, -0.4 },
+		{ -0.55, 0.62, 0.05 },
+		{ 0.55, 0.62, 0.05 },
+		{ -0.3, 0.92, 0.05 },
+		{ 0.3, 0.92, 0.05 },
+		{ 0.0, 0.84, 0.42 },
+		{ -0.45, 0.5, 0.42 },
+		{ 0.45, 0.5, 0.42 },
+		{ -0.66, 0.25, 0.15 },
+		{ 0.66, 0.25, 0.15 },
+		{ 0, 0.25, 0.62 },
 	}
-	for _, pos in bumps do
-		ctx.ball("Head", "Curl", Vector3.new(0.68, 0.6, 0.68), CFrame.new(pos), c)
+	for i, p in curls do
+		ctx.ball("Head", "Curl", Vector3.new(0.52, 0.48, 0.52), CFrame.new(p[1], p[2], p[3]), i % 3 == 1 and shine or c)
 	end
-	local _ = look
 end
 
 HAIR.messy = function(ctx, c, look)
-	-- Tignasse en bataille
+	-- Tignasse en bataille (pirate au chapeau de paille...) : mèches courtes en tous sens.
 	local under, shine = hairTones(c, look)
-	mass(ctx, under, { height = 0.95 })
-	local bangs = { { -0.45, 0.5, -0.4 }, { -0.15, 0.6, 0.3 }, { 0.18, 0.5, -0.2 }, { 0.47, 0.55, 0.4 } }
-	for i, b in bangs do
-		ctx.lock("Head", c, Vector3.new(b[1], TOP + 0.02, FRONT - 0.07), Vector3.new(b[3], -1, -0.25), b[2], 0.4, nil, i == 2 and shine or nil)
-	end
-	for _, p in { { -0.45, 0.3, -0.6 }, { 0.5, 0.35, 0.7 }, { 0, 0.5, 0.2 }, { -0.2, 0.2, -0.3 }, { 0.3, -0.2, 0.4 } } do
-		ctx.spike("Head", c, Vector3.new(p[1], TOP + 0.08, p[2]), Vector3.new(p[3], 1, p[2]), 0.62, 0.7, look.hairTip, shine)
-	end
+	cap(ctx, c, { color2 = under, backLength = 1.3 })
+	scales(ctx, c, shine, under, 0.48, 0.42, { front = false })
+	fringe(ctx, c, { -0.38, -0.14, 0.1, 0.34 }, { 0.44, 0.52, 0.4, 0.48 }, 0.34, { alt = shine, y = 0.56, spread = 0.9, out = 0.2 })
+	ctx.burst("Head", Vector3.new(0, 0.6, 0.05), Vector3.new(0.6, 0.34, 0.62), c, {
+		{ 230, 40, 0.42, 0.42, shine, 0.6 },
+		{ 320, 50, 0.4, 0.42, nil, 0.4 },
+		{ 0, 10, 0.42, 0.44, nil, 0.8 },
+		{ 160, 60, 0.42, 0.42, nil, 0.2 },
+		{ 20, 65, 0.42, 0.42, nil, 0.1 },
+		{ 100, 50, 0.45, 0.44, under, 0.2 },
+		{ 60, 70, 0.4, 0.42, under, -0.2 },
+		{ 130, 75, 0.4, 0.42, under, -0.3 },
+	}, { sink = 0.82 })
 	for _, side in { -1, 1 } do
-		ctx.spike("Head", c, Vector3.new(side * 0.6, 0.15, 0.05), Vector3.new(side, -0.5, 0.1), 0.5, 0.5)
+		ctx.spike("Head", c, Vector3.new(side * 0.56, 0.3, -0.05), Vector3.new(side, -0.6, 0.0), 0.36, 0.36)
 	end
 end
 
 HAIR.cover_eye = function(ctx, c, look)
-	cap(ctx, c, 0.5)
-	back(ctx, c, 1.1)
-	sides(ctx, c, 0.85)
-	-- Longue mèche qui cache un œil.
-	ctx.ball("Head", "Cover", Vector3.new(0.5, 0.85, 0.16), CFrame.new(-0.22, 0.18, FRONT - 0.06) * CFrame.Angles(0, 0, -0.15), c)
-	ctx.lock("Head", c, Vector3.new(0.3, TOP, FRONT - 0.04), Vector3.new(0.5, -1, -0.2), 0.4, 0.34)
-	local _ = look
+	-- Mèche qui cache un œil (cuisinier)
+	local under, shine = hairTones(c, look)
+	cap(ctx, c, { color2 = under, backLength = 1.3 })
+	sidelocks(ctx, c, 0.7, 0.3, 0.5)
+	ctx.lock("Head", c, Vector3.new(-0.2, 0.62, -0.66), Vector3.new(0.05, -1, -0.15), 0.85, 0.5, { thickness = 0.16, facing = Vector3.new(0.3, 0, 1) })
+	ctx.lock("Head", shine, Vector3.new(-0.05, 0.6, -0.69), Vector3.new(-0.1, -1, -0.15), 0.6, 0.26, { thickness = 0.06, facing = Vector3.new(0.3, 0, 1) })
+	fringe(ctx, c, { 0.25, 0.42 }, { 0.32, 0.28 }, 0.3, { y = 0.56, spread = 0.8 })
 end
 
 HAIR.bun = function(ctx, c, look)
-	cap(ctx, c, 0.48)
-	back(ctx, c, 0.9)
-	sides(ctx, c, 0.7)
-	fringe(ctx, c, { -0.3, 0.05, 0.35 }, 0.42, 0.36)
-	ctx.ball("Head", "Bun", Vector3.new(0.7, 0.62, 0.7), CFrame.new(0, TOP + 0.35, 0.35), c)
-	ctx.ball("Head", "BunTie", Vector3.new(0.55, 0.12, 0.55), CFrame.new(0, TOP + 0.1, 0.3), darken(c, 0.4))
-	local _ = look
+	local under, shine = hairTones(c, look)
+	cap(ctx, c, { color2 = under, backLength = 1.25 })
+	fringe(ctx, c, { -0.25, 0.02, 0.28 }, 0.4, 0.34, { alt = shine, y = 0.56, spread = 0.5 })
+	sidelocks(ctx, c, 0.75, 0.28, 0.5)
+	ctx.ball("Head", "Bun", Vector3.new(0.58, 0.52, 0.58), CFrame.new(0, 0.95, 0.35), c)
+	ctx.ball("Head", "BunTie", Vector3.new(0.44, 0.1, 0.44), CFrame.new(0, 0.74, 0.3), darken(c, 0.4))
 end
 
 HAIR.topknot = function(ctx, c, look)
-	cap(ctx, c, 0.45)
-	back(ctx, c, 0.8)
-	sides(ctx, c, 0.6)
-	ctx.ball("Head", "Knot", Vector3.new(0.5, 0.45, 0.5), CFrame.new(0, TOP + 0.38, 0.2), c)
-	ctx.strand("Head", c, Vector3.new(0, TOP + 0.5, 0.25), Vector3.new(0, 1, 0.5), 0.6, 0.3)
-	local _ = look
+	local under, _ = hairTones(c, look)
+	cap(ctx, c, { color2 = under, backLength = 1.15, height = 0.74 })
+	ctx.ball("Head", "Knot", Vector3.new(0.44, 0.4, 0.44), CFrame.new(0, 0.95, 0.2), c)
+	ctx.strand("Head", c, Vector3.new(0, 1.05, 0.25), Vector3.new(0, 1, 0.5), 0.5, 0.26)
 end
 
 HAIR.bowl = function(ctx, c, look)
-	-- Coupe au bol bien nette et brillante.
-	ctx.rounded("Head", "Bowl", Vector3.new(HEAD_W + 0.14, 0.78, HEAD_D + 0.14), CFrame.new(0, TOP - 0.22, 0.01), c, HEAD_R + 0.07, { Reflectance = 0.08 })
-	ctx.ball("Head", "BowlDome", Vector3.new(HEAD_W + 0.14, 0.55, HEAD_D + 0.14), CFrame.new(0, TOP + 0.16, 0.01), c, { Reflectance = 0.08 })
-	back(ctx, c, 1.15)
+	-- Coupe au bol bien nette et brillante : frange droite au ras des sourcils, côtés jusqu'à la mâchoire.
+	local under, shine = hairTones(c, look)
+	ctx.ball("Head", "BowlDome", Vector3.new(1.4, 0.9, 1.42), CFrame.new(0, 0.6, 0.02), c, { Reflectance = 0.05 })
+	ctx.vcyl("Head", "Bowl", 0.36, 1.4, CFrame.new(0, 0.42, 0.02), c, { Reflectance = 0.05 })
+	-- Côtés et nuque (plus bas que la frange)
+	ctx.ball("Head", "BowlBack", Vector3.new(1.3, 1.25, 0.9), CFrame.new(0, 0.12, 0.22), under)
 	for _, side in { -1, 1 } do
-		ctx.add("Head", "HairSide", Vector3.new(0.18, 0.9, HEAD_D - 0.2), CFrame.new(side * (HEAD_W / 2 + 0.07), 0.05, 0.1), c)
+		ctx.ball("Head", "BowlSide", Vector3.new(0.24, 0.95, 0.85), CFrame.new(side * 0.62, 0.1, 0.02), c)
 	end
-	local _ = look
+	-- Reflet en bandeau sur le dessus (cheveux brillants)
+	ctx.ball("Head", "BowlShine", Vector3.new(0.7, 0.1, 0.34), CFrame.new(-0.12, 0.86, -0.38) * CFrame.Angles(0.5, 0, 0.12), shine)
 end
 
 HAIR.bob = function(ctx, c, look)
-	cap(ctx, c, 0.55)
-	ctx.rounded("Head", "HairBack", Vector3.new(HEAD_W + 0.14, 1.45, 0.55), CFrame.new(0, TOP + 0.1 - 0.72, BACK - 0.12), c, 0.22)
+	-- Carré court (sorcière au marteau, androïde) : volume arrondi qui descend au menton.
+	local under, shine = hairTones(c, look)
+	cap(ctx, c, { back = false, height = 0.84 })
+	ctx.ball("Head", "HairBob", Vector3.new(1.46, 1.4, 1.36), CFrame.new(0, 0.05, 0.1), under)
 	for _, side in { -1, 1 } do
-		ctx.add("Head", "HairSide", Vector3.new(0.2, 1.45, HEAD_D - 0.05), CFrame.new(side * (HEAD_W / 2 + 0.07), TOP + 0.1 - 0.72, 0.05), c)
+		ctx.ball("Head", "HairBobSide", Vector3.new(0.28, 1.15, 0.95), CFrame.new(side * 0.62, -0.05, -0.05), c)
 	end
-	ctx.add("Head", "Fringe", Vector3.new(HEAD_W + 0.1, 0.3, 0.12), CFrame.new(0, TOP - 0.1, FRONT - 0.08), c)
-	local _ = look
+	fringe(ctx, c, { -0.32, -0.1, 0.12, 0.34 }, 0.4, 0.32, { alt = shine, y = 0.56, spread = 0.3 })
 end
 
 HAIR.bald = function(ctx, c, look)
-	ctx.ball("Head", "Shine", Vector3.new(0.45, 0.06, 0.3), CFrame.new(-0.25, TOP + 0.17, -0.2), lighten(look.skin or WHITE, 0.45))
+	ctx.ball("Head", "Shine", Vector3.new(0.4, 0.06, 0.26), CFrame.new(-0.2, TOP - 0.02, -0.2), lighten(look.skin or WHITE, 0.45), { Transparency = 0.2 })
 	local _ = c
 end
 
@@ -766,21 +918,51 @@ local function paintPanel(ctx, part: BasePart, face: Enum.NormalId, painter: (an
 	painter(ctx.surface(part, face, "Pattern"))
 end
 
+-- Symbole de la feuille (village caché) gravé sur la plaque frontale.
+local function leafSymbol(canvas, ink: Color3, scratched: boolean)
+	-- Spirale (anneau + petit tourbillon), pointe de feuille en haut à droite, queue en bas à gauche
+	Painter.rect(canvas, 0.5, 0.55, 0.42, 0.58, ink, { corner = 0.5, transparency = 1, stroke = ink, strokeThickness = 2, z = 2 })
+	Painter.rect(canvas, 0.54, 0.6, 0.12, 0.18, ink, { corner = 0.5, z = 2 })
+	Painter.rect(canvas, 0.48, 0.47, 0.16, 0.06, ink, { corner = 0.5, rotation = -30, z = 2 })
+	Painter.rect(canvas, 0.7, 0.28, 0.3, 0.09, ink, { corner = 0.3, rotation = -42, z = 2 })
+	Painter.rect(canvas, 0.3, 0.84, 0.16, 0.08, ink, { corner = 0.5, rotation = 25, z = 2 })
+	if scratched then
+		Painter.rect(canvas, 0.5, 0.52, 1.1, 0.08, Color3.fromRGB(45, 45, 55), { rotation = -10, z = 3 })
+	end
+end
+
+-- Bandeau frontal de ninja : bande nouée autour de la tête + plaque métallique (3 facettes
+-- qui suivent la courbe) au symbole de la feuille.
 local function headbandBase(ctx, look, tilt: number, scratched: boolean)
-	local band = look.headbandColor or Color3.fromRGB(35, 45, 90)
+	local band = look.headbandColor or Color3.fromRGB(22, 34, 84)
+	local y = look.headbandY or 0.4
+	local BAND_R = look.headbandRadius or WRAP_R
 	local rot = CFrame.Angles(0, 0, tilt)
-	ctx.rounded("Head", "Headband", Vector3.new(HEAD_W + 0.24, 0.24, HEAD_D + 0.22), CFrame.new(0, 0.45, 0.01) * rot, band, HEAD_R + 0.1)
-	local plate = ctx.add("Head", "Plate", Vector3.new(0.74, 0.3, 0.06), CFrame.new(0, 0.45, FRONT - 0.15) * rot, METAL, { Material = Enum.Material.Metal, Reflectance = 0.2 })
-	paintPanel(ctx, plate, Enum.NormalId.Front, function(canvas)
-		Painter.rect(canvas, 0.5, 0.5, 0.3, 0.62, METAL, { corner = 0.5, transparency = 1, stroke = Color3.fromRGB(70, 75, 90), strokeThickness = 2, z = 2 })
-		Painter.rect(canvas, 0.6, 0.38, 0.1, 0.35, Color3.fromRGB(70, 75, 90), { corner = 0.5, rotation = 35, z = 2 })
-		if scratched then
-			Painter.rect(canvas, 0.5, 0.5, 0.9, 0.08, Color3.fromRGB(60, 60, 70), { rotation = -8, z = 3 })
-		end
-	end)
-	ctx.ball("Head", "Knot", Vector3.new(0.26, 0.24, 0.2), CFrame.new(0, 0.45, BACK + 0.13) * rot, band)
-	ctx.strand("Head", band, Vector3.new(-0.08, 0.42, BACK + 0.15), Vector3.new(-0.3, -1, 0.5), 0.8, 0.16)
-	ctx.strand("Head", band, Vector3.new(0.08, 0.42, BACK + 0.15), Vector3.new(0.35, -1, 0.4), 0.7, 0.16)
+	local frame = CFrame.new(0, y, 0) * rot
+	ctx.vcyl("Head", "Headband", 0.36, 2 * BAND_R, frame, band)
+	local metal = look.plateColor or METAL
+	local ink = Color3.fromRGB(70, 82, 100)
+	for i = -1, 1 do
+		local a = i * math.rad(24)
+		local r = BAND_R + 0.02
+		local cf = frame * CFrame.new(-math.sin(a) * r, 0, -math.cos(a) * r) * CFrame.Angles(0, a, 0)
+		local plate = ctx.add("Head", "Plate", Vector3.new(0.3, 0.3, 0.05), cf, metal, { Material = Enum.Material.Metal, Reflectance = 0.15 })
+		paintPanel(ctx, plate, Enum.NormalId.Front, function(canvas)
+			-- Rebord et rivets
+			Painter.rect(canvas, 0.5, 0.06, 1, 0.08, lighten(metal, 0.4), { z = 1 })
+			Painter.rect(canvas, 0.5, 0.95, 1, 0.08, darken(metal, 0.3), { z = 1 })
+			if i ~= 0 then
+				local x = i < 0 and 0.2 or 0.8
+				Painter.rect(canvas, x, 0.22, 0.09, 0.09, ink, { corner = 0.5, z = 2 })
+				Painter.rect(canvas, x, 0.78, 0.09, 0.09, ink, { corner = 0.5, z = 2 })
+			else
+				leafSymbol(canvas, ink, scratched)
+			end
+		end)
+	end
+	ctx.ball("Head", "Knot", Vector3.new(0.24, 0.22, 0.18), frame * CFrame.new(0, 0, BAND_R + 0.06), band)
+	ctx.strand("Head", band, (frame * CFrame.new(-0.06, -0.03, BAND_R + 0.08)).Position, Vector3.new(-0.3, -1, 0.5), 0.7, 0.14)
+	ctx.strand("Head", band, (frame * CFrame.new(0.06, -0.03, BAND_R + 0.08)).Position, Vector3.new(0.35, -1, 0.4), 0.62, 0.14)
 end
 
 ACC.headband = function(ctx, look)
@@ -788,7 +970,7 @@ ACC.headband = function(ctx, look)
 end
 
 ACC.headband_tilted = function(ctx, look)
-	headbandBase(ctx, look, 0.12, false)
+	headbandBase(ctx, look, 0.14, false)
 end
 
 ACC.headband_scratched = function(ctx, look)
@@ -797,47 +979,54 @@ end
 
 ACC.headband_belt = function(ctx, look)
 	local band = look.headbandColor or Color3.fromRGB(200, 40, 40)
-	ctx.add("Torso", "BeltBand", Vector3.new(2.06, 0.32, 1.06), CFrame.new(0, -0.76, 0), band)
-	ctx.add("Torso", "BeltPlate", Vector3.new(0.7, 0.3, 0.06), CFrame.new(0, -0.76, -0.56), METAL, { Material = Enum.Material.Metal, Reflectance = 0.2 })
+	ctx.add("Torso", "BeltBand", Vector3.new(2.06, 0.3, 1.06), CFrame.new(0, -0.78, 0), band)
+	ctx.add("Torso", "BeltPlate", Vector3.new(0.62, 0.28, 0.06), CFrame.new(0, -0.78, -0.56), METAL, { Material = Enum.Material.Metal, Reflectance = 0.2 })
 end
 
 ACC.mask_lower = function(ctx, look)
-	ctx.rounded("Head", "Mask", Vector3.new(HEAD_W + 0.05, 0.42, HEAD_D + 0.05), CFrame.new(0, -0.43, 0), look.accColor or Color3.fromRGB(45, 50, 65), HEAD_R + 0.03)
-	ctx.ball("Head", "MaskNose", Vector3.new(0.22, 0.2, 0.12), CFrame.new(0, -0.27, FRONT - 0.04), look.accColor or Color3.fromRGB(45, 50, 65))
+	local cloth = look.maskColor or look.accColor or Color3.fromRGB(45, 50, 65)
+	ctx.vcyl("Head", "Mask", 0.5, 2 * WRAP_R, CFrame.new(0, -0.32, 0), cloth)
+	ctx.ball("Head", "MaskNose", Vector3.new(0.26, 0.22, 0.14), CFrame.new(0, -0.14, -WRAP_R + 0.01), cloth)
+	ctx.vcyl("Head", "MaskTop", 0.03, 2 * WRAP_R + 0.01, CFrame.new(0, -0.07, 0), lighten(cloth, 0.12))
 end
 
 ACC.mask_bandage = function(ctx, look)
-	local cloth = look.accColor or Color3.fromRGB(235, 230, 220)
-	ctx.rounded("Head", "Bandage", Vector3.new(HEAD_W + 0.05, 0.45, HEAD_D + 0.05), CFrame.new(0, -0.4, 0), cloth, HEAD_R + 0.03)
-	ctx.add("Head", "BandageWrap", Vector3.new(HEAD_W + 0.07, 0.06, HEAD_D + 0.07), CFrame.new(0, -0.32, 0), darken(cloth, 0.15))
+	local cloth = look.maskColor or Color3.fromRGB(235, 230, 220)
+	ctx.vcyl("Head", "Bandage", 0.5, 2 * WRAP_R, CFrame.new(0, -0.32, 0), cloth)
+	for i = 0, 2 do
+		ctx.vcyl("Head", "BandageWrap", 0.025, 2 * WRAP_R + 0.01, CFrame.new(0, -0.48 + i * 0.13, 0) * CFrame.Angles(0, 0, (i - 1) * 0.06), darken(cloth, 0.18))
+	end
 end
 
 ACC.blindfold = function(ctx, look)
-	ctx.rounded("Head", "Blindfold", Vector3.new(HEAD_W + 0.06, 0.42, HEAD_D + 0.06), CFrame.new(0, 0.0, 0), look.blindColor or Color3.fromRGB(20, 20, 26), HEAD_R + 0.03)
+	local cloth = look.blindColor or Color3.fromRGB(20, 20, 26)
+	ctx.vcyl("Head", "Blindfold", 0.34, 2 * WRAP_R, CFrame.new(0, 0.05, 0), cloth)
+	ctx.vcyl("Head", "BlindfoldFold", 0.03, 2 * WRAP_R + 0.01, CFrame.new(0, 0.02, 0), lighten(cloth, 0.12))
 end
 
 ACC.tattoos_blue = function(ctx, look)
 	local ink = look.accColor or Color3.fromRGB(60, 80, 220)
 	for _, side in { "Left Arm", "Right Arm" } do
-		ctx.add(side, "ArmTattoo", Vector3.new(1.03, 0.08, 1.03), CFrame.new(0, 0.25, 0), ink)
-		ctx.add(side, "ArmTattoo", Vector3.new(1.03, 0.08, 1.03), CFrame.new(0, -0.15, 0), ink)
+		ctx.add(side, "ArmTattoo", Vector3.new(1.02, 0.07, 1.02), CFrame.new(0, 0.25, 0), ink)
+		ctx.add(side, "ArmTattoo", Vector3.new(1.02, 0.07, 1.02), CFrame.new(0, -0.15, 0), ink)
 	end
 	for _, side in { -1, 1 } do
-		ctx.add("Torso", "BodyTattoo", Vector3.new(0.06, 1.6, 1.03), CFrame.new(side * 0.99, 0, 0), ink)
+		ctx.add("Torso", "BodyTattoo", Vector3.new(0.05, 1.6, 1.02), CFrame.new(side * 0.99, 0, 0), ink)
 	end
 end
 
 ACC.stitches = function(ctx, look)
 	local thread = Color3.fromRGB(60, 50, 60)
-	ctx.add("Torso", "BodyStitch", Vector3.new(2.03, 0.05, 1.03), CFrame.new(0, 0.2, 0) * CFrame.Angles(0, 0, 0.35), thread)
+	ctx.add("Torso", "BodyStitch", Vector3.new(2.02, 0.05, 1.02), CFrame.new(0, 0.2, 0) * CFrame.Angles(0, 0, 0.35), thread)
 	local _ = look
 end
 
 ACC.earrings = function(ctx, look)
+	-- Boucles d'oreilles "hanafuda" (soleil levant)
 	for _, side in { -1, 1 } do
-		local x = side * (HEAD_W / 2 + 0.06)
-		ctx.add("Head", "Earring", Vector3.new(0.05, 0.36, 0.2), CFrame.new(x, -0.38, 0.06), WHITE)
-		local sun = ctx.add("Head", "EarringSun", Vector3.new(0.06, 0.13, 0.13), CFrame.new(x + side * 0.005, -0.35, 0.06), Color3.fromRGB(220, 40, 40))
+		local x = side * (HEAD_R + 0.03)
+		ctx.add("Head", "Earring", Vector3.new(0.04, 0.34, 0.2), CFrame.new(x, -0.3, 0.05), WHITE)
+		local sun = ctx.add("Head", "EarringSun", Vector3.new(0.05, 0.12, 0.12), CFrame.new(x + side * 0.005, -0.27, 0.05), Color3.fromRGB(220, 40, 40))
 		sun.Shape = Enum.PartType.Cylinder
 	end
 	local _ = look
@@ -845,167 +1034,167 @@ end
 
 ACC.earrings_stud = function(ctx, look)
 	for _, side in { -1, 1 } do
-		ctx.ball("Head", "Stud", Vector3.new(0.12, 0.12, 0.12), CFrame.new(side * (HEAD_W / 2 + 0.07), -0.18, 0.08), look.accColor or GOLD, { Material = Enum.Material.Metal })
+		ctx.ball("Head", "Stud", Vector3.new(0.1, 0.1, 0.1), CFrame.new(side * (HEAD_R + 0.03), -0.15, 0.05), look.accColor or GOLD, { Material = Enum.Material.Metal })
 	end
 end
 
 ACC.earrings_gold = function(ctx, look)
 	for _, side in { -1, 1 } do
-		ctx.ball("Head", "GoldRing", Vector3.new(0.08, 0.26, 0.26), CFrame.new(side * (HEAD_W / 2 + 0.07), -0.3, 0.08), GOLD, { Material = Enum.Material.Metal, Reflectance = 0.2 })
+		ctx.ball("Head", "GoldRing", Vector3.new(0.06, 0.22, 0.22), CFrame.new(side * (HEAD_R + 0.04), -0.25, 0.05), GOLD, { Material = Enum.Material.Metal, Reflectance = 0.2 })
 	end
 	local _ = look
 end
 
 ACC.cap = function(ctx, look)
+	-- Casquette de marine
 	local color = look.accColor or WHITE
-	ctx.rounded("Head", "Cap", Vector3.new(HEAD_W + 0.16, 0.42, HEAD_D + 0.16), CFrame.new(0, TOP + 0.02, 0), color, HEAD_R + 0.08)
-	ctx.ball("Head", "CapDome", Vector3.new(HEAD_W + 0.16, 0.5, HEAD_D + 0.16), CFrame.new(0, TOP + 0.22, 0), color)
-	ctx.rounded("Head", "CapBand", Vector3.new(HEAD_W + 0.18, 0.12, HEAD_D + 0.18), CFrame.new(0, TOP - 0.14, 0), look.capBand or Color3.fromRGB(40, 60, 140), HEAD_R + 0.09)
-	ctx.add("Head", "Brim", Vector3.new(1.1, 0.08, 0.6), CFrame.new(0, TOP - 0.14, FRONT - 0.32), look.capBrim or Color3.fromRGB(30, 30, 40))
+	ctx.ball("Head", "CapDome", Vector3.new(1.42, 0.86, 1.44), CFrame.new(0, 0.58, 0.02), color)
+	ctx.vcyl("Head", "Cap", 0.3, 1.42, CFrame.new(0, 0.42, 0.02), color)
+	ctx.vcyl("Head", "CapBand", 0.1, 1.44, CFrame.new(0, 0.31, 0.02), look.capBand or Color3.fromRGB(40, 60, 140))
+	ctx.add("Head", "Brim", Vector3.new(1.0, 0.07, 0.5), CFrame.new(0, 0.3, -0.86) * CFrame.Angles(math.rad(-8), 0, 0), look.capBrim or Color3.fromRGB(30, 30, 40))
 end
 
 ACC.bandana = function(ctx, look)
 	local color = look.accColor or Color3.fromRGB(200, 40, 40)
-	ctx.rounded("Head", "Bandana", Vector3.new(HEAD_W + 0.16, 0.45, HEAD_D + 0.16), CFrame.new(0, TOP - 0.05, 0), color, HEAD_R + 0.08)
-	ctx.ball("Head", "BandanaDome", Vector3.new(HEAD_W + 0.16, 0.5, HEAD_D + 0.16), CFrame.new(0, TOP + 0.14, 0), color)
-	ctx.ball("Head", "BandanaKnot", Vector3.new(0.3, 0.26, 0.22), CFrame.new(0.3, TOP - 0.1, BACK + 0.12), color)
-	ctx.strand("Head", color, Vector3.new(0.32, TOP - 0.12, BACK + 0.15), Vector3.new(0.3, -1, 0.5), 0.6, 0.2)
+	ctx.ball("Head", "BandanaDome", Vector3.new(1.42, 0.95, 1.44), CFrame.new(0, 0.5, 0.02), color)
+	ctx.vcyl("Head", "Bandana", 0.22, 1.42, CFrame.new(0, 0.38, 0.02), color)
+	ctx.ball("Head", "BandanaKnot", Vector3.new(0.26, 0.22, 0.2), CFrame.new(0.2, 0.36, 0.74), color)
+	ctx.strand("Head", color, Vector3.new(0.22, 0.32, 0.76), Vector3.new(0.3, -1, 0.5), 0.5, 0.18)
 end
 
 ACC.turban = function(ctx, look)
 	local color = look.accColor or WHITE
-	ctx.rounded("Head", "Turban", Vector3.new(HEAD_W + 0.2, 0.55, HEAD_D + 0.2), CFrame.new(0, TOP + 0.05, 0), color, HEAD_R + 0.1)
-	ctx.ball("Head", "TurbanTop", Vector3.new(HEAD_W + 0.2, 0.8, HEAD_D + 0.2), CFrame.new(0, TOP + 0.3, 0), color)
-	ctx.ball("Head", "TurbanGem", Vector3.new(0.24, 0.24, 0.12), CFrame.new(0, TOP + 0.12, FRONT - 0.12), Color3.fromRGB(150, 60, 200), { Material = Enum.Material.Neon })
+	ctx.vcyl("Head", "Turban", 0.5, 1.46, CFrame.new(0, 0.45, 0), color)
+	ctx.ball("Head", "TurbanTop", Vector3.new(1.46, 0.85, 1.46), CFrame.new(0, 0.72, 0), color)
+	ctx.ball("Head", "TurbanGem", Vector3.new(0.2, 0.2, 0.1), CFrame.new(0, 0.5, -0.74), Color3.fromRGB(150, 60, 200), { Material = Enum.Material.Neon })
 end
 
 ACC.straw_hat = function(ctx, look)
 	local straw = look.accColor or Color3.fromRGB(240, 210, 110)
-	ctx.vcyl("Head", "Brim", 0.1, 2.7, CFrame.new(0, TOP + 0.05, 0), straw)
-	ctx.vcyl("Head", "Crown", 0.55, 1.62, CFrame.new(0, TOP + 0.3, 0), straw)
-	ctx.ball("Head", "CrownTop", Vector3.new(1.62, 0.3, 1.62), CFrame.new(0, TOP + 0.57, 0), straw)
-	ctx.vcyl("Head", "Ribbon", 0.17, 1.64, CFrame.new(0, TOP + 0.16, 0), Color3.fromRGB(210, 30, 40))
+	ctx.vcyl("Head", "Brim", 0.08, 2.4, CFrame.new(0, 0.62, 0), straw)
+	ctx.vcyl("Head", "Crown", 0.42, 1.38, CFrame.new(0, 0.84, 0), straw)
+	ctx.ball("Head", "CrownTop", Vector3.new(1.38, 0.28, 1.38), CFrame.new(0, 1.05, 0), straw)
+	ctx.vcyl("Head", "Ribbon", 0.15, 1.4, CFrame.new(0, 0.73, 0), Color3.fromRGB(210, 30, 40))
 end
 
 ACC.dome = function(ctx, look)
 	local color = look.accColor or Color3.fromRGB(150, 60, 200)
-	ctx.ball("Head", "Dome", Vector3.new(HEAD_W + 0.1, 1.0, HEAD_D + 0.1), CFrame.new(0, TOP + 0.05, 0.04), color, { Reflectance = 0.25 })
-	ctx.ball("Head", "DomeShine", Vector3.new(0.35, 0.2, 0.25), CFrame.new(-0.25, TOP + 0.42, -0.3), lighten(color, 0.5))
+	ctx.ball("Head", "Dome", Vector3.new(1.3, 1.0, 1.3), CFrame.new(0, 0.55, 0.03), color, { Reflectance = 0.2 })
+	ctx.ball("Head", "DomeShine", Vector3.new(0.3, 0.16, 0.2), CFrame.new(-0.22, 0.95, -0.3), lighten(color, 0.5))
 end
 
 ACC.volcano = function(ctx, look)
 	local rock = look.accColor or Color3.fromRGB(80, 60, 50)
-	ctx.vcyl("Head", "Volcano1", 0.5, 1.4, CFrame.new(0, TOP + 0.15, 0), rock)
-	ctx.vcyl("Head", "Volcano2", 0.45, 1.0, CFrame.new(0, TOP + 0.6, 0), rock)
-	ctx.vcyl("Head", "Lava", 0.1, 0.7, CFrame.new(0, TOP + 0.85, 0), Color3.fromRGB(255, 120, 20), { Material = Enum.Material.Neon })
+	ctx.vcyl("Head", "Volcano1", 0.45, 1.25, CFrame.new(0, 0.7, 0), rock)
+	ctx.vcyl("Head", "Volcano2", 0.4, 0.9, CFrame.new(0, 1.1, 0), rock)
+	ctx.vcyl("Head", "Lava", 0.08, 0.62, CFrame.new(0, 1.32, 0), Color3.fromRGB(255, 120, 20), { Material = Enum.Material.Neon })
 end
 
 ACC.antennae = function(ctx, look)
 	for _, side in { -1, 1 } do
-		ctx.strand("Head", look.skin, Vector3.new(side * 0.22, TOP + 0.1, -0.3), Vector3.new(side * 0.25, 1, -0.45), 0.85, 0.12)
-		ctx.ball("Head", "AntennaTip", Vector3.new(0.14, 0.14, 0.14), CFrame.new(side * 0.42, TOP + 0.85, -0.65), look.skin)
+		ctx.strand("Head", look.skin, Vector3.new(side * 0.2, 0.62, -0.28), Vector3.new(side * 0.25, 1, -0.45), 0.75, 0.1)
+		ctx.ball("Head", "AntennaTip", Vector3.new(0.12, 0.12, 0.12), CFrame.new(side * 0.38, 1.28, -0.58), look.skin)
 	end
 end
 
 ACC.horns = function(ctx, look)
 	local color = look.accColor or Color3.fromRGB(235, 225, 205)
 	for _, side in { -1, 1 } do
-		ctx.spike("Head", color, Vector3.new(side * 0.42, TOP + 0.05, -0.15), Vector3.new(side * 0.45, 1, -0.1), 0.7, 0.41)
+		ctx.spike("Head", color, Vector3.new(side * 0.36, 0.55, -0.15), Vector3.new(side * 0.45, 1, -0.1), 0.6, 0.36)
 	end
 end
 
 local function ears(ctx, color: Color3, inner: Color3, size: number)
 	for _, side in { -1, 1 } do
-		local cf = CFrame.new(side * 0.42, TOP + 0.3, 0.05) * CFrame.Angles(0, 0, -0.35 * side)
-		ctx.ball("Head", "AnimalEar", Vector3.new(size * 0.7, size, 0.16), cf, color)
-		ctx.ball("Head", "AnimalEarInner", Vector3.new(size * 0.4, size * 0.65, 0.17), cf * CFrame.new(0, -0.04, -0.02), inner)
+		local cf = CFrame.new(side * 0.38, 0.82, 0.05) * CFrame.Angles(0, 0, -0.35 * side)
+		ctx.ball("Head", "AnimalEar", Vector3.new(size * 0.7, size, 0.15), cf, color)
+		ctx.ball("Head", "AnimalEarInner", Vector3.new(size * 0.4, size * 0.65, 0.16), cf * CFrame.new(0, -0.04, -0.02), inner)
 	end
 end
 
 ACC.cat_ears = function(ctx, look)
-	ears(ctx, look.hairColor or look.skin, Color3.fromRGB(255, 180, 200), 0.55)
+	ears(ctx, look.hairColor or look.skin, Color3.fromRGB(255, 180, 200), 0.5)
 end
 
 ACC.fox_ears = function(ctx, look)
-	ears(ctx, look.accColor or Color3.fromRGB(255, 120, 20), Color3.fromRGB(40, 20, 20), 0.7)
+	ears(ctx, look.accColor or Color3.fromRGB(255, 120, 20), Color3.fromRGB(40, 20, 20), 0.62)
 end
 
 ACC.scouter = function(ctx, look)
 	ctx.add(
 		"Head",
 		"ScouterLens",
-		Vector3.new(0.38, 0.32, 0.04),
-		CFrame.new(-0.22, 0.02, FRONT - 0.1),
+		Vector3.new(0.34, 0.28, 0.04),
+		CFrame.new(-0.24, 0.05, -WRAP_R - 0.05),
 		Color3.fromRGB(80, 255, 120),
 		{ Material = Enum.Material.Neon, Transparency = 0.35 }
 	)
-	ctx.add("Head", "ScouterBody", Vector3.new(0.16, 0.42, 0.42), CFrame.new(-(HEAD_W / 2 + 0.08), 0.05, -0.2), Color3.fromRGB(240, 240, 240))
-	ctx.add("Head", "ScouterArm", Vector3.new(0.3, 0.06, 0.06), CFrame.new(-0.55, 0.12, FRONT - 0.06), Color3.fromRGB(240, 240, 240))
+	ctx.add("Head", "ScouterBody", Vector3.new(0.14, 0.38, 0.38), CFrame.new(-(HEAD_R + 0.06), 0.05, -0.15), Color3.fromRGB(240, 240, 240))
+	ctx.add("Head", "ScouterArm", Vector3.new(0.06, 0.06, 0.42), CFrame.new(-(HEAD_R + 0.04), 0.12, -0.5), Color3.fromRGB(240, 240, 240))
 	local _ = look
 end
 
 ACC.long_nose = function(ctx, look)
-	ctx.ball("Head", "LongNose", Vector3.new(0.16, 0.16, 0.8), CFrame.new(0, -0.17, FRONT - 0.36), look.skin)
+	ctx.ball("Head", "LongNose", Vector3.new(0.14, 0.14, 0.75), CFrame.new(0, -0.15, FRONT - 0.32), look.skin)
 end
 
 ACC.saw_nose = function(ctx, look)
 	local skin = look.skin
-	ctx.add("Head", "SawNose", Vector3.new(0.14, 0.1, 0.95), CFrame.new(0, -0.12, FRONT - 0.45), skin)
+	ctx.add("Head", "SawNose", Vector3.new(0.12, 0.09, 0.85), CFrame.new(0, -0.12, FRONT - 0.4), skin)
 	for i = 0, 3 do
-		ctx.add("Head", "SawTooth", Vector3.new(0.3, 0.05, 0.08), CFrame.new(0, -0.12, FRONT - 0.15 - i * 0.22), WHITE)
+		ctx.add("Head", "SawTooth", Vector3.new(0.26, 0.05, 0.07), CFrame.new(0, -0.12, FRONT - 0.12 - i * 0.2), WHITE)
 	end
 end
 
 ACC.clown_nose = function(ctx, look)
-	ctx.ball("Head", "ClownNose", Vector3.new(0.3, 0.28, 0.28), CFrame.new(0, -0.15, FRONT - 0.07), Color3.fromRGB(230, 30, 40))
+	ctx.ball("Head", "ClownNose", Vector3.new(0.26, 0.24, 0.24), CFrame.new(0, -0.18, FRONT - 0.05), Color3.fromRGB(230, 30, 40))
 	local _ = look
 end
 
 ACC.muzzle = function(ctx, look)
+	-- Bâillon de bambou
 	local bamboo = Color3.fromRGB(120, 170, 70)
-	ctx.cyl("Head", "Bamboo", 1.05, 0.22, CFrame.new(0, -0.42, FRONT - 0.1), bamboo)
-	ctx.cyl("Head", "BambooKnot", 0.06, 0.25, CFrame.new(-0.25, -0.42, FRONT - 0.1), darken(bamboo, 0.3))
-	ctx.cyl("Head", "BambooKnot", 0.06, 0.25, CFrame.new(0.25, -0.42, FRONT - 0.1), darken(bamboo, 0.3))
-	ctx.rounded("Head", "BambooString", Vector3.new(HEAD_W + 0.03, 0.06, HEAD_D + 0.03), CFrame.new(0, -0.42, 0), Color3.fromRGB(200, 60, 60), HEAD_R)
+	ctx.cyl("Head", "Bamboo", 0.95, 0.2, CFrame.new(0, -0.36, -WRAP_R + 0.02), bamboo)
+	ctx.cyl("Head", "BambooKnot", 0.05, 0.23, CFrame.new(-0.22, -0.36, -WRAP_R + 0.02), darken(bamboo, 0.3))
+	ctx.cyl("Head", "BambooKnot", 0.05, 0.23, CFrame.new(0.22, -0.36, -WRAP_R + 0.02), darken(bamboo, 0.3))
+	ctx.vcyl("Head", "BambooString", 0.05, 2 * WRAP_R, CFrame.new(0, -0.36, 0), Color3.fromRGB(200, 60, 60))
 	local _ = look
 end
 
 ACC.boar_head = function(ctx, look)
+	-- Tête de sanglier portée comme un masque
 	local fur = look.accColor or Color3.fromRGB(110, 110, 120)
-	ctx.rounded("Head", "BoarHead", Vector3.new(HEAD_W + 0.3, HEAD_H + 0.3, HEAD_D + 0.3), CFrame.new(0, 0.1, 0), fur, HEAD_R + 0.15)
-	ctx.ball("Head", "BoarDome", Vector3.new(HEAD_W + 0.3, 0.6, HEAD_D + 0.3), CFrame.new(0, TOP + 0.25, 0), fur)
-	ctx.rounded("Head", "Snout", Vector3.new(0.75, 0.55, 0.5), CFrame.new(0, -0.25, FRONT - 0.32), lighten(fur, 0.35), 0.15)
+	ctx.ball("Head", "BoarHead", Vector3.new(1.5, 1.45, 1.5), CFrame.new(0, 0.12, 0), fur)
+	ctx.ball("Head", "BoarSnout", Vector3.new(0.66, 0.5, 0.5), CFrame.new(0, -0.18, -0.68), lighten(fur, 0.35))
 	for _, side in { -1, 1 } do
-		ctx.ball("Head", "Nostril", Vector3.new(0.12, 0.18, 0.05), CFrame.new(side * 0.15, -0.25, FRONT - 0.58), BLACK)
-		ctx.ball("Head", "BoarEye", Vector3.new(0.24, 0.24, 0.06), CFrame.new(side * 0.38, 0.22, FRONT - 0.15), Color3.fromRGB(150, 190, 220))
-		ctx.ball("Head", "BoarPupil", Vector3.new(0.1, 0.1, 0.06), CFrame.new(side * 0.38, 0.22, FRONT - 0.18), BLACK)
-		ctx.ball("Head", "BoarEar", Vector3.new(0.35, 0.45, 0.14), CFrame.new(side * 0.6, TOP + 0.4, 0) * CFrame.Angles(0, 0, -0.5 * side), fur)
-		ctx.spike("Head", WHITE, Vector3.new(side * 0.3, -0.45, FRONT - 0.4), Vector3.new(side * 0.3, 1, -0.6), 0.35, 0.19)
+		ctx.ball("Head", "Nostril", Vector3.new(0.1, 0.16, 0.05), CFrame.new(side * 0.13, -0.18, -0.93), BLACK)
+		ctx.ball("Head", "BoarEye", Vector3.new(0.22, 0.22, 0.06), CFrame.new(side * 0.33, 0.22, -0.66), Color3.fromRGB(150, 190, 220))
+		ctx.ball("Head", "BoarPupil", Vector3.new(0.09, 0.09, 0.06), CFrame.new(side * 0.33, 0.22, -0.69), BLACK)
+		ctx.ball("Head", "BoarEar", Vector3.new(0.3, 0.42, 0.12), CFrame.new(side * 0.5, 0.82, 0) * CFrame.Angles(0, 0, -0.5 * side), fur)
+		ctx.spike("Head", WHITE, Vector3.new(side * 0.26, -0.38, -0.75), Vector3.new(side * 0.3, 1, -0.6), 0.32, 0.18, { cross = false })
 	end
-	ctx.strand("Head", darken(fur, 0.35), Vector3.new(0, TOP + 0.3, 0.2), Vector3.new(0, 0.6, 1), 0.9, 0.5)
+	ctx.strand("Head", darken(fur, 0.35), Vector3.new(0, 0.8, 0.2), Vector3.new(0, 0.6, 1), 0.8, 0.45)
 end
 
 ACC.hood = function(ctx, look)
+	-- Capuche rabattue dans le dos (sweat à capuche)
 	local color = look.accColor or Color3.fromRGB(200, 30, 40)
-	ctx.ball("Torso", "Hood", Vector3.new(1.6, 0.9, 0.7), CFrame.new(0, 0.95, 0.6), color)
-	ctx.add("Torso", "HoodCollar", Vector3.new(2.06, 0.3, 1.08), CFrame.new(0, 0.86, 0), color)
+	ctx.ball("Torso", "Hood", Vector3.new(1.5, 0.85, 0.65), CFrame.new(0, 0.95, 0.6), color)
+	ctx.add("Torso", "HoodCollar", Vector3.new(2.04, 0.26, 1.06), CFrame.new(0, 0.88, 0), color)
 end
 
 ACC.hood_full = function(ctx, look)
 	local color = look.accColor or Color3.fromRGB(25, 25, 30)
-	ctx.rounded("Head", "HoodTop", Vector3.new(HEAD_W + 0.26, 0.3, HEAD_D + 0.24), CFrame.new(0, TOP + 0.12, 0.04), color, HEAD_R + 0.1)
-	ctx.add("Head", "HoodBack", Vector3.new(HEAD_W + 0.26, HEAD_H + 0.3, 0.2), CFrame.new(0, 0, BACK + 0.1), color)
-	for _, side in { -1, 1 } do
-		ctx.add("Head", "HoodSide", Vector3.new(0.16, HEAD_H + 0.3, HEAD_D + 0.1), CFrame.new(side * (HEAD_W / 2 + 0.1), 0, 0.05), color)
-	end
+	ctx.ball("Head", "HoodTop", Vector3.new(1.55, 1.5, 1.55), CFrame.new(0, 0.2, 0.06), color)
+	ctx.ball("Head", "HoodInner", Vector3.new(1.3, 1.1, 0.2), CFrame.new(0, 0.02, -0.68), darken(color, 0.5))
 end
 
 ACC.hair_ribbon = function(ctx, look)
 	local pink = look.accColor or Color3.fromRGB(255, 120, 170)
 	for _, side in { -1, 1 } do
-		ctx.ball("Head", "Ribbon", Vector3.new(0.42, 0.3, 0.12), CFrame.new(side * 0.24, 0.42, BACK + 0.12) * CFrame.Angles(0, 0, 0.3 * side), pink)
+		ctx.ball("Head", "Ribbon", Vector3.new(0.38, 0.26, 0.1), CFrame.new(side * 0.22, 0.42, 0.72) * CFrame.Angles(0, 0, 0.3 * side), pink)
 	end
-	ctx.ball("Head", "RibbonKnot", Vector3.new(0.16, 0.16, 0.14), CFrame.new(0, 0.42, BACK + 0.14), darken(pink, 0.2))
+	ctx.ball("Head", "RibbonKnot", Vector3.new(0.14, 0.14, 0.12), CFrame.new(0, 0.42, 0.74), darken(pink, 0.2))
 end
 
 ACC.butterfly_clip = function(ctx, look)
@@ -1014,8 +1203,8 @@ ACC.butterfly_clip = function(ctx, look)
 		ctx.ball(
 			"Head",
 			"ButterflyWing",
-			Vector3.new(0.12, 0.45, 0.55),
-			CFrame.new(HEAD_W / 2 + 0.12, 0.45 + side * 0.15, 0.25 + side * 0.15) * CFrame.Angles(side * 0.6, 0, 0),
+			Vector3.new(0.1, 0.4, 0.5),
+			CFrame.new(0.66, 0.5 + side * 0.13, 0.2 + side * 0.13) * CFrame.Angles(side * 0.6, 0, 0),
 			color,
 			{ Transparency = 0.15 }
 		)
@@ -1066,8 +1255,10 @@ ACC.cloak_skirt = function(ctx, look)
 end
 
 ACC.collar_high = function(ctx, look)
-	local color = look.topAccent or look.top or Color3.fromRGB(30, 30, 40)
-	ctx.rounded("Torso", "HighCollar", Vector3.new(1.55, 0.55, 1.45), CFrame.new(0, 1.12, 0), color, 0.3)
+	-- Col montant qui cache le bas du visage (manteau à nuages, uniforme à col haut)
+	local color = look.collarColor or look.topAccent or look.top or Color3.fromRGB(30, 30, 40)
+	ctx.vcyl("Torso", "HighCollar", 0.5, 1.5, CFrame.new(0, 0.98, 0), color)
+	ctx.vcyl("Torso", "HighCollarLining", 0.03, 1.36, CFrame.new(0, 1.23, 0), look.collarLining or Painter.shade(color, 0.4))
 end
 
 ACC.collar_gold = function(ctx, look)
@@ -1144,7 +1335,7 @@ ACC.haori_checker = function(ctx, look)
 	-- Damier vert et noir
 	local green = look.accColor or Color3.fromRGB(40, 130, 90)
 	haoriBase(ctx, look, Color3.fromRGB(28, 28, 32), function(S, kind)
-		local cell = 0.4 -- taille d'une case (studs)
+		local cell = 0.52 -- taille d'une case (studs)
 		local cols = math.max(1, math.floor(S.w / cell + 0.5))
 		local rows = math.max(1, math.floor(S.h / cell + 0.5))
 		for r = 0, rows - 1 do
@@ -1311,13 +1502,11 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 	elseif (has(look, "straw_hat") or has(look, "cap") or has(look, "bandana")) and look.hair ~= "none" and look.hair ~= "bald" then
 		-- Cheveux visibles sous le chapeau : nuque, mèches sur les côtés et frange en bataille.
 		local under, shine = hairTones(hairColor, look)
-		mass(ctx, under, { grow = 0.16, height = 0.8, lift = -0.05 })
-		for i, b in { { -0.45, 0.42, -0.4 }, { -0.16, 0.5, 0.3 }, { 0.16, 0.44, -0.2 }, { 0.45, 0.46, 0.4 } } do
-			ctx.lock("Head", hairColor, Vector3.new(b[1], TOP - 0.06, FRONT - 0.07), Vector3.new(b[3], -1, -0.25), b[2], 0.4, nil, i == 2 and shine or nil)
-		end
+		cap(ctx, under, { height = 0.7, lift = -0.06, backLength = 1.3 })
+		fringe(ctx, hairColor, { -0.4, -0.15, 0.12, 0.38 }, { 0.2, 0.24, 0.2, 0.22 }, 0.28, { alt = shine, y = 0.34, spread = 0.6, out = 0.04, thickness = 0.1 })
 		for _, side in { -1, 1 } do
-			ctx.spike("Head", hairColor, Vector3.new(side * 0.6, 0.12, 0.0), Vector3.new(side, -0.6, 0.1), 0.5, 0.5)
-			ctx.spike("Head", under, Vector3.new(side * 0.35, 0.05, BACK - 0.1), Vector3.new(side * 0.4, -0.6, 1), 0.55, 0.55)
+			ctx.lock("Head", hairColor, Vector3.new(side * 0.6, 0.3, -0.1), Vector3.new(side * 0.15, -1, 0), 0.4, 0.36, { facing = Vector3.new(side, 0, 0.2), thickness = 0.12 })
+			ctx.spike("Head", under, Vector3.new(side * 0.3, 0.05, 0.55), Vector3.new(side * 0.3, -0.8, 0.8), 0.36, 0.42, { cross = false })
 		end
 	end
 

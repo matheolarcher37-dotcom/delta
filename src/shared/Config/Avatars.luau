@@ -17,6 +17,9 @@
 --   ninja_maruto_2 = { ... }, -- facultatif : version ★★ (sinon la version ci-dessus est gardée)
 --
 -- Les ennemis marchent pareil (ex. ninja_kourama = { ... }).
+-- Les persos intégrés ont exactement les proportions d'un avatar R6 classique (tête 2x1x1 + maillage
+-- "Head", torse 2x2x1, bras et jambes 1x2x1) : un "Classic Shirt" / "Classic Pants" du catalogue
+-- s'y applique donc tel quel, comme sur l'avatar "Kid Naruto" de la Boîte à outils.
 -- Astuce : tu peux aussi faire ton perso à la main dans Studio et le mettre dans
 -- Workspace > GaleriePersos > ModelesPersos (voir le README) : il remplace alors le perso intégré.
 

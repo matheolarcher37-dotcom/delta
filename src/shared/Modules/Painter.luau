@@ -175,7 +175,7 @@ function PartCanvas:rect(x: number, y: number, w: number, h: number, color: Colo
 		local padX, padY = pad / self.w, pad / self.h
 		if transparency >= 0.95 then
 			-- Anneau seul : petits points le long du contour.
-			local n = 22
+			local n = 14
 			for i = 0, n - 1 do
 				local a = i / n * math.pi * 2
 				local px, py = x + w / 2 * math.cos(a), y + h / 2 * math.sin(a)
@@ -396,282 +396,364 @@ function Painter.bakeToParts(gui: SurfaceGui)
 end
 
 ------------------------------------------------------------------------
--- Visage (face avant plate de la tête)
+-- Visage : décalque d'animé (comme les visages des avatars "Kid Naruto"...) dessiné sur les
+-- plaques invisibles qui épousent la tête classique (voir CharacterBuilder).
 ------------------------------------------------------------------------
 
--- Inclinaison des paupières et des sourcils (degrés, positif = air sévère).
-local LID_TILT = { angry = 9, fierce = 5, happy = -3, calm = 0, smirk = 2 }
-local BROW_TILT = { angry = 17, fierce = 10, happy = -7, calm = -2, smirk = 0 }
+-- Toile "facettes" : une feuille virtuelle (largeur déroulée du visage) répartie sur plusieurs
+-- plaques ; chaque forme n'est dessinée que sur les plaques qu'elle touche.
+local Facets = {}
+Facets.__index = Facets
 
-local function eye(S, look, cx: number, cy: number, s: number, big: number?)
-	local k = (big or 1) * 1.2
+function Facets.new(plates, mode: string?, w: number, h: number, pixelsPerStud: number)
+	local self = setmetatable({ list = {}, w = w, h = h }, Facets)
+	for _, plate in plates do
+		local canvas = surface(plate.part, Enum.NormalId.Front, "Face", pixelsPerStud, mode)
+		table.insert(self.list, { g = canvas, u0 = plate.u0, u1 = plate.u1 })
+	end
+	return self
+end
+
+function Facets:rect(x: number, y: number, w: number, h: number, color: Color3, o)
+	local a = math.rad(o.rotation or 0)
+	local ws, hs = w * self.w, h * self.h
+	local half = (math.abs(ws * math.cos(a)) + math.abs(hs * math.sin(a))) / 2 / self.w
+	if o.stroke then
+		half += 0.012
+	end
+	local first = nil
+	for _, f in self.list do
+		if x + half > f.u0 and x - half < f.u1 then
+			local k = f.u1 - f.u0
+			local made = rect(f.g, (x - f.u0) / k, y, w / k, h, color, o)
+			first = first or made
+		end
+	end
+	return first
+end
+
+-- Inclinaison des paupières et des sourcils (studs de dénivelé, positif = air sévère).
+local LID_TILT = { angry = 0.035, fierce = 0.012, happy = -0.012, calm = 0, smirk = 0.006, sad = -0.03 }
+local BROW_TILT = { angry = 0.07, fierce = 0.035, happy = -0.03, calm = -0.01, smirk = 0.01, sad = -0.05 }
+
+local EYE_WHITE = Color3.fromRGB(236, 241, 247)
+
+-- Feuille du visage en studs : x le long de la courbe (+ = droite de l'observateur),
+-- y dans le repère de la tête (0 = centre de la tête, + vers le haut).
+local function faceTools(S, centerY: number)
+	local T = {}
+	local function X(xs: number): number
+		return 0.5 + xs / S.w
+	end
+	local function Y(ys: number): number
+		return 0.5 - (ys - centerY) / S.h
+	end
+	T.X, T.Y = X, Y
+	T.lite = S.lite
+	function T.oval(x: number, y: number, w: number, h: number, color: Color3, o: RectOptions?)
+		return S:oval(X(x), Y(y), w, h, color, o)
+	end
+	function T.box(x: number, y: number, w: number, h: number, color: Color3, o: RectOptions?)
+		return S:box(X(x), Y(y), w, h, color, o)
+	end
+	function T.line(x0: number, y0: number, x1: number, y1: number, th: number, color: Color3, o: RectOptions?)
+		return S:line(X(x0), Y(y0), X(x1), Y(y1), th, color, o)
+	end
+	return T
+end
+
+-- Un œil. `s` = 1 pour l'œil de droite (vu de face), -1 pour celui de gauche.
+local function eye(T, look, cx: number, cy: number, s: number, k: number)
 	local iris = look.eyes or Color3.fromRGB(80, 55, 40)
 	local face = look.face or "calm"
 	local lash = look.lashColor or INK
-	local rot = -s * (LID_TILT[face] or 0)
-	local W, H = 0.235 * k, 0.16 * k
-	local function at(dx: number, dy: number): (number, number)
-		-- décalage (studs) dans le repère incliné de l'œil
-		local a = math.rad(rot)
-		local rx = dx * math.cos(a) - dy * math.sin(a)
-		local ry = dx * math.sin(a) + dy * math.cos(a)
-		return cx + rx / S.w, cy + ry / S.h
-	end
+	-- Forme selon le caractère : yeux plissés (air sévère), ronds et grands (persos féminins)
+	local defaultH = (face == "angry" or face == "smirk") and 0.155 or ((look.blush or look.lashes) and 0.21 or 0.19)
+	local W, H = (look.eyeWidth or 0.26) * k, (look.eyeHeight or defaultH) * k
+	local tilt = (LID_TILT[face] or 0) * k
 	if look.eyeShadow then
 		-- Pigments autour des yeux (mode Ermite...)
-		local x, y = at(s * 0.015, -0.01)
-		S:oval(x, y, W * 1.55, H * 1.9, look.eyeShadow, { rotation = rot, fade = { 0.05, 0.25, 0.7 }, gradientRotation = 90, z = 1 })
+		T.oval(cx + s * 0.02, cy + 0.01, W * 1.5, H * 1.75, look.eyeShadow, { fade = { 0.1, 0.35, 0.8 }, gradientRotation = 90, z = 1 })
 	end
 	-- Blanc de l'œil (ombre de la paupière en haut)
-	S:oval(cx, cy, W, H, WHITE, { rotation = rot, gradient = { Color3.fromRGB(205, 210, 235), WHITE, WHITE }, z = 2 })
-	-- Iris en dégradé (sombre en haut, clair en bas), cerclé, qui passe sous le trait de cils
-	local ix, iy = at(0, 0.006 * k)
-	local IW, IH = 0.13 * k, 0.16 * k
-	S:oval(ix, iy, IW, IH, iris, {
-		gradient = { darken(iris, 0.6), darken(iris, 0.1), lighten(iris, 0.42) },
-		stroke = darken(iris, 0.72),
+	local white = look.scleraColor or EYE_WHITE
+	T.box(cx, cy - 0.005, W, H, white, { corner = 0.45, gradient = { Painter.shade(white, 0.22), white, white }, z = 2 })
+	-- Iris : sombre sous la paupière, clair en bas, cerclé
+	local IW, IH = W * 0.58, H * 0.96
+	local ix, iy = cx + s * W * 0.03, cy - H * 0.04
+	T.oval(ix, iy, IW, IH, iris, {
+		gradient = { darken(iris, 0.62), darken(iris, 0.12), lighten(iris, 0.38) },
+		stroke = not T.lite and darken(iris, 0.75) or nil,
 		strokeThickness = 1,
 		z = 3,
 	})
 	-- Pupille
-	local pupil = darken(iris, 0.85)
+	local pupil = look.pupilColor or darken(iris, 0.88)
 	if look.pupil == "bar" then
-		S:box(ix, iy, IW * 0.82, IH * 0.2, pupil, { corner = 0.3, z = 4 })
+		T.box(ix, iy, IW * 0.85, IH * 0.18, pupil, { corner = 0.3, z = 4 })
 	elseif look.pupil == "slit" then
-		S:oval(ix, iy, IW * 0.22, IH * 0.75, pupil, { z = 4 })
+		T.oval(ix, iy, IW * 0.2, IH * 0.78, pupil, { z = 4 })
 	elseif look.pupil == "ring" then
-		S:oval(ix, iy, IW * 0.6, IH * 0.6, pupil, { transparency = 1, stroke = pupil, strokeThickness = 1.5, z = 4 })
-		S:oval(ix, iy, IW * 0.22, IH * 0.22, pupil, { z = 4 })
-	else
-		S:oval(ix, iy - S:dy(0.012 * k), IW * 0.46, IH * 0.5, pupil, { z = 4 })
+		for _, r in { 0.82, 0.55 } do
+			T.oval(ix, iy, IW * r, IH * r, pupil, { transparency = 1, stroke = pupil, strokeThickness = 1.2, z = 4 })
+		end
+		T.oval(ix, iy, IW * 0.22, IH * 0.22, pupil, { z = 4 })
+	elseif look.pupil == "tomoe" then
+		-- Yeux rouges à trois virgules (clan maudit)
+		T.oval(ix, iy, IW * 0.62, IH * 0.62, pupil, { transparency = 1, stroke = pupil, strokeThickness = 1, z = 4, fine = true })
+		T.oval(ix, iy, IW * 0.28, IH * 0.28, pupil, { z = 4 })
+		for i = 0, 2 do
+			local a = math.rad(90 + i * 120)
+			T.oval(ix + math.cos(a) * IW * 0.31, iy + math.sin(a) * IH * 0.31, IW * 0.2, IW * 0.2, pupil, { z = 5 })
+		end
+	elseif look.pupil ~= "none" then
+		T.oval(ix, iy + H * 0.04, IW * 0.46, IH * 0.48, pupil, { z = 4 })
 	end
-	-- Ombre de la paupière sur le haut de l'iris
-	local x, y = at(0, -H * 0.3)
-	S:oval(x, y, W * 0.8, H * 0.3, darken(iris, 0.8), { rotation = rot, transparency = 0.65, z = 5, fine = true })
-	-- Deux reflets
-	S:oval(ix - S:dx(0.03 * k), iy - S:dy(0.034 * k), 0.056 * k, 0.056 * k, WHITE, { z = 6 })
-	S:oval(ix + S:dx(0.032 * k), iy + S:dy(0.042 * k), 0.026 * k, 0.026 * k, WHITE, { transparency = 0.1, z = 6 })
-	-- Trait de cils supérieur épais en 3 segments (forme en amande) qui recouvre le haut de l'œil
-	local ly = -H * 0.47
-	x, y = at(0, ly)
-	S:box(x, y, W * 0.98, 0.048 * k, lash, { corner = 0.5, rotation = rot, z = 7 })
-	local x0, y0 = at(s * W * 0.42, ly)
-	local x1, y1 = at(s * W * 0.6, ly + H * 0.36)
-	S:line(x0, y0, x1, y1, 0.044 * k, lash, { z = 7 })
-	x0, y0 = at(-s * W * 0.42, ly)
-	x1, y1 = at(-s * W * 0.52, ly + H * 0.22)
-	S:line(x0, y0, x1, y1, 0.032 * k, lash, { z = 7 })
-	if look.blush then
+	-- Reflets
+	if look.pupil ~= "none" or look.eyeGlow then
+		T.oval(ix - s * IW * 0.0 + IW * 0.2, iy + IH * 0.22, IW * 0.36, IW * 0.36, WHITE, { z = 6 })
+		T.oval(ix - IW * 0.22, iy - IH * 0.24, IW * 0.18, IW * 0.18, WHITE, { transparency = 0.15, z = 6 })
+	end
+	-- Trait de cils supérieur : épais, en arc, avec un petit crochet au coin extérieur
+	local top = cy + H * 0.44
+	local innerX, outerX = cx - s * W * 0.52, cx + s * W * 0.56
+	local innerY, outerY = top - tilt - H * 0.08, top + tilt * 0.5
+	local midX = cx + s * W * 0.06
+	local th = (look.lashThickness or 0.05) * k
+	T.line(innerX, innerY, midX, top + 0.012 * k, th * 0.8, lash, { z = 7 })
+	T.line(midX, top + 0.012 * k, outerX, outerY, th, lash, { z = 7 })
+	T.line(outerX, outerY, outerX + s * 0.035 * k, outerY - H * 0.3, th * 0.75, lash, { z = 7 })
+	-- Ombre de la paupière sur le haut de l'œil (sous le trait)
+	T.box(cx, top - H * 0.1, W * 0.96, H * 0.2, darken(iris, 0.75), { corner = 0.4, transparency = 0.7, z = 6, fine = true })
+	if look.blush or look.lashes then
 		-- Cils longs (persos féminins)
-		x0, y0 = at(s * W * 0.46, ly)
-		x1, y1 = at(s * (W * 0.64), ly - 0.05 * k)
-		S:line(x0, y0, x1, y1, 0.026 * k, lash, { z = 7 })
-		x1, y1 = at(s * (W * 0.56), ly - 0.085 * k)
-		S:line(x0, y0, x1, y1, 0.02 * k, lash, { z = 7 })
+		T.line(outerX, outerY, outerX + s * 0.06 * k, outerY + 0.045 * k, 0.026 * k, lash, { z = 7 })
+		T.line(outerX - s * 0.03 * k, outerY + 0.005, outerX + s * 0.02 * k, outerY + 0.06 * k, 0.02 * k, lash, { z = 7 })
 	end
-	-- Trait inférieur (moitié externe)
-	x, y = at(s * W * 0.2, H * 0.5)
-	S:box(x, y, W * 0.48, 0.016, lash, { corner = 0.5, rotation = rot, transparency = 0.25, z = 7 })
+	-- Trait inférieur (moitié extérieure)
+	T.line(cx - s * W * 0.1, cy - H * 0.5, cx + s * W * 0.5, cy - H * 0.36, 0.016 * k, lash, { transparency = 0.25, z = 7, fine = T.lite })
 end
 
-local function brows(S, look, skin: Color3, y: number)
+local function brows(T, look, skin: Color3, eyeX: number, eyeY: number, k: number)
 	local face = look.face or "calm"
-	local color = shade(look.browColor or look.hairColor or INK, 0.5)
+	local color = look.browColor or Painter.shade(look.hairColor or INK, 0.35)
 	if look.hair == "bald" or look.hair == "none" then
 		color = darken(skin, 0.45)
 	end
-	local thick = look.bigBrows and 0.075 or 0.042
-	local width = look.bigBrows and 0.27 or 0.23
+	local thick = (look.bigBrows and 0.08 or 0.036) * k
+	local half = (look.bigBrows and 0.15 or 0.12) * k
+	local by = eyeY + (look.browY or 0.155) * k
 	for _, s in { -1, 1 } do
-		local tilt = (BROW_TILT[face] or 0) * -s
-		local by = y
+		local tilt = BROW_TILT[face] or 0
 		if face == "smirk" and s > 0 then
-			by -= S:dy(0.04)
-			tilt = -9
+			tilt = -0.03
+			by += 0.015
 		end
-		-- Sourcil effilé : plus épais côté intérieur
-		S:box(0.5 + S:dx(s * 0.175), by, width, thick, color, {
-			corner = 0.5,
-			rotation = tilt,
-			fade = s < 0 and { 0.55, 0 } or { 0, 0.55 },
-			gradientRotation = 0,
-			z = 8,
-		})
+		local cx = s * eyeX
+		-- Sourcil effilé : épais côté intérieur, fin vers l'extérieur
+		T.line(cx - s * half, by - tilt / 2, cx + s * half, by + tilt / 2 + 0.01, thick, color, { z = 8 })
+		T.line(cx + s * half * 0.2, by + tilt * 0.1 + 0.005, cx + s * half * 1.15, by + tilt / 2 - 0.005, thick * 0.6, color, { z = 8, fine = T.lite })
 	end
 end
 
-local function mouth(S, look, skin: Color3, y: number)
+local TEETH = Color3.fromRGB(232, 236, 242)
+
+local function mouth(T, look, skin: Color3, y: number)
 	local face = look.face or "calm"
-	local lip = shade(skin, 0.45)
-	if face == "happy" then
-		-- Grand sourire ouvert en "D"
-		S:oval(0.5, y, 0.24, 0.15, MOUTH, { stroke = darken(MOUTH, 0.4), strokeThickness = 1, z = 2 })
-		S:box(0.5, y - S:dy(0.045), 0.27, 0.075, skin, { z = 3 })
-		S:box(0.5, y - S:dy(0.002), 0.2, 0.026, WHITE, { corner = 0.3, z = 4 })
-		S:oval(0.5, y + S:dy(0.04), 0.11, 0.045, TONGUE, { z = 4 })
-		S:line(0.5 - S:dx(0.125), y - S:dy(0.012), 0.5 + S:dx(0.125), y - S:dy(0.012), 0.016, INK, { z = 5 })
-	elseif face == "fierce" then
-		-- Sourire confiant, dents serrées (comme la référence)
-		S:box(0.5, y, 0.21, 0.07, WHITE, { corner = 0.35, stroke = INK, strokeThickness = 1.4, z = 2 })
-		S:box(0.5, y, 0.19, 0.008, Color3.fromRGB(150, 140, 150), { z = 3 })
-		for _, s in { -1, 1 } do
-			S:line(0.5 + S:dx(s * 0.105), y - S:dy(0.03), 0.5 + S:dx(s * 0.13), y - S:dy(0.055), 0.016, INK, { z = 3 })
-			S:box(0.5 + S:dx(s * 0.045), y, 0.006, 0.06, Color3.fromRGB(170, 160, 170), { z = 3, fine = true })
+	local lip = Painter.shade(skin, 0.4)
+	local w = look.mouthWidth or (face == "fierce" and 0.3 or 0.2)
+	if look.blush and not look.mouthWidth then
+		w *= 0.75
+	end
+	if face == "fierce" then
+		-- Sourire confiant, dents serrées (comme la référence "Kid Naruto")
+		T.box(0, y, w, 0.075, TEETH, { corner = 0.4, stroke = INK, strokeThickness = 1.6, gradient = { WHITE, TEETH, Color3.fromRGB(190, 200, 215) }, z = 2 })
+		T.line(-w * 0.45, y + 0.002, w * 0.45, y + 0.002, 0.008, Color3.fromRGB(150, 160, 178), { corner = 0, z = 3 })
+		local n = 7
+		for i = 1, n - 1 do
+			local x = -w / 2 + w * i / n
+			T.line(x, y + 0.03, x, y - 0.03, 0.007, Color3.fromRGB(160, 168, 185), { corner = 0, z = 3, fine = true })
 		end
+		-- Coin relevé (sourire en coin)
+		T.line(w * 0.5, y + 0.01, w * 0.5 + 0.045, y + 0.05, 0.016, INK, { z = 4 })
+		T.line(-w * 0.5, y + 0.005, -w * 0.5 - 0.03, y + 0.025, 0.014, INK, { z = 4 })
+	elseif face == "happy" then
+		-- Grand sourire ouvert en "D"
+		T.oval(0, y, w * 1.05, 0.13, MOUTH, { stroke = INK, strokeThickness = 1.3, z = 2 })
+		T.box(0, y + 0.045, w * 1.2, 0.05, skin, { z = 3 })
+		T.box(0, y + 0.012, w * 0.82, 0.024, TEETH, { corner = 0.3, z = 4 })
+		T.oval(0, y - 0.035, w * 0.48, 0.04, TONGUE, { z = 4 })
+		T.line(-w * 0.55, y + 0.02, w * 0.55, y + 0.02, 0.016, INK, { z = 5 })
 	elseif face == "angry" then
-		S:line(0.5 - S:dx(0.065), y, 0.5 + S:dx(0.065), y, 0.02, INK, { z = 2 })
-		S:line(0.5 - S:dx(0.065), y, 0.5 - S:dx(0.09), y + S:dy(0.02), 0.018, INK, { z = 2 })
-		S:line(0.5 + S:dx(0.065), y, 0.5 + S:dx(0.09), y + S:dy(0.02), 0.018, INK, { z = 2 })
-		S:box(0.5, y + S:dy(0.035), 0.06, 0.012, lip, { corner = 0.5, transparency = 0.4, z = 2, fine = true })
+		-- Bouche crispée, coins tombants, dents serrées
+		T.box(0, y, w * 0.8, 0.045, TEETH, { corner = 0.3, stroke = INK, strokeThickness = 1.4, z = 2 })
+		T.line(-w * 0.4, y + 0.005, -w * 0.58, y - 0.03, 0.016, INK, { z = 3 })
+		T.line(w * 0.4, y + 0.005, w * 0.58, y - 0.03, 0.016, INK, { z = 3 })
 	elseif face == "smirk" then
-		S:line(0.5 - S:dx(0.07), y + S:dy(0.008), 0.5 + S:dx(0.06), y - S:dy(0.008), 0.02, INK, { z = 2 })
-		S:line(0.5 + S:dx(0.06), y - S:dy(0.008), 0.5 + S:dx(0.095), y - S:dy(0.035), 0.018, INK, { z = 2 })
-		S:box(0.5, y + S:dy(0.035), 0.05, 0.012, lip, { corner = 0.5, transparency = 0.4, z = 2, fine = true })
+		T.line(-w * 0.45, y - 0.005, w * 0.35, y + 0.005, 0.018, INK, { z = 2 })
+		T.line(w * 0.35, y + 0.005, w * 0.55, y + 0.04, 0.016, INK, { z = 2 })
+		T.box(w * 0.05, y - 0.03, w * 0.3, 0.012, lip, { corner = 0.5, transparency = 0.4, z = 2, fine = true })
+	elseif face == "sad" then
+		T.line(-w * 0.35, y - 0.015, 0, y + 0.005, 0.016, INK, { z = 2 })
+		T.line(0, y + 0.005, w * 0.35, y - 0.015, 0.016, INK, { z = 2 })
 	else
-		S:line(0.5 - S:dx(0.04), y, 0.5 + S:dx(0.04), y, 0.018, INK, { z = 2 })
-		S:box(0.5, y + S:dy(0.03), 0.045, 0.012, lip, { corner = 0.5, transparency = 0.45, z = 2, fine = true })
+		T.line(-w * 0.35, y, w * 0.35, y, 0.018, INK, { z = 2 })
+		T.box(0, y - 0.028, w * 0.3, 0.012, lip, { corner = 0.5, transparency = 0.45, z = 2, fine = true })
 	end
 end
 
-local function faceMarks(S, look, skin: Color3, eyeY: number)
+local function faceMarks(T, look, skin: Color3, eyeX: number, eyeY: number)
 	local accColor = look.accColor
-	local gui = S.g
-	local d = eyeY - 0.53 -- les marques suivent la hauteur des yeux
 	if has(look, "whiskers") then
+		-- Trois moustaches de renard par joue
+		local ink = look.whiskerColor or Painter.shade(skin, 0.5)
 		for _, s in { -1, 1 } do
 			for i = 0, 2 do
-				local y = 0.7 + d + i * 0.045
-				S:line(0.5 + s * 0.3, y + (i - 1) * 0.006, 0.5 + s * 0.44, y + (i - 1) * 0.022, 0.018, shade(skin, 0.6), { z = 7 })
+				local y = eyeY - 0.17 - i * 0.065
+				T.line(s * 0.3, y + 0.01 - i * 0.008, s * 0.46, y + 0.025 - i * 0.03, 0.015, ink, { z = 7 })
 			end
 		end
 	end
 	if has(look, "tear_lines") then
 		for _, s in { -1, 1 } do
-			rect(gui, 0.5 + s * 0.14, 0.67 + d, 0.014, 0.12, shade(skin, 0.5), { corner = 0.5, rotation = s * 8, z = 7 })
+			T.line(s * (eyeX - 0.08), eyeY - 0.1, s * (eyeX - 0.1), eyeY - 0.26, 0.018, Painter.shade(skin, 0.55), { z = 7 })
 		end
 	end
 	if has(look, "tattoos") then
-		-- Deux traits sous chaque œil + marque sur le front
+		-- Deux traits sous chaque œil + marque sur le front (roi des fléaux)
 		for _, s in { -1, 1 } do
 			for i = 0, 1 do
-				S:line(0.5 + s * 0.12, 0.67 + d + i * 0.04, 0.5 + s * 0.38, 0.65 + d + i * 0.04, 0.02, INK, { z = 7 })
+				T.line(s * 0.12, eyeY - 0.12 - i * 0.05, s * 0.44, eyeY - 0.15 - i * 0.05, 0.024, INK, { z = 7 })
 			end
 		end
-		rect(gui, 0.5, 0.07, 0.14, 0.022, INK, { corner = 0.5, z = 7 })
+		T.line(-0.08, eyeY + 0.3, 0.08, eyeY + 0.3, 0.024, INK, { z = 7 })
 	end
 	if has(look, "tattoos_blue") then
 		local ink = accColor or Color3.fromRGB(60, 80, 220)
 		for _, s in { -1, 1 } do
-			rect(gui, 0.5 + s * 0.4, 0.5, 0.014, 0.6, ink, { z = 7 })
-			rect(gui, 0.5 + s * 0.12, 0.1, 0.014, 0.16, ink, { z = 7 })
+			T.line(s * 0.5, eyeY + 0.35, s * 0.5, eyeY - 0.45, 0.018, ink, { z = 7 })
+			T.line(s * 0.1, eyeY + 0.38, s * 0.1, eyeY + 0.22, 0.018, ink, { z = 7 })
 		end
 	end
 	if has(look, "extra_eyes") then
-		-- Seconds yeux sous les yeux (fléau)
+		-- Seconds yeux sous les yeux (roi des fléaux)
 		for _, s in { -1, 1 } do
-			local x, y = 0.5 + s * 0.27, 0.72 + d
-			S:oval(x, y, 0.11, 0.05, WHITE, { z = 8 })
-			S:oval(x, y, 0.05, 0.05, look.eyes or Color3.fromRGB(220, 20, 30), { z = 9 })
-			S:box(x, y - S:dy(0.025), 0.13, 0.018, INK, { corner = 0.5, rotation = s * -6, z = 9 })
+			local x, y = s * (eyeX + 0.06), eyeY - 0.2
+			T.oval(x, y, 0.13, 0.06, WHITE, { z = 8 })
+			T.oval(x, y, 0.055, 0.055, look.eyes or Color3.fromRGB(220, 20, 30), { z = 9 })
+			T.line(x - 0.075, y + 0.03 - s * 0.005, x + 0.075, y + 0.03 + s * 0.005, 0.02, INK, { z = 9 })
 		end
 	end
 	if has(look, "scar_eye") then
-		rect(gui, 0.71, 0.53 + d, 0.02, 0.36, Color3.fromRGB(150, 50, 50), { rotation = 8, z = 9 })
+		local x = look.scarSide == "left" and -eyeX or eyeX
+		T.line(x + 0.02, eyeY + 0.2, x - 0.03, eyeY - 0.2, 0.022, Color3.fromRGB(150, 50, 50), { z = 9 })
 	end
 	if has(look, "scar_cheek") then
 		local red = Color3.fromRGB(150, 60, 60)
-		S:line(0.2, 0.72 + d, 0.34, 0.72 + d, 0.014, red, { z = 8 })
+		local x = -eyeX
+		T.line(x - 0.08, eyeY - 0.13, x + 0.08, eyeY - 0.13, 0.014, red, { z = 8 })
 		for i = -1, 1 do
-			S:line(0.27 + i * 0.035, 0.7 + d, 0.27 + i * 0.035, 0.74 + d, 0.01, red, { z = 8 })
+			T.line(x + i * 0.045, eyeY - 0.1, x + i * 0.045, eyeY - 0.16, 0.011, red, { z = 8 })
 		end
 	end
 	if has(look, "scar_face") then
-		rect(gui, 0.5, 0.6, 0.62, 0.02, Color3.fromRGB(160, 70, 70), { rotation = 22, z = 7 })
+		T.line(-0.45, eyeY + 0.12, 0.45, eyeY - 0.22, 0.022, Color3.fromRGB(160, 70, 70), { z = 7 })
 	end
 	if has(look, "scar_forehead") then
-		S:oval(0.33, 0.24, 0.14, 0.1, Color3.fromRGB(175, 65, 55), { transparency = 0.2, rotation = -15, z = 7 })
+		T.oval(-0.16, eyeY + 0.3, 0.17, 0.1, Color3.fromRGB(175, 65, 55), { transparency = 0.2, rotation = -15, z = 7 })
 	end
 	if has(look, "forehead_mark") then
 		local red = Color3.fromRGB(205, 35, 30)
-		S:oval(0.33, 0.25, 0.15, 0.1, red, { rotation = -15, z = 7 })
-		S:line(0.28, 0.22, 0.24, 0.13, 0.04, red, { z = 7 })
-		S:line(0.36, 0.22, 0.38, 0.12, 0.035, red, { z = 7 })
+		T.oval(-0.18, eyeY + 0.3, 0.17, 0.1, red, { rotation = -15, z = 7 })
+		T.line(-0.22, eyeY + 0.32, -0.26, eyeY + 0.4, 0.035, red, { z = 7 })
+		T.line(-0.14, eyeY + 0.33, -0.12, eyeY + 0.41, 0.03, red, { z = 7 })
 	end
 	if has(look, "dots") then
 		for row = 0, 1 do
 			for col = -1, 1 do
-				rect(gui, 0.5 + col * 0.07, 0.06 + row * 0.06, 0.03, 0.03, darken(skin, 0.4), { corner = 0.5, z = 7 })
+				T.oval(col * 0.08, eyeY + 0.33 + row * 0.07, 0.035, 0.035, darken(skin, 0.4), { z = 7 })
 			end
 		end
 	end
 	if has(look, "facepaint") then
 		local paint = accColor or Color3.fromRGB(140, 50, 180)
 		for _, s in { -1, 1 } do
-			rect(gui, 0.5 + s * 0.3, 0.68, 0.025, 0.22, paint, { corner = 0.5, z = 7 })
-			rect(gui, 0.5 + s * 0.29, 0.22, 0.12, 0.02, paint, { corner = 0.5, z = 7 })
+			T.line(s * eyeX, eyeY - 0.12, s * eyeX, eyeY - 0.35, 0.03, paint, { z = 7 })
+			T.line(s * (eyeX - 0.08), eyeY + 0.22, s * (eyeX + 0.08), eyeY + 0.22, 0.025, paint, { z = 7 })
 		end
 	end
 	if has(look, "stitches") then
-		rect(gui, 0.5, 0.42, 0.7, 0.014, INK, { rotation = -28, z = 8 })
+		T.line(-0.45, eyeY + 0.12, 0.45, eyeY - 0.3, 0.016, INK, { z = 8 })
 		for i = -3, 3 do
-			rect(gui, 0.5 + i * 0.09, 0.42 - i * 0.048, 0.01, 0.05, INK, { rotation = -28, z = 8 })
+			local x = i * 0.12
+			local y = eyeY - 0.09 - i * 0.049
+			T.line(x - 0.01, y + 0.035, x + 0.01, y - 0.035, 0.012, INK, { z = 8 })
 		end
 	end
 	if has(look, "stitches_forehead") then
-		rect(gui, 0.5, 0.07, 0.7, 0.014, INK, { z = 8 })
+		T.line(-0.45, eyeY + 0.33, 0.45, eyeY + 0.33, 0.016, INK, { z = 8 })
 		for i = -3, 3 do
-			rect(gui, 0.5 + i * 0.09, 0.07, 0.01, 0.05, INK, { z = 8 })
+			T.line(i * 0.12, eyeY + 0.3, i * 0.12, eyeY + 0.36, 0.012, INK, { z = 8 })
 		end
 	end
 	if has(look, "glasses") then
+		local frame = look.glassesColor or INK
 		for _, s in { -1, 1 } do
-			rect(gui, 0.5 + s * 0.21, eyeY, 0.31, 0.2, Color3.fromRGB(190, 225, 255), { corner = 0.3, transparency = 0.7, stroke = INK, strokeThickness = 2.2, z = 10 })
+			T.box(s * eyeX, eyeY, 0.34, 0.24, Color3.fromRGB(190, 225, 255), { corner = 0.3, transparency = 0.72, stroke = frame, strokeThickness = 2.2, z = 10 })
 		end
-		rect(gui, 0.5, eyeY - 0.04, 0.12, 0.02, INK, { z = 10 })
+		T.line(-eyeX + 0.17, eyeY + 0.04, eyeX - 0.17, eyeY + 0.04, 0.025, frame, { z = 10 })
 	end
 	if look.blush then
 		for _, s in { -1, 1 } do
-			local x, y = 0.5 + s * 0.3, 0.7 + d
-			S:oval(x, y, 0.16, 0.07, Color3.fromRGB(255, 120, 145), { fade = { 0.75, 0.35, 0.75 }, gradientRotation = 0, z = 1 })
+			local x, y = s * (eyeX + 0.06), eyeY - 0.2
+			T.oval(x, y, 0.18, 0.08, Color3.fromRGB(255, 120, 145), { fade = { 0.75, 0.4, 0.75 }, gradientRotation = 0, z = 1 })
 			for i = -1, 1 do
-				S:line(x + i * 0.05 - 0.012, y + 0.012, x + i * 0.05 + 0.012, y - 0.012, 0.01, Color3.fromRGB(230, 90, 110), { z = 2, fine = true })
+				T.line(x + i * 0.05 - 0.012, y - 0.012, x + i * 0.05 + 0.012, y + 0.012, 0.01, Color3.fromRGB(230, 90, 110), { z = 2, fine = true })
 			end
 		end
 	end
 end
 
--- Dessine un visage d'animé sur la face avant de `part`.
-function Painter.face(part: BasePart, look, mode: string?)
+-- Dessine un visage d'animé sur les plaques du visage (`plates` = { {part, u0, u1} }).
+-- `geom` = { width, height, centerY } (voir CharacterBuilder.Face).
+function Painter.face(plates, look, mode: string?, geom)
 	if has(look, "boar_head") then
 		return nil
 	end
 	local skin = look.skin or DEFAULT_SKIN
-	local S = Painter.sheet(part, Enum.NormalId.Front, mode, "Face", 170)
+	local canvas = Facets.new(plates, mode, geom.width, geom.height, 180)
+	local S = newSheet(canvas, geom.width, geom.height)
+	S.lite = mode == "parts"
+	local T = faceTools(S, geom.centerY)
+	T.lite = S.lite
 	local hideEyes = has(look, "blindfold")
-	local eyeY = 0.56
-	-- Ombre portée de la frange / du bandeau sur le front
+	local eyeY = look.eyeY or 0.03
+	local eyeX = look.eyeX or 0.25
+	local k = look.eyeScale or 1
+	-- Ombre portée des cheveux / du bandeau sur le front
 	if look.hair ~= "bald" and look.hair ~= "none" then
-		S:oval(0.5, 0.06, 0.95, 0.3, shade(skin, 0.5), { fade = { 0.55, 1 }, gradientRotation = 90, z = 1, fine = true })
+		T.box(0, 0.42, 1.3, 0.12, Painter.shade(skin, 0.4), { fade = { 0.55, 1 }, gradientRotation = 90, z = 1, fine = true })
 	end
-	-- Joues légèrement ombrées vers le bas (volume)
-	S:oval(0.5, 0.97, 0.9, 0.25, shade(skin, 0.4), { fade = { 1, 0.75 }, gradientRotation = 90, z = 1, fine = true })
 	if not hideEyes then
 		if has(look, "cyclops") then
-			eye(S, look, 0.5, eyeY - 0.02, 1, 1.5)
+			eye(T, look, 0, eyeY, 1, 1.6)
 		else
-			eye(S, look, 0.5 - S:dx(0.2), eyeY, -1)
-			eye(S, look, 0.5 + S:dx(0.2), eyeY, 1)
+			eye(T, look, -eyeX, eyeY, -1, k)
+			eye(T, look, eyeX, eyeY, 1, k)
 		end
-		brows(S, look, skin, eyeY - S:dy(0.21))
+		if not has(look, "cyclops") then
+			brows(T, look, skin, eyeX, eyeY, k)
+		end
 	end
-	-- Petit nez : ombre + reflet
-	S:line(0.53, 0.68, 0.51, 0.715, 0.022, shade(skin, 0.45), { transparency = 0.25, z = 2 })
-	S:oval(0.49, 0.7, 0.018, 0.018, lighten(skin, 0.5), { transparency = 0.3, z = 2, fine = true })
+	-- Petit nez rosé
+	local nose = skin:Lerp(Color3.fromRGB(190, 95, 90), 0.38)
+	T.oval(0.01, eyeY - 0.31, 0.1, 0.045, nose, { transparency = 0.1, z = 2 })
+	T.line(0.03, eyeY - 0.2, 0.0, eyeY - 0.285, 0.016, Painter.shade(skin, 0.3), { transparency = 0.5, z = 2, fine = true })
 	if not has(look, "mask_lower") and not has(look, "muzzle") and not has(look, "mask_bandage") and not has(look, "collar_high") then
-		mouth(S, look, skin, 0.83)
+		mouth(T, look, skin, look.mouthY or (eyeY - 0.46))
 	end
-	faceMarks(S, look, skin, eyeY)
-	return S.g
+	faceMarks(T, look, skin, eyeX, eyeY)
+	return canvas
 end
 
 ------------------------------------------------------------------------
@@ -737,17 +819,17 @@ end
 -- Couleur de l'ombre franche d'un tissu (sur un tissu très sombre : un reflet bleuté).
 local function celShadow(color: Color3): Color3
 	if luminance(color) < 0.16 then
-		return color:Lerp(Color3.fromRGB(95, 105, 135), 0.35)
+		return color:Lerp(Color3.fromRGB(95, 105, 135), 0.3)
 	end
-	return shade(color, 0.34)
+	return shade(color, 0.3)
 end
 
 -- Encre des plis et coutures.
 local function inkOf(color: Color3): Color3
 	if luminance(color) < 0.16 then
-		return color:Lerp(Color3.fromRGB(150, 160, 190), 0.45)
+		return color:Lerp(Color3.fromRGB(150, 160, 190), 0.42)
 	end
-	return shade(color, 0.72)
+	return color:Lerp(Color3.fromRGB(22, 14, 14), 0.84)
 end
 
 -- Fond d'une face de vêtement : dégradé vertical (haut éclairé, bas plus sombre).
@@ -757,7 +839,7 @@ local function cloth(S, color: Color3, o)
 	local bottom = opts.bottom or 1
 	local h = bottom - top
 	S:rect(0.5, top + h / 2, 1, h, color, {
-		gradient = { lighten(color, 0.12), color, shade(color, 0.14) },
+		gradient = { lighten(color, 0.06), color, shade(color, 0.07) },
 		z = opts.z or 0,
 		base = top == 0 and bottom == 1,
 	})
@@ -768,7 +850,7 @@ local function edgeShade(S, side: string, w: number, color: Color3, top: number?
 	local t, b = top or 0, bottom or 1
 	local x = side == "l" and w / 2 or 1 - w / 2
 	S:rect(x, (t + b) / 2, w, b - t, celShadow(color), {
-		fade = side == "l" and { 0.1, 0.1, 0.25, 1 } or { 1, 0.25, 0.1, 0.1 },
+		fade = side == "l" and { 0.05, 0.05, 0.12, 1 } or { 1, 0.12, 0.05, 0.05 },
 		gradientRotation = 0,
 		z = z or 1,
 		fine = true,
@@ -787,10 +869,10 @@ local function fold(S, x0: number, y0: number, x1: number, y1: number, color: Co
 	local len = math.max(math.sqrt(dx * dx + dy * dy), 1e-3)
 	-- normale "vers le bas" du trait (en studs), convertie en relatif
 	local ox, oy = -dy / len * w * 0.5 / S.w, dx / len * w * 0.5 / S.h
-	S:line(x0 + ox, y0 + oy, x1 + ox, y1 + oy, w, celShadow(color), { fade = { 0.05, 0.35, 1 }, gradientRotation = 90, z = z, fine = true })
+	S:line(x0 + ox, y0 + oy, x1 + ox, y1 + oy, w, celShadow(color), { fade = { 0.08, 0.2, 0.85 }, gradientRotation = 90, z = z, fine = true })
 	-- Aperçus "pièces" (niveau de détail lite) : seuls les plis principaux sont gardés.
 	local fine = opts.fine or (S.lite and w < 0.13)
-	S:line(x0, y0, x1, y1, opts.ink or 0.022, inkOf(color), { fade = { 0.85, 0, 0, 0.85 }, gradientRotation = 0, z = z + 1, fine = fine })
+	S:line(x0, y0, x1, y1, opts.ink or 0.02, inkOf(color), { fade = { 0.7, 0, 0, 0.7 }, gradientRotation = 0, z = z + 1, fine = fine })
 end
 
 -- Couture (trait fin).
@@ -904,6 +986,16 @@ function Painter.sleeves(look): string
 	return sleeves
 end
 
+-- Le perso porte-t-il un haori (veste ouverte 3D) ?
+local function haoriOf(look): boolean
+	for _, accessory in look.accessories or {} do
+		if string.sub(accessory, 1, 5) == "haori" then
+			return true
+		end
+	end
+	return false
+end
+
 -- Palette d'un look.
 local function palette(look)
 	local skin = look.skin or DEFAULT_SKIN
@@ -921,6 +1013,7 @@ local function palette(look)
 		sleeve = look.sleeveColor or top,
 		pants = look.pants or "long",
 		footwear = look.footwear or "shoes",
+		haori = haoriOf(look), -- veste ouverte portée par-dessus (cache le dos et le haut des bras)
 	}
 end
 Painter.palette = palette
@@ -949,12 +1042,210 @@ local function hand(S, c, side: string, isLeft: boolean, top: number)
 	end
 end
 
+------------------------------------------------------------------------
+-- Veste de ninja (copie de la texture "Kid Naruto") : veste orangée, empiècement bleu nuit sur
+-- les épaules et le haut des manches, col en fourrure, patte à fermeture éclair, grandes ombres
+-- franches et traits de plis à l'encre ; pantalon assorti, sandales bleu nuit.
+------------------------------------------------------------------------
+
+-- Trait d'encre net (pli dessiné).
+local function ink(S, x0: number, y0: number, x1: number, y1: number, color: Color3, th: number?, z: number?)
+	-- Aperçus "pièces" : seuls les traits principaux (épaisseur par défaut) sont gardés.
+	S:line(x0, y0, x1, y1, th or 0.022, inkOf(color), { z = z or 5, fine = S.lite and th ~= nil })
+end
+
+-- Ombre franche en "V" (deux bandes qui se rejoignent) : grands plis de la veste.
+local function shadowV(S, x0: number, y0: number, xm: number, ym: number, x1: number, y1: number, th: number, color: Color3, z: number?)
+	local col = celShadow(color)
+	S:line(x0, y0, xm, ym, th, col, { z = z or 2, corner = 0.5 })
+	S:line(xm, ym, x1, y1, th * 0.8, col, { z = z or 2, corner = 0.5 })
+end
+
+-- Col en fourrure façon texture classique : bande claire au bord effiloché, petits traits de poils.
+local function furCollar(S, y0: number, y1: number, color: Color3, z: number)
+	local cool = color:Lerp(Color3.fromRGB(120, 140, 182), 0.42)
+	S:rect(0.5, (y0 + y1) / 2, 1, y1 - y0, color, { gradient = { cool, color, lighten(color, 0.2) }, z = z })
+	local n = math.max(3, math.floor(S.w / (S.lite and 0.3 or 0.16) + 0.5))
+	for i = 0, n - 1 do
+		local x = (i + 0.5) / n
+		S:box(x, y1 - S:dy(0.01), 0.11, 0.11, i % 2 == 0 and color or lighten(color, 0.12), { rotation = 45, z = z })
+		if i % 2 == 1 then
+			S:line(x - 0.1 / n, y0 + (y1 - y0) * 0.35, x, y0 + (y1 - y0) * 0.8, 0.014, shade(cool, 0.35), { z = z + 1, fine = S.lite })
+		end
+	end
+	-- Ombre de la fourrure sur ce qui est dessous
+	S:rect(0.5, y1 + S:dy(0.05), 1, S:dy(0.06), celShadow(S.under or color), { fade = { 0.2, 1 }, gradientRotation = 90, z = z - 1, fine = true })
+end
+
+-- Patte de boutonnage avec fermeture éclair (bande verticale cernée d'encre).
+local function placket(S, x: number, y0: number, y1: number, color: Color3, z: number)
+	local h = y1 - y0
+	S:box(x, y0 + h / 2, 0.3, h * S.h, lighten(color, 0.05), { z = z })
+	for _, s in { -1, 1 } do
+		S:box(x + S:dx(s * 0.15), y0 + h / 2, 0.026, h * S.h, inkOf(color), { z = z + 1 })
+	end
+	S:box(x + S:dx(0.02), y0 + h / 2, 0.016, h * S.h, Color3.fromRGB(150, 195, 222), { z = z + 1 })
+	S:box(x - S:dx(0.02), y0 + h / 2, 0.012, h * S.h, inkOf(color), { transparency = 0.3, z = z + 1, fine = true })
+	-- Tirette
+	S:box(x + S:dx(0.02), y0 + S:dy(0.1), 0.06, 0.1, METAL, { corner = 0.3, stroke = inkOf(color), strokeThickness = 1, z = z + 2, fine = S.lite })
+end
+
+local function jacketFront(S, look, c)
+	local top = c.top
+	local yoke = look.shoulders or c.accent
+	S.under = yoke
+	-- Grandes ombres franches (plis en "V" qui convergent vers la patte)
+	shadowV(S, -0.02, 0.5, 0.36, 0.64, 0.0, 0.8, 0.22, top)
+	shadowV(S, 1.02, 0.5, 0.64, 0.64, 1.0, 0.8, 0.22, top)
+	S:rect(0.5, 0.84, 1, 0.06, celShadow(top), { transparency = 0.35, z = 2 })
+	edgeShade(S, "l", 0.13, top)
+	edgeShade(S, "r", 0.13, top)
+	-- Traits de plis
+	ink(S, 0.08, 0.56, 0.24, 0.6, top)
+	ink(S, 0.14, 0.7, 0.3, 0.68, top, 0.021)
+	ink(S, 0.92, 0.56, 0.76, 0.6, top)
+	ink(S, 0.86, 0.7, 0.7, 0.69, top, 0.021)
+	ink(S, 0.44, 0.75, 0.62, 0.72, top, 0.02)
+	-- Empiècement bleu nuit (épaules + haut de la poitrine), bord inférieur en deux lobes
+	S:rect(0.5, 0.28, 1, 0.28, yoke, { gradient = { shade(yoke, 0.25), yoke, lighten(yoke, 0.08) }, z = 3 })
+	for _, x in { 0.25, 0.75 } do
+		S:oval(x, 0.4, 0.95, 0.24, yoke, { stroke = inkOf(top), strokeThickness = 1.3, z = 2 })
+		S:oval(x, 0.33, 0.6, 0.14, lighten(yoke, 0.14), { transparency = 0.35, z = 3, fine = true })
+	end
+	S:rect(0.04, 0.3, 0.08, 0.3, shade(yoke, 0.3), { z = 3, fine = true })
+	S:rect(0.96, 0.3, 0.08, 0.3, shade(yoke, 0.3), { z = 3, fine = true })
+	-- Ourlet du bas
+	S:rect(0.5, 0.86, 1, S:dy(0.024), inkOf(top), { z = 4 })
+	S:rect(0.5, 0.895, 1, 0.06, lighten(top, 0.08), { z = 3 })
+	placket(S, 0.5, 0.0, 0.93, top, 6)
+	if look.collar == "fur" then
+		furCollar(S, 0.0, 0.2, look.collarColor or Color3.fromRGB(226, 232, 238), 9)
+	end
+	if look.chestMark then
+		logo(S.g, look.chestMark, 0.28, 0.24, 0.16)
+	end
+end
+
+local function jacketBack(S, look, c)
+	local top = c.top
+	local yoke = look.shoulders or c.accent
+	S.under = yoke
+	shadowV(S, -0.02, 0.45, 0.3, 0.62, 0.0, 0.85, 0.2, top)
+	shadowV(S, 1.02, 0.45, 0.7, 0.62, 1.0, 0.85, 0.2, top)
+	edgeShade(S, "l", 0.13, top)
+	edgeShade(S, "r", 0.13, top)
+	ink(S, 0.1, 0.62, 0.3, 0.66, top)
+	ink(S, 0.9, 0.62, 0.7, 0.66, top)
+	ink(S, 0.4, 0.78, 0.6, 0.8, top)
+	S:rect(0.5, 0.2, 1, 0.4, yoke, { gradient = { shade(yoke, 0.2), yoke, lighten(yoke, 0.06) }, z = 3 })
+	S:oval(0.5, 0.4, 1.9, 0.22, yoke, { stroke = inkOf(top), strokeThickness = 1.3, z = 2 })
+	S:rect(0.5, 0.86, 1, S:dy(0.024), inkOf(top), { z = 4 })
+	S:rect(0.5, 0.895, 1, 0.06, lighten(top, 0.08), { z = 3 })
+	if look.collar == "fur" then
+		furCollar(S, 0.0, 0.14, look.collarColor or Color3.fromRGB(226, 232, 238), 9)
+	end
+end
+
+-- Manche longue façon texture classique : ombres franches, plis à l'encre, poignet resserré.
+-- Sur la veste de ninja : empiècement bleu nuit en raglan sur le haut (côté torse).
+local function classicSleeve(S, look, c, side: string, inner: string?, handTop: number)
+	local sleeve = c.sleeve
+	local yoke = c.outfit == "jacket" and look.shoulders or nil
+	cloth(S, sleeve)
+	if side == "in" then
+		S:rect(0.5, handTop - 0.13, 1, 0.012, inkOf(sleeve), { z = 4 })
+		return
+	end
+	if c.haori then
+		-- Haut du bras caché par la manche du haori : seul le bas est peint.
+		S:line(0.0, handTop - 0.14, 0.5, handTop - 0.125, 0.024, inkOf(sleeve), { z = 5 })
+		S:line(0.5, handTop - 0.125, 1.0, handTop - 0.14, 0.024, inkOf(sleeve), { z = 5 })
+		S:rect(0.5, handTop - 0.06, 1, 0.11, look.cuffColor or lighten(sleeve, 0.04), { z = 4 })
+		return
+	end
+	-- Ombres franches côté extérieur et sous le coude
+	local outerX = inner == "l" and 0.85 or (inner == "r" and 0.15 or 0.5)
+	if inner then
+		S:oval(outerX, 0.42, 0.55, 1.0, celShadow(sleeve), { z = 1 })
+		S:oval(1 - outerX, 0.66, 0.45, 0.35, celShadow(sleeve), { transparency = 0.2, z = 1 })
+	else
+		S:oval(0.5, 0.5, 0.6, 0.5, celShadow(sleeve), { transparency = 0.15, z = 1 })
+	end
+	-- Plis
+	local d = inner == "l" and 1 or -1
+	ink(S, 0.5 - d * 0.35, 0.34, 0.5 - d * 0.1, 0.3, sleeve)
+	ink(S, 0.5 + d * 0.05, 0.48, 0.5 + d * 0.3, 0.45, sleeve, 0.021)
+	ink(S, 0.5 - d * 0.3, 0.58, 0.5 - d * 0.05, 0.62, sleeve)
+	ink(S, 0.5 + d * 0.1, 0.68, 0.5 + d * 0.35, 0.7, sleeve, 0.018)
+	if yoke then
+		if inner then
+			-- Raglan : grand arrondi bleu nuit dans le coin intérieur du haut
+			local x = inner == "l" and 0 or 1
+			S:oval(x, 0.0, 1.5, 1.05, yoke, { stroke = inkOf(sleeve), strokeThickness = 1.3, z = 3 })
+			S:oval(x, 0.0, 0.8, 0.5, shade(yoke, 0.25), { z = 3, fine = true })
+			if look.collar == "fur" and side == "front" then
+				S:box(x == 0 and 0.12 or 0.88, 0.04, 0.28, 0.14, look.collarColor or Color3.fromRGB(226, 232, 238), { corner = 0.4, z = 4 })
+			end
+		else
+			S:rect(0.5, 0.05, 1, 0.1, yoke, { z = 3 })
+			S:oval(0.5, 0.1, 1.3, 0.16, yoke, { stroke = inkOf(sleeve), strokeThickness = 1.3, z = 3 })
+		end
+	end
+	-- Poignet resserré : trait d'encre arrondi + bande (couleur du poignet si précisée)
+	S:line(0.0, handTop - 0.14, 0.5, handTop - 0.125, 0.024, inkOf(sleeve), { z = 5 })
+	S:line(0.5, handTop - 0.125, 1.0, handTop - 0.14, 0.024, inkOf(sleeve), { z = 5 })
+	local cuff = look.cuffColor or lighten(sleeve, 0.04)
+	S:rect(0.5, handTop - 0.06, 1, 0.11, cuff, { z = 4 })
+	ink(S, 0.2, handTop - 0.07, 0.42, handTop - 0.05, cuff, 0.016)
+	ink(S, 0.6, handTop - 0.04, 0.8, handTop - 0.065, cuff, 0.016)
+end
+
+-- Pantalon de ninja : pli de l'entrejambe en éventail, grandes ombres des cuisses, bas resserré.
+local function ninjaPants(S, look, c, side: string, isLeft: boolean, inner: string?)
+	local bottom = c.bottom
+	cloth(S, bottom)
+	if side == "in" then
+		return
+	end
+	if inner then
+		local ix = inner == "l" and 0 or 1
+		local d = inner == "l" and 1 or -1
+		-- Ombre de la cuisse côté extérieur + éventail de l'entrejambe
+		S:oval(1 - ix, 0.42, 0.6, 1.0, celShadow(bottom), { z = 1 })
+		S:oval(ix + d * 0.2, 0.1, 0.5, 0.3, celShadow(bottom), { z = 1 })
+		for i = 0, side == "back" and 1 or 3 do
+			local y = 0.04 + i * 0.05
+			S:line(ix + d * 0.04, y, ix + d * (0.42 - i * 0.04), y + 0.03, 0.022, inkOf(bottom), { z = 4, fine = S.lite and i % 2 == 1 })
+		end
+		ink(S, 0.5 - d * 0.1, 0.42, 0.5 + d * 0.15, 0.38, bottom)
+		ink(S, 0.5 - d * 0.25, 0.58, 0.5 - d * 0.05, 0.62, bottom)
+		S:box(ix - d * 0.0, 0.5, 0.03, 2, inkOf(bottom), { transparency = 0.2, z = 4 })
+	else
+		S:oval(0.5, 0.45, 0.55, 0.9, celShadow(bottom), { transparency = 0.15, z = 1 })
+		ink(S, 0.3, 0.4, 0.6, 0.36, bottom)
+		ink(S, 0.35, 0.6, 0.7, 0.63, bottom)
+	end
+	-- Bas resserré au-dessus des sandales
+	S:rect(0.5, 0.76, 1, 0.07, celShadow(bottom), { transparency = 0.25, z = 2 })
+	S:line(0.0, 0.79, 0.5, 0.81, 0.026, inkOf(bottom), { z = 5 })
+	S:line(0.5, 0.81, 1.0, 0.79, 0.026, inkOf(bottom), { z = 5 })
+	if look.holsterStyle == "band" and look.holster and not isLeft then
+		-- Bandage de la cuisse : sangle bleu nuit bordée de blanc
+		local col = look.holster
+		local wrap = Color3.fromRGB(226, 234, 240)
+		S:rect(0.5, 0.285, 1, 0.022, wrap, { z = 6 })
+		S:rect(0.5, 0.325, 1, 0.06, col, { gradient = { lighten(col, 0.2), col, shade(col, 0.2) }, z = 6 })
+		S:rect(0.5, 0.37, 1, 0.022, wrap, { z = 6 })
+		S:rect(0.5, 0.385, 1, S:dy(0.02), inkOf(bottom), { z = 6 })
+	end
+end
+
 -- Face d'un bras. `side` : "front", "back", "out" (extérieur) ou "in" (contre le torse).
 local function paintArm(S, look, c, side: string, isLeft: boolean)
 	local skin = c.skin
 	local sleeves = c.sleeves
 	local sleeve = c.sleeve
-	local handTop = 0.82
+	local handTop = look.handTop or (sleeves == "long" and 0.9 or 0.86)
 	-- Bord côté torse sur les faces avant / arrière ("l" ou "r" de la toile)
 	local inner = nil
 	if side == "front" then
@@ -962,7 +1253,9 @@ local function paintArm(S, look, c, side: string, isLeft: boolean)
 	elseif side == "back" then
 		inner = isLeft and "r" or "l"
 	end
-	if sleeves == "long" or sleeves == "wide" then
+	if sleeves == "long" then
+		classicSleeve(S, look, c, side, inner, handTop)
+	elseif sleeves == "wide" then
 		cloth(S, sleeve)
 		if side ~= "in" then
 			if inner then
@@ -1021,7 +1314,7 @@ local function paintArm(S, look, c, side: string, isLeft: boolean)
 		end
 	end
 	-- Épaules d'une autre couleur (veste de Maruto...)
-	if look.shoulders and not covered and (sleeves == "long" or sleeves == "wide") then
+	if look.shoulders and not covered and c.outfit ~= "jacket" and (sleeves == "long" or sleeves == "wide") then
 		local col = look.shoulders
 		S:rect(0.5, 0.12, 1, 0.24, col, { gradient = { lighten(col, 0.18), col }, z = 5 })
 		S:oval(0.5, 0.24, 1.2, 0.14, col, { stroke = inkOf(col), strokeThickness = 1.5, z = 4 })
@@ -1072,21 +1365,20 @@ local function paintFeet(S, look, c, side: string)
 	local foot = c.footwear
 	local shoes = c.shoes
 	if foot == "sandals" then
-		-- Sandales ninja : orteils à l'air devant, talon fermé derrière, semelle épaisse
-		local y0 = 0.82
-		S:rect(0.5, (y0 + 1) / 2, 1, 1 - y0, shoes, { gradient = { lighten(shoes, 0.2), shoes, celShadow(shoes) }, z = 10 })
-		S:rect(0.5, y0, 1, S:dy(0.025), inkOf(shoes), { z = 11 })
+		-- Sandales ninja (comme la référence) : bleu nuit, orteils à l'air devant, talon fermé
+		local y0 = look.sandalTop or 0.84
+		S:rect(0.5, (y0 + 1) / 2, 1, 1 - y0, shoes, { gradient = { lighten(shoes, 0.15), shoes, shade(shoes, 0.2) }, z = 10 })
+		S:rect(0.5, y0 + S:dy(0.012), 1, S:dy(0.024), inkOf(shoes), { z = 11 })
 		if side == "front" then
-			S:rect(0.5, 0.925, 0.86, 0.095, skin, { gradient = { skin, shade(skin, 0.22) }, corner = 0.2, z = 11 })
-			for i = 1, 3 do
-				S:line(0.07 + i * 0.215, 0.9, 0.07 + i * 0.215, 0.965, 0.016, shade(skin, 0.5), { transparency = 0.2, z = 12, fine = true })
+			S:oval(0.5, 1.0, 0.74, 0.2, skin, { gradient = { lighten(skin, 0.1), skin, shade(skin, 0.15) }, z = 11 })
+			for i = -1, 1 do
+				S:line(0.5 + i * 0.13, 0.955, 0.5 + i * 0.13, 0.995, 0.012, shade(skin, 0.45), { transparency = 0.2, z = 12, fine = true })
 			end
-			S:line(0.04, 0.865, 0.96, 0.865, 0.06, shoes, { corner = 0.25, z = 12 })
+			S:oval(0.5, 1.0, 0.74, 0.2, skin, { transparency = 1, stroke = inkOf(shoes), strokeThickness = 1.2, z = 12, fine = S.lite })
 		elseif side == "out" or side == "in" then
-			S:rect(0.28, 0.925, 0.5, 0.1, skin, { gradient = { skin, shade(skin, 0.22) }, z = 11 })
-			S:line(0.03, 0.88, 0.55, 0.88, 0.05, shoes, { corner = 0.2, z = 12 })
+			S:oval(0.0, 1.0, 0.6, 0.2, skin, { gradient = { skin, shade(skin, 0.15) }, z = 11 })
 		end
-		S:rect(0.5, 0.985, 1, 0.03, shade(shoes, 0.55), { z = 12 })
+		S:rect(0.5, 0.99, 1, 0.02, shade(shoes, 0.5), { z = 12 })
 	elseif foot == "zori" then
 		-- Chaussettes tabi blanches + sandales de paille
 		local sock = Color3.fromRGB(242, 240, 234)
@@ -1161,6 +1453,8 @@ local function paintLeg(S, look, c, side: string, isLeft: boolean)
 			-- Genou
 			fold(S, 0.32, 0.62, 0.68, 0.6, skin, { w = 0.05, z = 1 })
 		end
+	elseif look.pantsStyle ~= "plain" then
+		ninjaPants(S, look, c, side, isLeft, inner)
 	else
 		cloth(S, bottom)
 		if inner then
@@ -1196,7 +1490,7 @@ local function paintLeg(S, look, c, side: string, isLeft: boolean)
 		end
 	end
 	-- Bandage + étui sur la cuisse droite (ninja)
-	if look.holster and not isLeft then
+	if look.holster and not isLeft and look.holsterStyle ~= "band" then
 		bandage(S, 0.3, 0.42, 6, 3)
 		if side == "front" or side == "out" then
 			local col = look.holster
@@ -1215,6 +1509,9 @@ end
 -- Plis génériques du torse (aisselles, ventre).
 local function torsoFolds(S, color: Color3, o)
 	local opts = o or {}
+	-- Grandes ombres franches en "V" (texture classique)
+	shadowV(S, -0.02, 0.48, 0.3, 0.6, 0.0, 0.76, 0.17, color, 1)
+	shadowV(S, 1.02, 0.48, 0.7, 0.6, 1.0, 0.76, 0.17, color, 1)
 	fold(S, 0.02, 0.3, 0.36, 0.55, color)
 	fold(S, 0.98, 0.3, 0.64, 0.55, color)
 	if opts.belly ~= false then
@@ -1253,36 +1550,7 @@ OUTFITS.shirt = function(S, look, c)
 	end
 end
 
-OUTFITS.jacket = function(S, look, c)
-	local top = c.top
-	local yoke = look.shoulders or c.accent
-	S.under = yoke
-	torsoEdges(S, top)
-	-- Empiècement d'épaules (bleu nuit sur la veste de Maruto) au bord arrondi
-	S:rect(0.5, 0.15, 1, 0.3, yoke, { gradient = { lighten(yoke, 0.2), yoke, shade(yoke, 0.15) }, z = 2 })
-	for _, x in { 0.2, 0.8 } do
-		S:oval(x, 0.3, 0.95, 0.2, yoke, { stroke = inkOf(yoke), strokeThickness = 1.6, z = 1 })
-	end
-	castShadow(S, 0.36, 0.1, top, 1)
-	torsoFolds(S, top)
-	-- Poches en biais
-	for _, s in { -1, 1 } do
-		S:line(0.5 + s * 0.2, 0.63, 0.5 + s * 0.35, 0.75, 0.035, inkOf(top), { z = 4 })
-		S:line(0.5 + s * 0.215, 0.61, 0.5 + s * 0.365, 0.73, 0.02, lighten(top, 0.35), { transparency = 0.2, z = 4, fine = true })
-	end
-	-- Ourlet du bas
-	band(S, 0.9, 0.06, shade(top, 0.08), 4)
-	zipper(S, 0.5, 0.06, 0.93, top, 5)
-	if look.collar == "fur" then
-		furTrim(S, 0.075, 0.15, look.collarColor or Color3.fromRGB(240, 238, 230), 8)
-	else
-		S:oval(0.5, 0.02, 0.56, 0.24, yoke, { stroke = inkOf(yoke), strokeThickness = 1, z = 6 })
-		S:oval(0.5, 0.0, 0.36, 0.14, shade(yoke, 0.55), { z = 7 })
-	end
-	if look.chestMark then
-		logo(S.g, look.chestMark, 0.28, 0.22, 0.16)
-	end
-end
+OUTFITS.jacket = jacketFront
 
 OUTFITS.jumpsuit = function(S, look, c)
 	local top, accent = c.top, c.accent
@@ -1642,7 +1910,13 @@ local function torsoBack(S, look, c)
 	if outfit == "cloak" then
 		cloud(S.g, 0.3, 0.3, 0.32, c.accent)
 		cloud(S.g, 0.7, 0.62, 0.32, c.accent)
-	elseif outfit == "jacket" or outfit == "jumpsuit" or outfit == "flakvest" then
+	elseif outfit == "jacket" then
+		jacketBack(S, look, c)
+		if look.logo and look.logo.back then
+			logo(S.g, look.logo, 0.5, 0.52, 0.4)
+		end
+		return
+	elseif outfit == "jumpsuit" or outfit == "flakvest" then
 		local yoke = look.shoulders or c.accent
 		if outfit == "flakvest" then
 			S:rect(0.5, 0.55, 0.9, 0.9, c.accent, { gradient = { lighten(c.accent, 0.12), c.accent, celShadow(c.accent) }, stroke = inkOf(c.accent), strokeThickness = 1.2, z = 2 })
@@ -1727,7 +2001,9 @@ function Painter.dress(limbs, look, mode: string?)
 			if name == "front" then
 				painter(S, look, c)
 			elseif name == "back" then
-				torsoBack(S, look, c)
+				if not c.haori then
+					torsoBack(S, look, c) -- (dos caché par le panneau du haori sinon)
+				end
 			else
 				if look.shoulders then
 					S:rect(0.5, 0.15, 1, 0.3, look.shoulders, { z = 2 })
