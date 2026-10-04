@@ -27,10 +27,8 @@ local HEAD_PART = Vector3.new(2, 1, 1)
 local HEAD_MESH_SCALE = Vector3.new(1.25, 1.25, 1.25)
 local HEAD_R = 0.6 -- rayon visible
 local HEAD_H = 1.2 -- hauteur visible
-local HEAD_W, HEAD_D = 2 * HEAD_R, 2 * HEAD_R
 local TOP = HEAD_H / 2
 local FRONT = -HEAD_R
-local BACK = HEAD_R
 -- Rayon d'un objet qui entoure la tête (bandeau, masque...) : au-dessus des plaques du visage.
 local WRAP_R = 0.665
 
@@ -556,7 +554,7 @@ HAIR.spiky = function(ctx, c, look)
 	end
 	if not band then
 		-- Sans bandeau : frange en pointes sur le front
-		fringe(ctx, c, { -0.38, -0.13, 0.13, 0.38 }, { 0.42, 0.5, 0.46, 0.4 }, 0.34, { alt = shine, y = 0.56, spread = 0.7, tip = tip })
+		fringe(ctx, c, { -0.38, -0.13, 0.13, 0.38 }, { 0.42, 0.5, 0.46, 0.4 }, 0.34, { alt = tip or shine, y = 0.56, spread = 0.7 })
 	end
 end
 
@@ -1259,8 +1257,8 @@ end
 ACC.collar_high = function(ctx, look)
 	-- Col montant qui cache le bas du visage (manteau à nuages, uniforme à col haut)
 	local color = look.collarColor or look.topAccent or look.top or Color3.fromRGB(30, 30, 40)
-	ctx.vcyl("Torso", "HighCollar", 0.56, 1.5, CFrame.new(0, 1.0, 0), color)
-	ctx.vcyl("Torso", "HighCollarLining", 0.03, 1.36, CFrame.new(0, 1.28, 0), look.collarLining or Painter.shade(color, 0.4))
+	ctx.vcyl("Torso", "HighCollar", 0.5, 1.5, CFrame.new(0, 0.98, 0), color)
+	ctx.vcyl("Torso", "HighCollarLining", 0.03, 1.36, CFrame.new(0, 1.23, 0), look.collarLining or Painter.shade(color, 0.4))
 end
 
 ACC.collar_gold = function(ctx, look)

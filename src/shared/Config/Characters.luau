@@ -16,6 +16,17 @@
 --   "sandals" | "zori" | "boots" | "barefoot"), bootTop?, bootTrim?, bootLace?, frontZip?,
 --   collarButton?, chestScar?, pattern? ("asanoha"), patternColor?, obiCord?, obiBow?,
 --   hairTilt?, hairUnder? (dessous des cheveux), hairShine? (reflets)
+--   v3 classique (avatars R6 comme "Kid Naruto", voir CharacterBuilder) :
+--   Visage : eyeX?, eyeY? (position des yeux, studs depuis le centre de la tête), eyeWidth?, eyeHeight?,
+--     eyeScale?, pupil? ("bar" | "slit" | "ring" | "tomoe" | "none"), pupilColor?, scleraColor?,
+--     lashColor?, lashThickness?, lashes? (cils longs), browColor?, browY?, mouthWidth?, mouthY?,
+--     whiskerColor?, glassesColor?, scarSide? ("left"), face "sad" en plus.
+--   Cheveux : hairLength? (taille des pointes / longueur), tailLength? (queue de cheval),
+--     sidelockLength? (mèches de côté), forehead? (front dégagé, cheveux longs).
+--   Bandeau : headbandY?, headbandRadius? (porté sur les cheveux), plateColor?.
+--   Tenue : pantsStyle? ("plain" = sans les plis de la texture classique), holsterStyle? ("band" =
+--     sangle de cuisse comme Kid Naruto), handTop? (début de la main sur le bras), sandalTop?,
+--     collarColor?, collarLining? (col montant), maskColor?.
 -- }
 -- Pour utiliser de vrais objets du catalogue Roblox (cheveux, vêtements, visage) : voir Config/Avatars.luau
 -- attack = { kind = "punch" | "orb" | "beam" | "slash" | "lightning" | "flame" | "shadow" | "stretch" | "ice", color, name }
@@ -267,6 +278,7 @@ Characters.List = {
 			collarColor = rgb(22, 22, 28),
 			collarLining = rgb(200, 25, 35),
 			tailLength = 1.3,
+			sidelockLength = 0.62,
 		},
 		attack = { kind = "flame", color = rgb(70, 20, 90), name = "Flammes Noires" },
 		fusion = { prefix = "Écarlate", suffix = "Écarlate" },
