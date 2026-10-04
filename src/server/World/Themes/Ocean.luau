@@ -58,20 +58,42 @@ local function ship(parent: Instance, cf: CFrame, scale: number, kind: string, f
 	Build.part(model, "Hull", Vector3.new(W, H, L * 0.7), cf * CFrame.new(0, H / 2 - 2 * s, L * 0.1), hullColor, { Material = Enum.Material.WoodPlanks })
 	Build.part(model, "HullLow", Vector3.new(W * 0.7, H * 0.6, L * 0.62), cf * CFrame.new(0, -2.6 * s, L * 0.1), shade(hullColor, -0.2), { Material = Enum.Material.WoodPlanks })
 	for _, side in { -1, 1 } do
-		Build.wedge(model, "Bow", Vector3.new(W / 2, H, L * 0.22), cf * CFrame.new(side * W / 4, H / 2 - 2 * s, -L * 0.36) * CFrame.Angles(0, math.pi, 0) * CFrame.Angles(0, side * 0.05, 0), hullColor, {
-			Material = Enum.Material.WoodPlanks,
-		})
-		Build.deco(model, "Wale", Vector3.new(0.4 * s, 0.7 * s, L * 0.7), cf * CFrame.new(side * (W / 2 + 0.1), H * 0.55 - 2 * s, L * 0.1), kind == "baleine" and rgb(60, 110, 170) or rgb(220, 180, 80), {
-			Material = Enum.Material.Wood,
-		})
+		Build.wedge(
+			model,
+			"Bow",
+			Vector3.new(W / 2, H, L * 0.22),
+			cf * CFrame.new(side * W / 4, H / 2 - 2 * s, -L * 0.36) * CFrame.Angles(0, math.pi, 0) * CFrame.Angles(0, side * 0.05, 0),
+			hullColor,
+			{
+				Material = Enum.Material.WoodPlanks,
+			}
+		)
+		Build.deco(
+			model,
+			"Wale",
+			Vector3.new(0.4 * s, 0.7 * s, L * 0.7),
+			cf * CFrame.new(side * (W / 2 + 0.1), H * 0.55 - 2 * s, L * 0.1),
+			kind == "baleine" and rgb(60, 110, 170) or rgb(220, 180, 80),
+			{
+				Material = Enum.Material.Wood,
+			}
+		)
 		-- sabords et canons
 		for k = 0, 3 do
 			local z = -L * 0.15 + k * L * 0.13
 			Build.deco(model, "Gunport", Vector3.new(0.3 * s, 1.2 * s, 1.4 * s), cf * CFrame.new(side * (W / 2 + 0.05), H * 0.25 - 2 * s, z), rgb(30, 24, 20))
-			Core.cylinder(model, "Cannon", (cf * CFrame.new(side * (W / 2 - 0.4), H * 0.25 - 2 * s, z)).Position, (cf * CFrame.new(side * (W / 2 + 1.4 * s), H * 0.25 - 2 * s, z)).Position, 0.8 * s, rgb(40, 40, 44), {
-				Material = Enum.Material.Metal,
-				CanCollide = false,
-			})
+			Core.cylinder(
+				model,
+				"Cannon",
+				(cf * CFrame.new(side * (W / 2 - 0.4), H * 0.25 - 2 * s, z)).Position,
+				(cf * CFrame.new(side * (W / 2 + 1.4 * s), H * 0.25 - 2 * s, z)).Position,
+				0.8 * s,
+				rgb(40, 40, 44),
+				{
+					Material = Enum.Material.Metal,
+					CanCollide = false,
+				}
+			)
 		end
 		Build.deco(model, "Rail", Vector3.new(0.5 * s, 1.2 * s, L * 0.7), cf * CFrame.new(side * (W / 2 - 0.2), H - 1.4 * s, L * 0.1), HULL_DARK, { Material = Enum.Material.Wood })
 	end
@@ -94,11 +116,18 @@ local function ship(parent: Instance, cf: CFrame, scale: number, kind: string, f
 			local wide = (k == 1 and 16 or 12) * s
 			Build.deco(model, "Yard", Vector3.new(wide, 0.5 * s, 0.5 * s), base * CFrame.new(0, y, 0), HULL_DARK, { Material = Enum.Material.Wood })
 			local sailH = (k == 1 and 10 or 7) * s
-			local sail = Build.deco(model, "Sail", Vector3.new(wide - 1, sailH, 0.3 * s), base * CFrame.new(0, y - sailH / 2 - 0.3, -0.6 * s) * CFrame.Angles(math.rad(-6), 0, 0), SAIL, {
-				Material = Enum.Material.Fabric,
-			})
+			local sail =
+				Build.deco(model, "Sail", Vector3.new(wide - 1, sailH, 0.3 * s), base * CFrame.new(0, y - sailH / 2 - 0.3, -0.6 * s) * CFrame.Angles(math.rad(-6), 0, 0), SAIL, {
+					Material = Enum.Material.Fabric,
+				})
 			if k == 1 and flag then
-				Core.plaqueText(model, base * CFrame.new(0, y - sailH / 2 - 0.3, -1.1 * s) * CFrame.Angles(math.rad(-6), 0, 0), Vector2.new(sailH * 0.8, sailH * 0.8), "☠", rgb(30, 26, 26))
+				Core.plaqueText(
+					model,
+					base * CFrame.new(0, y - sailH / 2 - 0.3, -1.1 * s) * CFrame.Angles(math.rad(-6), 0, 0),
+					Vector2.new(sailH * 0.8, sailH * 0.8),
+					"☠",
+					rgb(30, 26, 26)
+				)
 			end
 			local _ = sail
 		end
@@ -109,7 +138,14 @@ local function ship(parent: Instance, cf: CFrame, scale: number, kind: string, f
 		end
 	end
 	-- pavillon en haut du grand mât
-	Build.deco(model, "JollyRoger", Vector3.new(0.15, 3 * s, 4.4 * s), cf * CFrame.new(0, H - 2 * s + 31 * s, -L * 0.2 + 2.2 * s), flag or rgb(30, 26, 26), { Material = Enum.Material.Fabric })
+	Build.deco(
+		model,
+		"JollyRoger",
+		Vector3.new(0.15, 3 * s, 4.4 * s),
+		cf * CFrame.new(0, H - 2 * s + 31 * s, -L * 0.2 + 2.2 * s),
+		flag or rgb(30, 26, 26),
+		{ Material = Enum.Material.Fabric }
+	)
 	-- beaupré et figure de proue
 	local bow = cf * CFrame.new(0, H - 1 * s, -L * 0.47)
 	Core.cylinder(model, "Bowsprit", bow.Position, (bow * CFrame.new(0, 4 * s, -10 * s)).Position, 0.8 * s, HULL_DARK, { Material = Enum.Material.Wood, CanCollide = false })
@@ -162,7 +198,15 @@ local function portHouse(parent: Instance, cf: CFrame, size: Vector3, rng: Rando
 			return f == 0 and math.abs(x) < 3.6
 		end)
 		for _, side in { -1, 1 } do
-			Archi.windowRow(model, base * CFrame.new(side * (size.X / 2 + 0.05), y, 0) * CFrame.Angles(0, side * math.pi / 2, 0), size.Z, math.max(1, math.floor(size.Z / 7)), 2.2, 2.8, { frame = trim, shutters = shutter })
+			Archi.windowRow(
+				model,
+				base * CFrame.new(side * (size.X / 2 + 0.05), y, 0) * CFrame.Angles(0, side * math.pi / 2, 0),
+				size.Z,
+				math.max(1, math.floor(size.Z / 7)),
+				2.2,
+				2.8,
+				{ frame = trim, shutters = shutter }
+			)
 		end
 	end
 	Archi.door(model, base * CFrame.new(0, 0, -size.Z / 2 - 0.05), 4, 7, { color = rgb(110, 70, 44), lamp = rgb(255, 210, 140) })
@@ -177,9 +221,16 @@ local function portHouse(parent: Instance, cf: CFrame, size: Vector3, rng: Rando
 	local stripes = 5
 	local color = ({ rgb(200, 60, 50), rgb(40, 110, 180), rgb(240, 170, 40), rgb(60, 150, 90) })[rng:NextInteger(1, 4)]
 	for i = 0, stripes - 1 do
-		Build.deco(model, "Awning", Vector3.new(size.X * 0.7 / stripes, 0.2, 3), base * CFrame.new(-size.X * 0.35 + (i + 0.5) * size.X * 0.7 / stripes, 7.8, -size.Z / 2 - 1.4) * CFrame.Angles(math.rad(-18), 0, 0), i % 2 == 0 and color or rgb(250, 246, 236), {
-			Material = Enum.Material.Fabric,
-		})
+		Build.deco(
+			model,
+			"Awning",
+			Vector3.new(size.X * 0.7 / stripes, 0.2, 3),
+			base * CFrame.new(-size.X * 0.35 + (i + 0.5) * size.X * 0.7 / stripes, 7.8, -size.Z / 2 - 1.4) * CFrame.Angles(math.rad(-18), 0, 0),
+			i % 2 == 0 and color or rgb(250, 246, 236),
+			{
+				Material = Enum.Material.Fabric,
+			}
+		)
 	end
 	Archi.sign(model, base * CFrame.new(0, 9.6, -size.Z / 2 - 0.4), size.X * 0.6, 1.6, SHOPS[rng:NextInteger(1, #SHOPS)], { bg = rgb(60, 40, 30), text = rgb(255, 226, 150) })
 	return model
@@ -201,7 +252,7 @@ local function shipRestaurant(parent: Instance, cf: CFrame, rng: Random): Model
 			Core.beam(model, "Prop", (cf * CFrame.new(x, 0, side * 9)).Position, (cf * CFrame.new(x, 4, side * 6)).Position, 0.8, 0.8, HULL_DARK, { Material = Enum.Material.Wood })
 		end
 	end
-	Archi.stairs(model, cf * CFrame.new(0, 0, -11) , 5, 7.6, 7, 8, rgb(150, 110, 74), Enum.Material.WoodPlanks)
+	Archi.stairs(model, cf * CFrame.new(0, 0, -11), 5, 7.6, 7, 8, rgb(150, 110, 74), Enum.Material.WoodPlanks)
 	return model
 end
 
@@ -228,15 +279,31 @@ local function shipyard(parent: Instance, cf: CFrame, rng: Random): Model
 	-- grue en bois
 	local crane = cf * CFrame.new(18, 0, -10)
 	Archi.block(model, "CraneTower", Vector3.new(2, 30, 2), crane, HULL_DARK, Enum.Material.Wood)
-	Core.beam(model, "CraneBoom", (crane * CFrame.new(0, 28, 0)).Position, (crane * CFrame.new(-16, 32, 6)).Position, 1, 1, HULL_DARK, { Material = Enum.Material.Wood, CanCollide = false })
+	Core.beam(
+		model,
+		"CraneBoom",
+		(crane * CFrame.new(0, 28, 0)).Position,
+		(crane * CFrame.new(-16, 32, 6)).Position,
+		1,
+		1,
+		HULL_DARK,
+		{ Material = Enum.Material.Wood, CanCollide = false }
+	)
 	Build.deco(model, "CraneRope", Vector3.new(0.15, 14, 0.15), crane * CFrame.new(-16, 25, 6), rgb(200, 180, 130), { Material = Enum.Material.Fabric })
 	Props.crate(model, crane * CFrame.new(-16, 15, 6), 2.4)
 	-- bois empilé
 	for row = 0, 2 do
 		for k = 0, 4 - row do
-			local log = Build.part(model, "Lumber", Vector3.new(14, 1.2, 1.2), cf * CFrame.new(-18, 0.6 + row * 1.1, -12 + k * 1.25 + row * 0.6) * CFrame.Angles(0, math.rad(90), 0), shade(rgb(170, 128, 84), (k % 2) * 0.06), {
-				Material = Enum.Material.Wood,
-			})
+			local log = Build.part(
+				model,
+				"Lumber",
+				Vector3.new(14, 1.2, 1.2),
+				cf * CFrame.new(-18, 0.6 + row * 1.1, -12 + k * 1.25 + row * 0.6) * CFrame.Angles(0, math.rad(90), 0),
+				shade(rgb(170, 128, 84), (k % 2) * 0.06),
+				{
+					Material = Enum.Material.Wood,
+				}
+			)
 			log.Shape = Enum.PartType.Cylinder
 		end
 	end
@@ -264,10 +331,24 @@ local function pirateArch(parent: Instance, cf: CFrame): Model
 	Build.surfaceText(flag, Enum.NormalId.Front, "☠", rgb(250, 250, 246), { TextStrokeTransparency = 1 })
 	Build.surfaceText(flag, Enum.NormalId.Back, "☠", rgb(250, 250, 246), { TextStrokeTransparency = 1 })
 	-- barre de navire au sommet
-	local wheel = Build.deco(model, "ShipWheel", Vector3.new(0.6, 7, 7), cf * CFrame.new(0, 28.6, 0) * CFrame.Angles(0, math.rad(90), 0), rgb(150, 100, 60), { Material = Enum.Material.Wood })
+	local wheel = Build.deco(
+		model,
+		"ShipWheel",
+		Vector3.new(0.6, 7, 7),
+		cf * CFrame.new(0, 28.6, 0) * CFrame.Angles(0, math.rad(90), 0),
+		rgb(150, 100, 60),
+		{ Material = Enum.Material.Wood }
+	)
 	wheel.Shape = Enum.PartType.Cylinder
 	for k = 0, 3 do
-		Build.deco(model, "WheelSpoke", Vector3.new(0.5, 9, 0.5), cf * CFrame.new(0, 28.6, -0.4) * CFrame.Angles(0, 0, k * math.pi / 4), rgb(150, 100, 60), { Material = Enum.Material.Wood })
+		Build.deco(
+			model,
+			"WheelSpoke",
+			Vector3.new(0.5, 9, 0.5),
+			cf * CFrame.new(0, 28.6, -0.4) * CFrame.Angles(0, 0, k * math.pi / 4),
+			rgb(150, 100, 60),
+			{ Material = Enum.Material.Wood }
+		)
 	end
 	return model
 end
@@ -276,7 +357,14 @@ end
 local function lighthouse(parent: Instance, base: Vector3, rng: Random): Model
 	local cf = CFrame.lookAt(base, Vector3.new(0, base.Y, 0))
 	local model = Core.slot(parent, "Phare", cf, 70)
-	Nature.cliff(model, cf * CFrame.new(0, -4, 0), 34, 16, 30, { rng = rng, color = rgb(190, 178, 154), top = rgb(100, 160, 80), role = nil, slot = "RocherDuPhare", rubble = true, ramp = 1 })
+	Nature.cliff(
+		model,
+		cf * CFrame.new(0, -4, 0),
+		34,
+		16,
+		30,
+		{ rng = rng, color = rgb(190, 178, 154), top = rgb(100, 160, 80), role = nil, slot = "RocherDuPhare", rubble = true, ramp = 1 }
+	)
 	local top = cf * CFrame.new(0, 12, 0)
 	for k = 0, 5 do
 		Core.vcyl(model, "Tower", top * CFrame.new(0, k * 7, 0), 7, 10 - k * 0.6, k % 2 == 0 and rgb(240, 240, 236) or rgb(200, 50, 46), Enum.Material.SmoothPlastic)
@@ -363,11 +451,29 @@ function Ocean.build(decor: Instance, rng: Random, _theme)
 		local p = lagoonCenter + polar(200 + k * 25, 40)
 		Core.vcyl(ring, "UmbrellaPole", CFrame.new(p), 7, 0.3, rgb(240, 240, 236), Enum.Material.Metal, false)
 		for j = 0, 1 do
-			for _, part in Core.pyramid(ring, "Umbrella", CFrame.new(p + UP * 7) * CFrame.Angles(0, j * math.pi / 4, 0), 8, 8, 1.6, k % 2 == 0 and rgb(230, 70, 60) or rgb(60, 140, 220), Enum.Material.Fabric) do
+			for _, part in
+				Core.pyramid(
+					ring,
+					"Umbrella",
+					CFrame.new(p + UP * 7) * CFrame.Angles(0, j * math.pi / 4, 0),
+					8,
+					8,
+					1.6,
+					k % 2 == 0 and rgb(230, 70, 60) or rgb(60, 140, 220),
+					Enum.Material.Fabric
+				)
+			do
 				part.CanCollide = false
 			end
 		end
-		Build.part(ring, "Lounger", Vector3.new(2.2, 0.5, 6), CFrame.lookAt(p + polar(200 + k * 25, 4) + UP * 1, lagoonCenter + UP * 1) * CFrame.Angles(math.rad(8), 0, 0), rgb(250, 250, 246), { Material = Enum.Material.Fabric })
+		Build.part(
+			ring,
+			"Lounger",
+			Vector3.new(2.2, 0.5, 6),
+			CFrame.lookAt(p + polar(200 + k * 25, 4) + UP * 1, lagoonCenter + UP * 1) * CFrame.Angles(math.rad(8), 0, 0),
+			rgb(250, 250, 246),
+			{ Material = Enum.Material.Fabric }
+		)
 	end
 
 	-- 4) Palmiers et végétation tropicale dans l'anneau.
@@ -390,7 +496,8 @@ function Ocean.build(decor: Instance, rng: Random, _theme)
 		return Common.ringFree(p, 1)
 	end, function(p)
 		local shells = { rgb(255, 170, 180), rgb(255, 140, 60), rgb(250, 240, 220) }
-		Core.ellipsoid(ring, "Shell", Vector3.new(0.8, 0.35, 0.7), CFrame.new(p + UP * (TOP_RING + 0.1)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0), shells[rng:NextInteger(1, 3)]).CastShadow = false
+		Core.ellipsoid(ring, "Shell", Vector3.new(0.8, 0.35, 0.7), CFrame.new(p + UP * (TOP_RING + 0.1)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0), shells[rng:NextInteger(1, 3)]).CastShadow =
+			false
 	end)
 	Common.ringGround(ring, rng, { patches = 20, tufts = 160, flowers = 30, flowerColors = { rgb(230, 40, 70), rgb(250, 200, 60) }, patchRole = "herbe" })
 
@@ -402,7 +509,14 @@ function Ocean.build(decor: Instance, rng: Random, _theme)
 			for _, side in { -1, 1 } do
 				local p = polar(deg + side * math.deg(11 / Layout.RingFenceRadius), Layout.RingFenceRadius + 2, TOP_RING)
 				Core.vcyl(ring, "FlagPole", CFrame.new(p), 18, 0.6, HULL_DARK, Enum.Material.Wood)
-				local flag = Build.deco(ring, "Flag", Vector3.new(0.15, 4, 6), CFrame.new(p + UP * 15.5) * CFrame.Angles(0, math.rad(-deg), 0) * CFrame.new(0, 0, 3), rgb(28, 24, 26), { Material = Enum.Material.Fabric })
+				local flag = Build.deco(
+					ring,
+					"Flag",
+					Vector3.new(0.15, 4, 6),
+					CFrame.new(p + UP * 15.5) * CFrame.Angles(0, math.rad(-deg), 0) * CFrame.new(0, 0, 3),
+					rgb(28, 24, 26),
+					{ Material = Enum.Material.Fabric }
+				)
 				Build.surfaceText(flag, Enum.NormalId.Right, "☠", rgb(250, 250, 246), { TextStrokeTransparency = 1 })
 				Build.surfaceText(flag, Enum.NormalId.Left, "☠", rgb(250, 250, 246), { TextStrokeTransparency = 1 })
 			end
