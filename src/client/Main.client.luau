@@ -51,8 +51,10 @@ local gui = Theme.new("ScreenGui", {
 -- hauteur le permet.
 local LOGICAL_W, LOGICAL_H = 1280, 770
 local function updateScale()
-	local size = gui.AbsoluteSize
-	if size.X < 10 or size.Y < 10 then
+	local okSize, size = pcall(function()
+		return gui.AbsoluteSize
+	end)
+	if not okSize or typeof(size) ~= "Vector2" or size.X < 10 or size.Y < 10 then
 		local camera = workspace.CurrentCamera
 		if not camera then
 			return
@@ -66,7 +68,9 @@ local function updateScale()
 	Theme.setScale(math.clamp(scale, 0.4, 3))
 end
 updateScale()
-gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateScale)
+pcall(function()
+	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateScale)
+end)
 workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(updateScale)
 if workspace.CurrentCamera then
 	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)

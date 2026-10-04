@@ -450,6 +450,25 @@ test("Machine ROULER : roulage, estrade, collecte offerte puis payante", functio
 	services.RollService:RenderStage(alice)
 end)
 
+test("Tapis de pièces : chemins publiés pour les clients, aucune pièce animée par le serveur", function()
+	local Conveyor = Harness.require(Harness.find("ServerScriptService.Server.Modules.TycoonConveyor"))
+	local folder = roblox.Instance.new("Folder")
+	folder.Parent = game:GetService("Workspace")
+	Conveyor.publish(folder, {
+		{ kind = "gold", interval = 1.8, points = { roblox.Vector3.new(1, 6, 2), roblox.Vector3.new(1, 2, 2), roblox.Vector3.new(1, 2, 20.5) } },
+	}, true)
+	local config = folder:FindFirstChild("Chemin1")
+	assert(config and config:GetAttribute("Kind") == "gold" and config:GetAttribute("Interval") == 1.8, "chemin non publié")
+	assert(config:GetAttribute("Points") == "1.00,6.00,2.00;1.00,2.00,2.00;1.00,2.00,20.50", "points mal encodés")
+	assert(folder:GetAttribute("Active") == true and table.find(Harness.CollectionService:GetTagged(Conveyor.Tag), folder), "dossier non étiqueté")
+	folder:Destroy()
+	local plot = services.PlotService:GetPlot(alice)
+	assert(plot.coinFolder and table.find(Harness.CollectionService:GetTagged(Conveyor.Tag), plot.coinFolder), "tapis de la base non publié")
+	for _, child in plot.coinFolder:GetChildren() do
+		assert(child:IsA("Configuration"), "pièce créée côté serveur : " .. child.Name)
+	end
+end)
+
 test("Machine ROULER : délai entre deux roulages", function()
 	services.RollService:ResetCooldown(alice)
 	assert(invoke("Roll", alice), "1er roulage")

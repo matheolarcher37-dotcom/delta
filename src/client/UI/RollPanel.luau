@@ -468,7 +468,10 @@ function RollPanel.layoutQueue()
 	local count = #State.rollInfo().queue
 	box.Visible = count > 0
 	local scale = math.max(0.1, Theme.getScale())
-	local height = root.AbsoluteSize.Y / scale
+	local okSize, absolute = pcall(function()
+		return root.AbsoluteSize
+	end)
+	local height = (okSize and typeof(absolute) == "Vector2") and absolute.Y / scale or 0
 	if height < 300 then
 		height = 770
 	end
@@ -495,7 +498,9 @@ function RollPanel.init(gui: ScreenGui, hudRoot: Frame?)
 	State.onChanged(refresh)
 	Console.setAction("roll", RollPanel.roll)
 	Console.onModeChanged(RollPanel.layoutQueue)
-	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(RollPanel.layoutQueue)
+	pcall(function()
+		root:GetPropertyChangedSignal("AbsoluteSize"):Connect(RollPanel.layoutQueue)
+	end)
 end
 
 function RollPanel.panel(): Frame?
