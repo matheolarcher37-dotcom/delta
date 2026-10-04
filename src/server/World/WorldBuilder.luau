@@ -326,10 +326,11 @@ local function buildIsland(world: Folder)
 		local mid = (p0 + p1) / 2
 		if not WorldBuilder.nearWater(mid, -4) then
 			local nuance = rng:NextNumber(-0.05, 0.05)
-			local part = Build.deco(trail, "Trail", Vector3.new(7 + rng:NextNumber(-0.8, 0.8), 0.3, (p1 - p0).Magnitude + 1), CFrame.lookAt(mid, p1) + UP * (TOP_PATCH + 0.02), GRASS, {
-				Material = Enum.Material.Ground,
-				CastShadow = false,
-			})
+			local part =
+				Build.deco(trail, "Trail", Vector3.new(7 + rng:NextNumber(-0.8, 0.8), 0.3, (p1 - p0).Magnitude + 1), CFrame.lookAt(mid, p1) + UP * (TOP_PATCH + 0.02), GRASS, {
+					Material = Enum.Material.Ground,
+					CastShadow = false,
+				})
 			Core.solRole(part, "terre", nuance)
 		end
 	end
@@ -529,15 +530,23 @@ local function counterProps(parent: Instance, stall, cf: CFrame)
 		Props.weaponRack(parent, shelf * CFrame.new(4, 0, 0.4) * CFrame.Angles(0, math.pi, 0))
 	elseif stall.id == "Traits" then
 		for i = -1, 1 do
-			local crystal = Build.deco(parent, "TraitCrystal", Vector3.new(0.9, 1.8, 0.9), top * CFrame.new(i * 3.5, 1, 0) * CFrame.Angles(0, math.rad(45), 0), stall.color:Lerp(rgb(255, 255, 255), 0.2), {
-				Material = Enum.Material.Neon,
-				Transparency = 0.1,
-			})
+			local crystal = Build.deco(
+				parent,
+				"TraitCrystal",
+				Vector3.new(0.9, 1.8, 0.9),
+				top * CFrame.new(i * 3.5, 1, 0) * CFrame.Angles(0, math.rad(45), 0),
+				stall.color:Lerp(rgb(255, 255, 255), 0.2),
+				{
+					Material = Enum.Material.Neon,
+					Transparency = 0.1,
+				}
+			)
 			crystal:SetAttribute("Bob", 0.3)
 			CollectionService:AddTag(crystal, "Spin")
 		end
 	elseif stall.id == "Fusion" then
-		local orb = Build.ball(parent, "FusionOrb", 2.4, (top * CFrame.new(0, 1.5, 0)).Position, stall.color, { Material = Enum.Material.Neon, Transparency = 0.15, CanCollide = false })
+		local orb =
+			Build.ball(parent, "FusionOrb", 2.4, (top * CFrame.new(0, 1.5, 0)).Position, stall.color, { Material = Enum.Material.Neon, Transparency = 0.15, CanCollide = false })
 		orb:SetAttribute("Bob", 0.4)
 		CollectionService:AddTag(orb, "Spin")
 		Core.light(orb, stall.color, 16, 1.2)
@@ -574,7 +583,14 @@ local function counterProps(parent: Instance, stall, cf: CFrame)
 			Build.part(parent, "Shelf", Vector3.new(10, 0.4, 1.4), shelf * CFrame.new(0, 3 + row * 2.6, 0.4), WOOD, { Material = Enum.Material.WoodPlanks })
 			for k = 0, 5 do
 				local c = stall.color:Lerp(rgb(255, 255, 255), (k % 3) * 0.25)
-				Build.deco(parent, "Jar", Vector3.new(0.8, 1.2, 0.8), shelf * CFrame.new(-4 + k * 1.6, 3.8 + row * 2.6, 0.3), c, { Material = Enum.Material.Glass, Transparency = 0.15 })
+				Build.deco(
+					parent,
+					"Jar",
+					Vector3.new(0.8, 1.2, 0.8),
+					shelf * CFrame.new(-4 + k * 1.6, 3.8 + row * 2.6, 0.3),
+					c,
+					{ Material = Enum.Material.Glass, Transparency = 0.15 }
+				)
 			end
 		end
 	end
@@ -602,7 +618,14 @@ local function buildStall(parent: Instance, stall)
 	for _, side in { -1, 1 } do
 		Build.part(model, "SideWall", Vector3.new(0.6, 4, STALL_D - 4), cf * CFrame.new(side * (hw - 0.3), FLOOR_TOP + 2, 1.5), WOOD, { Material = Enum.Material.WoodPlanks })
 		for k = 0, 3 do
-			Build.deco(model, "Lattice", Vector3.new(0.3, 4.4, 0.3), cf * CFrame.new(side * (hw - 0.3), FLOOR_TOP + 6.2, -1.5 + k * 2.4), WOOD_DARK, { Material = Enum.Material.Wood })
+			Build.deco(
+				model,
+				"Lattice",
+				Vector3.new(0.3, 4.4, 0.3),
+				cf * CFrame.new(side * (hw - 0.3), FLOOR_TOP + 6.2, -1.5 + k * 2.4),
+				WOOD_DARK,
+				{ Material = Enum.Material.Wood }
+			)
 		end
 		Build.deco(model, "LatticeRail", Vector3.new(0.4, 0.4, STALL_D - 4), cf * CFrame.new(side * (hw - 0.3), FLOOR_TOP + 8.4, 1.5), WOOD_DARK, { Material = Enum.Material.Wood })
 	end
@@ -611,7 +634,14 @@ local function buildStall(parent: Instance, stall)
 	Build.part(model, "CounterTop", Vector3.new(STALL_W - 3.4, 0.4, 3.3), cf * CFrame.new(0, COUNTER_TOP, COUNTER_Z), rgb(184, 136, 92), { Material = Enum.Material.Wood })
 	Build.part(model, "CounterStripe", Vector3.new(STALL_W - 4.1, 1.1, 0.14), cf * CFrame.new(0, FLOOR_TOP + 2, COUNTER_Z - 1.45), color, { Material = Enum.Material.Fabric })
 	for _, x in { -1, 1 } do
-		Build.deco(model, "CounterPost", Vector3.new(0.5, 3.2, 0.5), cf * CFrame.new(x * (hw - 2.4), FLOOR_TOP + 1.6, COUNTER_Z - 1.5), WOOD_DARK, { Material = Enum.Material.Wood })
+		Build.deco(
+			model,
+			"CounterPost",
+			Vector3.new(0.5, 3.2, 0.5),
+			cf * CFrame.new(x * (hw - 2.4), FLOOR_TOP + 1.6, COUNTER_Z - 1.5),
+			WOOD_DARK,
+			{ Material = Enum.Material.Wood }
+		)
 	end
 	-- Poteaux avant, poutre et toit.
 	for _, x in { -1, 1 } do
@@ -715,7 +745,14 @@ local function buildGem(parent: Instance, center: Vector3): Model
 	bipyramid("GemCore", 5.2, 2.6, 6, Enum.Material.Neon, 0)
 	-- table (dessus plat) et ceinture
 	for k = 0, 1 do
-		local girdle = Build.deco(gem, "GemGirdle", Vector3.new(8.2, 0.5, 8.2), CFrame.new(center) * CFrame.Angles(0, k * math.pi / 4, 0), tint, { Material = Enum.Material.Glass, Transparency = 0.2 })
+		local girdle = Build.deco(
+			gem,
+			"GemGirdle",
+			Vector3.new(8.2, 0.5, 8.2),
+			CFrame.new(center) * CFrame.Angles(0, k * math.pi / 4, 0),
+			tint,
+			{ Material = Enum.Material.Glass, Transparency = 0.2 }
+		)
 		girdle:SetAttribute("UniverseTint", true)
 	end
 	-- cœur porteur de la lumière et du panneau flottant (cherché par UniverseService)
@@ -755,7 +792,8 @@ local function buildUniverseArch(parent: Instance, angle: number, radius: number
 	Archi.gableRoof(model, cf * CFrame.new(0, 18, 0), half * 2 + 4, 2.4, 1.6, 1.2, rgb(70, 64, 72), { upturn = true, material = Enum.Material.ClayRoofTiles })
 	local header = Build.deco(model, "PanelHeader", Vector3.new(half * 2 - 0.6, 0.8, 0.9), cf * CFrame.new(0, 16.4, 0), rgb(255, 140, 30), { Material = Enum.Material.Neon })
 	header:SetAttribute("UniverseTint", true)
-	local panel = Build.part(model, "Panel", Vector3.new(half * 2 - 0.6, 5, 0.6), cf * CFrame.new(0, 13.6, 0), rgb(34, 28, 40), { Material = Enum.Material.Wood, CanCollide = false })
+	local panel =
+		Build.part(model, "Panel", Vector3.new(half * 2 - 0.6, 5, 0.6), cf * CFrame.new(0, 13.6, 0), rgb(34, 28, 40), { Material = Enum.Material.Wood, CanCollide = false })
 	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
 		local gui = Instance.new("SurfaceGui")
 		gui.Name = "UniverseGui"
@@ -790,10 +828,17 @@ local function buildHub(world: Folder)
 	slab(hub, "Plaza", 28, TOP_HUB + 0.1, 1.2, rgb(118, 110, 132), Enum.Material.Slate)
 	for i = 0, 15 do
 		local a = (i + 0.5) / 16 * math.pi * 2
-		local tile = Build.part(hub, "Rosace", Vector3.new(3.2, 0.12, 7.4), CFrame.lookAt(polarRad(a, 23.5, TOP_HUB + 0.12), Vector3.new(0, TOP_HUB + 0.12, 0)), i % 2 == 0 and rgb(214, 196, 150) or rgb(150, 132, 160), {
-			Material = Enum.Material.Marble,
-			CastShadow = false,
-		})
+		local tile = Build.part(
+			hub,
+			"Rosace",
+			Vector3.new(3.2, 0.12, 7.4),
+			CFrame.lookAt(polarRad(a, 23.5, TOP_HUB + 0.12), Vector3.new(0, TOP_HUB + 0.12, 0)),
+			i % 2 == 0 and rgb(214, 196, 150) or rgb(150, 132, 160),
+			{
+				Material = Enum.Material.Marble,
+				CastShadow = false,
+			}
+		)
 		tile.CanCollide = false
 	end
 	-- Allées dallées du centre vers chaque porte, avec bordures.
@@ -806,7 +851,14 @@ local function buildHub(world: Folder)
 		})
 		for _, side in { -1, 1 } do
 			local edge = mid + dir:Cross(UP) * side * 6.3
-			Build.deco(hub, "LaneEdge", Vector3.new(0.7, 0.35, R - 28), CFrame.lookAt(edge, edge + dir) + Vector3.new(0, TOP_HUB + 0.2, 0), STONE_DARK, { Material = Enum.Material.Slate })
+			Build.deco(
+				hub,
+				"LaneEdge",
+				Vector3.new(0.7, 0.35, R - 28),
+				CFrame.lookAt(edge, edge + dir) + Vector3.new(0, TOP_HUB + 0.2, 0),
+				STONE_DARK,
+				{ Material = Enum.Material.Slate }
+			)
 		end
 	end
 	-- Muret de pierres variées (polygone), avec 6 portes sur les rues.
@@ -845,7 +897,8 @@ local function buildHub(world: Folder)
 	local center = Build.model(hub, "HubCrystal")
 	local base = Vector3.new(0, TOP_HUB + 0.1, 0)
 	Build.disc(center, "Basin", 1.6, 38, base, STONE_DARK, { Material = Enum.Material.Cobblestone })
-	local water = Build.disc(center, "Water", 0.3, 35.5, base + Vector3.new(0, 1.4, 0), rgb(70, 160, 220), { Material = Enum.Material.Glass, Transparency = 0.3, CanCollide = false })
+	local water =
+		Build.disc(center, "Water", 0.3, 35.5, base + Vector3.new(0, 1.4, 0), rgb(70, 160, 220), { Material = Enum.Material.Glass, Transparency = 0.3, CanCollide = false })
 	water.Reflectance = 0.1
 	for i = 0, 31 do
 		local angle = (i + 0.5) / 32 * math.pi * 2
@@ -972,9 +1025,16 @@ local function buildRing(world: Folder)
 	for i = 0, 11 do
 		local a = i / 12 * math.pi * 2
 		local p = center + Vector3.new(math.cos(a), 0, math.sin(a)) * rng:NextNumber(6, radius - 10)
-		Build.deco(arena, "ArenaSlab", Vector3.new(rng:NextNumber(3, 6), 0.1, rng:NextNumber(3, 6)), CFrame.new(p + Vector3.new(0, 0.62, 0)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0), rgb(120, 112, 104), {
-			Material = Enum.Material.Slate,
-		})
+		Build.deco(
+			arena,
+			"ArenaSlab",
+			Vector3.new(rng:NextNumber(3, 6), 0.1, rng:NextNumber(3, 6)),
+			CFrame.new(p + Vector3.new(0, 0.62, 0)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0),
+			rgb(120, 112, 104),
+			{
+				Material = Enum.Material.Slate,
+			}
+		)
 	end
 	local pillars = 18
 	for i = 0, pillars - 1 do
@@ -1039,7 +1099,14 @@ local function buildTradeCorner(world: Folder)
 		local tableModel = Build.model(corner, "TradeTable" .. index)
 		local base = center + offset
 		Build.part(tableModel, "Top", Vector3.new(8, 0.6, 4), CFrame.new(base + Vector3.new(0, 3, 0)), rgb(130, 85, 55), { Material = Enum.Material.Wood })
-		Build.part(tableModel, "Cloth", Vector3.new(3, 0.1, 4.2), CFrame.new(base + Vector3.new(0, 3.35, 0)), rgb(200, 50, 60), { Material = Enum.Material.Fabric, CanCollide = false })
+		Build.part(
+			tableModel,
+			"Cloth",
+			Vector3.new(3, 0.1, 4.2),
+			CFrame.new(base + Vector3.new(0, 3.35, 0)),
+			rgb(200, 50, 60),
+			{ Material = Enum.Material.Fabric, CanCollide = false }
+		)
 		for _, legOffset in { Vector3.new(3.4, 0, 1.6), Vector3.new(-3.4, 0, 1.6), Vector3.new(3.4, 0, -1.6), Vector3.new(-3.4, 0, -1.6) } do
 			Build.part(tableModel, "Leg", Vector3.new(0.5, 2.7, 0.5), CFrame.new(base + legOffset + Vector3.new(0, 1.35, 0)), WOOD_DARK, { Material = Enum.Material.Wood })
 		end
@@ -1082,10 +1149,24 @@ local function buildBoards(world: Folder)
 		Build.part(model, "Header", Vector3.new(30, 3.6, 1.4), face * CFrame.new(0, 12, 0), color)
 		Archi.gableRoof(model, face * CFrame.new(0, 14.2, 0.4), 31, 3, 2.2, 1.4, rgb(70, 60, 64), { upturn = true })
 		for _, side in { -1, 1 } do
-			Build.part(model, "Leg", Vector3.new(1.6, 27, 1.6), CFrame.new(position + Vector3.new(0, 13.5, 0)) * (face - face.Position) * CFrame.new(side * 14, 0, 0.6), WOOD_DARK, {
-				Material = Enum.Material.Wood,
-			})
-			Archi.block(model, "LegFoot", Vector3.new(2.6, 1.4, 2.6), CFrame.new(position) * (face - face.Position) * CFrame.new(side * 14, 0, 0.6), STONE_DARK, Enum.Material.Slate)
+			Build.part(
+				model,
+				"Leg",
+				Vector3.new(1.6, 27, 1.6),
+				CFrame.new(position + Vector3.new(0, 13.5, 0)) * (face - face.Position) * CFrame.new(side * 14, 0, 0.6),
+				WOOD_DARK,
+				{
+					Material = Enum.Material.Wood,
+				}
+			)
+			Archi.block(
+				model,
+				"LegFoot",
+				Vector3.new(2.6, 1.4, 2.6),
+				CFrame.new(position) * (face - face.Position) * CFrame.new(side * 14, 0, 0.6),
+				STONE_DARK,
+				Enum.Material.Slate
+			)
 			local rot = CFrame.new(position) * (face - face.Position)
 			Props.hangingLantern(model, (rot * CFrame.new(side * 14.8, 23, 0.6)).Position, rot:VectorToWorldSpace(Vector3.new(side * 1.8, 0, 0)), color, 1)
 		end

@@ -45,7 +45,14 @@ local TOP_RING = Common.TOP_RING
 
 -- Hublot rond sur une surface (`cf` : centre, -Z vers l'extérieur).
 local function porthole(parent: Instance, cf: CFrame, d: number, lit: boolean?)
-	local frame = Build.deco(parent, "PortholeFrame", Vector3.new(0.3, d + 0.6, d + 0.6), cf * CFrame.new(0, 0, -0.05) * CFrame.Angles(0, math.rad(90), 0), rgb(180, 184, 190), { Material = Enum.Material.Metal })
+	local frame = Build.deco(
+		parent,
+		"PortholeFrame",
+		Vector3.new(0.3, d + 0.6, d + 0.6),
+		cf * CFrame.new(0, 0, -0.05) * CFrame.Angles(0, math.rad(90), 0),
+		rgb(180, 184, 190),
+		{ Material = Enum.Material.Metal }
+	)
 	frame.Shape = Enum.PartType.Cylinder
 	local glass = Build.deco(parent, "Porthole", Vector3.new(0.3, d, d), cf * CFrame.new(0, 0, -0.18) * CFrame.Angles(0, math.rad(90), 0), lit and rgb(255, 230, 170) or GLASS, {
 		Material = lit and Enum.Material.Neon or Enum.Material.Glass,
@@ -77,7 +84,8 @@ local function domeHouse(parent: Instance, cf: CFrame, d: number, accent: Color3
 	-- porte arrondie et petit sas
 	local door = cf * CFrame.new(0, 1, -r + 0.6)
 	Build.part(model, "Airlock", Vector3.new(5.4, 7, 3), door * CFrame.new(0, 3.5, -1), WHITE, { Material = Enum.Material.SmoothPlastic })
-	local arch = Build.part(model, "AirlockTop", Vector3.new(3, 5.4, 5.4), door * CFrame.new(0, 7, -1) * CFrame.Angles(0, math.rad(90), 0), WHITE, { Shape = Enum.PartType.Cylinder })
+	local arch =
+		Build.part(model, "AirlockTop", Vector3.new(3, 5.4, 5.4), door * CFrame.new(0, 7, -1) * CFrame.Angles(0, math.rad(90), 0), WHITE, { Shape = Enum.PartType.Cylinder })
 	arch.CastShadow = true
 	Build.deco(model, "Door", Vector3.new(3.4, 5.6, 0.3), door * CFrame.new(0, 2.8, -2.55), accent, { Material = Enum.Material.Metal })
 	Build.deco(model, "DoorLight", Vector3.new(2.4, 0.4, 0.2), door * CFrame.new(0, 6.4, -2.6), rgb(255, 230, 160), { Material = Enum.Material.Neon })
@@ -136,9 +144,16 @@ local function spire(parent: Instance, base: Vector3, height: number, width: num
 		local t = l / layers
 		local size = Vector3.new(w * rng:NextNumber(0.9, 1.05), h, w * rng:NextNumber(0.85, 1))
 		local nuance = (l % 2 == 0 and 0.05 or -0.06) + rng:NextNumber(-0.03, 0.03)
-		Build.part(model, "Strata", size, CFrame.new(base + offset + UP * (l * height / layers + h / 2 - 0.6)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0), shade(SAND:Lerp(rgb(176, 120, 82), t * 0.6), nuance), {
-			Material = Enum.Material.Sandstone,
-		})
+		Build.part(
+			model,
+			"Strata",
+			size,
+			CFrame.new(base + offset + UP * (l * height / layers + h / 2 - 0.6)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0),
+			shade(SAND:Lerp(rgb(176, 120, 82), t * 0.6), nuance),
+			{
+				Material = Enum.Material.Sandstone,
+			}
+		)
 		w *= rng:NextNumber(0.9, 1.02)
 		offset += Vector3.new(rng:NextNumber(-0.8, 0.8), 0, rng:NextNumber(-0.8, 0.8))
 	end
@@ -148,7 +163,12 @@ local function spire(parent: Instance, base: Vector3, height: number, width: num
 	-- éboulis
 	for _ = 1, 3 do
 		local a = rng:NextNumber(0, math.pi * 2)
-		Nature.rock(model, base + Vector3.new(math.cos(a), 0, math.sin(a)) * width * 0.7, rng:NextNumber(3, 6), { rng = rng, color = SAND, material = Enum.Material.Sandstone, slot = "Eboulis" })
+		Nature.rock(
+			model,
+			base + Vector3.new(math.cos(a), 0, math.sin(a)) * width * 0.7,
+			rng:NextNumber(3, 6),
+			{ rng = rng, color = SAND, material = Enum.Material.Sandstone, slot = "Eboulis" }
+		)
 	end
 	return model
 end
@@ -161,11 +181,25 @@ local function crashPod(parent: Instance, center: Vector3, rng: Random)
 	for i = 0, 9 do
 		local a = i / 10 * math.pi * 2
 		local p = center + Vector3.new(math.cos(a), 0, math.sin(a)) * 13
-		Build.part(model, "CraterRim", Vector3.new(rng:NextNumber(4, 6), rng:NextNumber(1.2, 2.4), 3), CFrame.lookAt(p, center) * CFrame.Angles(-0.4, 0, 0), rgb(170, 140, 100), { Material = Enum.Material.Rock })
+		Build.part(
+			model,
+			"CraterRim",
+			Vector3.new(rng:NextNumber(4, 6), rng:NextNumber(1.2, 2.4), 3),
+			CFrame.lookAt(p, center) * CFrame.Angles(-0.4, 0, 0),
+			rgb(170, 140, 100),
+			{ Material = Enum.Material.Rock }
+		)
 	end
 	local pod = Build.part(model, "Pod", Vector3.new(7, 7, 7), CFrame.new(center + UP * 2.4), WHITE, { Shape = Enum.PartType.Ball, Material = Enum.Material.Metal })
 	pod.CastShadow = true
-	local window = Build.deco(model, "PodWindow", Vector3.new(4.6, 4.6, 4.6), CFrame.new(center + UP * 2.8 + Vector3.new(0.6, 0, -0.6)), rgb(150, 30, 50), { Shape = Enum.PartType.Ball, Material = Enum.Material.Glass })
+	local window = Build.deco(
+		model,
+		"PodWindow",
+		Vector3.new(4.6, 4.6, 4.6),
+		CFrame.new(center + UP * 2.8 + Vector3.new(0.6, 0, -0.6)),
+		rgb(150, 30, 50),
+		{ Shape = Enum.PartType.Ball, Material = Enum.Material.Glass }
+	)
 	window.Transparency = 0.1
 	local smoke = Instance.new("ParticleEmitter")
 	smoke.Texture = "rbxasset://textures/particles/smoke_main.dds"
@@ -208,7 +242,14 @@ local function tournament(parent: Instance, cf: CFrame, rng: Random): Model
 	for _, side in { -1, 1 } do
 		local stand = cf * CFrame.new(side * (size / 2 + 22), 0, 0) * CFrame.Angles(0, side * math.pi / 2, 0)
 		for row = 0, 4 do
-			Archi.block(model, "Bleacher", Vector3.new(40, 1.4 + row * 1.4, 3), stand * CFrame.new(0, 0, row * 3), shade(rgb(200, 80, 60), (row % 2) * 0.08), Enum.Material.Concrete)
+			Archi.block(
+				model,
+				"Bleacher",
+				Vector3.new(40, 1.4 + row * 1.4, 3),
+				stand * CFrame.new(0, 0, row * 3),
+				shade(rgb(200, 80, 60), (row % 2) * 0.08),
+				Enum.Material.Concrete
+			)
 		end
 		for k = -2, 2 do
 			Props.banner(model, (stand * CFrame.new(k * 8, 7, 14)).Position, 10, k % 2 == 0 and ORANGE or BLUE, "武")
@@ -242,9 +283,16 @@ local function orbGate(parent: Instance, cf: CFrame): Model
 		local orb = Core.ball(model, "GateOrb", 5, (p * CFrame.new(0, 27.6, 0)).Position, ORANGE, Enum.Material.Glass)
 		orb.Transparency = 0.1
 		for k = 1, 4 do
-			Build.deco(model, "OrbStar", Vector3.new(0.7, 0.7, 0.2), p * CFrame.new((k - 2.5) * 0.9, 27.6 + (k % 2) * 0.8, -2.45) * CFrame.Angles(0, 0, math.rad(45)), rgb(220, 40, 30), {
-				Material = Enum.Material.Neon,
-			})
+			Build.deco(
+				model,
+				"OrbStar",
+				Vector3.new(0.7, 0.7, 0.2),
+				p * CFrame.new((k - 2.5) * 0.9, 27.6 + (k % 2) * 0.8, -2.45) * CFrame.Angles(0, 0, math.rad(45)),
+				rgb(220, 40, 30),
+				{
+					Material = Enum.Material.Neon,
+				}
+			)
 		end
 		Core.light(orb, ORANGE, 18, 1.4)
 	end
@@ -282,7 +330,14 @@ local function skyTower(parent: Instance, cf: CFrame): Model
 	Core.vcyl(model, "Pole", top * CFrame.new(0, 30, 0), 60, 1, rgb(220, 210, 190), Enum.Material.Metal, false)
 	-- palais flottant
 	local deck = top * CFrame.new(0, 96, 0)
-	local plate = Build.part(model, "SkyDeck", Vector3.new(3, 130, 130), deck * CFrame.Angles(0, 0, math.rad(90)), rgb(230, 222, 204), { Shape = Enum.PartType.Cylinder, Material = Enum.Material.Marble })
+	local plate = Build.part(
+		model,
+		"SkyDeck",
+		Vector3.new(3, 130, 130),
+		deck * CFrame.Angles(0, 0, math.rad(90)),
+		rgb(230, 222, 204),
+		{ Shape = Enum.PartType.Cylinder, Material = Enum.Material.Marble }
+	)
 	plate.CastShadow = true
 	Core.ellipsoid(model, "SkyRock", Vector3.new(124, 60, 124), deck * CFrame.new(0, -14, 0), rgb(200, 170, 120), Enum.Material.Sandstone)
 	Core.ellipsoid(model, "SkyRockTip", Vector3.new(50, 50, 50), deck * CFrame.new(0, -40, 0), rgb(180, 150, 104), Enum.Material.Sandstone)

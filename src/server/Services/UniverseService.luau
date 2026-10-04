@@ -130,10 +130,32 @@ function UniverseService:_updateMachines(universe)
 	end
 end
 
+-- Décor des BASES selon l'univers (murs, portail, déco Naruto / Gojo...) : module
+-- World/BaseDecor (domaine des bases). Point d'appel unique : s'il n'existe pas encore, rien ne
+-- se passe ; une erreur dedans n'empêche jamais le changement d'univers.
+local function applyBaseDecor(universe)
+	local world = script.Parent.Parent:FindFirstChild("World")
+	local moduleScript = world and world:FindFirstChild("BaseDecor")
+	if not moduleScript then
+		return
+	end
+	local ok, err = pcall(function()
+		local BaseDecor = require(moduleScript) :: any
+		if BaseDecor.applyAll then
+			BaseDecor.applyAll(universe)
+		end
+	end)
+	if not ok then
+		warn("[UniverseService] BaseDecor.applyAll : " .. tostring(err))
+	end
+end
+
 function UniverseService:_apply(universe, instant: boolean)
 	local zone = Workspace:WaitForChild("World"):WaitForChild("Zone")
+	-- toute la carte change : anneau, île, horizon, sol, ciel, particules, puis les bases
 	UniverseDecor.apply(universe, zone)
 	applyLighting(universe, instant)
+	applyBaseDecor(universe)
 	self:_updateMachines(universe)
 	self.services.CombatService:Reset()
 	gameState:SetAttribute("UniverseId", universe.id)
@@ -220,8 +242,45 @@ function UniverseService:_updateHubBillboard()
 	end
 end
 
+-- Majuscules avec les accents français (string.upper ne touche pas aux lettres accentuées).
+local ACCENTS = { ["é"] = "É", ["è"] = "È", ["ê"] = "Ê", ["à"] = "À", ["â"] = "Â", ["î"] = "Î", ["ô"] = "Ô", ["û"] = "Û", ["ç"] = "Ç" }
+function UniverseService.upper(text: string): string
+	local out = string.upper(text)
+	for lower, upperCase in ACCENTS do
+		out = string.gsub(out, lower, upperCase)
+	end
+	return out
+end
+
+-- Panneaux des arches d'entrée du hub (tag "UniversePanel" : libellés Title / Timer / Next).
+function UniverseService:_updateHubPanels()
+	local universe = self:GetCurrent()
+	local nextUniverse = Universes.get(gameState:GetAttribute("NextUniverseId") or "") or universe
+	local timeText = "⏳ " .. Formulas.formatTime(math.max(0, self:GetEndsAt() - os.time()))
+	for _, panel in CollectionService:GetTagged("UniversePanel") do
+		for _, gui in panel:GetChildren() do
+			if gui:IsA("SurfaceGui") then
+				local title = gui:FindFirstChild("Title") :: TextLabel?
+				local timer = gui:FindFirstChild("Timer") :: TextLabel?
+				local nextLabel = gui:FindFirstChild("Next") :: TextLabel?
+				if title then
+					title.Text = "🌀 " .. UniverseService.upper(universe.name)
+					title.TextColor3 = universe.color:Lerp(Color3.new(1, 1, 1), 0.35)
+				end
+				if timer then
+					timer.Text = timeText
+				end
+				if nextLabel then
+					nextLabel.Text = "Ensuite : " .. nextUniverse.name
+				end
+			end
+		end
+	end
+end
+
 function UniverseService:_updateInfoBoard()
 	self:_updateHubBillboard()
+	self:_updateHubPanels()
 	if not infoLabels then
 		return
 	end

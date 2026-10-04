@@ -64,10 +64,17 @@ function Relief.road(parent: Instance, a: Vector3, b: Vector3, width: number, to
 	for _ = 1, patches do
 		local p = a + dir * rng:NextNumber(4, length - 4) + right * rng:NextNumber(-width * 0.3, width * 0.3)
 		local nuance = rng:NextNumber(-0.1, 0.08)
-		local patch = Build.deco(parent, "RoadPatch", Vector3.new(rng:NextNumber(3, 5), 0.1, rng:NextNumber(3, 6)), CFrame.lookAt(p, p + dir) * CFrame.Angles(0, rng:NextNumber(-0.3, 0.3), 0) + UP * (top + 0.02), shade(opts.color or rgb(170, 160, 146), nuance), {
-			Material = opts.material or Enum.Material.Cobblestone,
-			CastShadow = false,
-		})
+		local patch = Build.deco(
+			parent,
+			"RoadPatch",
+			Vector3.new(rng:NextNumber(3, 5), 0.1, rng:NextNumber(3, 6)),
+			CFrame.lookAt(p, p + dir) * CFrame.Angles(0, rng:NextNumber(-0.3, 0.3), 0) + UP * (top + 0.02),
+			shade(opts.color or rgb(170, 160, 146), nuance),
+			{
+				Material = opts.material or Enum.Material.Cobblestone,
+				CastShadow = false,
+			}
+		)
 		role(patch, opts.role or "pave", nuance)
 	end
 	if opts.curbs ~= false then
@@ -78,10 +85,17 @@ function Relief.road(parent: Instance, a: Vector3, b: Vector3, width: number, to
 				local t0 = i / n
 				local p = a + dir * (length * (t0 + 0.5 / n)) + right * side * (width / 2 + 0.55)
 				local nuance = rng:NextNumber(-0.08, 0.06)
-				local curb = Build.part(parent, "Curb", Vector3.new(1.1, 0.9, length / n - 0.15), CFrame.lookAt(p, p + dir) + UP * (top + 0.1), shade(opts.curb or rgb(150, 146, 140), nuance), {
-					Material = Enum.Material.Slate,
-					CastShadow = false,
-				})
+				local curb = Build.part(
+					parent,
+					"Curb",
+					Vector3.new(1.1, 0.9, length / n - 0.15),
+					CFrame.lookAt(p, p + dir) + UP * (top + 0.1),
+					shade(opts.curb or rgb(150, 146, 140), nuance),
+					{
+						Material = Enum.Material.Slate,
+						CastShadow = false,
+					}
+				)
 				role(curb, opts.curbRole or "bordure", nuance)
 			end
 		end
@@ -128,10 +142,17 @@ function Relief.stoneWall(parent: Instance, a: Vector3, b: Vector3, h: number, t
 				local p = a + dir * ((i + rng:NextNumber(0.2, 0.8)) * length / cols) + right * side * (thick / 2) + UP * y
 				local s = Vector3.new(rng:NextNumber(0.5, 0.8), rng:NextNumber(0.8, 1.5), rng:NextNumber(1.2, 2.4))
 				local nuance = rng:NextNumber(-0.14, 0.1)
-				local stone = Build.part(model, "WallStone", s, CFrame.lookAt(p, p + dir) * CFrame.Angles(rng:NextNumber(-0.1, 0.1), rng:NextNumber(-0.1, 0.1), rng:NextNumber(-0.15, 0.15)), shade(color, nuance), {
-					Material = Enum.Material.Rock,
-					CanCollide = false,
-				})
+				local stone = Build.part(
+					model,
+					"WallStone",
+					s,
+					CFrame.lookAt(p, p + dir) * CFrame.Angles(rng:NextNumber(-0.1, 0.1), rng:NextNumber(-0.1, 0.1), rng:NextNumber(-0.15, 0.15)),
+					shade(color, nuance),
+					{
+						Material = Enum.Material.Rock,
+						CanCollide = false,
+					}
+				)
 				role(stone, opts.role, nuance)
 			end
 		end
@@ -141,12 +162,26 @@ function Relief.stoneWall(parent: Instance, a: Vector3, b: Vector3, h: number, t
 	for i = 0, caps - 1 do
 		local p = a + dir * ((i + 0.5) * length / caps) + UP * (h + 0.25)
 		local nuance = rng:NextNumber(-0.06, 0.08)
-		local cap = Build.part(model, "WallCap", Vector3.new(thick + 0.7, 0.5, length / caps - 0.1), CFrame.lookAt(p, p + dir) * CFrame.Angles(0, rng:NextNumber(-0.03, 0.03), 0), shade(opts.cap or shade(color, 0.08), nuance), {
-			Material = Enum.Material.Slate,
-		})
+		local cap = Build.part(
+			model,
+			"WallCap",
+			Vector3.new(thick + 0.7, 0.5, length / caps - 0.1),
+			CFrame.lookAt(p, p + dir) * CFrame.Angles(0, rng:NextNumber(-0.03, 0.03), 0),
+			shade(opts.cap or shade(color, 0.08), nuance),
+			{
+				Material = Enum.Material.Slate,
+			}
+		)
 		role(cap, opts.role, nuance + 0.08)
 		if opts.moss and rng:NextNumber() < 0.35 then
-			Core.ellipsoid(model, "Moss", Vector3.new(thick + 0.4, 0.5, rng:NextNumber(1, 2.4)), CFrame.lookAt(p + UP * 0.25, p + UP * 0.25 + dir), rgb(86, 120, 62), Enum.Material.Grass)
+			Core.ellipsoid(
+				model,
+				"Moss",
+				Vector3.new(thick + 0.4, 0.5, rng:NextNumber(1, 2.4)),
+				CFrame.lookAt(p + UP * 0.25, p + UP * 0.25 + dir),
+				rgb(86, 120, 62),
+				Enum.Material.Grass
+			)
 		end
 	end
 	return model
@@ -189,12 +224,20 @@ function Relief.fence(parent: Instance, a: Vector3, b: Vector3, style: string?, 
 		local pickets = math.floor(length / 1.1)
 		for i = 0, pickets do
 			local p = a + delta * (i / pickets)
-			Build.deco(model, "Picket", Vector3.new(0.2, height * 0.95, 0.6), CFrame.lookAt(p, p + dir) + UP * (height * 0.47), shade(wood, (i % 2) * 0.05), { Material = Enum.Material.WoodPlanks })
+			Build.deco(
+				model,
+				"Picket",
+				Vector3.new(0.2, height * 0.95, 0.6),
+				CFrame.lookAt(p, p + dir) + UP * (height * 0.47),
+				shade(wood, (i % 2) * 0.05),
+				{ Material = Enum.Material.WoodPlanks }
+			)
 		end
 	elseif s == "bambou" then
 		local cane = rgb(160, 150, 86)
 		for _, y in { height * 0.25, height * 0.55, height * 0.85 } do
-			local rail = Build.part(model, "Rail", Vector3.new(length, 0.35, 0.35), cf * CFrame.Angles(0, math.rad(90), 0) + UP * y, cane, { Material = Enum.Material.SmoothPlastic })
+			local rail =
+				Build.part(model, "Rail", Vector3.new(length, 0.35, 0.35), cf * CFrame.Angles(0, math.rad(90), 0) + UP * y, cane, { Material = Enum.Material.SmoothPlastic })
 			rail.Shape = Enum.PartType.Cylinder
 		end
 		local canes = math.floor(length / 0.9)
@@ -266,7 +309,13 @@ function Relief.pond(parent: Instance, center: Vector3, radius: number, o: Water
 		local c, r = lobe[1], lobe[2]
 		role(Core.flatDisc(folder, "PondBank", c, r * 2 + 6, 0.12 + i * 0.003, opts.bank or rgb(120, 104, 80), Enum.Material.Ground), "berge")
 		role(Core.flatDisc(folder, "PondBed", c, r * 2, 0.16 + i * 0.003, opts.bed or rgb(60, 74, 66), Enum.Material.Mud), "lit")
-		waterSurface(folder, CFrame.new(c.X, level - 0.15 + i * 0.004, c.Z) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.3, r * 2 - 0.6, r * 2 - 0.6), opts.color or rgb(70, 130, 140), Enum.PartType.Cylinder)
+		waterSurface(
+			folder,
+			CFrame.new(c.X, level - 0.15 + i * 0.004, c.Z) * CFrame.Angles(0, 0, math.rad(90)),
+			Vector3.new(0.3, r * 2 - 0.6, r * 2 - 0.6),
+			opts.color or rgb(70, 130, 140),
+			Enum.PartType.Cylinder
+		)
 	end
 	-- pierres de berge tout autour (en suivant le contour extérieur des lobes)
 	for _, lobe in lobes do
@@ -284,9 +333,16 @@ function Relief.pond(parent: Instance, center: Vector3, radius: number, o: Water
 			if not inside and rng:NextNumber() < 0.8 then
 				local s = Vector3.new(rng:NextNumber(1.6, 3.2), rng:NextNumber(0.8, 1.8), rng:NextNumber(1.4, 2.6))
 				local nuance = rng:NextNumber(-0.1, 0.1)
-				local stone = Build.part(folder, "BankStone", s, CFrame.new(p + UP * (s.Y * 0.3)) * CFrame.Angles(rng:NextNumber(-0.3, 0.3), rng:NextNumber(0, 3), rng:NextNumber(-0.3, 0.3)), shade(rgb(130, 126, 118), nuance), {
-					Material = Enum.Material.Rock,
-				})
+				local stone = Build.part(
+					folder,
+					"BankStone",
+					s,
+					CFrame.new(p + UP * (s.Y * 0.3)) * CFrame.Angles(rng:NextNumber(-0.3, 0.3), rng:NextNumber(0, 3), rng:NextNumber(-0.3, 0.3)),
+					shade(rgb(130, 126, 118), nuance),
+					{
+						Material = Enum.Material.Rock,
+					}
+				)
 				role(stone, "roche", nuance)
 				if nature and opts.reeds ~= false and rng:NextNumber() < 0.18 then
 					nature.reeds(folder, p + (flat(c - p)).Unit * 1.5, rng:NextNumber(3.5, 5.5), rng)
@@ -319,13 +375,39 @@ function Relief.stream(parent: Instance, points: { Vector3 }, width: number, o: 
 		local right = dir:Cross(UP)
 		local mid = (a + b) / 2
 		local cf = CFrame.lookAt(mid, mid + dir)
-		role(Build.deco(folder, "StreamBank", Vector3.new(width + 5, 0.3, length + 2), cf + UP * 0.1, opts.bank or rgb(120, 104, 80), { Material = Enum.Material.Ground, CastShadow = false }), "berge")
-		role(Build.deco(folder, "StreamBed", Vector3.new(width, 0.3, length + 1), cf + UP * 0.16, opts.bed or rgb(60, 74, 66), { Material = Enum.Material.Pebble, CastShadow = false }), "lit")
+		role(
+			Build.deco(
+				folder,
+				"StreamBank",
+				Vector3.new(width + 5, 0.3, length + 2),
+				cf + UP * 0.1,
+				opts.bank or rgb(120, 104, 80),
+				{ Material = Enum.Material.Ground, CastShadow = false }
+			),
+			"berge"
+		)
+		role(
+			Build.deco(
+				folder,
+				"StreamBed",
+				Vector3.new(width, 0.3, length + 1),
+				cf + UP * 0.16,
+				opts.bed or rgb(60, 74, 66),
+				{ Material = Enum.Material.Pebble, CastShadow = false }
+			),
+			"lit"
+		)
 		waterSurface(folder, cf + UP * (level - 0.15), Vector3.new(width - 0.4, 0.3, length + 0.8), opts.color or rgb(70, 130, 140))
 		-- arrondi aux coudes
 		role(Core.flatDisc(folder, "StreamBank", b, width + 5, 0.24, opts.bank or rgb(120, 104, 80), Enum.Material.Ground), "berge")
 		role(Core.flatDisc(folder, "StreamBed", b, width, 0.3, opts.bed or rgb(60, 74, 66), Enum.Material.Pebble), "lit")
-		waterSurface(folder, CFrame.new(b.X, level - 0.14, b.Z) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.3, width - 0.4, width - 0.4), opts.color or rgb(70, 130, 140), Enum.PartType.Cylinder)
+		waterSurface(
+			folder,
+			CFrame.new(b.X, level - 0.14, b.Z) * CFrame.Angles(0, 0, math.rad(90)),
+			Vector3.new(0.3, width - 0.4, width - 0.4),
+			opts.color or rgb(70, 130, 140),
+			Enum.PartType.Cylinder
+		)
 		-- galets et pierres des berges
 		local n = math.floor(length / 3.5)
 		for k = 1, n do
@@ -333,9 +415,16 @@ function Relief.stream(parent: Instance, points: { Vector3 }, width: number, o: 
 			local p = a + dir * (k / n * length + rng:NextNumber(-1, 1)) + right * side * (width / 2 + rng:NextNumber(0.2, 1.6))
 			local s = Vector3.new(rng:NextNumber(1.2, 2.6), rng:NextNumber(0.6, 1.4), rng:NextNumber(1.2, 2.2))
 			local nuance = rng:NextNumber(-0.1, 0.1)
-			local stone = Build.part(folder, "BankStone", s, CFrame.new(p + UP * (s.Y * 0.3)) * CFrame.Angles(rng:NextNumber(-0.3, 0.3), rng:NextNumber(0, 3), rng:NextNumber(-0.3, 0.3)), shade(rgb(130, 126, 118), nuance), {
-				Material = Enum.Material.Rock,
-			})
+			local stone = Build.part(
+				folder,
+				"BankStone",
+				s,
+				CFrame.new(p + UP * (s.Y * 0.3)) * CFrame.Angles(rng:NextNumber(-0.3, 0.3), rng:NextNumber(0, 3), rng:NextNumber(-0.3, 0.3)),
+				shade(rgb(130, 126, 118), nuance),
+				{
+					Material = Enum.Material.Rock,
+				}
+			)
 			role(stone, "roche", nuance)
 			if nature and rng:NextNumber() < 0.2 then
 				nature.reeds(folder, p - right * side * 0.8, rng:NextNumber(3, 5), rng)
@@ -354,10 +443,17 @@ function Relief.steppingStones(parent: Instance, a: Vector3, b: Vector3, top: nu
 		local p = a + delta * (i / n) + right * ((i % 2 == 0) and 0.6 or -0.6)
 		local d = rng:NextNumber(2.2, 2.9)
 		local nuance = rng:NextNumber(-0.1, 0.1)
-		local stone = Build.part(parent, "SteppingStone", Vector3.new(0.6, d, d * rng:NextNumber(0.8, 1)), CFrame.new(p.X, top + 0.1, p.Z) * CFrame.Angles(0, rng:NextNumber(0, 3), math.rad(90)), shade(color or rgb(150, 146, 140), nuance), {
-			Material = Enum.Material.Slate,
-			Shape = Enum.PartType.Cylinder,
-		})
+		local stone = Build.part(
+			parent,
+			"SteppingStone",
+			Vector3.new(0.6, d, d * rng:NextNumber(0.8, 1)),
+			CFrame.new(p.X, top + 0.1, p.Z) * CFrame.Angles(0, rng:NextNumber(0, 3), math.rad(90)),
+			shade(color or rgb(150, 146, 140), nuance),
+			{
+				Material = Enum.Material.Slate,
+				Shape = Enum.PartType.Cylinder,
+			}
+		)
 		role(stone, "dalle", nuance)
 	end
 end
@@ -432,7 +528,14 @@ function Relief.plankBridge(parent: Instance, a: Vector3, b: Vector3, width: num
 		})
 	end
 	for _, side in { -1, 1 } do
-		Build.deco(model, "Stringer", Vector3.new(0.5, 0.6, span + 1), CFrame.lookAt(flat(a + b) / 2, flat(a + b) / 2 + dir) + right * side * (width / 2 - 0.25) + UP * (top - 0.4), rgb(96, 70, 50), { Material = Enum.Material.Wood })
+		Build.deco(
+			model,
+			"Stringer",
+			Vector3.new(0.5, 0.6, span + 1),
+			CFrame.lookAt(flat(a + b) / 2, flat(a + b) / 2 + dir) + right * side * (width / 2 - 0.25) + UP * (top - 0.4),
+			rgb(96, 70, 50),
+			{ Material = Enum.Material.Wood }
+		)
 		local posts = math.max(2, math.floor(span / 5))
 		local prev = nil
 		for i = 0, posts do

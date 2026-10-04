@@ -64,7 +64,14 @@ end
 -- Sac de toile ventru (riz, farine).
 function Props.sack(parent: Instance, cf: CFrame, rng: Random)
 	local c = rgb(206, 186, 146)
-	Core.ellipsoid(parent, "Sack", Vector3.new(2, 2.4, 1.6), cf * CFrame.new(0, 1.1, 0) * CFrame.Angles(0, rng:NextNumber(0, 3), rng:NextNumber(-0.15, 0.15)), c, Enum.Material.Fabric)
+	Core.ellipsoid(
+		parent,
+		"Sack",
+		Vector3.new(2, 2.4, 1.6),
+		cf * CFrame.new(0, 1.1, 0) * CFrame.Angles(0, rng:NextNumber(0, 3), rng:NextNumber(-0.15, 0.15)),
+		c,
+		Enum.Material.Fabric
+	)
 	deco(parent, "SackTie", Vector3.new(0.6, 0.4, 0.6), cf * CFrame.new(0, 2.3, 0), shade(c, -0.2), Enum.Material.Fabric)
 end
 
@@ -73,7 +80,14 @@ function Props.firewood(parent: Instance, cf: CFrame, rng: Random)
 	for row = 0, 2 do
 		for i = 0, 3 - row do
 			local p = cf * CFrame.new(-1.6 + i * 1.05 + row * 0.5, 0.5 + row * 0.9, 0)
-			local log = part(parent, "Log", Vector3.new(3, 1, 1), p * CFrame.Angles(0, math.rad(90) + rng:NextNumber(-0.1, 0.1), 0), shade(rgb(130, 92, 60), rng:NextNumber(-0.1, 0.1)), Enum.Material.Wood)
+			local log = part(
+				parent,
+				"Log",
+				Vector3.new(3, 1, 1),
+				p * CFrame.Angles(0, math.rad(90) + rng:NextNumber(-0.1, 0.1), 0),
+				shade(rgb(130, 92, 60), rng:NextNumber(-0.1, 0.1)),
+				Enum.Material.Wood
+			)
 			log.Shape = Enum.PartType.Cylinder
 		end
 	end
@@ -130,7 +144,14 @@ function Props.stall(parent: Instance, cf: CFrame, color: Color3, goods: string?
 	local stripes = 6
 	for i = 0, stripes - 1 do
 		local c = i % 2 == 0 and color or rgb(250, 244, 230)
-		deco(parent, "StallAwning", Vector3.new(w / stripes, 0.25, d + 2), cf * CFrame.new(-w / 2 + (i + 0.5) * w / stripes, 8.2, -0.6) * CFrame.Angles(math.rad(-14), 0, 0), c, Enum.Material.Fabric)
+		deco(
+			parent,
+			"StallAwning",
+			Vector3.new(w / stripes, 0.25, d + 2),
+			cf * CFrame.new(-w / 2 + (i + 0.5) * w / stripes, 8.2, -0.6) * CFrame.Angles(math.rad(-14), 0, 0),
+			c,
+			Enum.Material.Fabric
+		)
 		deco(parent, "StallFlap", Vector3.new(w / stripes, 0.9, 0.12), cf * CFrame.new(-w / 2 + (i + 0.5) * w / stripes, 7.45, -d / 2 - 1.55), c, Enum.Material.Fabric)
 	end
 	local top = cf * CFrame.new(0, 3.3, 0)
@@ -145,7 +166,14 @@ function Props.stall(parent: Instance, cf: CFrame, color: Color3, goods: string?
 		end
 	elseif kind == "fish" then
 		for i = 0, 4 do
-			Core.ellipsoid(parent, "Fish", Vector3.new(0.6, 0.5, 2), top * CFrame.new(-3 + i * 1.5, 0.3, 0) * CFrame.Angles(0, rng:NextNumber(-0.3, 0.3), 0), rgb(150, 170, 190), Enum.Material.Metal)
+			Core.ellipsoid(
+				parent,
+				"Fish",
+				Vector3.new(0.6, 0.5, 2),
+				top * CFrame.new(-3 + i * 1.5, 0.3, 0) * CFrame.Angles(0, rng:NextNumber(-0.3, 0.3), 0),
+				rgb(150, 170, 190),
+				Enum.Material.Metal
+			)
 		end
 		deco(parent, "Ice", Vector3.new(w - 0.6, 0.2, d - 0.6), top * CFrame.new(0, 0.05, 0), rgb(220, 240, 250), Enum.Material.Ice)
 	elseif kind == "bowls" then
@@ -280,7 +308,14 @@ function Props.signpost(parent: Instance, base: Vector3, arrows: { { text: strin
 		local board = part(parent, "SignArrow", Vector3.new(0.3, 1.1, 3.6), cf, rgb(180, 140, 92), Enum.Material.WoodPlanks, false)
 		Build.surfaceText(board, Enum.NormalId.Right, arrow.text, rgb(60, 40, 30), { TextStrokeTransparency = 1, Font = Enum.Font.GothamBold })
 		Build.surfaceText(board, Enum.NormalId.Left, arrow.text, rgb(60, 40, 30), { TextStrokeTransparency = 1, Font = Enum.Font.GothamBold })
-		Build.wedge(parent, "SignTip", Vector3.new(0.3, 1.1, 0.8), cf * CFrame.new(0, 0, -2.2) * CFrame.Angles(0, 0, 0), rgb(180, 140, 92), { Material = Enum.Material.WoodPlanks, CanCollide = false })
+		Build.wedge(
+			parent,
+			"SignTip",
+			Vector3.new(0.3, 1.1, 0.8),
+			cf * CFrame.new(0, 0, -2.2) * CFrame.Angles(0, 0, 0),
+			rgb(180, 140, 92),
+			{ Material = Enum.Material.WoodPlanks, CanCollide = false }
+		)
 	end
 end
 
@@ -289,14 +324,28 @@ function Props.well(parent: Instance, base: Vector3)
 	local cf = CFrame.new(base)
 	for i = 0, 7 do
 		local a = i / 8 * math.pi * 2
-		part(parent, "WellStone", Vector3.new(2, 2.6, 1.1), CFrame.lookAt(base + Vector3.new(math.cos(a) * 2.4, 1.3, math.sin(a) * 2.4), base + UP * 1.3), shade(STONE, (i % 2) * 0.06), Enum.Material.Cobblestone)
+		part(
+			parent,
+			"WellStone",
+			Vector3.new(2, 2.6, 1.1),
+			CFrame.lookAt(base + Vector3.new(math.cos(a) * 2.4, 1.3, math.sin(a) * 2.4), base + UP * 1.3),
+			shade(STONE, (i % 2) * 0.06),
+			Enum.Material.Cobblestone
+		)
 	end
 	local water = deco(parent, "WellWater", Vector3.new(0.2, 4, 4), cf * CFrame.new(0, 1.6, 0) * CFrame.Angles(0, 0, math.rad(90)), rgb(40, 90, 120), Enum.Material.Glass)
 	water.Shape = Enum.PartType.Cylinder
 	for _, x in { -1, 1 } do
 		part(parent, "WellPost", Vector3.new(0.5, 7, 0.5), cf * CFrame.new(x * 2.6, 3.5, 0), WOOD_DARK, Enum.Material.Wood)
 	end
-	Build.wedge(parent, "WellRoof", Vector3.new(6.6, 1.6, 2.4), cf * CFrame.new(0, 7.6, 1.1) * CFrame.Angles(0, math.pi, 0), rgb(120, 70, 50), { Material = Enum.Material.WoodPlanks })
+	Build.wedge(
+		parent,
+		"WellRoof",
+		Vector3.new(6.6, 1.6, 2.4),
+		cf * CFrame.new(0, 7.6, 1.1) * CFrame.Angles(0, math.pi, 0),
+		rgb(120, 70, 50),
+		{ Material = Enum.Material.WoodPlanks }
+	)
 	Build.wedge(parent, "WellRoof", Vector3.new(6.6, 1.6, 2.4), cf * CFrame.new(0, 7.6, -1.1), rgb(120, 70, 50), { Material = Enum.Material.WoodPlanks })
 	deco(parent, "WellBeam", Vector3.new(5.6, 0.4, 0.4), cf * CFrame.new(0, 6, 0), WOOD_DARK, Enum.Material.Wood)
 	deco(parent, "WellRope", Vector3.new(0.1, 2.6, 0.1), cf * CFrame.new(0.4, 4.6, 0), rgb(210, 190, 140), Enum.Material.Fabric)
@@ -311,7 +360,13 @@ function Props.vendingMachine(parent: Instance, cf: CFrame, color: Color3?)
 	panel.Transparency = 0.2
 	for row = 0, 2 do
 		for i = 0, 3 do
-			deco(parent, "Can", Vector3.new(0.4, 0.7, 0.1), cf * CFrame.new(-1 + i * 0.66, 3 + row * 0.95, -1.3), ({ rgb(240, 60, 60), rgb(60, 140, 240), rgb(250, 200, 60), rgb(80, 200, 120) })[i + 1])
+			deco(
+				parent,
+				"Can",
+				Vector3.new(0.4, 0.7, 0.1),
+				cf * CFrame.new(-1 + i * 0.66, 3 + row * 0.95, -1.3),
+				({ rgb(240, 60, 60), rgb(60, 140, 240), rgb(250, 200, 60), rgb(80, 200, 120) })[i + 1]
+			)
 		end
 	end
 	deco(parent, "VendingSlot", Vector3.new(2, 0.6, 0.12), cf * CFrame.new(0, 1, -1.22), rgb(30, 30, 34))
@@ -325,7 +380,14 @@ function Props.pottedPlant(parent: Instance, base: Vector3, rng: Random, potColo
 	Core.vcyl(parent, "PotRim", CFrame.new(base + UP * 1.3), 0.3, 1.9, shade(pot, -0.1), Enum.Material.Slate, false)
 	local green = rgb(72, 124, 58)
 	for k = 1, 3 do
-		Core.ball(parent, "Leaves", rng:NextNumber(1, 1.5), base + UP * (2 + k * 0.3) + Vector3.new(rng:NextNumber(-0.4, 0.4), 0, rng:NextNumber(-0.4, 0.4)), shade(green, rng:NextNumber(-0.1, 0.15)), Enum.Material.Grass)
+		Core.ball(
+			parent,
+			"Leaves",
+			rng:NextNumber(1, 1.5),
+			base + UP * (2 + k * 0.3) + Vector3.new(rng:NextNumber(-0.4, 0.4), 0, rng:NextNumber(-0.4, 0.4)),
+			shade(green, rng:NextNumber(-0.1, 0.15)),
+			Enum.Material.Grass
+		)
 	end
 end
 

@@ -117,7 +117,14 @@ local function pagoda(parent: Instance, cf: CFrame): Model
 		-- clochettes aux coins
 		for _, x in { -1, 1 } do
 			for _, z in { -1, 1 } do
-				Build.deco(model, "Bell", Vector3.new(0.6, 0.9, 0.6), body * CFrame.new(x * (w / 2 + 3.6), storey - 1, z * (w / 2 + 3.6)), rgb(200, 170, 80), { Material = Enum.Material.Metal })
+				Build.deco(
+					model,
+					"Bell",
+					Vector3.new(0.6, 0.9, 0.6),
+					body * CFrame.new(x * (w / 2 + 3.6), storey - 1, z * (w / 2 + 3.6)),
+					rgb(200, 170, 80),
+					{ Material = Enum.Material.Metal }
+				)
 			end
 		end
 		y += storey + 2.6
@@ -176,14 +183,28 @@ local function grave(parent: Instance, cf: CFrame, rng: Random)
 	Archi.block(parent, "GraveBase", Vector3.new(4, 0.8, 4), cf, shade(stone, -0.1), Enum.Material.Slate)
 	Archi.block(parent, "GraveBase2", Vector3.new(3, 0.8, 3), cf * CFrame.new(0, 0.8, 0), stone, Enum.Material.Slate)
 	local tall = Archi.block(parent, "Gravestone", Vector3.new(1.8, rng:NextNumber(3.4, 4.6), 1.8), cf * CFrame.new(0, 1.6, 0), shade(stone, 0.05), Enum.Material.Granite)
-	Build.surfaceText(tall, Enum.NormalId.Front, ({ "霊", "墓", "魂", "呪" })[rng:NextInteger(1, 4)], rgb(40, 34, 40), { TextStrokeTransparency = 1, Font = Enum.Font.GothamBlack })
+	Build.surfaceText(
+		tall,
+		Enum.NormalId.Front,
+		({ "霊", "墓", "魂", "呪" })[rng:NextInteger(1, 4)],
+		rgb(40, 34, 40),
+		{ TextStrokeTransparency = 1, Font = Enum.Font.GothamBlack }
+	)
 	for k = 1, rng:NextInteger(2, 4) do
-		Build.deco(parent, "Sotoba", Vector3.new(0.5, rng:NextNumber(4.5, 6), 0.12), cf * CFrame.new(-1.2 + k * 0.5, 2.6, 1.9) * CFrame.Angles(0, 0, rng:NextNumber(-0.06, 0.06)), rgb(200, 180, 140), {
-			Material = Enum.Material.Wood,
-		})
+		Build.deco(
+			parent,
+			"Sotoba",
+			Vector3.new(0.5, rng:NextNumber(4.5, 6), 0.12),
+			cf * CFrame.new(-1.2 + k * 0.5, 2.6, 1.9) * CFrame.Angles(0, 0, rng:NextNumber(-0.06, 0.06)),
+			rgb(200, 180, 140),
+			{
+				Material = Enum.Material.Wood,
+			}
+		)
 	end
 	if rng:NextNumber() < 0.4 then
-		local flame = Core.ball(parent, "GhostFlame", 0.8, (cf * CFrame.new(rng:NextNumber(-1.5, 1.5), rng:NextNumber(4, 6), -1.5)).Position, rgb(140, 120, 255), Enum.Material.Neon)
+		local flame =
+			Core.ball(parent, "GhostFlame", 0.8, (cf * CFrame.new(rng:NextNumber(-1.5, 1.5), rng:NextNumber(4, 6), -1.5)).Position, rgb(140, 120, 255), Enum.Material.Neon)
 		flame.Transparency = 0.2
 		flame:SetAttribute("Bob", 0.6)
 		game:GetService("CollectionService"):AddTag(flame, "Spin")
@@ -203,9 +224,16 @@ local function sealCircle(parent: Instance, center: Vector3, radius: number)
 		local pos = center + polar(k * 90 + 45, radius * 0.85)
 		Archi.block(parent, "SealPillar", Vector3.new(1.4, 6, 1.4), CFrame.new(pos), rgb(40, 34, 46), Enum.Material.Slate)
 		Build.deco(parent, "SealPaper", Vector3.new(0.9, 2, 0.1), CFrame.lookAt(pos + UP * 4, center + UP * 4) * CFrame.new(0, 0, -0.76), rgb(245, 235, 200))
-		Build.deco(parent, "SealRope", Vector3.new(0.25, 0.25, (pos - (center + polar(k * 90 + 135, radius * 0.85))).Magnitude), CFrame.lookAt((pos + center + polar(k * 90 + 135, radius * 0.85)) / 2 + UP * 5, center + polar(k * 90 + 135, radius * 0.85) + UP * 5), rgb(230, 210, 150), {
-			Material = Enum.Material.Fabric,
-		})
+		Build.deco(
+			parent,
+			"SealRope",
+			Vector3.new(0.25, 0.25, (pos - (center + polar(k * 90 + 135, radius * 0.85))).Magnitude),
+			CFrame.lookAt((pos + center + polar(k * 90 + 135, radius * 0.85)) / 2 + UP * 5, center + polar(k * 90 + 135, radius * 0.85) + UP * 5),
+			rgb(230, 210, 150),
+			{
+				Material = Enum.Material.Fabric,
+			}
+		)
 	end
 	local core = Build.deco(parent, "CurseCore", Vector3.new(2, 2, 2), CFrame.new(center + UP * 3) * CFrame.Angles(0.6, 0.6, 0), CURSE, { Material = Enum.Material.Neon })
 	core:SetAttribute("Bob", 0.6)
@@ -299,7 +327,14 @@ local function malevolentShrine(parent: Instance, cf: CFrame, rng: Random): Mode
 		if math.abs((p.Position - cf.Position):Dot(cf.RightVector)) > 16 or (p.Position - cf.Position):Dot(cf.LookVector) > 14 then
 			Core.ellipsoid(model, "Skull", Vector3.new(3, 2.6, 3.4), p * CFrame.Angles(0, rng:NextNumber(0, 6), 0), rgb(226, 220, 204))
 			for _, side in { -1, 1 } do
-				Build.wedge(model, "Horn", Vector3.new(0.8, 3.2, 1.2), p * CFrame.new(side * 1.4, 1.8, 0) * CFrame.Angles(0, 0, side * -0.5), rgb(60, 50, 46), { CanCollide = false })
+				Build.wedge(
+					model,
+					"Horn",
+					Vector3.new(0.8, 3.2, 1.2),
+					p * CFrame.new(side * 1.4, 1.8, 0) * CFrame.Angles(0, 0, side * -0.5),
+					rgb(60, 50, 46),
+					{ CanCollide = false }
+				)
 			end
 		end
 	end
@@ -418,7 +453,14 @@ function Occulte.build(decor: Instance, rng: Random, _theme)
 	Core.scatter(rng, 40, Vector3.zero, Layout.RingInner + 4, Layout.RingOuter - 4, function(p)
 		return Common.ringFree(p, 1)
 	end, function(p)
-		Build.deco(ring, "Talisman", Vector3.new(0.8, 0.06, 1.6), CFrame.new(p + UP * (TOP_RING + 0.05)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0), rgb(245, 235, 200), { CastShadow = false })
+		Build.deco(
+			ring,
+			"Talisman",
+			Vector3.new(0.8, 0.06, 1.6),
+			CFrame.new(p + UP * (TOP_RING + 0.05)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0),
+			rgb(245, 235, 200),
+			{ CastShadow = false }
+		)
 	end)
 	Common.ringGround(ring, rng, { patches = 24, tufts = 260, flowers = 40, flowerColors = { rgb(200, 40, 50), rgb(140, 100, 200) }, patchRole = "herbe" })
 

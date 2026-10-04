@@ -115,9 +115,18 @@ local function boxHouse(parent: Instance, cf: CFrame, size: Vector3, accent: Col
 	for f = 0, floors - 1 do
 		local y = 5.4 + f * 9.5
 		local cols = math.max(1, math.floor(size.X / 6))
-		Archi.windowRow(model, base * CFrame.new(0, y, -hz - 0.05), size.X, cols, 2.6, 3.2, { frame = WOOD_DARK, bars = true, box = (f == 0) and rgb(230, 90, 110) or nil }, function(x)
-			return f == 0 and math.abs(x) < 3.5
-		end)
+		Archi.windowRow(
+			model,
+			base * CFrame.new(0, y, -hz - 0.05),
+			size.X,
+			cols,
+			2.6,
+			3.2,
+			{ frame = WOOD_DARK, bars = true, box = (f == 0) and rgb(230, 90, 110) or nil },
+			function(x)
+				return f == 0 and math.abs(x) < 3.5
+			end
+		)
 		local rows = math.max(1, math.floor(size.Z / 6.5))
 		for _, side in { -1, 1 } do
 			local scf = base * CFrame.new(side * (hx + 0.05), y, 0) * CFrame.Angles(0, side * math.pi / 2, 0)
@@ -215,7 +224,14 @@ local function chiefTower(parent: Instance, cf: CFrame): Model
 	-- balustrade de la terrasse du 2e niveau
 	for i = 0, 23 do
 		local a = i / 24 * math.pi * 2
-		Build.deco(model, "Railing", Vector3.new(0.3, 2, 0.3), cf * CFrame.Angles(0, a, 0) * CFrame.new(0, 24.8 + 1, -d1 / 2 - 0.4), rgb(90, 36, 30), { Material = Enum.Material.Wood })
+		Build.deco(
+			model,
+			"Railing",
+			Vector3.new(0.3, 2, 0.3),
+			cf * CFrame.Angles(0, a, 0) * CFrame.new(0, 24.8 + 1, -d1 / 2 - 0.4),
+			rgb(90, 36, 30),
+			{ Material = Enum.Material.Wood }
+		)
 	end
 	Core.vcyl(model, "RailTop", cf * CFrame.new(0, 26.9, 0), 0.3, d1 + 1.2, rgb(90, 36, 30), Enum.Material.Wood, false).Transparency = 0
 	return model
@@ -398,9 +414,16 @@ local function chiefMountain(parent: Instance, cf: CFrame, rng: Random): Model
 		Core.ellipsoid(model, "CliffTop", Vector3.new(w * 0.6, 26, 90), cf * CFrame.new(x + rng:NextNumber(-12, 12), h + 4, 104), rgb(98, 146, 74), Enum.Material.Grass)
 		-- coulées de roche plus sombre (fissures verticales)
 		for _ = 1, 2 do
-			Build.deco(model, "Crack", Vector3.new(rng:NextNumber(2, 4), h * rng:NextNumber(0.3, 0.6), 2), cf * CFrame.new(x + rng:NextNumber(-w / 2.5, w / 2.5), h * rng:NextNumber(0.2, 0.45), 4.4), ROCK_DARK, {
-				Material = Enum.Material.Rock,
-			})
+			Build.deco(
+				model,
+				"Crack",
+				Vector3.new(rng:NextNumber(2, 4), h * rng:NextNumber(0.3, 0.6), 2),
+				cf * CFrame.new(x + rng:NextNumber(-w / 2.5, w / 2.5), h * rng:NextNumber(0.2, 0.45), 4.4),
+				ROCK_DARK,
+				{
+					Material = Enum.Material.Rock,
+				}
+			)
 		end
 	end
 	for _ = 1, 16 do
@@ -413,7 +436,12 @@ local function chiefMountain(parent: Instance, cf: CFrame, rng: Random): Model
 		end
 		if top > 0 then
 			local species = rng:NextNumber() < 0.6 and "ArbreFeuillu" or "Sapin"
-			Nature.tree(species, model, (cf * CFrame.new(x, top + 4, rng:NextNumber(60, 130))).Position, { rng = rng, height = rng:NextNumber(26, 36), palette = "foret", detail = "low" })
+			Nature.tree(
+				species,
+				model,
+				(cf * CFrame.new(x, top + 4, rng:NextNumber(60, 130))).Position,
+				{ rng = rng, height = rng:NextNumber(26, 36), palette = "foret", detail = "low" }
+			)
 		end
 	end
 	-- éboulis au pied
@@ -436,7 +464,14 @@ local function chiefMountain(parent: Instance, cf: CFrame, rng: Random): Model
 			Build.part(model, "Brow", Vector3.new(13, 3.2, 5), head * CFrame.new(side * 9, 9, -9.5) * CFrame.Angles(0, 0, tilt), ROCK, { Material = Enum.Material.Rock })
 			Core.ellipsoid(model, "Eye", Vector3.new(9, 4.2, 3), head * CFrame.new(side * 9, 4, -9.6), shade(ROCK, -0.08), Enum.Material.Rock)
 			Build.part(model, "Pupil", Vector3.new(2.6, 2.6, 1.2), head * CFrame.new(side * 8.4, 3.8, -10.9), ROCK_DARK, { Material = Enum.Material.Rock })
-			Build.part(model, "Cheek", Vector3.new(2, 8, 2), head * CFrame.new(side * 13, -8, -9) * CFrame.Angles(0, 0, side * 0.3), shade(ROCK, -0.1), { Material = Enum.Material.Rock })
+			Build.part(
+				model,
+				"Cheek",
+				Vector3.new(2, 8, 2),
+				head * CFrame.new(side * 13, -8, -9) * CFrame.Angles(0, 0, side * 0.3),
+				shade(ROCK, -0.1),
+				{ Material = Enum.Material.Rock }
+			)
 			Build.part(model, "Ear", Vector3.new(4, 10, 6), head * CFrame.new(side * 20.5, 0, 0), shade(ROCK, -0.04), { Material = Enum.Material.Rock })
 		end
 		Build.wedge(model, "Nose", Vector3.new(6, 11, 6), head * CFrame.new(0, -3, -12) * CFrame.Angles(0, math.pi, 0), ROCK_LIGHT, { Material = Enum.Material.Rock })
@@ -444,7 +479,14 @@ local function chiefMountain(parent: Instance, cf: CFrame, rng: Random): Model
 		if i == 1 then
 			Core.ellipsoid(model, "Hair", Vector3.new(46, 24, 26), head * CFrame.new(0, 22, 2), ROCK, Enum.Material.Rock)
 			for _, side in { -1, 1 } do
-				Build.part(model, "HairSide", Vector3.new(9, 52, 14), head * CFrame.new(side * 22, -6, 4) * CFrame.Angles(0, 0, side * 0.06), ROCK, { Material = Enum.Material.Rock })
+				Build.part(
+					model,
+					"HairSide",
+					Vector3.new(9, 52, 14),
+					head * CFrame.new(side * 22, -6, 4) * CFrame.Angles(0, 0, side * 0.06),
+					ROCK,
+					{ Material = Enum.Material.Rock }
+				)
 			end
 		elseif i == 2 then
 			for k = -2, 2 do
@@ -530,7 +572,8 @@ local function plaza(parent: Instance, center: Vector3, size: number, rng: Rando
 		local a = rng:NextNumber(0, math.pi * 2)
 		local r = i == 1 and 0 or size * rng:NextNumber(0.2, 0.42)
 		local d = size * (i == 1 and 0.8 or rng:NextNumber(0.4, 0.65))
-		local disc = Core.flatDisc(parent, "Patch", center + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r), d, TOP_PLAZA + (i % 2) * 0.01, rgb(190, 152, 104), Enum.Material.Ground)
+		local disc =
+			Core.flatDisc(parent, "Patch", center + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r), d, TOP_PLAZA + (i % 2) * 0.01, rgb(190, 152, 104), Enum.Material.Ground)
 		Core.solRole(disc, "terre")
 	end
 end

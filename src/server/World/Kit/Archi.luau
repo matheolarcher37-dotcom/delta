@@ -141,7 +141,14 @@ function Archi.window(parent: Instance, cf: CFrame, w: number, h: number, o: Win
 	local frame = opts.frame or C.woodDark
 	deco(parent, "WindowFrame", Vector3.new(w + 0.7, h + 0.7, 0.3), cf * CFrame.new(0, 0, -0.1), frame, Enum.Material.Wood)
 	local glassColor = opts.shoji and C.paper or (opts.lit and C.glassLit or (opts.glass or C.glass))
-	local glass = deco(parent, "Window", Vector3.new(w, h, 0.2), cf * CFrame.new(0, 0, -0.22), glassColor, opts.lit and Enum.Material.Neon or (opts.shoji and Enum.Material.Fabric or Enum.Material.Glass))
+	local glass = deco(
+		parent,
+		"Window",
+		Vector3.new(w, h, 0.2),
+		cf * CFrame.new(0, 0, -0.22),
+		glassColor,
+		opts.lit and Enum.Material.Neon or (opts.shoji and Enum.Material.Fabric or Enum.Material.Glass)
+	)
 	if opts.lit then
 		glass.Transparency = 0.15
 	elseif not opts.shoji then
@@ -163,7 +170,14 @@ function Archi.window(parent: Instance, cf: CFrame, w: number, h: number, o: Win
 	if opts.shutters then
 		for _, side in { -1, 1 } do
 			local hinge = cf * CFrame.new(side * (w / 2 + 0.35), 0, -0.3)
-			deco(parent, "Shutter", Vector3.new(w / 2, h + 0.2, 0.18), hinge * CFrame.Angles(0, side * math.rad(-105), 0) * CFrame.new(side * w / 4, 0, 0), opts.shutters, Enum.Material.WoodPlanks)
+			deco(
+				parent,
+				"Shutter",
+				Vector3.new(w / 2, h + 0.2, 0.18),
+				hinge * CFrame.Angles(0, side * math.rad(-105), 0) * CFrame.new(side * w / 4, 0, 0),
+				opts.shutters,
+				Enum.Material.WoodPlanks
+			)
 		end
 	end
 	if opts.box then
@@ -219,10 +233,19 @@ function Archi.door(parent: Instance, cf: CFrame, w: number, h: number, o: DoorO
 	if opts.awning then
 		deco(parent, "DoorAwning", Vector3.new(w + 3, 0.4, 3), cf * CFrame.new(0, h + 1.4, -1.4) * CFrame.Angles(math.rad(-16), 0, 0), opts.awning, Enum.Material.ClayRoofTiles)
 		for _, side in { -1, 1 } do
-			Core.beam(parent, "Bracket", (cf * CFrame.new(side * (w / 2 + 1), h + 0.2, -0.2)).Position, (cf * CFrame.new(side * (w / 2 + 1), h + 1.1, -2.4)).Position, 0.3, 0.3, frame, {
-				Material = Enum.Material.Wood,
-				CanCollide = false,
-			})
+			Core.beam(
+				parent,
+				"Bracket",
+				(cf * CFrame.new(side * (w / 2 + 1), h + 0.2, -0.2)).Position,
+				(cf * CFrame.new(side * (w / 2 + 1), h + 1.1, -2.4)).Position,
+				0.3,
+				0.3,
+				frame,
+				{
+					Material = Enum.Material.Wood,
+					CanCollide = false,
+				}
+			)
 		end
 	end
 	if opts.noren then
@@ -281,7 +304,14 @@ function Archi.gableRoof(parent: Instance, cf: CFrame, w: number, d: number, ris
 			Build.wedge(parent, "Gable", Vector3.new(0.6, rise, d / 2), cf * CFrame.new(side * (w / 2 - 0.3), rise / 2, d / 4) * CFrame.Angles(0, math.pi, 0), opts.gableFill, {
 				Material = Enum.Material.Plaster,
 			})
-			Build.wedge(parent, "Gable", Vector3.new(0.6, rise, d / 2), cf * CFrame.new(side * (w / 2 - 0.3), rise / 2, -d / 4), opts.gableFill, { Material = Enum.Material.Plaster })
+			Build.wedge(
+				parent,
+				"Gable",
+				Vector3.new(0.6, rise, d / 2),
+				cf * CFrame.new(side * (w / 2 - 0.3), rise / 2, -d / 4),
+				opts.gableFill,
+				{ Material = Enum.Material.Plaster }
+			)
 		end
 	end
 	-- pans : un coin (wedge) plein par côté + une plaque de couverture qui déborde
@@ -305,10 +335,17 @@ function Archi.gableRoof(parent: Instance, cf: CFrame, w: number, d: number, ris
 		if opts.upturn then
 			for _, x in { -1, 1 } do
 				local tip = cf * CFrame.new(x * (w / 2 + over - 0.6), 0.2, side * (half - 0.6))
-				Build.wedge(parent, "RoofTip", Vector3.new(1.4, 1.6, 2.4), tip * CFrame.Angles(0, (side > 0) and math.pi or 0, 0) * CFrame.Angles(0, x * math.rad(-30), 0), opts.trim or shade(color, -0.2), {
-					Material = material,
-					CanCollide = false,
-				})
+				Build.wedge(
+					parent,
+					"RoofTip",
+					Vector3.new(1.4, 1.6, 2.4),
+					tip * CFrame.Angles(0, (side > 0) and math.pi or 0, 0) * CFrame.Angles(0, x * math.rad(-30), 0),
+					opts.trim or shade(color, -0.2),
+					{
+						Material = material,
+						CanCollide = false,
+					}
+				)
 			end
 		end
 	end
@@ -317,7 +354,14 @@ function Archi.gableRoof(parent: Instance, cf: CFrame, w: number, d: number, ris
 	deco(parent, "Ridge", Vector3.new(w + over * 2 + 0.8, 1, 1.4), cf * CFrame.new(0, rise + thick * 0.3, 0), ridge, Enum.Material.Slate)
 	if opts.upturn then
 		for _, x in { -1, 1 } do
-			deco(parent, "RidgeEnd", Vector3.new(1.2, 1.8, 1.8), cf * CFrame.new(x * (w / 2 + over + 0.6), rise + 0.8, 0) * CFrame.Angles(0, 0, x * math.rad(-20)), ridge, Enum.Material.Slate)
+			deco(
+				parent,
+				"RidgeEnd",
+				Vector3.new(1.2, 1.8, 1.8),
+				cf * CFrame.new(x * (w / 2 + over + 0.6), rise + 0.8, 0) * CFrame.Angles(0, 0, x * math.rad(-20)),
+				ridge,
+				Enum.Material.Slate
+			)
 		end
 	end
 	-- planches de rive sur les pignons
@@ -360,7 +404,15 @@ function Archi.tieredRoof(parent: Instance, cf: CFrame, w: number, d: number, ti
 		local k = 1 - i * 0.22
 		local y = i * tierH
 		if i > 0 then
-			Archi.block(parent, "TierWall", Vector3.new(w * k * 0.7, tierH * 0.55, d * k * 0.7), cf * CFrame.new(0, y - tierH * 0.45, 0), Archi.Colors.plaster, Enum.Material.Plaster, false)
+			Archi.block(
+				parent,
+				"TierWall",
+				Vector3.new(w * k * 0.7, tierH * 0.55, d * k * 0.7),
+				cf * CFrame.new(0, y - tierH * 0.45, 0),
+				Archi.Colors.plaster,
+				Enum.Material.Plaster,
+				false
+			)
 		end
 		Archi.hipRoof(parent, cf * CFrame.new(0, y, 0), w * k, d * k, tierH * 0.6, 2.4, color, o)
 	end
@@ -427,7 +479,14 @@ function Archi.sign(parent: Instance, cf: CFrame, w: number, h: number, text: st
 	end
 	if opts.posts then
 		for _, x in { -1, 1 } do
-			Build.part(parent, "SignPost", Vector3.new(0.6, opts.posts, 0.6), cf * CFrame.new(x * (w / 2 - 0.3), -h / 2 - opts.posts / 2, 0.1), frame, { Material = Enum.Material.Wood })
+			Build.part(
+				parent,
+				"SignPost",
+				Vector3.new(0.6, opts.posts, 0.6),
+				cf * CFrame.new(x * (w / 2 - 0.3), -h / 2 - opts.posts / 2, 0.1),
+				frame,
+				{ Material = Enum.Material.Wood }
+			)
 		end
 	end
 	if opts.hanging then
@@ -507,7 +566,12 @@ function Archi.acUnit(parent: Instance, cf: CFrame)
 	fan.Shape = Enum.PartType.Cylinder
 	deco(parent, "ACGrill", Vector3.new(0.7, 1.6, 0.1), cf * CFrame.new(-0.9, 0, -1.42), rgb(180, 180, 176), Enum.Material.DiamondPlate)
 	deco(parent, "ACBracket", Vector3.new(3.2, 0.25, 1.6), cf * CFrame.new(0, -1.2, -0.8), C.metal, Enum.Material.Metal)
-	Archi.pipe(parent, { (cf * CFrame.new(1.6, 0.6, -0.4)).Position, (cf * CFrame.new(2.2, 0.6, -0.15)).Position, (cf * CFrame.new(2.2, -4, -0.15)).Position }, 0.22, rgb(236, 236, 230))
+	Archi.pipe(
+		parent,
+		{ (cf * CFrame.new(1.6, 0.6, -0.4)).Position, (cf * CFrame.new(2.2, 0.6, -0.15)).Position, (cf * CFrame.new(2.2, -4, -0.15)).Position },
+		0.22,
+		rgb(236, 236, 230)
+	)
 end
 
 -- Cheminée de brique avec chapeau.

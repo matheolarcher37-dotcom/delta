@@ -478,7 +478,15 @@ local function buildBamboo(model: Model, rng: Random, pal: { Color3 }, detail: D
 		local nodes = detail == "low" and 2 or 3
 		for k = 1, nodes do
 			local q = base:Lerp(top, k / (nodes + 1))
-			local node = cylinder(model, "Node", q - (top - base).Unit * 0.12, q + (top - base).Unit * 0.12, d * 1.18, shade(stalk, -0.15), { Material = Enum.Material.SmoothPlastic, CanCollide = false })
+			local node = cylinder(
+				model,
+				"Node",
+				q - (top - base).Unit * 0.12,
+				q + (top - base).Unit * 0.12,
+				d * 1.18,
+				shade(stalk, -0.15),
+				{ Material = Enum.Material.SmoothPlastic, CanCollide = false }
+			)
 			node.CanQuery = false
 		end
 		local leaves = detail == "low" and 1 or 2
@@ -486,12 +494,26 @@ local function buildBamboo(model: Model, rng: Random, pal: { Color3 }, detail: D
 			local q = base:Lerp(top, 0.75 + k * 0.1)
 			local a = rng:NextNumber(0, 6.28)
 			local pos = q + hdir(a) * 1.6
-			Core.ellipsoid(model, "Leaves", Vector3.new(0.5, 1.4, 4.2), CFrame.lookAt(pos, q) * CFrame.Angles(rng:NextNumber(-0.4, 0.2), 0, 0), tone(pal, rng:NextNumber(0.5, 1), rng), LEAF)
+			Core.ellipsoid(
+				model,
+				"Leaves",
+				Vector3.new(0.5, 1.4, 4.2),
+				CFrame.lookAt(pos, q) * CFrame.Angles(rng:NextNumber(-0.4, 0.2), 0, 0),
+				tone(pal, rng:NextNumber(0.5, 1), rng),
+				LEAF
+			)
 		end
 		for k = 1, 3 do
 			local a = rng:NextNumber(0, 6.28) + k * 2.1
 			local pos = top + hdir(a) * 1.5 - UP * 0.4
-			Core.ellipsoid(model, "Leaves", Vector3.new(0.6, 0.25, 4.4), CFrame.lookAt(pos, top + UP * 0.5) * CFrame.Angles(rng:NextNumber(0.1, 0.4), 0, 0), tone(pal, rng:NextNumber(0.55, 1), rng), LEAF)
+			Core.ellipsoid(
+				model,
+				"Leaves",
+				Vector3.new(0.6, 0.25, 4.4),
+				CFrame.lookAt(pos, top + UP * 0.5) * CFrame.Angles(rng:NextNumber(0.1, 0.4), 0, 0),
+				tone(pal, rng:NextNumber(0.55, 1), rng),
+				LEAF
+			)
 		end
 	end
 end
@@ -676,7 +698,12 @@ function Nature.hedge(parent: Instance, a: Vector3, b: Vector3, options: { heigh
 	local count = math.max(2, math.floor(length / (w * 0.9)))
 	for i = 0, count do
 		local p = a:Lerp(b, i / count) + UP * h * 0.72
-		leaf(model, p + Vector3.new(rng:NextNumber(-0.2, 0.2), rng:NextNumber(-0.1, 0.15), rng:NextNumber(-0.2, 0.2)), w * rng:NextNumber(1.05, 1.2), tone(pal, rng:NextNumber(0.45, 0.8), rng))
+		leaf(
+			model,
+			p + Vector3.new(rng:NextNumber(-0.2, 0.2), rng:NextNumber(-0.1, 0.15), rng:NextNumber(-0.2, 0.2)),
+			w * rng:NextNumber(1.05, 1.2),
+			tone(pal, rng:NextNumber(0.45, 0.8), rng)
+		)
 	end
 	return model
 end
@@ -865,7 +892,9 @@ function Nature.rock(
 		model,
 		"Rock",
 		Vector3.new(size * 0.5, size * 0.18, size * 0.42),
-		cf * CFrame.new(rng:NextNumber(-0.15, 0.15) * size, size * 0.5, rng:NextNumber(-0.15, 0.15) * size) * CFrame.Angles(rng:NextNumber(-0.3, 0.3), rng:NextNumber(0, 3), rng:NextNumber(-0.3, 0.3)),
+		cf
+			* CFrame.new(rng:NextNumber(-0.15, 0.15) * size, size * 0.5, rng:NextNumber(-0.15, 0.15) * size)
+			* CFrame.Angles(rng:NextNumber(-0.3, 0.3), rng:NextNumber(0, 3), rng:NextNumber(-0.3, 0.3)),
 		shade(color, 0.12),
 		{ Material = material, CanCollide = false }
 	)
@@ -934,9 +963,16 @@ function Nature.cliff(
 	rockBlock(Vector3.new(width * 0.96, height, depth * 0.5), cf * CFrame.new(0, height / 2 - 1, depth * 0.2), -0.02)
 	if o.top then
 		local rampLen = o.ramp or math.clamp(height * 1.3, 12, 34)
-		local ramp = Build.wedge(model, "CliffSlope", Vector3.new(width * 0.98, height + 0.6, rampLen), cf * CFrame.new(0, (height + 0.6) / 2 - 0.6, depth * 0.45 + rampLen / 2) * CFrame.Angles(0, math.pi, 0), o.top, {
-			Material = LEAF,
-		})
+		local ramp = Build.wedge(
+			model,
+			"CliffSlope",
+			Vector3.new(width * 0.98, height + 0.6, rampLen),
+			cf * CFrame.new(0, (height + 0.6) / 2 - 0.6, depth * 0.45 + rampLen / 2) * CFrame.Angles(0, math.pi, 0),
+			o.top,
+			{
+				Material = LEAF,
+			}
+		)
 		if o.topRole then
 			Core.solRole(ramp, o.topRole)
 		end
@@ -946,7 +982,14 @@ function Nature.cliff(
 		end
 		for _, t in tops do
 			if t[2] > height * 0.9 and rng:NextNumber() < 0.7 then
-				local lip = Core.ellipsoid(model, "CliffGrass", Vector3.new(rng:NextNumber(8, 14), rng:NextNumber(1.6, 3), rng:NextNumber(6, 9)), cf * CFrame.new(t[1], math.min(t[2], height * 1.05) + 0.4, -depth * 0.12), shade(o.top, rng:NextNumber(-0.06, 0.06)), LEAF)
+				local lip = Core.ellipsoid(
+					model,
+					"CliffGrass",
+					Vector3.new(rng:NextNumber(8, 14), rng:NextNumber(1.6, 3), rng:NextNumber(6, 9)),
+					cf * CFrame.new(t[1], math.min(t[2], height * 1.05) + 0.4, -depth * 0.12),
+					shade(o.top, rng:NextNumber(-0.06, 0.06)),
+					LEAF
+				)
 				if o.topRole then
 					Core.solRole(lip, o.topRole, rng:NextNumber(-0.06, 0.06))
 				end
@@ -1010,7 +1053,9 @@ function Nature.mountain(
 		local w = width * (main and 0.42 or rng:NextNumber(0.26, 0.36))
 		peak(pos, w, h, shade(rock, rng:NextNumber(-0.08, 0.06)))
 		if o.snow and (main or rng:NextNumber() < 0.4) then
-			for _, part in Core.pyramid(model, "Snow", CFrame.new(pos + UP * h * 0.68) * CFrame.Angles(0, rng:NextNumber(0, 3), 0), w * 0.36, w * 0.34, h * 0.34, o.snow, Enum.Material.Snow) do
+			for _, part in
+				Core.pyramid(model, "Snow", CFrame.new(pos + UP * h * 0.68) * CFrame.Angles(0, rng:NextNumber(0, 3), 0), w * 0.36, w * 0.34, h * 0.34, o.snow, Enum.Material.Snow)
+			do
 				part.CastShadow = false
 				part.CanCollide = false
 			end
@@ -1033,7 +1078,9 @@ function Nature.mountain(
 		local a = rng:NextNumber(0, math.pi * 2)
 		local pos = base + hdir(a) * width * rng:NextNumber(0.42, 0.55)
 		local s = width * rng:NextNumber(0.05, 0.08)
-		for _, part in Core.pyramid(model, "Grove", CFrame.new(pos) * CFrame.Angles(0, a, 0), s, s, s * rng:NextNumber(1.6, 2.4), shade(treeColor, rng:NextNumber(-0.08, 0.08)), LEAF) do
+		for _, part in
+			Core.pyramid(model, "Grove", CFrame.new(pos) * CFrame.Angles(0, a, 0), s, s, s * rng:NextNumber(1.6, 2.4), shade(treeColor, rng:NextNumber(-0.08, 0.08)), LEAF)
+		do
 			part.CastShadow = false
 		end
 	end

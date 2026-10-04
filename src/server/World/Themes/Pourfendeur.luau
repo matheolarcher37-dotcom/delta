@@ -770,17 +770,12 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 	end, function(p)
 		local roll = rng:NextNumber()
 		local species = roll < 0.5 and "Glycine" or (roll < 0.8 and "Bambou" or "Cerisier")
-		Nature.tree(
-			species,
-			ring,
-			p + UP * TOP_RING,
-			{
-				rng = rng,
-				height = species == "Bambou" and rng:NextNumber(22, 30) or rng:NextNumber(13, 18),
-				detail = "normal",
-				palette = species == "Cerisier" and "glycine" or nil,
-			}
-		)
+		Nature.tree(species, ring, p + UP * TOP_RING, {
+			rng = rng,
+			height = species == "Bambou" and rng:NextNumber(22, 30) or rng:NextNumber(13, 18),
+			detail = "normal",
+			palette = species == "Cerisier" and "glycine" or nil,
+		})
 	end)
 	Core.scatter(rng, 12, Vector3.zero, 168, 178, function(p)
 		return Common.ringFree(p, 12)
@@ -788,10 +783,10 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 		Nature.tree("Cedre", ring, p + UP * TOP_RING, { rng = rng, height = rng:NextNumber(32, 44), detail = "normal" })
 	end)
 	-- bosquets de bambous serrés dans la bande libre 234-245
-	Core.scatter(rng, 14, Vector3.zero, 236, 243, function(p)
+	Core.scatter(rng, 10, Vector3.zero, 236, 243, function(p)
 		return Common.ringFree(p, 10)
 	end, function(center)
-		for _ = 1, rng:NextInteger(4, 7) do
+		for _ = 1, rng:NextInteger(3, 6) do
 			local p = center + Vector3.new(rng:NextNumber(-4, 4), 0, rng:NextNumber(-4, 4))
 			if Common.ringFree(p, 2) then
 				Nature.tree("Bambou", ring, p + UP * TOP_RING, { rng = rng, height = rng:NextNumber(24, 34), detail = "normal" })
@@ -811,7 +806,7 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 			Nature.stump(ring, p + UP * TOP_RING, rng:NextNumber(2, 3), rng)
 		end
 	end)
-	Core.scatter(rng, 46, Vector3.zero, Layout.RingInner + 3, 262, function(p)
+	Core.scatter(rng, 36, Vector3.zero, Layout.RingInner + 3, 262, function(p)
 		return Common.ringFree(p, 2)
 	end, function(p)
 		lilyClump(ring, p + UP * TOP_RING, rng)
@@ -822,13 +817,13 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 	local spiderAt = polar(150, 600)
 	local free = Common.islandFree({ { polar(MOUNT_ANGLE, 650), 110 }, { spiderAt, 26 } })
 	Common.forest(island, rng, {
-		groves = 36,
-		perGrove = { 6, 11 },
+		groves = 30,
+		perGrove = { 5, 8 },
 		radius = { 20, 38 },
 		free = free,
-		spacing = 0.22,
+		spacing = 0.26,
 		species = {
-			{ "Bambou", 5, 26, 38 },
+			{ "Bambou", 3.5, 26, 38 },
 			{ "Cedre", 3, 30, 48 },
 			{ "Glycine", 1.6, 14, 20 },
 			{ "Sapin", 1.4, 24, 34, "nuit" },
@@ -863,7 +858,7 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 			lilyClump(island, p + Vector3.new(4, 0, 2), rng)
 		end
 	end
-	Core.scatter(rng, 40, Vector3.zero, Layout.WalkwayOuter + 6, Layout.IslandRadius - 10, function(p)
+	Core.scatter(rng, 28, Vector3.zero, Layout.WalkwayOuter + 6, Layout.IslandRadius - 10, function(p)
 		return free(p, 2)
 	end, function(p)
 		lilyClump(island, Common.ground(p), rng)

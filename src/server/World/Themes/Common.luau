@@ -156,7 +156,16 @@ function Common.forest(folder: Instance, rng: Random, spec: ForestSpec): number
 					local roll = rng:NextNumber()
 					local g = Common.ground(p)
 					if roll < 0.45 then
-						Nature.bush(folder, g, { rng = rng, height = rng:NextNumber(3, 5.5), palette = u.palette, flowers = (u.flowers and rng:NextNumber() < 0.3) and u.flowers[rng:NextInteger(1, #u.flowers)] or nil })
+						Nature.bush(
+							folder,
+							g,
+							{
+								rng = rng,
+								height = rng:NextNumber(3, 5.5),
+								palette = u.palette,
+								flowers = (u.flowers and rng:NextNumber() < 0.3) and u.flowers[rng:NextInteger(1, #u.flowers)] or nil,
+							}
+						)
 					elseif roll < 0.7 and u.ferns then
 						Nature.fern(folder, g, rng:NextNumber(3, 5), u.ferns, rng)
 					elseif roll < 0.85 then
@@ -178,7 +187,12 @@ function Common.forest(folder: Instance, rng: Random, spec: ForestSpec): number
 end
 
 -- Couronne de montagnes d'horizon (dans la mer). `skip` = { { angle, demi-largeur } } à éviter.
-function Common.horizon(folder: Instance, rng: Random, count: number, o: { rock: Color3, grass: Color3, snow: Color3?, trees: Color3?, skip: { { number } }?, material: Enum.Material?, scale: number? })
+function Common.horizon(
+	folder: Instance,
+	rng: Random,
+	count: number,
+	o: { rock: Color3, grass: Color3, snow: Color3?, trees: Color3?, skip: { { number } }?, material: Enum.Material?, scale: number? }
+)
 	for i = 0, count - 1 do
 		local angle = i / count * 360 + rng:NextNumber(-4, 4)
 		local blocked = false
@@ -250,33 +264,65 @@ export type AmbientOptions = {
 	acceleration: Vector3?,
 }
 
--- Particules d'ambiance (feuilles, pétales, lucioles, braises, brume...) au-dessus de la carte.
+-- Zones où l'on voit les particules d'ambiance : le hub, 6 secteurs de l'anneau et les 6 bases
+-- (un seul émetteur géant étalerait ses particules sur toute la carte : presque rien autour du
+-- joueur). Chaque zone = { centre, rayon }.
+local function ambientZones(radius: number): { { any } }
+	local zones = { { Vector3.zero, math.min(radius, 110) } }
+	if radius > 150 then
+		for i = 0, 5 do
+			table.insert(zones, { Common.polar(i * 60, 215), 125 })
+		end
+	end
+	if radius > 380 then
+		for _, angle in Layout.PlotAngles do
+			table.insert(zones, { Vector3.new(math.cos(angle), 0, math.sin(angle)) * Layout.PlotRing, 110 })
+		end
+	end
+	return zones
+end
+
+-- Particules d'ambiance (feuilles, pétales, lucioles, braises, brume...) au-dessus de la carte,
+-- réparties dans les zones fréquentées. Renvoie le premier émetteur.
 function Common.ambient(folder: Instance, name: string, o: AmbientOptions): ParticleEmitter
-	local r = o.radius or Layout.RingOuter
-	local part = Build.deco(folder, name, Vector3.new(r * 2, 1, r * 2), CFrame.new(0, o.y, 0), Color3.new(1, 1, 1), { Transparency = 1, CastShadow = false })
-	part.Name = "Ambient"
-	local emitter = Instance.new("ParticleEmitter")
-	emitter.Name = name
-	emitter.Texture = o.texture or "rbxasset://textures/particles/sparkles_main.dds"
-	emitter.Color = o.colors
-	emitter.LightEmission = o.lightEmission or 0.3
-	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, o.size), NumberSequenceKeypoint.new(1, o.size * 0.4) })
-	emitter.Transparency =
-		NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.15, 0.15), NumberSequenceKeypoint.new(0.85, 0.25), NumberSequenceKeypoint.new(1, 1) })
-	emitter.Lifetime = o.lifetime or NumberRange.new(10, 14)
-	emitter.Rate = o.rate
-	emitter.Speed = o.speed
-	emitter.EmissionDirection = o.direction
-	emitter.SpreadAngle = Vector2.new(25, 25)
-	if o.acceleration then
-		emitter.Acceleration = o.acceleration
+	local first: ParticleEmitter? = nil
+	local zones = ambientZones(o.radius or Layout.RingOuter)
+	for _, zone in zones do
+		local r = zone[2]
+		local part =
+			Build.deco(folder, name, Vector3.new(r * 2, 1, r * 2), CFrame.new(zone[1] + Vector3.new(0, o.y, 0)), Color3.new(1, 1, 1), { Transparency = 1, CastShadow = false })
+		part.Name = "Ambient"
+		part.CanQuery = false
+		part.CanTouch = false
+		local emitter = Instance.new("ParticleEmitter")
+		emitter.Name = name
+		emitter.Texture = o.texture or "rbxasset://textures/particles/sparkles_main.dds"
+		emitter.Color = o.colors
+		emitter.LightEmission = o.lightEmission or 0.3
+		emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, o.size), NumberSequenceKeypoint.new(1, o.size * 0.4) })
+		emitter.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.15, 0.15),
+			NumberSequenceKeypoint.new(0.85, 0.25),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		emitter.Lifetime = o.lifetime or NumberRange.new(10, 14)
+		-- débit proportionnel à la surface de la zone (densité constante)
+		emitter.Rate = math.max(1, o.rate * (r * r) / (125 * 125) * 0.35)
+		emitter.Speed = o.speed
+		emitter.EmissionDirection = o.direction
+		emitter.SpreadAngle = Vector2.new(25, 25)
+		if o.acceleration then
+			emitter.Acceleration = o.acceleration
+		end
+		if o.spin ~= false then
+			emitter.RotSpeed = NumberRange.new(-60, 60)
+			emitter.Rotation = NumberRange.new(0, 360)
+		end
+		emitter.Parent = part
+		first = first or emitter
 	end
-	if o.spin ~= false then
-		emitter.RotSpeed = NumberRange.new(-60, 60)
-		emitter.Rotation = NumberRange.new(0, 360)
-	end
-	emitter.Parent = part
-	return emitter
+	return first :: ParticleEmitter
 end
 
 -- Rue circulaire (terre battue ou pavés) dans l'anneau, entre `r1` et `r2`, interrompue sur
@@ -292,17 +338,22 @@ function Common.ringStreet(folder: Instance, r1: number, r2: number, role: strin
 		local m = (p0 + p1) / 2
 		if not Layout.inBossArena(m, 4) then
 			local nuance = rng:NextNumber(-0.05, 0.05)
-			local part = Build.deco(folder, "Street", Vector3.new(r2 - r1 + rng:NextNumber(-1, 1), 0.2, (p1 - p0).Magnitude + 0.6), CFrame.lookAt(m, p1), Color3.new(0.7, 0.6, 0.45), {
-				Material = Enum.Material.Ground,
-				CastShadow = false,
-			})
+			local part =
+				Build.deco(folder, "Street", Vector3.new(r2 - r1 + rng:NextNumber(-1, 1), 0.2, (p1 - p0).Magnitude + 0.6), CFrame.lookAt(m, p1), Color3.new(0.7, 0.6, 0.45), {
+					Material = Enum.Material.Ground,
+					CastShadow = false,
+				})
 			Core.solRole(part, role, nuance)
 		end
 	end
 end
 
 -- Détails au sol de l'anneau : taches, touffes, fleurs (couleurs suivant l'univers).
-function Common.ringGround(folder: Instance, rng: Random, o: { patches: number, tufts: number, flowers: number, flowerColors: { Color3 }?, patchRole: string?, patchMaterial: Enum.Material? })
+function Common.ringGround(
+	folder: Instance,
+	rng: Random,
+	o: { patches: number, tufts: number, flowers: number, flowerColors: { Color3 }?, patchRole: string?, patchMaterial: Enum.Material? }
+)
 	Core.scatter(rng, o.patches, Vector3.zero, Layout.RingInner + 6, Layout.RingOuter - 10, function(p)
 		return Common.ringFree(p, 6)
 	end, function(p)
@@ -312,7 +363,15 @@ function Common.ringGround(folder: Instance, rng: Random, o: { patches: number, 
 			local a = rng:NextNumber(0, math.pi * 2)
 			local r = i == 1 and 0 or size * rng:NextNumber(0.2, 0.42)
 			local d = size * (i == 1 and 0.8 or rng:NextNumber(0.4, 0.65))
-			local disc = Core.flatDisc(folder, "Patch", p + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r), d, Common.TOP_PLAZA - 0.02 + (i % 2) * 0.01, Color3.new(0.5, 0.6, 0.4), o.patchMaterial or Enum.Material.LeafyGrass)
+			local disc = Core.flatDisc(
+				folder,
+				"Patch",
+				p + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r),
+				d,
+				Common.TOP_PLAZA - 0.02 + (i % 2) * 0.01,
+				Color3.new(0.5, 0.6, 0.4),
+				o.patchMaterial or Enum.Material.LeafyGrass
+			)
 			Core.solRole(disc, o.patchRole or "herbe2")
 		end
 	end)
