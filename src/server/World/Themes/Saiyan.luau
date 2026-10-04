@@ -130,47 +130,197 @@ local function capsuleHouse(parent: Instance, cf: CFrame, accent: Color3, number
 	return model
 end
 
--- Pic rocheux en strates (mesa) : couches de grès décalées, sommet herbeux.
+-- Pic rocheux (aiguille de grès comme dans les plaines de Dragon Ball) : chaque strate est faite
+-- de 2 ou 3 blocs décalés et tournés (silhouette irrégulière), la colonne s'affine et penche un
+-- peu, des corniches débordent, quelques touffes vertes s'accrochent, sommet herbeux.
 local function spire(parent: Instance, base: Vector3, height: number, width: number, rng: Random, grass: boolean?): Model
 	local model = Core.slot(parent, "PicRocheux", CFrame.new(base), height)
 	pcall(function()
 		model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	end)
-	local layers = math.max(3, math.floor(height / 8))
+	local layers = math.max(3, math.floor(height / 7))
+	local layerH = height / layers
+	local lean = Vector3.new(rng:NextNumber(-1, 1), 0, rng:NextNumber(-1, 1)) * width * 0.012
 	local w = width
 	local offset = Vector3.zero
+	local light, dark = SAND, rgb(170, 116, 80)
 	for l = 0, layers - 1 do
-		local h = height / layers + 0.6
 		local t = l / layers
-		local size = Vector3.new(w * rng:NextNumber(0.9, 1.05), h, w * rng:NextNumber(0.85, 1))
-		local nuance = (l % 2 == 0 and 0.05 or -0.06) + rng:NextNumber(-0.03, 0.03)
-		Build.part(
-			model,
-			"Strata",
-			size,
-			CFrame.new(base + offset + UP * (l * height / layers + h / 2 - 0.6)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0),
-			shade(SAND:Lerp(rgb(176, 120, 82), t * 0.6), nuance),
-			{
-				Material = Enum.Material.Sandstone,
-			}
-		)
-		w *= rng:NextNumber(0.9, 1.02)
-		offset += Vector3.new(rng:NextNumber(-0.8, 0.8), 0, rng:NextNumber(-0.8, 0.8))
+		local y = l * layerH
+		local tone = shade(light:Lerp(dark, 0.25 + 0.5 * math.abs(math.sin(l * 1.7))), rng:NextNumber(-0.04, 0.04))
+		local blocks = l == layers - 1 and 1 or rng:NextInteger(2, 3)
+		for b = 1, blocks do
+			local bw = w * (b == 1 and rng:NextNumber(0.85, 1) or rng:NextNumber(0.55, 0.8))
+			local bd = w * (b == 1 and rng:NextNumber(0.75, 0.95) or rng:NextNumber(0.5, 0.75))
+			local shift = b == 1 and Vector3.zero or Vector3.new(rng:NextNumber(-0.3, 0.3) * w, 0, rng:NextNumber(-0.3, 0.3) * w)
+			local h = layerH * rng:NextNumber(1.02, 1.25)
+			Build.part(
+				model,
+				"Strata",
+				Vector3.new(bw, h, bd),
+				CFrame.new(base + offset + shift + UP * (y + h / 2 - 0.4)) * CFrame.Angles(rng:NextNumber(-0.04, 0.04), rng:NextNumber(0, math.pi), rng:NextNumber(-0.04, 0.04)),
+				shade(tone, b == 1 and 0 or rng:NextNumber(-0.06, 0.06)),
+				{ Material = Enum.Material.Sandstone }
+			)
+		end
+		-- corniche plus claire qui déborde (strate dure)
+		if l > 0 and rng:NextNumber() < 0.45 then
+			Build.part(
+				model,
+				"Ledge",
+				Vector3.new(w * 1.12, 0.9, w * rng:NextNumber(0.9, 1.1)),
+				CFrame.new(base + offset + UP * y) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0),
+				shade(light, 0.08),
+				{
+					Material = Enum.Material.Sandstone,
+				}
+			)
+			if grass ~= false and rng:NextNumber() < 0.5 then
+				Core.ellipsoid(
+					model,
+					"LedgeGrass",
+					Vector3.new(w * 0.5, 1.4, w * 0.4),
+					CFrame.new(base + offset + UP * (y + 0.8) + Vector3.new(rng:NextNumber(-0.4, 0.4) * w, 0, rng:NextNumber(-0.4, 0.4) * w)),
+					rgb(96, 158, 108),
+					Enum.Material.Grass
+				)
+			end
+		end
+		w *= rng:NextNumber(0.86, 0.97) - t * 0.02
+		offset += lean * layerH + Vector3.new(rng:NextNumber(-0.5, 0.5), 0, rng:NextNumber(-0.5, 0.5))
 	end
 	if grass ~= false then
-		Core.ellipsoid(model, "SpireTop", Vector3.new(w * 1.05, 3, w * 1.05), CFrame.new(base + offset + UP * (height + 0.4)), rgb(110, 168, 120), Enum.Material.Grass)
+		local top = base + offset + UP * (height + 0.2)
+		Core.ellipsoid(model, "SpireTop", Vector3.new(w * 1.15, 3.2, w * 1.1), CFrame.new(top), rgb(104, 166, 116), Enum.Material.Grass)
+		Core.ellipsoid(model, "SpireTop", Vector3.new(w * 0.7, 2.4, w * 0.6), CFrame.new(top + UP * 1.2 + Vector3.new(w * 0.15, 0, 0)), rgb(120, 180, 126), Enum.Material.Grass)
 	end
-	-- éboulis
+	-- éboulis au pied
+	for _ = 1, 4 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		Nature.rock(model, base + Vector3.new(math.cos(a), 0, math.sin(a)) * width * rng:NextNumber(0.6, 0.9), rng:NextNumber(3, 7), {
+			rng = rng,
+			color = SAND,
+			material = Enum.Material.Sandstone,
+			slot = "Eboulis",
+		})
+	end
+	return model
+end
+
+-- Voiture volante arrondie (aéroglisseur de la ville) : carrosserie ovale, bulle vitrée, ailerons,
+-- phares, réacteurs lumineux dessous.
+local function hoverCar(parent: Instance, cf: CFrame, color: Color3)
+	local model = Build.model(parent, "VoitureVolante")
+	local body = cf * CFrame.new(0, 2.2, 0)
+	Core.ellipsoid(model, "CarBody", Vector3.new(4.6, 2.2, 8.4), body, color, Enum.Material.SmoothPlastic)
+	Core.ellipsoid(model, "CarSkirt", Vector3.new(5, 0.9, 8.8), body * CFrame.new(0, -0.6, 0), shade(color, -0.25), Enum.Material.Metal)
+	local bubble = Core.ellipsoid(model, "CarBubble", Vector3.new(3.4, 2.2, 3.8), body * CFrame.new(0, 1, 0.6), rgb(150, 200, 230), Enum.Material.Glass)
+	bubble.Transparency = 0.35
+	for _, x in { -1, 1 } do
+		Build.wedge(model, "Fin", Vector3.new(0.3, 1.4, 2), body * CFrame.new(x * 1.6, 1, 3.4), shade(color, -0.1), { CanCollide = false })
+		Build.deco(model, "HeadLight", Vector3.new(0.8, 0.4, 0.2), body * CFrame.new(x * 1.3, 0.1, -4.15), rgb(255, 250, 220), { Material = Enum.Material.Neon })
+		local jet = Core.ball(model, "Jet", 1, (body * CFrame.new(x * 1.4, -1.2, 2.6)).Position, rgb(120, 210, 255), Enum.Material.Neon)
+		jet.Transparency = 0.2
+	end
+	return model
+end
+
+-- Siège de la Capsule Corporation : immense dôme blanc sur socle, bandeau et enseigne, aile en
+-- cylindre à hublots, petit dôme, tour-antenne, parking de voitures volantes, palmiers.
+local function capsuleCorp(parent: Instance, cf: CFrame, rng: Random): Model
+	local model = Core.slot(parent, "CapsuleCorp", cf, 40)
+	pcall(function()
+		model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	end)
+	local D = 42
+	Core.vcyl(model, "Plaza", cf, 0.4, D + 22, rgb(200, 198, 192), Enum.Material.Pavement)
+	Core.vcyl(model, "Base", cf * CFrame.new(0, 0.4, 0), 4, D + 4, rgb(214, 212, 206), Enum.Material.Concrete)
+	local dome = Build.part(model, "Dome", Vector3.new(D, D, D), cf * CFrame.new(0, 4.4 - D * 0.08, 0), WHITE, { Shape = Enum.PartType.Ball })
+	dome.CastShadow = true
+	Core.vcyl(model, "Band", cf * CFrame.new(0, 7, 0), 3, D + 0.6, rgb(70, 110, 190), Enum.Material.SmoothPlastic, false)
+	-- rangée de hublots sur tout le tour
+	for k = 0, 15 do
+		local a = k / 16 * math.pi * 2
+		if math.abs(math.sin(a)) > 0.25 or math.cos(a) > 0 then
+			porthole(model, cf * CFrame.Angles(0, a, 0) * CFrame.new(0, 14, -(D / 2) * 0.93) * CFrame.Angles(-0.35, 0, 0), 2.6, rng:NextNumber() < 0.5)
+		end
+	end
+	-- entrée et enseigne
+	local front = cf * CFrame.new(0, 0, -D / 2 + 1)
+	Build.part(model, "Entrance", Vector3.new(12, 10, 8), front * CFrame.new(0, 5.4, -3), WHITE, { Material = Enum.Material.SmoothPlastic })
+	Build.deco(model, "Door", Vector3.new(7, 7, 0.3), front * CFrame.new(0, 4, -7.05), rgb(90, 140, 200), { Material = Enum.Material.Glass, Transparency = 0.2 })
+	Archi.sign(model, front * CFrame.new(0, 12.6, -7.2), 16, 3.4, "CAPSULE CORP.", { bg = rgb(250, 250, 248), text = rgb(60, 100, 190), font = Enum.Font.GothamBlack })
+	-- aile cylindrique couchée à hublots
+	local wing = cf * CFrame.new(D * 0.62, 0, 4)
+	local tube = Build.part(model, "Wing", Vector3.new(26, 14, 14), wing * CFrame.new(0, 7.4, 0) * CFrame.Angles(0, math.rad(90), 0), WHITE, { Shape = Enum.PartType.Cylinder })
+	tube.CastShadow = true
+	Core.ball(model, "WingCap", 14, (wing * CFrame.new(0, 7.4, -13)).Position, WHITE)
+	for k = -2, 2 do
+		porthole(model, wing * CFrame.new(-7.05, 8, k * 4.6) * CFrame.Angles(0, math.rad(-90), 0), 2.2, true)
+	end
+	-- petit dôme et tour-antenne
+	local small = cf * CFrame.new(-D * 0.6, 0, 6)
+	Build.part(model, "SmallDome", Vector3.new(18, 18, 18), small * CFrame.new(0, 1, 0), WHITE, { Shape = Enum.PartType.Ball })
+	Core.vcyl(model, "SmallBand", small * CFrame.new(0, 1.6, 0), 1.6, 18.3, ORANGE, Enum.Material.SmoothPlastic, false)
+	local tower = cf * CFrame.new(-D * 0.25, 0, D * 0.36)
+	Core.vcyl(model, "Tower", tower, 34, 5, rgb(226, 226, 222), Enum.Material.SmoothPlastic)
+	Core.ball(model, "TowerBall", 7, (tower * CFrame.new(0, 36, 0)).Position, WHITE)
+	Build.deco(model, "Antenna", Vector3.new(0.4, 10, 0.4), tower * CFrame.new(0, 44, 0), rgb(180, 180, 186), { Material = Enum.Material.Metal })
+	local beacon = Core.ball(model, "Beacon", 1, (tower * CFrame.new(0, 49.4, 0)).Position, rgb(255, 60, 50), Enum.Material.Neon)
+	Core.light(beacon, rgb(255, 80, 60), 16, 1)
+	-- parking et palmiers
+	local colors = { rgb(240, 200, 60), rgb(220, 70, 60), rgb(70, 140, 220), rgb(250, 250, 248) }
+	for k = 0, 3 do
+		hoverCar(model, cf * CFrame.new(-D / 2 - 4 + k * 6, 0.4, -D / 2 - 8) * CFrame.Angles(0, math.rad(rng:NextNumber(-8, 8)), 0), colors[k + 1])
+	end
+	for _, x in { -1, 1 } do
+		Nature.tree("Palmier", model, (cf * CFrame.new(x * (D / 2 + 6), 0.4, -D / 2 - 2)).Position, { rng = rng, height = rng:NextNumber(20, 26), detail = "normal" })
+	end
+	return model
+end
+
+-- Cratère de combat sur l'île : sol creusé, bourrelet de roches, fissures et rochers projetés.
+local function battleCrater(parent: Instance, center: Vector3, radius: number, rng: Random)
+	local model = Build.model(parent, "CratereDeCombat")
+	Build.disc(model, "CraterFloor", 0.3, radius * 2, center, rgb(150, 116, 82), { Material = Enum.Material.Ground, CanCollide = false })
+	Build.disc(model, "CraterCore", 0.34, radius * 1.1, center, rgb(118, 90, 66), { Material = Enum.Material.Ground, CanCollide = false })
+	local n = math.floor(radius * 0.9)
+	for k = 0, n - 1 do
+		local a = k / n * math.pi * 2 + rng:NextNumber(-0.1, 0.1)
+		local p = center + Vector3.new(math.cos(a), 0, math.sin(a)) * radius * rng:NextNumber(0.95, 1.1)
+		Build.part(
+			model,
+			"CraterRim",
+			Vector3.new(rng:NextNumber(4, 7), rng:NextNumber(1.4, 3), rng:NextNumber(2.5, 4)),
+			CFrame.lookAt(p, center) * CFrame.Angles(-0.45, 0, rng:NextNumber(-0.2, 0.2)),
+			shade(SAND, rng:NextNumber(-0.12, 0)),
+			{
+				Material = Enum.Material.Rock,
+			}
+		)
+	end
+	for k = 0, 4 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		local len = radius * rng:NextNumber(0.4, 0.8)
+		local mid = center + Vector3.new(math.cos(a), 0, math.sin(a)) * len * 0.5
+		Build.deco(
+			model,
+			"Crack",
+			Vector3.new(0.5, 0.1, len),
+			CFrame.lookAt(mid + UP * 0.36, center + UP * 0.36) * CFrame.Angles(0, k * 0.1, 0),
+			rgb(60, 44, 34),
+			{ CastShadow = false }
+		)
+	end
 	for _ = 1, 3 do
 		local a = rng:NextNumber(0, math.pi * 2)
 		Nature.rock(
 			model,
-			base + Vector3.new(math.cos(a), 0, math.sin(a)) * width * 0.7,
-			rng:NextNumber(3, 6),
-			{ rng = rng, color = SAND, material = Enum.Material.Sandstone, slot = "Eboulis" }
+			center + Vector3.new(math.cos(a), 0, math.sin(a)) * radius * rng:NextNumber(1.3, 1.9),
+			rng:NextNumber(2.5, 5),
+			{ rng = rng, color = SAND, material = Enum.Material.Sandstone }
 		)
 	end
-	return model
 end
 
 -- Capsule spatiale écrasée dans son cratère.
@@ -387,7 +537,7 @@ function Saiyan.build(decor: Instance, rng: Random, _theme)
 		local angle = i * 10 + 5 + rng:NextNumber(-2, 2)
 		local outer = i % 2 == 0
 		local pos = polar(angle, outer and 314 or 292)
-		local inTournament = Common.angleDiff(angle, 120) < 14
+		local inTournament = Common.angleDiff(angle, 120) < 14 or Common.angleDiff(angle, 60) < 12
 		if not Layout.onPath(pos, 12) and not inTournament and not Layout.inBossArena(pos, 16) then
 			local cf = facing(angle, outer and 314 or 292, TOP_RING)
 			if rng:NextNumber() < 0.7 then
@@ -405,6 +555,22 @@ function Saiyan.build(decor: Instance, rng: Random, _theme)
 		local lamp = Core.ball(quarter, "Lamp", 2, pos + UP * 10, rgb(255, 236, 190), Enum.Material.Neon)
 		Core.light(lamp, rgb(255, 230, 180), 18, 1.1)
 	end)
+
+	-- 1 bis) Siège de la Capsule Corporation (secteur 60°) et voitures volantes dans les rues.
+	capsuleCorp(ring, facing(60, 300, TOP_RING), rng)
+	local carColors = { rgb(240, 200, 60), rgb(220, 70, 60), rgb(70, 140, 220), rgb(250, 250, 248), rgb(120, 200, 120) }
+	for k = 0, 13 do
+		local angle = k * 25.7 + 9
+		local pos = polar(angle, 272, TOP_RING)
+		if not Layout.onPath(pos, 8) and not Layout.inBossArena(pos, 10) and Common.angleDiff(angle, 120) > 16 then
+			local tangent = Vector3.new(-pos.Z, 0, pos.X).Unit
+			hoverCar(quarter, CFrame.lookAt(pos, pos + tangent), carColors[k % #carColors + 1])
+		end
+	end
+	for _, angle in { 24, 98, 166, 232, 300 } do
+		Props.vendingMachine(quarter, facing(angle, 282, TOP_RING) * CFrame.Angles(0, math.pi, 0), rgb(60, 110, 200))
+		Props.bench(quarter, facing(angle + 2.4, 282, TOP_RING) * CFrame.Angles(0, math.pi, 0))
+	end
 
 	-- 2) Arène du tournoi (secteur 120°).
 	tournament(ring, facing(120, 296, TOP_RING), rng)
@@ -457,11 +623,11 @@ function Saiyan.build(decor: Instance, rng: Random, _theme)
 	-- 5) Île : prairies, bosquets d'arbres ronds, mesas et aiguilles.
 	local free = Common.islandFree({ { polar(TOWER_ANGLE, 650), 60 } })
 	Common.forest(island, rng, {
-		groves = 30,
-		perGrove = { 4, 8 },
-		radius = { 20, 36 },
+		groves = 40,
+		perGrove = { 6, 10 },
+		radius = { 22, 40 },
 		free = free,
-		spacing = 0.45,
+		spacing = 0.38,
 		species = {
 			{ "ArbreRond", 6, 14, 26 },
 			{ "ArbreRond", 2, 20, 30, "clair" },
@@ -474,6 +640,12 @@ function Saiyan.build(decor: Instance, rng: Random, _theme)
 		return free(p, 18)
 	end, function(p)
 		spire(island, Common.ground(p), rng:NextNumber(30, 80), rng:NextNumber(14, 24), rng)
+	end)
+	-- cratères de combat
+	Core.scatter(rng, 7, Vector3.zero, Layout.WalkwayOuter + 30, Layout.IslandRadius - 30, function(p)
+		return free(p, 20)
+	end, function(p)
+		battleCrater(island, Common.ground(p), rng:NextNumber(9, 15), rng)
 	end)
 	skyTower(horizon, facing(TOWER_ANGLE, TOWER_RADIUS))
 

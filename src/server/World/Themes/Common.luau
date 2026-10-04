@@ -156,16 +156,12 @@ function Common.forest(folder: Instance, rng: Random, spec: ForestSpec): number
 					local roll = rng:NextNumber()
 					local g = Common.ground(p)
 					if roll < 0.45 then
-						Nature.bush(
-							folder,
-							g,
-							{
-								rng = rng,
-								height = rng:NextNumber(3, 5.5),
-								palette = u.palette,
-								flowers = (u.flowers and rng:NextNumber() < 0.3) and u.flowers[rng:NextInteger(1, #u.flowers)] or nil,
-							}
-						)
+						Nature.bush(folder, g, {
+							rng = rng,
+							height = rng:NextNumber(3, 5.5),
+							palette = u.palette,
+							flowers = (u.flowers and rng:NextNumber() < 0.3) and u.flowers[rng:NextInteger(1, #u.flowers)] or nil,
+						})
 					elseif roll < 0.7 and u.ferns then
 						Nature.fern(folder, g, rng:NextNumber(3, 5), u.ferns, rng)
 					elseif roll < 0.85 then
@@ -357,22 +353,71 @@ function Common.ringGround(
 	Core.scatter(rng, o.patches, Vector3.zero, Layout.RingInner + 6, Layout.RingOuter - 10, function(p)
 		return Common.ringFree(p, 6)
 	end, function(p)
+		-- tache organique : ellipses aplaties qui se chevauchent, nuances proches du sol (pas de
+		-- « pois » contrastés), parfois une plaque de terre au milieu
 		local count = rng:NextInteger(3, 5)
-		local size = rng:NextNumber(18, 36)
+		local size = rng:NextNumber(20, 42)
+		local role = o.patchRole or (rng:NextNumber() < 0.5 and "herbe2" or "herbe3")
 		for i = 1, count do
 			local a = rng:NextNumber(0, math.pi * 2)
-			local r = i == 1 and 0 or size * rng:NextNumber(0.2, 0.42)
-			local d = size * (i == 1 and 0.8 or rng:NextNumber(0.4, 0.65))
-			local disc = Core.flatDisc(
+			local r = i == 1 and 0 or size * rng:NextNumber(0.2, 0.45)
+			local len = size * (i == 1 and 0.9 or rng:NextNumber(0.45, 0.7))
+			local wid = len * rng:NextNumber(0.4, 0.75)
+			local nuance = rng:NextNumber(-0.04, 0.04)
+			local top = Common.TOP_PLAZA - 0.03 + (i % 3) * 0.006
+			local patch = Core.ellipsoid(
 				folder,
 				"Patch",
-				p + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r),
-				d,
-				Common.TOP_PLAZA - 0.02 + (i % 2) * 0.01,
+				Vector3.new(len, 0.12, wid),
+				CFrame.new(p + Vector3.new(math.cos(a) * r, top, math.sin(a) * r)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0),
 				Color3.new(0.5, 0.6, 0.4),
 				o.patchMaterial or Enum.Material.LeafyGrass
 			)
-			Core.solRole(disc, o.patchRole or "herbe2")
+			patch.CastShadow = false
+			Core.solRole(patch, role, nuance)
+		end
+		if rng:NextNumber() < 0.25 then
+			local dirt = Core.ellipsoid(
+				folder,
+				"Patch",
+				Vector3.new(size * 0.35, 0.12, size * 0.22),
+				CFrame.new(p + Vector3.new(0, Common.TOP_PLAZA, 0)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0),
+				Color3.new(0.6, 0.5, 0.4),
+				Enum.Material.Ground
+			)
+			dirt.CastShadow = false
+			Core.solRole(dirt, "terre", rng:NextNumber(-0.04, 0.04))
+		end
+	end)
+	-- cailloux et petites pierres plates (sans collision, ne gênent pas les combats)
+	Core.scatter(rng, math.floor(o.tufts * 0.35), Vector3.zero, Layout.RingInner + 2, Layout.RingOuter - 2, function(p)
+		return Common.ringFree(p, 0)
+	end, function(p)
+		local size = rng:NextNumber(0.5, 1.4)
+		local nuance = rng:NextNumber(-0.1, 0.08)
+		local pebble = Core.ellipsoid(
+			folder,
+			"Pebble",
+			Vector3.new(size, size * 0.45, size * rng:NextNumber(0.6, 1)),
+			CFrame.new(p + UP * (Common.TOP_RING + size * 0.12)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0),
+			Color3.new(0.5, 0.5, 0.5),
+			Enum.Material.Slate
+		)
+		pebble.CastShadow = false
+		Core.solRole(pebble, "roche", nuance)
+	end)
+	-- prés d'herbes hautes fleuries (petits massifs)
+	Core.scatter(rng, math.floor(o.tufts * 0.06), Vector3.zero, Layout.RingInner + 4, Layout.RingOuter - 4, function(p)
+		return Common.ringFree(p, 2)
+	end, function(p)
+		for _ = 1, rng:NextInteger(4, 7) do
+			local q = p + Vector3.new(rng:NextNumber(-2.4, 2.4), Common.TOP_RING, rng:NextNumber(-2.4, 2.4))
+			Nature.tallGrass(folder, q, rng:NextNumber(2.4, 3.8), Color3.new(0.4, 0.6, 0.3), rng, "touffe")
+		end
+		if o.flowerColors then
+			for _ = 1, rng:NextInteger(2, 4) do
+				Nature.flower(folder, p + Vector3.new(rng:NextNumber(-2, 2), Common.TOP_RING, rng:NextNumber(-2, 2)), o.flowerColors[rng:NextInteger(1, #o.flowerColors)], rng)
+			end
 		end
 	end)
 	Core.scatter(rng, o.tufts, Vector3.zero, Layout.RingInner + 2, Layout.RingOuter - 2, function(p)

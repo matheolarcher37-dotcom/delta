@@ -962,19 +962,65 @@ function Nature.cliff(
 	-- dos de la falaise : masse de roche + pente d'herbe vers l'intérieur des terres
 	rockBlock(Vector3.new(width * 0.96, height, depth * 0.5), cf * CFrame.new(0, height / 2 - 1, depth * 0.2), -0.02)
 	if o.top then
+		-- pente côté terre en plusieurs pans de longueurs et d'orientations différentes (pas un mur
+		-- droit), avec des buttes d'herbe et des rochers qui percent la pente
 		local rampLen = o.ramp or math.clamp(height * 1.3, 12, 34)
-		local ramp = Build.wedge(
-			model,
-			"CliffSlope",
-			Vector3.new(width * 0.98, height + 0.6, rampLen),
-			cf * CFrame.new(0, (height + 0.6) / 2 - 0.6, depth * 0.45 + rampLen / 2) * CFrame.Angles(0, math.pi, 0),
-			o.top,
-			{
-				Material = LEAF,
-			}
-		)
-		if o.topRole then
-			Core.solRole(ramp, o.topRole)
+		local segs = math.max(2, math.floor(width / 16))
+		-- bourrelets d'herbe arrondis aux jointures des pans (et aux deux bouts) : cachent les
+		-- flancs verticaux des pans et donnent une pente vallonnée
+		for k = 0, segs do
+			local seam = Core.ellipsoid(
+				model,
+				"CliffSeam",
+				Vector3.new(rng:NextNumber(11, 16), height * rng:NextNumber(1.75, 1.95), rampLen * rng:NextNumber(1.15, 1.4)),
+				cf * CFrame.new(-width / 2 + k * width / segs + rng:NextNumber(-1, 1), -0.4, depth * 0.45 + rampLen * 0.32),
+				shade(o.top, rng:NextNumber(-0.04, 0.04)),
+				LEAF
+			)
+			if o.topRole then
+				Core.solRole(seam, o.topRole, rng:NextNumber(-0.04, 0.04))
+			end
+		end
+		for k = 0, segs - 1 do
+			local sw = width / segs * rng:NextNumber(1.1, 1.35)
+			local x = -width / 2 + (k + 0.5) * width / segs + rng:NextNumber(-1.5, 1.5)
+			local sh = height * rng:NextNumber(0.86, 1.02)
+			local sl = rampLen * rng:NextNumber(0.85, 1.45)
+			local nuance = rng:NextNumber(-0.05, 0.04)
+			local ramp = Build.wedge(
+				model,
+				"CliffSlope",
+				Vector3.new(sw, sh + 0.6, sl),
+				cf * CFrame.new(x, (sh + 0.6) / 2 - 0.6, depth * 0.45 + sl / 2 - 1) * CFrame.Angles(0, math.pi + rng:NextNumber(-0.14, 0.14), 0),
+				shade(o.top, nuance),
+				{
+					Material = LEAF,
+				}
+			)
+			if o.topRole then
+				Core.solRole(ramp, o.topRole, nuance)
+			end
+			local t = rng:NextNumber(0.3, 0.7)
+			local mound = Core.ellipsoid(
+				model,
+				"CliffMound",
+				Vector3.new(sw * rng:NextNumber(0.5, 0.8), rng:NextNumber(2, 4), sl * rng:NextNumber(0.35, 0.55)),
+				cf * CFrame.new(x + rng:NextNumber(-3, 3), sh * (1 - t) - 0.2, depth * 0.45 + sl * t),
+				shade(o.top, nuance + 0.04),
+				LEAF
+			)
+			if o.topRole then
+				Core.solRole(mound, o.topRole, nuance + 0.04)
+			end
+			if rng:NextNumber() < 0.6 then
+				local u = rng:NextNumber(0.25, 0.75)
+				Nature.rock(model, cf * CFrame.new(x + rng:NextNumber(-4, 4), sh * (1 - u) - 1.2, depth * 0.45 + sl * u), rng:NextNumber(3.5, 7), {
+					rng = rng,
+					color = color,
+					slot = "Eboulis",
+					role = o.role,
+				})
+			end
 		end
 		local cap = Build.part(model, "CliffTop", Vector3.new(width * 0.98, 1.2, depth * 0.62), cf * CFrame.new(0, height - 0.1, depth * 0.14), o.top, { Material = LEAF })
 		if o.topRole then
@@ -1020,8 +1066,9 @@ function Nature.hill(parent: Instance, center: Vector3, size: Vector3, color: Co
 	return part
 end
 
--- Montagne d'horizon escarpée : massif de roche (pics inclinés), pentes vertes, petits bosquets,
--- neige facultative. `base` = centre au niveau de la mer.
+-- Montagne d'horizon : vrai massif en crête (5 à 7 pics alignés, le plus haut au milieu), arêtes
+-- secondaires, calottes de neige alignées sur les pics, contreforts verts et forêt de conifères au
+-- pied. `base` = centre au niveau de la mer.
 function Nature.mountain(
 	parent: Instance,
 	base: Vector3,
@@ -1038,51 +1085,61 @@ function Nature.mountain(
 		model.LevelOfDetail = Enum.ModelLevelOfDetail.StreamingMesh
 	end)
 	local material = o.material or Enum.Material.Rock
-	local function peak(pos: Vector3, w: number, h: number, color: Color3)
-		local cf = CFrame.new(pos) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0) * CFrame.Angles(rng:NextNumber(-0.08, 0.08), 0, rng:NextNumber(-0.08, 0.08))
-		for _, part in Core.pyramid(model, "Peak", cf, w, w * rng:NextNumber(0.75, 1), h, color, material) do
+	local function pyramid(name: string, cf: CFrame, w: number, d: number, h: number, color: Color3, mat: Enum.Material)
+		for _, part in Core.pyramid(model, name, cf, w, d, h, color, mat) do
 			part.CastShadow = false
+			part.CanCollide = false
 		end
 	end
-	-- pics de roche
-	local peaks = rng:NextInteger(3, 5)
+	local function frame(pos: Vector3): CFrame
+		return CFrame.new(pos) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0) * CFrame.Angles(rng:NextNumber(-0.06, 0.06), 0, rng:NextNumber(-0.06, 0.06))
+	end
+	-- calotte de neige : même pyramide, en haut, un peu plus large (alignée sur le pic)
+	local function snowCap(cf: CFrame, w: number, d: number, h: number, k: number)
+		if o.snow then
+			pyramid("Snow", cf * CFrame.new(0, h * (1 - k), 0), w * k * 1.05, d * k * 1.05, h * k * 1.01, o.snow, Enum.Material.Snow)
+		end
+	end
+	-- crête principale
+	local axis = hdir(rng:NextNumber(0, math.pi * 2))
+	local peaks = rng:NextInteger(5, 7)
+	local middle = math.ceil(peaks / 2)
 	for i = 1, peaks do
-		local main = i == 1
-		local pos = base + (main and Vector3.zero or hdir(rng:NextNumber(0, 6.28)) * width * rng:NextNumber(0.15, 0.3))
-		local h = height * (main and 1 or rng:NextNumber(0.55, 0.8))
-		local w = width * (main and 0.42 or rng:NextNumber(0.26, 0.36))
-		peak(pos, w, h, shade(rock, rng:NextNumber(-0.08, 0.06)))
-		if o.snow and (main or rng:NextNumber() < 0.4) then
-			for _, part in
-				Core.pyramid(model, "Snow", CFrame.new(pos + UP * h * 0.68) * CFrame.Angles(0, rng:NextNumber(0, 3), 0), w * 0.36, w * 0.34, h * 0.34, o.snow, Enum.Material.Snow)
-			do
-				part.CastShadow = false
-				part.CanCollide = false
-			end
+		local t = peaks > 1 and ((i - 1) / (peaks - 1) * 2 - 1) or 0
+		local falloff = 1 - math.abs(t) * rng:NextNumber(0.35, 0.55)
+		local h = i == middle and height or height * falloff * rng:NextNumber(0.8, 1)
+		local pos = base + axis * t * width * 0.34 + hdir(rng:NextNumber(0, 6.28)) * width * 0.05
+		local w = width * rng:NextNumber(0.3, 0.4) * (0.65 + 0.35 * falloff)
+		local d = w * rng:NextNumber(0.7, 1)
+		local tone = shade(rock, rng:NextNumber(-0.08, 0.06))
+		local cf = frame(pos)
+		pyramid("Peak", cf, w, d, h, tone, material)
+		if h > height * 0.72 then
+			snowCap(cf, w, d, h, rng:NextNumber(0.26, 0.36))
+		end
+		-- arêtes secondaires (épaulements)
+		for _ = 1, 2 do
+			local sh = h * rng:NextNumber(0.45, 0.68)
+			local scf = frame(pos + hdir(rng:NextNumber(0, 6.28)) * w * 0.3)
+			local sw = w * rng:NextNumber(0.5, 0.7)
+			pyramid("Shoulder", scf, sw, sw * rng:NextNumber(0.7, 1), sh, shade(tone, rng:NextNumber(-0.06, 0.04)), material)
 		end
 	end
-	-- contreforts verts (pyramides basses et larges, facettes nettes) au pied
-	local slopes = rng:NextInteger(4, 6)
+	-- contreforts verts (pyramides basses et larges) au pied
+	local slopes = rng:NextInteger(5, 7)
 	for i = 1, slopes do
 		local a = i / slopes * math.pi * 2 + rng:NextNumber(-0.3, 0.3)
-		local pos = base + hdir(a) * width * rng:NextNumber(0.2, 0.34) - UP * height * 0.05
-		local s = width * rng:NextNumber(0.4, 0.55)
-		local cf = CFrame.new(pos) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0)
-		for _, part in Core.pyramid(model, "Slope", cf, s, s * rng:NextNumber(0.7, 1), height * rng:NextNumber(0.3, 0.5), shade(grass, rng:NextNumber(-0.1, 0.05)), LEAF) do
-			part.CastShadow = false
-		end
+		local pos = base + hdir(a) * width * rng:NextNumber(0.24, 0.38) - UP * height * 0.04
+		local s = width * rng:NextNumber(0.34, 0.48)
+		pyramid("Slope", frame(pos), s, s * rng:NextNumber(0.7, 1), height * rng:NextNumber(0.22, 0.38), shade(grass, rng:NextNumber(-0.1, 0.05)), LEAF)
 	end
-	-- forêt de conifères au pied (petites pyramides foncées)
+	-- forêt de conifères au pied (cônes sombres de tailles variées)
 	local treeColor = o.trees or shade(grass, -0.28)
-	for _ = 1, rng:NextInteger(4, 7) do
+	for _ = 1, rng:NextInteger(10, 15) do
 		local a = rng:NextNumber(0, math.pi * 2)
-		local pos = base + hdir(a) * width * rng:NextNumber(0.42, 0.55)
-		local s = width * rng:NextNumber(0.05, 0.08)
-		for _, part in
-			Core.pyramid(model, "Grove", CFrame.new(pos) * CFrame.Angles(0, a, 0), s, s, s * rng:NextNumber(1.6, 2.4), shade(treeColor, rng:NextNumber(-0.08, 0.08)), LEAF)
-		do
-			part.CastShadow = false
-		end
+		local pos = base + hdir(a) * width * rng:NextNumber(0.4, 0.56)
+		local s = width * rng:NextNumber(0.035, 0.065)
+		pyramid("Grove", CFrame.new(pos) * CFrame.Angles(0, a, 0), s, s, s * rng:NextNumber(2, 3), shade(treeColor, rng:NextNumber(-0.1, 0.08)), LEAF)
 	end
 	return model
 end
