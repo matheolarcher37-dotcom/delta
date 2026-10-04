@@ -87,6 +87,62 @@ test("Construction de tous les persos (★1 à ★3)", function()
 	print(string.format("   %d modèles, max %d pièces par perso", total, maxParts))
 end)
 
+test("Persos R6 classiques : proportions, tête, visage, budgets", function()
+	local function check(label, look)
+		local model = CharacterBuilder.build(look, { scale = 1 })
+		local head = model:FindFirstChild("Head")
+		assert(head and head.Size.X == 2 and head.Size.Y == 1 and head.Size.Z == 1, label .. " : tête classique 2x1x1 attendue")
+		local mesh = head:FindFirstChildOfClass("SpecialMesh")
+		assert(mesh and mesh.MeshType.Name == "Head" and math.abs(mesh.Scale.X - 1.25) < 1e-6, label .. " : maillage Head 1.25")
+		local torso = model:FindFirstChild("Torso")
+		assert(torso.Size.X == 2 and torso.Size.Y == 2 and torso.Size.Z == 1, label .. " : torse 2x2x1")
+		for _, limb in { "Left Arm", "Right Arm", "Left Leg", "Right Leg" } do
+			local part = model:FindFirstChild(limb)
+			assert(part and part.Size.X == 1 and part.Size.Y == 2 and part.Size.Z == 1, label .. " : " .. limb .. " 1x2x1")
+		end
+		for _, joint in CharacterBuilder.JointNames do
+			assert(model:FindFirstChild(joint, true), label .. " : articulation " .. joint)
+		end
+		local plates, frames, parts = 0, 0, 0
+		for _, d in model:GetDescendants() do
+			if d:IsA("BasePart") then
+				parts += 1
+				if d.Name == "FacePlate" then
+					plates += 1
+					assert(d.Transparency == 1 and d:FindFirstChildOfClass("SurfaceGui"), label .. " : plaque du visage")
+				end
+			elseif d:IsA("Frame") then
+				frames += 1
+			end
+		end
+		local boar = look.accessories and table.find(look.accessories, "boar_head")
+		assert(boar or plates == 6, label .. " : 6 plaques de visage attendues (" .. plates .. ")")
+		assert(parts <= 150, label .. " : trop de pièces (" .. parts .. ")")
+		assert(frames <= 450, label .. " : trop de Frames (" .. frames .. ")")
+		local preview = CharacterBuilder.buildPreview(look)
+		local previewParts = 0
+		for _, d in preview:GetDescendants() do
+			if d:IsA("BasePart") then
+				previewParts += 1
+			end
+			assert(not d:IsA("SurfaceGui"), label .. " : SurfaceGui dans l'aperçu")
+		end
+		assert(previewParts <= 400, label .. " : aperçu trop lourd (" .. previewParts .. ")")
+		return parts, frames, previewParts
+	end
+	local maxParts, maxFrames, maxPreview = 0, 0, 0
+	for id in Characters.List do
+		for stars = 1, 3 do
+			local p, f, v = check(id .. " ★" .. stars, Formulas.describe({ id = id, level = 1, stars = stars }).look)
+			maxParts, maxFrames, maxPreview = math.max(maxParts, p), math.max(maxFrames, f), math.max(maxPreview, v)
+		end
+	end
+	for id, def in Characters.Enemies do
+		check(id, def.look)
+	end
+	print(string.format("   max %d pièces, %d Frames, aperçu %d pièces", maxParts, maxFrames, maxPreview))
+end)
+
 test("Construction des ennemis et boss", function()
 	for id, def in Characters.Enemies do
 		local model = CharacterBuilder.build(def.look, { scale = 4.2, humanoid = true })

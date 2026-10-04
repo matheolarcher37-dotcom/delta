@@ -984,6 +984,16 @@ function Painter.sleeves(look): string
 	return sleeves
 end
 
+-- Le perso porte-t-il un haori (veste ouverte 3D) ?
+local function haoriOf(look): boolean
+	for _, accessory in look.accessories or {} do
+		if string.sub(accessory, 1, 5) == "haori" then
+			return true
+		end
+	end
+	return false
+end
+
 -- Palette d'un look.
 local function palette(look)
 	local skin = look.skin or DEFAULT_SKIN
@@ -1001,6 +1011,7 @@ local function palette(look)
 		sleeve = look.sleeveColor or top,
 		pants = look.pants or "long",
 		footwear = look.footwear or "shoes",
+		haori = haoriOf(look), -- veste ouverte portée par-dessus (cache le dos et le haut des bras)
 	}
 end
 Painter.palette = palette
@@ -1141,6 +1152,13 @@ local function classicSleeve(S, look, c, side: string, inner: string?, handTop: 
 	cloth(S, sleeve)
 	if side == "in" then
 		S:rect(0.5, handTop - 0.13, 1, 0.012, inkOf(sleeve), { z = 4 })
+		return
+	end
+	if c.haori then
+		-- Haut du bras caché par la manche du haori : seul le bas est peint.
+		S:line(0.0, handTop - 0.14, 0.5, handTop - 0.125, 0.024, inkOf(sleeve), { z = 5 })
+		S:line(0.5, handTop - 0.125, 1.0, handTop - 0.14, 0.024, inkOf(sleeve), { z = 5 })
+		S:rect(0.5, handTop - 0.06, 1, 0.11, look.cuffColor or lighten(sleeve, 0.04), { z = 4 })
 		return
 	end
 	-- Ombres franches côté extérieur et sous le coude
@@ -1981,7 +1999,9 @@ function Painter.dress(limbs, look, mode: string?)
 			if name == "front" then
 				painter(S, look, c)
 			elseif name == "back" then
-				torsoBack(S, look, c)
+				if not c.haori then
+					torsoBack(S, look, c) -- (dos caché par le panneau du haori sinon)
+				end
 			else
 				if look.shoulders then
 					S:rect(0.5, 0.15, 1, 0.3, look.shoulders, { z = 2 })

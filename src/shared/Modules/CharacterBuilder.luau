@@ -431,13 +431,7 @@ local function cap(ctx, color: Color3, o)
 	ctx.ball("Head", "HairCap", Vector3.new(1.36 + grow, h, 1.38 + grow), CFrame.new(0, 0.5 + (opts.lift or 0), 0.03), color)
 	if opts.back ~= false then
 		local length = opts.backLength or 1.4
-		ctx.ball(
-			"Head",
-			"HairNape",
-			Vector3.new(1.24 + grow, length, 0.9 + grow * 0.5),
-			CFrame.new(0, 0.42 - length / 2 + (opts.napeLift or 0), 0.19),
-			opts.color2 or color
-		)
+		ctx.ball("Head", "HairNape", Vector3.new(1.24 + grow, length, 0.9 + grow * 0.5), CFrame.new(0, 0.42 - length / 2 + (opts.napeLift or 0), 0.19), opts.color2 or color)
 	end
 end
 
@@ -735,7 +729,15 @@ HAIR.mohawk = function(ctx, c, look)
 	cap(ctx, under, { height = 0.7, backLength = 1.1, grow = -0.02 })
 	for i = 0, 4 do
 		local z = -0.45 + i * 0.24
-		ctx.spike("Head", c, Vector3.new(0, 0.82, z), Vector3.new(0, 1, (i - 1.5) * 0.35), 0.62 + (i == 1 and 0.15 or 0), 0.42, { tip = look.hairTip, cross = false, thickness = 0.22 })
+		ctx.spike(
+			"Head",
+			c,
+			Vector3.new(0, 0.82, z),
+			Vector3.new(0, 1, (i - 1.5) * 0.35),
+			0.62 + (i == 1 and 0.15 or 0),
+			0.42,
+			{ tip = look.hairTip, cross = false, thickness = 0.22 }
+		)
 	end
 end
 
@@ -1121,7 +1123,14 @@ ACC.fox_ears = function(ctx, look)
 end
 
 ACC.scouter = function(ctx, look)
-	ctx.add("Head", "ScouterLens", Vector3.new(0.34, 0.28, 0.04), CFrame.new(-0.24, 0.05, -WRAP_R - 0.05), Color3.fromRGB(80, 255, 120), { Material = Enum.Material.Neon, Transparency = 0.35 })
+	ctx.add(
+		"Head",
+		"ScouterLens",
+		Vector3.new(0.34, 0.28, 0.04),
+		CFrame.new(-0.24, 0.05, -WRAP_R - 0.05),
+		Color3.fromRGB(80, 255, 120),
+		{ Material = Enum.Material.Neon, Transparency = 0.35 }
+	)
 	ctx.add("Head", "ScouterBody", Vector3.new(0.14, 0.38, 0.38), CFrame.new(-(HEAD_R + 0.06), 0.05, -0.15), Color3.fromRGB(240, 240, 240))
 	ctx.add("Head", "ScouterArm", Vector3.new(0.06, 0.06, 0.42), CFrame.new(-(HEAD_R + 0.04), 0.12, -0.5), Color3.fromRGB(240, 240, 240))
 	local _ = look
