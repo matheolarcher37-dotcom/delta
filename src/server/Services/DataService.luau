@@ -29,7 +29,7 @@ local Notify = Remotes.event("Notify")
 
 local function template()
 	return {
-		version = 1,
+		version = 2,
 		coins = Economy.StartingCoins,
 		totalCoins = 0,
 		materials = {},
@@ -48,8 +48,47 @@ local function template()
 		isNew = true,
 		starterGiven = false,
 		firstJoin = os.time(),
+		-- v3 : machine ROULER et arbre de compétences
+		Skills = {}, -- { [idDeNœud] = true } (Config/SkillTree)
+		RollCount = 0, -- nombre total de roulages
+		X10Counter = 0, -- roulages depuis le dernier « Chance x10 »
+		Pity = { legendary = 0, mythic = 0, secret = 0 }, -- persos tirés depuis la dernière rareté garantie
+		AutoRoll = false,
+		RolledQueue = {}, -- persos tirés en attente sur l'estrade : { key, id, rarity, aura?, trait?, price, dps }
+		DisplayPins = {}, -- { ["numéro de case"] = uid } : unités placées à la main sur les cases de la base
+		FirstCollectDone = false,
 	}
 end
+
+-- Mise à niveau des anciennes sauvegardes (après reconcile, qui ajoute les champs manquants).
+local function migrate(data)
+	local version = tonumber(data.version) or 1
+	if version < 2 then
+		-- v1 -> v2 : nouveaux champs de la machine ROULER (déjà ajoutés par reconcile).
+		-- Les anciens joueurs ont déjà leurs persos : pas de perso offert à la première collecte.
+		if next(data.characters) ~= nil then
+			data.FirstCollectDone = true
+		end
+	end
+	-- Nettoyage défensif (sauvegardes abîmées ou modifiées à la main).
+	if type(data.Skills) ~= "table" then
+		data.Skills = {}
+	end
+	if type(data.RolledQueue) ~= "table" then
+		data.RolledQueue = {}
+	end
+	if type(data.DisplayPins) ~= "table" then
+		data.DisplayPins = {}
+	end
+	for _, key in { "legendary", "mythic", "secret" } do
+		data.Pity[key] = math.max(0, math.floor(tonumber(data.Pity[key]) or 0))
+	end
+	data.RollCount = math.max(0, math.floor(tonumber(data.RollCount) or 0))
+	data.X10Counter = math.max(0, math.floor(tonumber(data.X10Counter) or 0))
+	data.version = 2
+	return data
+end
+DataService.migrate = migrate
 
 local function reconcile(data, default)
 	for key, value in default do
@@ -222,6 +261,7 @@ function DataService:_onPlayerAdded(player: Player)
 	end
 	data.lock = nil
 	reconcile(data, template())
+	migrate(data)
 	profiles[player].data = data
 	profiles[player].loaded = true
 
