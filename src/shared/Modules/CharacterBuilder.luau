@@ -211,8 +211,67 @@ local function newContext(model: Model, s: number, paint: string)
 		end
 	end
 
-	-- Pique de cheveux épaisse partant de `from` dans la direction `dir` : une lame large tournée
-	-- vers l'extérieur (bien lisible de face) + une lame plus étroite en travers (volume de profil).
+	-- Coin de pyramide (CornerWedgePart : sommet au coin (+X, +Y, -Z) de la pièce).
+	function ctx.cornerWedge(limbName: string, name: string, size: Vector3, offset: CFrame, color: Color3): CornerWedgePart
+		local part = Instance.new("CornerWedgePart")
+		part.Name = name
+		part.Size = size * s
+		part.CFrame = scaled(CENTERS[limbName] * offset, s)
+		part.Color = color
+		part.Material = Enum.Material.SmoothPlastic
+		finish(part, limbName)
+		return part
+	end
+
+	-- Pointe conique : pyramide à base losange faite de 4 CornerWedge (un par quart), sommet sur
+	-- l'axe Y du repère `frame` (base en (0,0,0), largeur `width` sur X, épaisseur `depth` sur Z).
+	-- Comme les cheveux en maillage des avatars d'animé : arête centrale, une moitié éclairée
+	-- (`light`, côté +X du repère) et une moitié dans l'ombre (`dark`).
+	-- `half` = 1 ou -1 : demi-pyramide (2 pièces) côté +Z ou -Z seulement, dos plat (posée sur
+	-- la calotte ou contre la tête : le dos ne se voit pas).
+	local CONE_QUARTERS = {
+		-- { signe X, signe Z, rotation autour de Y, axes X/Z échangés }
+		{ -1, 1, 0, false },
+		{ 1, -1, math.pi, false },
+		{ 1, 1, math.pi / 2, true },
+		{ -1, -1, -math.pi / 2, true },
+	}
+	function ctx.cone(limbName: string, frame: CFrame, length: number, width: number, depth: number, light: Color3, dark: Color3?, half: number?, name: string?)
+		for _, q in CONE_QUARTERS do
+			local sx, sz, turn, swap = q[1], q[2], q[3], q[4]
+			if half and sz ~= half then
+				continue
+			end
+			local size = swap and Vector3.new(depth / 2, length, width / 2) or Vector3.new(width / 2, length, depth / 2)
+			local cf = frame * CFrame.new(sx * width / 4, length / 2, sz * depth / 4) * CFrame.Angles(0, turn, 0)
+			ctx.cornerWedge(limbName, name or "HairSpike", size, cf, sx > 0 and light or (dark or light))
+		end
+	end
+
+	-- Lumière de référence (haut, côté gauche de l'écran = +X du perso) : choisit la moitié
+	-- éclairée d'une pointe.
+	local LIGHT = Vector3.new(0.45, 1, -0.35).Unit
+	local function litFrame(frame: CFrame): CFrame
+		if frame.RightVector:Dot(LIGHT) < 0 then
+			return frame * CFrame.Angles(0, math.pi, 0)
+		end
+		return frame
+	end
+	ctx.litFrame = litFrame
+
+	-- Teinte de la moitié ombrée d'une mèche.
+	local function shadeOf(color: Color3): Color3
+		local lum = 0.3 * color.R + 0.59 * color.G + 0.11 * color.B
+		if lum < 0.16 then
+			return color:Lerp(Color3.new(0, 0, 0), 0.35)
+		end
+		return color:Lerp(Color3.fromRGB(120, 60, 40), 0.22):Lerp(Color3.new(0, 0, 0), 0.12)
+	end
+	ctx.shadeOf = shadeOf
+
+	-- Pique de cheveux épaisse partant de `from` dans la direction `dir` : pyramide large tournée
+	-- vers l'extérieur (bien lisible de face), ou demi-pyramide à dos plat (`cross = false`,
+	-- mèche couchée sur la calotte).
 	function ctx.spike(limbName: string, color: Color3, from: Vector3, dir: Vector3, length: number, width: number, o)
 		local opts = o or {}
 		local d = dir.Unit
@@ -224,14 +283,20 @@ local function newContext(model: Model, s: number, paint: string)
 				face = CFrame.fromMatrix(from, d:Cross(n.Unit).Unit, d, n.Unit)
 			end
 		end
-		local thick = opts.thickness or math.clamp(width * 0.34, 0.08, 0.22)
-		ctx.blade(limbName, color, face, length, width, thick)
-		if opts.cross ~= false then
-			ctx.blade(limbName, opts.crossColor or color, face * CFrame.Angles(0, math.pi / 2, 0), length * 0.9, width * 0.55, thick)
+		local full = opts.cross ~= false
+		local depth = opts.depth or (full and width * 0.62 or math.max(width * 0.5, (opts.thickness or 0.16) * 2.2))
+		local dark = opts.dark or shadeOf(color)
+		if full then
+			ctx.cone(limbName, litFrame(face), length, width, depth, color, dark)
+		else
+			-- Dos plat contre la calotte : la moitié +Z (vers l'extérieur) seulement.
+			local lit = face.RightVector:Dot(LIGHT) >= 0
+			ctx.cone(limbName, face, length, width, depth, lit and color or dark, lit and dark or color, 1)
 		end
 		if opts.tip then
-			local tipFrame = face * CFrame.new(0, length * 0.62, 0)
-			ctx.blade(limbName, opts.tip, tipFrame, length * 0.38, width * 0.38, thick + 0.01)
+			local tipFrame = face * CFrame.new(0, length * 0.6, 0)
+			local k = 0.44
+			ctx.cone(limbName, litFrame(tipFrame), length * 0.4 + 0.01, width * k, depth * k, opts.tip, shadeOf(opts.tip), not full and 1 or nil)
 		end
 	end
 
@@ -251,7 +316,8 @@ local function newContext(model: Model, s: number, paint: string)
 		end
 	end
 
-	-- Mèche plate tournée vers l'avant (frange, mèches qui encadrent le visage).
+	-- Mèche plate qui tombe (frange, mèches qui encadrent le visage) : demi-pyramide à dos plat
+	-- contre la tête, arête vers l'extérieur.
 	function ctx.lock(limbName: string, color: Color3, from: Vector3, dir: Vector3, length: number, width: number, o)
 		local opts = o or {}
 		local up = dir.Unit
@@ -263,9 +329,16 @@ local function newContext(model: Model, s: number, paint: string)
 		right = right.Unit
 		local back = right:Cross(up).Unit
 		local frame = CFrame.fromMatrix(from, right, up, back)
-		ctx.blade(limbName, color, frame, length, width, opts.thickness or 0.14, "HairLock")
+		-- Côté extérieur (loin du centre de la tête) : celui qui se voit.
+		local outward = Vector3.new(from.X, 0, from.Z)
+		local half = (outward.Magnitude > 0.05 and back:Dot(outward) < 0) and -1 or 1
+		local depth = (opts.thickness or 0.14) * 2.4
+		local dark = shadeOf(color)
+		local lit = frame.RightVector:Dot(LIGHT) >= 0
+		ctx.cone(limbName, frame, length, width, depth, lit and color or dark, lit and dark or color, half, "HairLock")
 		if opts.tip then
-			ctx.blade(limbName, opts.tip, frame * CFrame.new(0, length * 0.6, -0.01), length * 0.4, width * 0.42, (opts.thickness or 0.14) + 0.01, "HairLock")
+			local k = 0.44
+			ctx.cone(limbName, frame * CFrame.new(0, length * 0.6, 0), length * 0.4 + 0.01, width * k, depth * k, opts.tip, shadeOf(opts.tip), half, "HairLock")
 		end
 	end
 
@@ -513,46 +586,46 @@ local function scales(ctx, c: Color3, shine: Color3, under: Color3, y0: number, 
 end
 
 HAIR.spiky = function(ctx, c, look)
-	-- Tignasse en pointes compactes (Maruto, comme "Kid Naruto") : calotte + couronne de pointes
-	-- qui rayonnent en étoile au-dessus du bandeau, pointes sur les côtés et dans la nuque.
+	-- Tignasse en pointes coniques (Maruto, comme les cheveux en maillage de "Kid Naruto") :
+	-- éventail de grosses pointes qui rayonnent en étoile au-dessus du bandeau (silhouette 1,5 fois
+	-- plus large que la tête), rang penché vers l'avant, rang arrière, petites pointes dans la nuque.
 	local under, shine = hairTones(c, look)
 	local tip = look.hairTip
 	local band = wearsHeadband(look)
 	local L = look.hairLength or 1
-	cap(ctx, c, { back = false, lift = band and 0.07 or 0.02, height = 0.9 })
-	-- Nuque : mèches courtes plaquées (pas de volume rond)
-	ctx.ball("Head", "HairNape", Vector3.new(1.2, 0.7, 0.5), CFrame.new(0, 0.2, 0.42), under)
-	local center = Vector3.new(0, band and 0.74 or 0.68, 0.06)
-	-- Mèches couchées en écailles juste au-dessus du bandeau (cachent la calotte)
-	scales(ctx, c, shine, under, band and 0.6 or 0.5, 0.46 * L, { tip = tip })
-	crown(ctx, c, center, {
-		-- rang du milieu (silhouette de face, en étoile)
-		{ 0, 5, 0.66, 0.62, nil, true },
-		{ -30, 0, 0.66, 0.6, nil, true },
-		{ 30, 0, 0.66, 0.6, shine, true },
-		{ -58, 0, 0.7, 0.6, nil, true },
-		{ 58, 0, 0.7, 0.6, nil, true },
-		{ -86, 5, 0.66, 0.56, under, true },
-		{ 86, 5, 0.66, 0.56, under, true },
-		-- rang de devant (penché vers l'avant)
-		{ -45, -35, 0.5, 0.56, shine },
-		{ -12, -38, 0.5, 0.56 },
-		{ 18, -35, 0.5, 0.56, shine },
-		{ 50, -32, 0.5, 0.54 },
-		-- rang de derrière
-		{ -65, 40, 0.58, 0.58, under },
-		{ -25, 45, 0.6, 0.6, under },
-		{ 20, 45, 0.6, 0.6, under },
-		{ 62, 40, 0.58, 0.58, under },
-		{ 0, 75, 0.55, 0.58, under, nil, 0.36 },
-	}, { tip = tip, scale = L })
-	-- Pointes qui dépassent sur les côtés, sous le haut du bandeau, et dans la nuque
-	for _, side in { -1, 1 } do
-		ctx.spike("Head", c, Vector3.new(side * 0.5, 0.5, 0.0), Vector3.new(side, -0.2, 0.05), 0.55 * L, 0.44, { tip = tip, cross = false })
-		ctx.spike("Head", under, Vector3.new(side * 0.36, 0.3, 0.4), Vector3.new(side * 0.6, -0.6, 0.7), 0.4 * L, 0.42, { tip = tip, cross = false })
+	local lift = band and 0.06 or 0
+	cap(ctx, c, { back = false, lift = lift - 0.08, height = 0.74, grow = -0.08 })
+	ctx.ball("Head", "HairNape", Vector3.new(1.16, 0.7, 0.5), CFrame.new(0, 0.2, 0.42), under)
+	local center = Vector3.new(0, 0.5 + lift, 0.1)
+	-- Rang de devant : pointes qui partent du haut du bandeau et montent vers l'avant (cachent
+	-- le haut du crâne, comme une frange dressée).
+	for _, e in { { -0.36, 0.1, shine }, { -0.12, -0.04, c }, { 0.12, 0.04, shine }, { 0.36, -0.1, c } } do
+		local x = e[1]
+		local z = -math.sqrt(math.max(0, 0.42 - x * x)) + 0.12
+		ctx.spike("Head", e[3], Vector3.new(x, 0.5 + lift, z), Vector3.new(x * 0.9 + e[2], 1, -0.32), 0.62 * L, 0.6, { tip = tip })
 	end
-	for _, x in { -0.25, 0, 0.25 } do
-		ctx.spike("Head", under, Vector3.new(x, 0.15, 0.5), Vector3.new(x, -1, 0.5), 0.4 * L, 0.42, { tip = tip, cross = false })
+	crown(ctx, c, center, {
+		-- éventail (silhouette de face, en étoile)
+		{ 0, 10, 0.8, 0.66, nil, true },
+		{ -31, 6, 0.78, 0.64, shine, true },
+		{ 31, 6, 0.78, 0.64, nil, true },
+		{ -60, 4, 0.76, 0.62, nil, true },
+		{ 60, 4, 0.76, 0.62, shine, true },
+		{ -88, 6, 0.7, 0.58, nil, true },
+		{ 88, 6, 0.7, 0.58, nil, true },
+		{ -116, 12, 0.54, 0.5, nil, true, 0.4 },
+		{ 116, 12, 0.54, 0.5, nil, true, 0.4 },
+		-- rang de derrière
+		{ 0, 54, 0.64, 0.64, nil, true },
+		{ -40, 48, 0.62, 0.62, nil, true },
+		{ 40, 48, 0.62, 0.62, nil, true },
+		{ -80, 44, 0.56, 0.56, under, true },
+		{ 80, 44, 0.56, 0.56, under, true },
+		{ 0, 90, 0.56, 0.6, under, true },
+	}, { tip = tip, scale = L, r = 0.24 })
+	-- Petites pointes dans la nuque
+	for _, x in { -0.3, 0, 0.3 } do
+		ctx.spike("Head", under, Vector3.new(x, 0.18, 0.5), Vector3.new(x * 0.8, -1, 0.45), 0.4 * L, 0.4, { tip = tip, cross = false })
 	end
 	if not band then
 		-- Sans bandeau : frange en pointes sur le front
@@ -941,22 +1014,34 @@ local function headbandBase(ctx, look, tilt: number, scratched: boolean)
 	local BAND_R = look.headbandRadius or WRAP_R
 	local rot = CFrame.Angles(0, 0, tilt)
 	local frame = CFrame.new(0, y, 0) * rot
-	ctx.vcyl("Head", "Headband", 0.36, 2 * BAND_R, frame, band)
+	local bandH = look.headbandHeight or 0.36
+	ctx.vcyl("Head", "Headband", bandH, 2 * BAND_R, frame, band)
+	-- Tissu plissé : liseré clair en haut, ombre en bas
+	ctx.vcyl("Head", "HeadbandEdge", 0.03, 2 * BAND_R + 0.012, frame * CFrame.new(0, bandH / 2 - 0.03, 0), lighten(band, 0.22))
+	ctx.vcyl("Head", "HeadbandEdge", 0.03, 2 * BAND_R + 0.012, frame * CFrame.new(0, -bandH / 2 + 0.03, 0), darken(band, 0.35))
 	local metal = look.plateColor or METAL
-	local ink = Color3.fromRGB(70, 82, 100)
+	local ink = Color3.fromRGB(60, 72, 92)
+	local plateH = bandH * 0.86
 	for i = -1, 1 do
 		local a = i * math.rad(24)
 		local r = BAND_R + 0.02
 		local cf = frame * CFrame.new(-math.sin(a) * r, 0, -math.cos(a) * r) * CFrame.Angles(0, a, 0)
-		local plate = ctx.add("Head", "Plate", Vector3.new(0.3, 0.3, 0.05), cf, metal, { Material = Enum.Material.Metal, Reflectance = 0.15 })
+		local plate = ctx.add("Head", "Plate", Vector3.new(0.31, plateH, 0.05), cf, metal, { Material = Enum.Material.Metal, Reflectance = 0.15 })
 		paintPanel(ctx, plate, Enum.NormalId.Front, function(canvas)
-			-- Rebord et rivets
-			Painter.rect(canvas, 0.5, 0.06, 1, 0.08, lighten(metal, 0.4), { z = 1 })
-			Painter.rect(canvas, 0.5, 0.95, 1, 0.08, darken(metal, 0.3), { z = 1 })
+			-- Métal brossé (reflet en diagonale), rebord gravé, rivets aux coins
+			Painter.rect(canvas, 0.5, 0.5, 1, 1, metal, { gradient = { lighten(metal, 0.35), metal, darken(metal, 0.18) }, gradientRotation = 70, z = 1 })
+			Painter.rect(canvas, 0.5, 0.05, 1, 0.07, lighten(metal, 0.55), { z = 2 })
+			Painter.rect(canvas, 0.5, 0.955, 1, 0.08, darken(metal, 0.45), { z = 2 })
+			Painter.rect(canvas, 0.5, 0.13, 1, 0.03, darken(metal, 0.3), { transparency = 0.3, z = 2 })
+			Painter.rect(canvas, 0.5, 0.87, 1, 0.03, darken(metal, 0.3), { transparency = 0.3, z = 2 })
 			if i ~= 0 then
-				local x = i < 0 and 0.2 or 0.8
-				Painter.rect(canvas, x, 0.22, 0.09, 0.09, ink, { corner = 0.5, z = 2 })
-				Painter.rect(canvas, x, 0.78, 0.09, 0.09, ink, { corner = 0.5, z = 2 })
+				local x = i < 0 and 0.18 or 0.82
+				local edge = i < 0 and 0.03 or 0.97
+				Painter.rect(canvas, edge, 0.5, 0.06, 1, darken(metal, 0.4), { z = 2 })
+				for _, ry in { 0.24, 0.76 } do
+					Painter.rect(canvas, x, ry, 0.1, 0.1 * 0.31 / plateH, darken(metal, 0.5), { corner = 0.5, z = 3 })
+					Painter.rect(canvas, x - 0.015, ry - 0.02, 0.04, 0.04, lighten(metal, 0.6), { corner = 0.5, z = 4 })
+				end
 			else
 				leafSymbol(canvas, ink, scratched)
 			end

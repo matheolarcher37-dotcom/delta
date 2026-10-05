@@ -542,7 +542,7 @@ local function brows(T, look, skin: Color3, eyeX: number, eyeY: number, k: numbe
 	if look.hair == "bald" or look.hair == "none" then
 		color = darken(skin, 0.45)
 	end
-	local thick = (look.bigBrows and 0.08 or 0.036) * k
+	local thick = (look.bigBrows and 0.08 or (look.browThin and 0.024 or 0.036)) * k
 	local half = (look.bigBrows and 0.15 or 0.12) * k
 	local by = eyeY + (look.browY or 0.155) * k
 	for _, s in { -1, 1 } do
@@ -734,7 +734,11 @@ function Painter.face(plates, look, mode: string?, geom)
 	local k = look.eyeScale or 1
 	-- Ombre portée des cheveux / du bandeau sur le front
 	if look.hair ~= "bald" and look.hair ~= "none" then
-		T.box(0, 0.42, 1.3, 0.12, Painter.shade(skin, 0.4), { fade = { 0.55, 1 }, gradientRotation = 90, z = 1, fine = true })
+		local shadowY = 0.42
+		if look.headbandY and (has(look, "headband") or has(look, "headband_tilted") or has(look, "headband_scratched")) then
+			shadowY = look.headbandY - (look.headbandHeight or 0.36) / 2 - 0.04
+		end
+		T.box(0, shadowY, 1.3, 0.12, Painter.shade(skin, 0.4), { fade = { 0.55, 1 }, gradientRotation = 90, z = 1, fine = true })
 	end
 	if not hideEyes then
 		if has(look, "cyclops") then
@@ -749,8 +753,9 @@ function Painter.face(plates, look, mode: string?, geom)
 	end
 	-- Petit nez rosé
 	local nose = skin:Lerp(Color3.fromRGB(190, 95, 90), 0.38)
-	T.oval(0.01, eyeY - 0.31, 0.1, 0.045, nose, { transparency = 0.1, z = 2 })
-	T.line(0.03, eyeY - 0.2, 0.0, eyeY - 0.285, 0.016, Painter.shade(skin, 0.3), { transparency = 0.5, z = 2, fine = true })
+	local noseY = look.noseY or (eyeY - 0.31)
+	T.oval(0.01, noseY, 0.1, 0.045, nose, { transparency = 0.1, z = 2 })
+	T.line(0.03, noseY + 0.11, 0.0, noseY + 0.025, 0.016, Painter.shade(skin, 0.3), { transparency = 0.5, z = 2, fine = true })
 	if not has(look, "mask_lower") and not has(look, "muzzle") and not has(look, "mask_bandage") and not has(look, "collar_high") then
 		mouth(T, look, skin, look.mouthY or (eyeY - 0.46))
 	end
