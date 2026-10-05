@@ -1037,6 +1037,7 @@ Characters.Enemies = {
 	ninja_kourama = {
 		name = "Kourama, Démon Renard",
 		look = {
+			creature = "kurama", -- vrai renard à neuf queues (Modules/CreatureBuilder), pas un perso R6
 			skin = rgb(255, 120, 20),
 			hair = "none",
 			hairColor = rgb(255, 120, 20),

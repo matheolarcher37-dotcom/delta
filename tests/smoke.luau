@@ -216,6 +216,69 @@ test("Construction des ennemis et boss", function()
 	end
 end)
 
+test("Kourama : vraie créature (renard à neuf queues) compatible avec le combat", function()
+	local Factory = requireModule(Shared.Modules.CharacterFactory)
+	local Creature = requireModule(Shared.Modules.CreatureBuilder)
+	local look = Characters.Enemies.ninja_kourama.look
+	assert(look.creature == "kurama" and Creature.kindOf(look) == "kurama", "Kourama n'est pas une créature")
+	for id, def in Characters.Enemies do
+		assert(id == "ninja_kourama" or Creature.kindOf(def.look) == nil, id .. " : créature à tort")
+	end
+	local s = Economy.Boss.scale
+	local model = Factory.build("ninja_kourama", 1, look, { scale = s, humanoid = true, collisionGroup = "Enemies", name = "Kourama" })
+	assert(model:GetAttribute("Creature") == "kurama", "attribut Creature manquant")
+	local root = model:FindFirstChild("HumanoidRootPart")
+	assert(root and model.PrimaryPart == root and root.Transparency == 1 and root.CanCollide, "HumanoidRootPart")
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	assert(humanoid and humanoid:FindFirstChildOfClass("Animator"), "Humanoid + Animator")
+	assert(math.abs(humanoid.HipHeight - Creature.HipHeight * s) < 1e-4, "HipHeight")
+	assert(not model:FindFirstChild("Left Arm") and not model:FindFirstChild("Right Leg"), "construit comme un perso R6")
+	assert(math.abs(model:GetAttribute("RootHeight") - Creature.RootHeight * s) < 1e-4 and model:GetAttribute("BaseScale") == s, "attributs d'échelle")
+	-- Neuf queues segmentées (Motor6D) + articulations cohérentes.
+	local tails, parts, motors, lowest, highest = {}, 0, 0, math.huge, -math.huge
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			parts += 1
+			assert(not d.Anchored, d.Name .. " ancrée")
+			assert(d.CollisionGroup == "Enemies", d.Name .. " hors groupe Enemies")
+			if d ~= root then
+				assert(not d.CanCollide and d.Massless, d.Name .. " : collision / masse")
+				lowest = math.min(lowest, d.CFrame.Position.Y - d.Size.Y / 2)
+				highest = math.max(highest, d.CFrame.Position.Y)
+			end
+		elseif d:IsA("Motor6D") then
+			motors += 1
+			local a = d.Part0.CFrame * d.C0
+			local b = d.Part1.CFrame * d.C1
+			assert((a.Position - b.Position).Magnitude < 1e-3, "articulation décalée : " .. d.Name)
+			local i = string.match(d.Name, "^Tail(%d+)_1$")
+			if i then
+				tails[i] = true
+			end
+		end
+	end
+	local tailCount = 0
+	for _ in tails do
+		tailCount += 1
+	end
+	assert(tailCount == 9, "9 queues attendues (" .. tailCount .. ")")
+	assert(parts <= 260, "trop de pièces : " .. parts)
+	assert(lowest > -0.6 * s and lowest < 0.4 * s, "pattes pas au sol : " .. lowest)
+	assert(highest > 5.2 * s, "trop petit pour un boss")
+	for _, name in { "Head", "Torso", "Jaw", "LeftEar", "RightEar" } do
+		assert(model:FindFirstChild(name), "pièce manquante : " .. name)
+	end
+	assert(model:FindFirstChild("Head").CanQuery and model:FindFirstChild("Torso").CanQuery, "non cliquable")
+	-- Aperçu des menus : ancré, sans SurfaceGui.
+	local preview = Factory.buildPreview("ninja_kourama", 1, look)
+	assert(preview:GetAttribute("Creature") == "kurama", "aperçu R6")
+	for _, d in preview:GetDescendants() do
+		assert(not d:IsA("SurfaceGui"), "SurfaceGui dans l'aperçu")
+		assert(not d:IsA("BasePart") or d.Anchored, "aperçu non ancré")
+	end
+	print(string.format("   %d pièces, %d articulations, %d queues", parts, motors, tailCount))
+end)
+
 test("Construction de fusions (toutes les paires Légendaire/Mythique)", function()
 	local ids = {}
 	for id, def in Characters.List do

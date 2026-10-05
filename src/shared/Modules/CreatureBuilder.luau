@@ -213,11 +213,31 @@ local function buildHead(ctx)
 
 	-- Arcades sourcilières (regard féroce) et front.
 	for _, sx in { -1, 1 } do
-		ctx.ball("Head", "Brow", Vector3.new(0.55, 0.3, 0.6), at(sx * 0.32, 0.22, -0.4) * CFrame.Angles(0, 0, sx * -0.35), C.main)
+		ctx.ball("Head", "Brow", Vector3.new(0.5, 0.22, 0.5), at(sx * 0.33, 0.3, -0.36) * CFrame.Angles(0, 0, sx * -0.4), C.main)
 		-- Joues touffues + pointes de poils vers l'arrière.
 		ctx.ball("Head", "Cheek", Vector3.new(0.62, 0.66, 0.82), at(sx * 0.52, -0.22, -0.05), C.light)
-		ctx.spike("Head", "CheekTuft", C.light, HF * Vector3.new(sx * 0.62, -0.2, 0.2), HF:VectorToWorldSpace(Vector3.new(sx * 0.85, -0.3, 0.55)), 0.62, 0.42, 0.14, HF:VectorToWorldSpace(Vector3.new(sx * 0.3, 0, -1)))
-		ctx.spike("Head", "CheekTuft", C.cream, HF * Vector3.new(sx * 0.55, -0.42, 0.1), HF:VectorToWorldSpace(Vector3.new(sx * 0.7, -0.75, 0.45)), 0.5, 0.34, 0.12, HF:VectorToWorldSpace(Vector3.new(sx * 0.3, 0, -1)))
+		ctx.spike(
+			"Head",
+			"CheekTuft",
+			C.light,
+			HF * Vector3.new(sx * 0.62, -0.2, 0.2),
+			HF:VectorToWorldSpace(Vector3.new(sx * 0.85, -0.3, 0.55)),
+			0.62,
+			0.42,
+			0.14,
+			HF:VectorToWorldSpace(Vector3.new(sx * 0.3, 0, -1))
+		)
+		ctx.spike(
+			"Head",
+			"CheekTuft",
+			C.cream,
+			HF * Vector3.new(sx * 0.55, -0.42, 0.1),
+			HF:VectorToWorldSpace(Vector3.new(sx * 0.7, -0.75, 0.45)),
+			0.5,
+			0.34,
+			0.12,
+			HF:VectorToWorldSpace(Vector3.new(sx * 0.3, 0, -1))
+		)
 	end
 
 	-- Museau allongé : arête, dessus, lèvres, truffe.
@@ -242,13 +262,19 @@ local function buildHead(ctx)
 	-- Yeux rouges lumineux, fendus, cerclés de noir (marques qui filent vers les oreilles).
 	for _, sx in { -1, 1 } do
 		local normal = HF:VectorToWorldSpace(Vector3.new(sx * 0.55, 0.12, -0.83))
-		local base = HF * Vector3.new(sx * 0.36, 0.08, -0.56)
+		local base = HF * Vector3.new(sx * 0.38, 0.11, -0.56)
 		local roll = CFrame.Angles(0, 0, sx * 0.38)
 		local eyeFrame = facing(base, normal) * roll
-		ctx.ball("Head", "EyeMark", Vector3.new(0.56, 0.27, 0.12), eyeFrame * CFrame.new(sx * 0.04, 0.01, 0.02), C.black)
-		ctx.ball("Head", "Eye", Vector3.new(0.4, 0.15, 0.1), eyeFrame * CFrame.new(0, 0, -0.03), C.eye, { Material = Enum.Material.Neon })
-		ctx.ball("Head", "Pupil", Vector3.new(0.05, 0.13, 0.06), eyeFrame * CFrame.new(-sx * 0.02, 0, -0.06), C.black)
-		ctx.ball("Head", "Mark", Vector3.new(0.1, 0.42, 0.08), facing(HF * Vector3.new(sx * 0.42, 0.36, -0.36), HF:VectorToWorldSpace(Vector3.new(sx * 0.6, 0.35, -0.7))) * CFrame.Angles(0, 0, sx * 0.5), C.black)
+		ctx.ball("Head", "EyeMark", Vector3.new(0.64, 0.3, 0.12), eyeFrame * CFrame.new(sx * 0.05, 0.01, -0.01), C.black)
+		ctx.ball("Head", "Eye", Vector3.new(0.46, 0.17, 0.1), eyeFrame * CFrame.new(0, 0, -0.05), C.eye, { Material = Enum.Material.Neon })
+		ctx.ball("Head", "Pupil", Vector3.new(0.05, 0.15, 0.06), eyeFrame * CFrame.new(-sx * 0.02, 0, -0.08), C.black)
+		ctx.ball(
+			"Head",
+			"Mark",
+			Vector3.new(0.1, 0.42, 0.08),
+			facing(HF * Vector3.new(sx * 0.42, 0.36, -0.36), HF:VectorToWorldSpace(Vector3.new(sx * 0.6, 0.35, -0.7))) * CFrame.Angles(0, 0, sx * 0.5),
+			C.black
+		)
 	end
 
 	-- Longues oreilles pointues, noires à l'intérieur (os animés : frémissements).
@@ -315,11 +341,11 @@ local function buildHindLeg(ctx, sx: number)
 end
 
 -- Une queue : chaîne de segments (os) qui part de la croupe, épaisse au milieu, effilée au bout.
-local TAIL_WIDTH = { 0.55, 0.82, 0.98, 1.0, 0.8, 0.42 }
+local TAIL_WIDTH = { 0.6, 0.86, 1.0, 0.95, 0.74, 0.44 }
 local function buildTail(ctx, index: number, count: number)
 	local C = FOX
 	local u = (index - 1) / (count - 1) * 2 - 1 -- -1 (gauche) .. 1 (droite)
-	local fan = u * math.rad(102) -- 0 = vers le haut
+	local fan = u * math.rad(96) -- 0 = vers le haut
 	local base = Vector3.new(math.sin(fan) * 0.35, 2.5 + math.cos(fan) * 0.15, 2.15)
 	local dir = Vector3.new(math.sin(fan), math.cos(fan) + 0.15, 0.4 + 0.15 * math.cos(fan)).Unit
 	local tangent = Vector3.new(math.cos(fan), -math.sin(fan), 0)
@@ -328,7 +354,7 @@ local function buildTail(ctx, index: number, count: number)
 	local frame = CFrame.fromMatrix(base, dir:Cross(back).Unit, dir, back)
 	local length = 7.0 - math.abs(u) * 0.8
 	local seg = length / #TAIL_WIDTH
-	local wmax = 1.4
+	local wmax = 1.55
 	-- Courbe en S : le milieu s'écarte vers l'extérieur, la pointe revient vers le haut.
 	local curl = u >= 0 and 1 or -1
 	local parentName = "Hips"
@@ -336,19 +362,19 @@ local function buildTail(ctx, index: number, count: number)
 		local width = w * wmax
 		local name = "Tail" .. index .. "_" .. k
 		local color = C.main
-		local part = ctx.ball(nil, name, Vector3.new(width, seg * 2.0, width * 0.78), frame * CFrame.new(0, seg * 0.5, 0), color)
+		local part = ctx.ball(nil, name, Vector3.new(width, seg * 2.4, width * 0.68), frame * CFrame.new(0, seg * 0.5, 0), color)
 		ctx.bone(name, parentName, name, part, frame)
 		-- Ombre orange brûlé sur le dessous de chaque segment (volume des queues).
 		if k >= 2 and k <= 5 then
-			ctx.ball(name, "TailShade", Vector3.new(width * 0.9, seg * 1.9, width * 0.62), frame * CFrame.new(0, seg * 0.5, width * 0.15), C.shade)
+			ctx.ball(name, "TailShade", Vector3.new(width * 0.9, seg * 2.2, width * 0.54), frame * CFrame.new(0, seg * 0.5, width * 0.13), C.shade)
 		end
 		parentName = name
-		local bendZ = (k <= 2 and -0.3 or 0.42) * curl * (0.45 + 0.55 * math.abs(u))
+		local bendZ = (k <= 2 and -0.32 or 0.48) * curl * (0.45 + 0.55 * math.abs(u))
 		local bendX = (k <= 2 and 0.12 or -0.16)
 		frame = frame * CFrame.new(0, seg, 0) * CFrame.Angles(bendX, 0, bendZ)
 	end
 	-- Pointe effilée, plus claire.
-	ctx.ball(parentName, "TailTip", Vector3.new(0.24, seg * 1.2, 0.2), frame * CFrame.new(0, seg * 0.1, 0), C.light)
+	ctx.ball(parentName, "TailTip", Vector3.new(0.3, seg * 1.5, 0.22), frame * CFrame.new(0, seg * 0.15, 0), C.light)
 end
 
 local function buildKurama(ctx)

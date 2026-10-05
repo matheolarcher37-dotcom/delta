@@ -11,6 +11,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CharacterBuilder = require(script.Parent.CharacterBuilder)
+local CreatureBuilder = require(script.Parent.CreatureBuilder) -- créatures (look.creature : Kourama...)
 local Painter = require(script.Parent.Painter)
 
 local CharacterFactory = {}
@@ -135,6 +136,8 @@ function CharacterFactory.build(id: string?, stars: number?, look, options)
 		model = template:Clone()
 		model.Name = opts.name or model.Name
 		model = CharacterFactory.prepare(model, opts)
+	elseif CreatureBuilder.kindOf(look) then
+		model = CreatureBuilder.build(look, opts)
 	else
 		model = CharacterBuilder.build(look, opts)
 	end
@@ -150,6 +153,9 @@ end
 function CharacterFactory.buildPreview(id: string?, stars: number?, look): Model
 	local template = CharacterFactory.templateFor(id, stars)
 	if not template then
+		if CreatureBuilder.kindOf(look) then
+			return CreatureBuilder.buildPreview(look)
+		end
 		return CharacterBuilder.buildPreview(look)
 	end
 	local model = template:Clone()
