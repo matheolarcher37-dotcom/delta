@@ -7,7 +7,8 @@
 --   Kit/Archi   : toits en couches, poutres, fenêtres encadrées, volets, balcons, escaliers,
 --                 enseignes, réservoirs, climatiseurs, poteaux et câbles, guirlandes de lanternes ;
 --   Kit/Props   : accessoires (tonneaux, caisses, charrettes, bancs, étals, bannières, kiosques...) ;
---   Kit/Relief  : sol pavé, murets, clôtures, eau (étangs, ruisseaux), ponts.
+--   Kit/Relief  : sol pavé, murets, clôtures, eau (étangs, ruisseaux), ponts ;
+--   Kit/Hokage  : la montagne des chefs (falaise à strates + 7 têtes sculptées sur deux rangs).
 --
 -- EMPLACEMENTS REMPLAÇABLES : chaque gros élément (arbre, rocher, bâtiment...) est un Model tagué
 -- "DecorSlot" avec les attributs Slot (nom du modèle) et TargetHeight (hauteur en studs).
@@ -18,6 +19,7 @@
 
 local Core = require(script.Parent.Kit.Core)
 local Nature = require(script.Parent.Kit.Nature)
+local Hokage = require(script.Parent.Kit.Hokage)
 
 local DecorKit = {}
 
@@ -64,6 +66,10 @@ DecorKit.rock = Nature.rock
 DecorKit.cliff = Nature.cliff
 DecorKit.hill = Nature.hill
 DecorKit.mountain = Nature.mountain
+
+-- Hokage
+DecorKit.hokageMountain = Hokage.mountain
+DecorKit.hokageHead = Hokage.head
 
 local UP = Vector3.new(0, 1, 0)
 
