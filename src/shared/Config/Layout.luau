@@ -103,6 +103,35 @@ Layout.InfoBoard = polar(240, 405)
 Layout.Spawn = polar(270, 30)
 Layout.GalleryCenter = Vector3.new(0, 0, 1250) -- galerie des persos (visible seulement dans Studio)
 
+-- Lieux réservés aux activités (le décor ne doit rien poser dessus ni devant).
+Layout.AfkZone = polar(180, 470) -- zone anti-AFK (punching-balls), entre les bases à 150° et 210°
+Layout.MerchantSpots = { -- coins où le marchand peut s'installer
+	polar(60, 470),
+	polar(300, 470),
+	polar(120, 525),
+	polar(240, 525),
+}
+Layout.ReservedZones = {
+	{ center = Layout.TradeCorner, radius = 50 },
+	{ center = Layout.AfkZone, radius = 42 },
+	{ center = Layout.Leaderboard, radius = 20 },
+	{ center = Layout.InfoBoard, radius = 20 },
+}
+for _, spot in Layout.MerchantSpots do
+	table.insert(Layout.ReservedZones, { center = spot, radius = 28 })
+end
+
+-- Vrai si la position est dans un lieu réservé (avec une marge).
+function Layout.isReserved(position: Vector3, margin: number?): boolean
+	local flat = Vector3.new(position.X, 0, position.Z)
+	for _, zone in Layout.ReservedZones do
+		if (flat - zone.center).Magnitude < zone.radius + (margin or 0) then
+			return true
+		end
+	end
+	return false
+end
+
 -- Vrai si la position est sur un des chemins radiaux (avec une marge).
 function Layout.onPath(position: Vector3, margin: number?): boolean
 	local flat = Vector3.new(position.X, 0, position.Z)
