@@ -1068,20 +1068,48 @@ local function shadowV(S, x0: number, y0: number, xm: number, ym: number, x1: nu
 	S:line(xm, ym, x1, y1, th * 0.8, col, { z = z or 2, corner = 0.5 })
 end
 
+-- Ombre franche "en dents de scie" le long d'un bord ("l" / "r") : bande d'ombre dont le bord
+-- intérieur est découpé en pointes anguleuses (comme les ombres peintes à la main des vêtements
+-- classiques, au lieu d'ovales qui faisaient des taches). `w` = largeur relative de la bande.
+local TEETH_PATTERN = { 1, 0.62, 0.86, 0.5, 0.74 }
+local function jagShade(S, edge: string, w: number, y0: number, y1: number, color: Color3, n: number?, z: number?)
+	local col = celShadow(color)
+	local zz = z or 1
+	local x = edge == "l" and w / 2 or 1 - w / 2
+	S:rect(x, (y0 + y1) / 2, w, y1 - y0, col, { z = zz })
+	local count = n or 3
+	local bx = edge == "l" and w or 1 - w
+	for i = 1, count do
+		local y = y0 + (y1 - y0) * (i - 0.5) / count
+		local size = (y1 - y0) * S.h / count * 0.92 * TEETH_PATTERN[(i - 1) % #TEETH_PATTERN + 1]
+		local dir = edge == "l" and 1 or -1
+		S:box(bx + dir * S:dx(size * 0.12), y, size, size * 0.62, col, { rotation = dir * (40 + i * 7), z = zz })
+	end
+end
+Painter.jagShade = jagShade
+
 -- Col en fourrure façon texture classique : bande claire au bord effiloché, petits traits de poils.
 local function furCollar(S, y0: number, y1: number, color: Color3, z: number)
+	-- Fourrure duveteuse : touffes arrondies de tailles inégales qui débordent sur le bas, creux
+	-- bleutés entre les touffes, quelques mèches de poils.
 	local cool = color:Lerp(Color3.fromRGB(120, 140, 182), 0.42)
-	S:rect(0.5, (y0 + y1) / 2, 1, y1 - y0, color, { gradient = { cool, color, lighten(color, 0.2) }, z = z })
-	local n = math.max(3, math.floor(S.w / (S.lite and 0.3 or 0.16) + 0.5))
+	S:rect(0.5, (y0 + y1) / 2, 1, y1 - y0, color, { gradient = { lighten(color, 0.2), color, cool }, z = z })
+	local n = math.max(3, math.floor(S.w / (S.lite and 0.3 or 0.2) + 0.5))
+	local tuft = (y1 - y0) * S.h
 	for i = 0, n - 1 do
 		local x = (i + 0.5) / n
-		S:box(x, y1 - S:dy(0.01), 0.11, 0.11, i % 2 == 0 and color or lighten(color, 0.12), { rotation = 45, z = z })
-		if i % 2 == 1 then
-			S:line(x - 0.1 / n, y0 + (y1 - y0) * 0.35, x, y0 + (y1 - y0) * 0.8, 0.014, shade(cool, 0.35), { z = z + 1, fine = S.lite })
+		local big = (i % 3 ~= 1)
+		local size = tuft * (big and 0.62 or 0.48)
+		S:oval(x, y1 - S:dy(size * (big and 0.18 or 0.3)), size * 1.25, size, i % 2 == 0 and color or lighten(color, 0.1), {
+			gradient = { lighten(color, 0.25), color, cool },
+			z = z,
+		})
+		if i % 2 == 1 and not S.lite then
+			S:line(x - 0.18 / n, y0 + (y1 - y0) * 0.3, x + 0.05 / n, y0 + (y1 - y0) * 0.75, 0.014, shade(cool, 0.3), { z = z + 1, fine = true })
 		end
 	end
 	-- Ombre de la fourrure sur ce qui est dessous
-	S:rect(0.5, y1 + S:dy(0.05), 1, S:dy(0.06), celShadow(S.under or color), { fade = { 0.2, 1 }, gradientRotation = 90, z = z - 1, fine = true })
+	S:rect(0.5, y1 + S:dy(0.08), 1, S:dy(0.08), celShadow(S.under or color), { fade = { 0.2, 1 }, gradientRotation = 90, z = z - 1, fine = true })
 end
 
 -- Patte de boutonnage avec fermeture éclair (bande verticale cernée d'encre).
@@ -1173,10 +1201,12 @@ local function classicSleeve(S, look, c, side: string, inner: string?, handTop: 
 	-- Ombres franches côté extérieur et sous le coude
 	local outerX = inner == "l" and 0.85 or (inner == "r" and 0.15 or 0.5)
 	if inner then
-		S:oval(outerX, 0.42, 0.55, 1.0, celShadow(sleeve), { z = 1 })
-		S:oval(1 - outerX, 0.66, 0.45, 0.35, celShadow(sleeve), { transparency = 0.2, z = 1 })
+		jagShade(S, outerX > 0.5 and "r" or "l", 0.3, 0.02, handTop - 0.12, sleeve, 4)
+		-- Pli du coude (ombre en "V" côté intérieur)
+		local ex = 1 - outerX
+		shadowV(S, ex - 0.25, 0.6, ex, 0.68, ex + 0.25, 0.62, 0.1, sleeve, 1)
 	else
-		S:oval(0.5, 0.5, 0.6, 0.5, celShadow(sleeve), { transparency = 0.15, z = 1 })
+		jagShade(S, "r", 0.34, 0.02, handTop - 0.12, sleeve, 3)
 	end
 	-- Plis
 	local d = inner == "l" and 1 or -1
@@ -1218,8 +1248,9 @@ local function ninjaPants(S, look, c, side: string, isLeft: boolean, inner: stri
 		local ix = inner == "l" and 0 or 1
 		local d = inner == "l" and 1 or -1
 		-- Ombre de la cuisse côté extérieur + éventail de l'entrejambe
-		S:oval(1 - ix, 0.42, 0.6, 1.0, celShadow(bottom), { z = 1 })
-		S:oval(ix + d * 0.2, 0.1, 0.5, 0.3, celShadow(bottom), { z = 1 })
+		jagShade(S, ix == 0 and "r" or "l", 0.3, 0.0, 0.78, bottom, 4)
+		-- Ombre de l'entrejambe (triangle sous l'aine)
+		S:box(ix, 0.06, 0.62, 0.36, celShadow(bottom), { rotation = d * 30, z = 1 })
 		for i = 0, side == "back" and 1 or 3 do
 			local y = 0.04 + i * 0.05
 			S:line(ix + d * 0.04, y, ix + d * (0.42 - i * 0.04), y + 0.03, 0.022, inkOf(bottom), { z = 4, fine = S.lite and i % 2 == 1 })
@@ -1228,7 +1259,7 @@ local function ninjaPants(S, look, c, side: string, isLeft: boolean, inner: stri
 		ink(S, 0.5 - d * 0.25, 0.58, 0.5 - d * 0.05, 0.62, bottom)
 		S:box(ix - d * 0.0, 0.5, 0.03, 2, inkOf(bottom), { transparency = 0.2, z = 4 })
 	else
-		S:oval(0.5, 0.45, 0.55, 0.9, celShadow(bottom), { transparency = 0.15, z = 1 })
+		jagShade(S, "r", 0.34, 0.0, 0.78, bottom, 3)
 		ink(S, 0.3, 0.4, 0.6, 0.36, bottom)
 		ink(S, 0.35, 0.6, 0.7, 0.63, bottom)
 	end

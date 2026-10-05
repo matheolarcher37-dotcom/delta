@@ -265,7 +265,8 @@ local function newContext(model: Model, s: number, paint: string)
 		if lum < 0.16 then
 			return color:Lerp(Color3.new(0, 0, 0), 0.35)
 		end
-		return color:Lerp(Color3.fromRGB(120, 60, 40), 0.22):Lerp(Color3.new(0, 0, 0), 0.12)
+		-- Ombre saturée (comme l'ombrage des cheveux en maillage) : plus sombre, jamais grisâtre
+		return Color3.new(color.R * 0.78, color.G * 0.74, color.B * 0.8)
 	end
 	ctx.shadeOf = shadeOf
 
@@ -488,8 +489,9 @@ local function hairTones(c: Color3, look): (Color3, Color3)
 		under = c:Lerp(Color3.fromRGB(150, 160, 195), 0.45)
 		shine = WHITE
 	else
-		under = c:Lerp(Color3.fromRGB(120, 60, 30), 0.32)
-		shine = c:Lerp(WHITE, 0.28)
+		-- Dessous plus sombre et plus saturé (un dessous tirant vers le brun se confondait avec la peau)
+		under = Color3.new(c.R * 0.72, c.G * 0.66, c.B * 0.7)
+		shine = c:Lerp(WHITE, 0.3)
 	end
 	return look.hairUnder or under, look.hairShine or shine
 end
@@ -586,46 +588,65 @@ local function scales(ctx, c: Color3, shine: Color3, under: Color3, y0: number, 
 end
 
 HAIR.spiky = function(ctx, c, look)
-	-- Tignasse en pointes coniques (Maruto, comme les cheveux en maillage de "Kid Naruto") :
-	-- éventail de grosses pointes qui rayonnent en étoile au-dessus du bandeau (silhouette 1,5 fois
-	-- plus large que la tête), rang penché vers l'avant, rang arrière, petites pointes dans la nuque.
+	-- Tignasse en soleil (Maruto, copie des cheveux en maillage de "Kid Naruto") : éventail de
+	-- pointes coniques courtes et larges qui rayonnent tout autour au-dessus du bandeau (silhouette
+	-- presque deux fois plus large que la tête, pointes du bord presque horizontales), deuxième rang
+	-- décalé derrière, rang arrière couché vers la nuque, petites pointes sous le bandeau dans le dos.
 	local under, shine = hairTones(c, look)
 	local tip = look.hairTip
 	local band = wearsHeadband(look)
 	local L = look.hairLength or 1
-	local lift = band and 0.06 or 0
-	cap(ctx, c, { back = false, lift = lift - 0.08, height = 0.74, grow = -0.08 })
-	ctx.ball("Head", "HairNape", Vector3.new(1.16, 0.7, 0.5), CFrame.new(0, 0.2, 0.42), under)
-	local center = Vector3.new(0, 0.5 + lift, 0.1)
+	local base = band and 0.52 or 0.46
+	-- Volume plein (aucun bout de crâne ne doit se voir entre les pointes, même de dos)
+	ctx.ball("Head", "HairCap", Vector3.new(1.26, 0.5, 1.3), CFrame.new(0, base + 0.04, 0.06), under)
+	ctx.ball("Head", "HairNape", Vector3.new(1.22, 0.96, 0.62), CFrame.new(0, base - 0.42, 0.36), under)
 	-- Rang de devant : pointes qui partent du haut du bandeau et montent vers l'avant (cachent
-	-- le haut du crâne, comme une frange dressée).
-	for _, e in { { -0.36, 0.1, shine }, { -0.12, -0.04, c }, { 0.12, 0.04, shine }, { 0.36, -0.1, c } } do
+	-- le dessus du crâne de face, comme une frange dressée).
+	for _, e in { { -0.4, 0.2, c }, { -0.14, -0.06, shine }, { 0.14, 0.06, c }, { 0.4, -0.2, shine } } do
 		local x = e[1]
-		local z = -math.sqrt(math.max(0, 0.42 - x * x)) + 0.12
-		ctx.spike("Head", e[3], Vector3.new(x, 0.5 + lift, z), Vector3.new(x * 0.9 + e[2], 1, -0.32), 0.62 * L, 0.6, { tip = tip })
+		local z = -math.sqrt(math.max(0, 0.4 - x * x)) + 0.1
+		ctx.spike("Head", e[3], Vector3.new(x, base - 0.02, z), Vector3.new(x * 1.1 + e[2], 1, -0.5), 0.5 * L, 0.52, { tip = tip })
 	end
+	local center = Vector3.new(0, base - 0.04, -0.06)
 	crown(ctx, c, center, {
-		-- éventail (silhouette de face, en étoile)
-		{ 0, 10, 0.8, 0.66, nil, true },
-		{ -31, 6, 0.78, 0.64, shine, true },
-		{ 31, 6, 0.78, 0.64, nil, true },
-		{ -60, 4, 0.76, 0.62, nil, true },
-		{ 60, 4, 0.76, 0.62, shine, true },
-		{ -88, 6, 0.7, 0.58, nil, true },
-		{ 88, 6, 0.7, 0.58, nil, true },
-		{ -116, 12, 0.54, 0.5, nil, true, 0.4 },
-		{ 116, 12, 0.54, 0.5, nil, true, 0.4 },
-		-- rang de derrière
-		{ 0, 54, 0.64, 0.64, nil, true },
-		{ -40, 48, 0.62, 0.62, nil, true },
-		{ 40, 48, 0.62, 0.62, nil, true },
-		{ -80, 44, 0.56, 0.56, under, true },
-		{ 80, 44, 0.56, 0.56, under, true },
-		{ 0, 90, 0.56, 0.6, under, true },
-	}, { tip = tip, scale = L, r = 0.24 })
-	-- Petites pointes dans la nuque
-	for _, x in { -0.3, 0, 0.3 } do
-		ctx.spike("Head", under, Vector3.new(x, 0.18, 0.5), Vector3.new(x * 0.8, -1, 0.45), 0.4 * L, 0.4, { tip = tip, cross = false })
+		-- 1er rang (silhouette de face) : { angle, recul, longueur, largeur, couleur, cône entier, base }
+		{ 0, 8, 0.6, 0.52, shine, true, 0.3 },
+		{ -22, 6, 0.6, 0.5, nil, true, 0.32 },
+		{ 22, 6, 0.6, 0.5, shine, true, 0.32 },
+		{ -45, 4, 0.62, 0.5, shine, true, 0.36 },
+		{ 45, 4, 0.62, 0.5, nil, true, 0.36 },
+		{ -68, 4, 0.6, 0.48, nil, true, 0.42 },
+		{ 68, 4, 0.6, 0.48, nil, true, 0.42 },
+		{ -90, 8, 0.62, 0.46, nil, true, 0.48 },
+		{ 90, 8, 0.62, 0.46, nil, true, 0.48 },
+		{ -112, 14, 0.52, 0.42, under, true, 0.5 },
+		{ 112, 14, 0.52, 0.42, under, true, 0.5 },
+	}, { tip = tip, scale = L })
+	crown(ctx, c, center + Vector3.new(0, 0.02, 0.2), {
+		-- 2e rang, décalé entre les pointes du premier (donne l'épaisseur de la tignasse)
+		{ -11, 34, 0.62, 0.5 },
+		{ 11, 34, 0.62, 0.5, shine },
+		{ -34, 32, 0.62, 0.5 },
+		{ 34, 32, 0.62, 0.5 },
+		{ -57, 30, 0.6, 0.48, under },
+		{ 57, 30, 0.6, 0.48, under },
+		{ -80, 30, 0.56, 0.46 },
+		{ 80, 30, 0.56, 0.46 },
+	}, { scale = L, r = 0.34 })
+	-- Rang arrière : pointes couchées vers l'arrière et vers le bas (dessus du crâne vu de dos)
+	ctx.burst("Head", Vector3.new(0, base + 0.06, 0.1), Vector3.new(0.6, 0.32, 0.58), c, {
+		{ 90, 55, 0.6 * L, 0.52, nil, 0.05 },
+		{ 55, 62, 0.58 * L, 0.5, under, 0 },
+		{ 125, 62, 0.58 * L, 0.5, under, 0 },
+		{ 20, 72, 0.52 * L, 0.46, nil, 0.05 },
+		{ 160, 72, 0.52 * L, 0.46, nil, 0.05 },
+		{ 90, 85, 0.52 * L, 0.5, under, -0.25 },
+	}, { sink = 0.82 })
+	-- Petites pointes dans la nuque (sous le bandeau) : la nuque n'est jamais nue.
+	for i, a in { 35, 65, 90, 115, 145 } do
+		local r = math.rad(a)
+		local from = Vector3.new(math.cos(r) * 0.5, base - 0.42, math.sin(r) * 0.5 + 0.06)
+		ctx.spike("Head", i % 2 == 0 and c or under, from, Vector3.new(math.cos(r) * 0.5, -1, math.sin(r) * 0.6), 0.36 * L, 0.36, { cross = false, thickness = 0.14 })
 	end
 	if not band then
 		-- Sans bandeau : frange en pointes sur le front
@@ -995,12 +1016,20 @@ end
 
 -- Symbole de la feuille (village caché) gravé sur la plaque frontale.
 local function leafSymbol(canvas, ink: Color3, scratched: boolean)
-	-- Spirale (anneau + petit tourbillon), pointe de feuille en haut à droite, queue en bas à gauche
-	Painter.rect(canvas, 0.5, 0.55, 0.42, 0.58, ink, { corner = 0.5, transparency = 1, stroke = ink, strokeThickness = 2, z = 2 })
-	Painter.rect(canvas, 0.54, 0.6, 0.12, 0.18, ink, { corner = 0.5, z = 2 })
-	Painter.rect(canvas, 0.48, 0.47, 0.16, 0.06, ink, { corner = 0.5, rotation = -30, z = 2 })
-	Painter.rect(canvas, 0.7, 0.28, 0.3, 0.09, ink, { corner = 0.3, rotation = -42, z = 2 })
-	Painter.rect(canvas, 0.3, 0.84, 0.16, 0.08, ink, { corner = 0.5, rotation = 25, z = 2 })
+	-- Gravure en creux (trait sombre + liseré clair dessous) : spirale à deux tours, pointe de
+	-- feuille en haut à droite, petite queue en bas à gauche.
+	local glint = Color3.fromRGB(235, 242, 250)
+	for pass = 1, 2 do
+		local col = pass == 1 and glint or ink
+		local dy = pass == 1 and 0.025 or 0
+		local z = pass == 1 and 2 or 3
+		Painter.rect(canvas, 0.47, 0.57 + dy, 0.5, 0.56, col, { corner = 0.5, transparency = 1, stroke = col, strokeThickness = 2, z = z })
+		Painter.rect(canvas, 0.5, 0.6 + dy, 0.22, 0.24, col, { corner = 0.5, transparency = 1, stroke = col, strokeThickness = 2, z = z })
+		Painter.rect(canvas, 0.53, 0.62 + dy, 0.07, 0.08, col, { corner = 0.5, z = z })
+		Painter.rect(canvas, 0.64, 0.42 + dy, 0.24, 0.06, col, { corner = 0.5, rotation = -55, z = z })
+		Painter.rect(canvas, 0.77, 0.22 + dy, 0.2, 0.18, col, { rotation = 45, z = z })
+		Painter.rect(canvas, 0.26, 0.86 + dy, 0.17, 0.05, col, { corner = 0.5, rotation = 35, z = z })
+	end
 	if scratched then
 		Painter.rect(canvas, 0.5, 0.52, 1.1, 0.08, Color3.fromRGB(45, 45, 55), { rotation = -10, z = 3 })
 	end
@@ -1047,9 +1076,12 @@ local function headbandBase(ctx, look, tilt: number, scratched: boolean)
 			end
 		end)
 	end
-	ctx.ball("Head", "Knot", Vector3.new(0.24, 0.22, 0.18), frame * CFrame.new(0, 0, BAND_R + 0.06), band)
-	ctx.strand("Head", band, (frame * CFrame.new(-0.06, -0.03, BAND_R + 0.08)).Position, Vector3.new(-0.3, -1, 0.5), 0.7, 0.14)
-	ctx.strand("Head", band, (frame * CFrame.new(0.06, -0.03, BAND_R + 0.08)).Position, Vector3.new(0.35, -1, 0.4), 0.62, 0.14)
+	-- Nœud dans la nuque et deux pans de tissu plats qui tombent
+	ctx.ball("Head", "Knot", Vector3.new(0.22, 0.2, 0.14), frame * CFrame.new(0, 0, BAND_R + 0.04), darken(band, 0.15))
+	for _, e in { { -1, 0.55, -0.32 }, { 1, 0.48, 0.38 } } do
+		local from = (frame * CFrame.new(e[1] * 0.05, -0.04, BAND_R + 0.05)).Position
+		ctx.strand("Head", e[1] < 0 and band or darken(band, 0.2), from, Vector3.new(e[3], -1, 0.35), e[2], 0.17, 0.05)
+	end
 end
 
 ACC.headband = function(ctx, look)
