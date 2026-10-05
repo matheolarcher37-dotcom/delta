@@ -2038,6 +2038,11 @@ function Painter.dress(limbs, look, mode: string?)
 			cloth(S, top)
 			if name == "front" then
 				painter(S, look, c)
+				if mode ~= "parts" then
+					for _, x in { 0, 1 } do
+						S:rect(x, 0.5, S:dx(0.05), 1, INK, { transparency = 0.55, z = 20 })
+					end
+				end
 			elseif name == "back" then
 				if not c.haori then
 					torsoBack(S, look, c) -- (dos caché par le panneau du haori sinon)
@@ -2080,6 +2085,12 @@ function Painter.dress(limbs, look, mode: string?)
 					paintArm(S, look, c, side, isLeft)
 				else
 					paintLeg(S, look, c, side, isLeft)
+				end
+				if side == "front" and mode ~= "parts" then
+					-- Contour encré des bords (comme les vêtements classiques dessinés à la main)
+					for _, x in { 0, 1 } do
+						S:rect(x, 0.5, S:dx(0.05), 1, INK, { transparency = 0.55, z = 20 })
+					end
 				end
 			end
 		end
