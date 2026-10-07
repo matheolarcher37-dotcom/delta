@@ -655,6 +655,15 @@ local function faceMarks(T, look, skin: Color3, eyeX: number, eyeY: number)
 			T.line(x - 0.075, y + 0.03 - s * 0.005, x + 0.075, y + 0.03 + s * 0.005, 0.02, INK, { z = 9 })
 		end
 	end
+	if has(look, "curse_mark") then
+		-- Marque maudite : virgules noires en flammes sur la joue et la tempe gauches
+		local x0 = eyeX + 0.12
+		for i, e in { { 0.0, 0.18, 0.13 }, { 0.06, -0.02, 0.11 }, { -0.02, -0.22, 0.12 } } do
+			local x, y = x0 + e[1], eyeY + e[2]
+			T.oval(x, y, e[3], e[3] * 0.85, INK, { z = 9 })
+			T.line(x, y, x + 0.09, y + 0.07 + i * 0.01, 0.035, INK, { z = 9 })
+		end
+	end
 	if has(look, "scar_eye") then
 		local x = look.scarSide == "left" and -eyeX or eyeX
 		T.line(x + 0.02, eyeY + 0.2, x - 0.03, eyeY - 0.2, 0.022, Color3.fromRGB(150, 50, 50), { z = 9 })

@@ -2075,6 +2075,128 @@ ACC.claws = function(ctx, look)
 	end
 end
 
+------------------------------------------------------------------------
+-- Effets des évolutions (★★ / ★★★) : énergie dans les mains, orbes, vapeur...
+------------------------------------------------------------------------
+
+local function glowLight(part: BasePart, color: Color3, range: number, brightness: number?)
+	local light = Instance.new("PointLight")
+	light.Name = "EvolutionGlow"
+	light.Color = color
+	light.Range = range
+	light.Brightness = brightness or 1.5
+	light.Shadows = false
+	light.Parent = part
+	return light
+end
+
+local function sparkles(part: BasePart, color: Color3, s: number, rate: number?)
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "EvolutionSparks"
+	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	emitter.Color = ColorSequence.new(color)
+	emitter.LightEmission = 1
+	emitter.LightInfluence = 0
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35 * s), NumberSequenceKeypoint.new(1, 0) })
+	emitter.Lifetime = NumberRange.new(0.3, 0.6)
+	emitter.Rate = rate or 18
+	emitter.Speed = NumberRange.new(1 * s, 2.5 * s)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Parent = part
+	return emitter
+end
+
+-- Mille Oiseaux : boule d'éclairs bleus crépitante dans la main gauche.
+ACC.chidori = function(ctx, look)
+	local color = look.energyColor or Color3.fromRGB(120, 200, 255)
+	local core = ctx.ball("Left Arm", "Chidori", Vector3.new(0.75, 0.75, 0.75), CFrame.new(0, -1.15, -0.1), color, { Material = Enum.Material.Neon, Transparency = 0.15 })
+	ctx.ball("Left Arm", "ChidoriCore", Vector3.new(0.4, 0.4, 0.4), CFrame.new(0, -1.15, -0.1), WHITE, { Material = Enum.Material.Neon })
+	for i = 0, 4 do
+		local a = i * 1.26
+		local dir = Vector3.new(math.cos(a), -0.3 + (i % 2) * 0.6, math.sin(a))
+		ctx.spike("Left Arm", color, Vector3.new(0, -1.15, -0.1) + dir * 0.2, dir, 0.55, 0.12, { cross = true })
+	end
+	glowLight(core, color, 10 * ctx.s, 2)
+	sparkles(core, color, ctx.s, 24)
+end
+
+-- Poings chargés d'énergie (les deux mains).
+ACC.energy_fists = function(ctx, look)
+	local color = look.energyColor or Color3.fromRGB(80, 120, 255)
+	for _, side in { "Left Arm", "Right Arm" } do
+		local orb = ctx.ball(side, "EnergyFist", Vector3.new(1.18, 0.62, 1.18), CFrame.new(0, -0.72, 0), color, { Material = Enum.Material.Neon, Transparency = 0.45 })
+		if side == "Right Arm" then
+			glowLight(orb, color, 8 * ctx.s, 1.6)
+			sparkles(orb, color, ctx.s, 12)
+		end
+	end
+end
+
+-- Orbe violet (technique du vide) qui flotte au-dessus de la main droite.
+ACC.hollow_purple = function(ctx, look)
+	local color = look.energyColor or Color3.fromRGB(170, 70, 255)
+	local orb = ctx.ball("Right Arm", "HollowPurple", Vector3.new(1.1, 1.1, 1.1), CFrame.new(0.15, -1.55, -0.55), color, { Material = Enum.Material.Neon, Transparency = 0.1 })
+	ctx.ball("Right Arm", "HollowPurpleCore", Vector3.new(0.55, 0.55, 0.55), CFrame.new(0.15, -1.55, -0.55), Color3.fromRGB(240, 220, 255), { Material = Enum.Material.Neon })
+	ctx.vcyl("Right Arm", "HollowPurpleRing", 0.05, 1.5, CFrame.new(0.15, -1.55, -0.55) * CFrame.Angles(0.4, 0, 0.3), lighten(color, 0.3), { Material = Enum.Material.Neon, Transparency = 0.4 })
+	glowLight(orb, color, 12 * ctx.s, 2)
+	sparkles(orb, color, ctx.s, 16)
+end
+
+-- Petites lunettes de soleil rondes (remplacent le bandeau : on devine les Six Yeux).
+ACC.round_glasses = function(ctx, look)
+	local frame = Color3.fromRGB(20, 20, 26)
+	local y = (look.eyeY or 0.03) + 0.0
+	for _, side in { -1, 1 } do
+		local x = side * (look.eyeX or 0.25)
+		local z = -math.sqrt(math.max(0, (HEAD_R + 0.03) ^ 2 - x * x))
+		ctx.cyl("Head", "Lens", 0.03, 0.26, CFrame.new(x, y - 0.04, z) * CFrame.Angles(0, math.pi / 2 - math.asin(x / (HEAD_R + 0.03)), 0), frame, { Reflectance = 0.3 })
+	end
+	ctx.add("Head", "GlassesBridge", Vector3.new(0.22, 0.03, 0.03), CFrame.new(0, y, -HEAD_R - 0.02), frame)
+end
+
+-- Vapeur rose qui s'échappe du corps (deuxième vitesse).
+ACC.steam = function(ctx, look)
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "Steam"
+	emitter.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	emitter.Color = ColorSequence.new(look.steamColor or Color3.fromRGB(255, 210, 210))
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6 * ctx.s), NumberSequenceKeypoint.new(1, 1.6 * ctx.s) })
+	emitter.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 1) })
+	emitter.Lifetime = NumberRange.new(0.8, 1.4)
+	emitter.Rate = 10
+	emitter.Speed = NumberRange.new(1 * ctx.s, 2 * ctx.s)
+	emitter.SpreadAngle = Vector2.new(60, 60)
+	emitter.Parent = ctx.limbs.Torso
+end
+
+-- Danse du dieu du feu : flammes qui s'enroulent autour du bras droit.
+ACC.sun_flames = function(ctx, look)
+	local fire = look.energyColor or Color3.fromRGB(255, 120, 30)
+	local hot = Color3.fromRGB(255, 220, 90)
+	local first
+	for i = 0, 4 do
+		local a = i * 1.4
+		local y = -0.9 + i * 0.32
+		local dir = Vector3.new(math.cos(a) * 0.6, 1, math.sin(a) * 0.6)
+		local from = Vector3.new(math.cos(a) * 0.5, y, math.sin(a) * 0.5)
+		ctx.spike("Right Arm", i % 2 == 0 and fire or hot, from, dir, 0.7, 0.3, { cross = true })
+		local _ = first
+	end
+	local core = ctx.ball("Right Arm", "SunFlameCore", Vector3.new(0.5, 0.5, 0.5), CFrame.new(0, -1.1, -0.2), hot, { Material = Enum.Material.Neon, Transparency = 0.2 })
+	glowLight(core, fire, 9 * ctx.s, 1.8)
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "SunFlames"
+	emitter.Texture = "rbxasset://textures/particles/fire_main.dds"
+	emitter.Color = ColorSequence.new(hot, fire)
+	emitter.LightEmission = 1
+	emitter.LightInfluence = 0
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6 * ctx.s), NumberSequenceKeypoint.new(1, 0) })
+	emitter.Lifetime = NumberRange.new(0.3, 0.6)
+	emitter.Rate = 20
+	emitter.Speed = NumberRange.new(1 * ctx.s, 2 * ctx.s)
+	emitter.Parent = core
+end
+
 -- Effets communs des boss (look.boss = { rim, light, aura, paintLight }) :
 --   * liseré lumineux (Highlight) qui détache la silhouette du décor, même dans une arène de nuit ;
 --   * lumière douce sur lui + lumière de face (visage et tenue lisibles) ;

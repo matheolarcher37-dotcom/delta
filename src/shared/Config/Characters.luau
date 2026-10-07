@@ -159,6 +159,9 @@ Characters.List = {
 		},
 		attack = { kind = "lightning", color = rgb(130, 200, 255), name = "Mille Oiseaux" },
 		evolve = {
+			-- ★★ : marque maudite + Mille Oiseaux dans la main
+			[2] = { accessories = { "sword_back", "curse_mark", "chidori" } },
+			-- ★★★ : tenue de l'exil (chemise blanche ouverte, corde violette)
 			[3] = {
 				top = rgb(240, 240, 245),
 				topAccent = rgb(120, 70, 190),
@@ -168,6 +171,8 @@ Characters.List = {
 				pants = false,
 				sleeveEnd = false,
 				armWarmers = false,
+				accessories = { "sword_back", "chidori" },
+				energyColor = rgb(170, 120, 255),
 			},
 		},
 		fusion = { prefix = "Vengeur", suffix = "Vengeur" },
@@ -393,7 +398,10 @@ Characters.List = {
 		},
 		attack = { kind = "punch", color = rgb(60, 90, 255), name = "Poing Divergent" },
 		evolve = {
-			[3] = { accessories = { "hood", "tattoos" } },
+			-- ★★ : poings divergents (énergie maudite bleue)
+			[2] = { accessories = { "hood", "energy_fists" }, energyColor = rgb(70, 110, 255) },
+			-- ★★★ : le roi des fléaux prend le dessus (marques, éclair noir et rouge)
+			[3] = { accessories = { "hood", "tattoos", "energy_fists" }, energyColor = rgb(230, 30, 50), eyes = rgb(200, 30, 40) },
 		},
 		fusion = { prefix = "Divergent", suffix = "Divergent" },
 	},
@@ -439,8 +447,10 @@ Characters.List = {
 		},
 		attack = { kind = "orb", color = rgb(170, 60, 255), name = "Violet Imaginaire" },
 		evolve = {
-			-- ★★★ : il retire son bandeau (les Six Yeux !)
-			[3] = { accessories = {}, eyeShadow = rgb(150, 230, 255) },
+			-- ★★ : lunettes rondes, on devine les Six Yeux
+			[2] = { accessories = { "round_glasses" }, eyeShadow = rgb(150, 230, 255) },
+			-- ★★★ : sans bandeau (les Six Yeux !), orbe violet de la technique du vide
+			[3] = { accessories = { "hollow_purple" }, eyeShadow = rgb(150, 230, 255) },
 		},
 		fusion = { prefix = "Infini", suffix = "de l'Infini" },
 	},
@@ -592,6 +602,8 @@ Characters.List = {
 		attack = { kind = "beam", color = rgb(110, 190, 255), name = "Masenko" },
 		evolve = {
 			[2] = { hairColor = rgb(255, 220, 60), eyes = rgb(60, 200, 160) },
+			-- ★★★ : forme bête (cheveux argentés dressés, yeux rouges)
+			[3] = { hair = "wild", hairLength = 1.2, hairColor = rgb(232, 232, 242), eyes = rgb(220, 30, 40) },
 		},
 		fusion = { prefix = "Prodige", suffix = "Prodige" },
 	},
@@ -794,8 +806,18 @@ Characters.List = {
 		},
 		attack = { kind = "stretch", color = rgb(255, 80, 80), name = "Pistolet Élastique" },
 		evolve = {
-			-- ★★★ : Gear 5
-			[3] = { hairColor = rgb(250, 250, 250), top = rgb(250, 250, 250), bottom = rgb(250, 250, 250), eyes = rgb(255, 60, 60), eyeShadow = rgb(255, 255, 255) },
+			-- ★★ : deuxième vitesse (peau rougie, vapeur)
+			[2] = { skin = rgb(255, 178, 160), accessories = { "straw_hat", "scar_cheek", "steam" } },
+			-- ★★★ : cinquième vitesse
+			[3] = {
+				skin = SKIN,
+				accessories = { "straw_hat", "scar_cheek" },
+				hairColor = rgb(250, 250, 250),
+				top = rgb(250, 250, 250),
+				bottom = rgb(250, 250, 250),
+				eyes = rgb(255, 60, 60),
+				eyeShadow = rgb(255, 255, 255),
+			},
 		},
 		fusion = { prefix = "Élastique", suffix = "Élastique" },
 	},
@@ -925,7 +947,10 @@ Characters.List = {
 		},
 		attack = { kind = "ice", color = rgb(70, 170, 255), name = "Souffle de l'Eau" },
 		evolve = {
-			[3] = { accessories = { "haori_checker", "earrings", "forehead_mark", "sword_hip" } },
+			-- ★★ : marque du pourfendeur sur le front
+			[2] = { accessories = { "haori_checker", "earrings", "forehead_mark", "sword_hip" } },
+			-- ★★★ : danse du dieu du feu (flammes autour du bras)
+			[3] = { accessories = { "haori_checker", "earrings", "forehead_mark", "sword_hip", "sun_flames" } },
 		},
 		fusion = { prefix = "Pourfendeur", suffix = "de l'Eau" },
 	},
