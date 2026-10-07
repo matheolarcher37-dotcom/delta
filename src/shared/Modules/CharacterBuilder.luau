@@ -616,7 +616,7 @@ local function sleekFringe(ctx, color: Color3, xs: { number }, length: any, widt
 			(opts.alt and i % 2 == 0) and opts.alt or color,
 			Vector3.new(x, opts.y or 0.58, z),
 			dir,
-			(type(length) == "table" and length[i]) or length,
+			((type(length) == "table" and length[i]) or length) * (opts.scale or 1),
 			width * 0.85,
 			{
 				segments = 1,
@@ -940,7 +940,7 @@ HAIR.long = function(ctx, c, look)
 		-- Front dégagé, raie au milieu : mèches qui partent vers les tempes
 		sleekFringe(ctx, c, { -0.3, -0.12, 0.12, 0.3 }, { 0.4, 0.3, 0.3, 0.4 }, 0.26, { y = 0.62, spread = 2.2, out = 0.06, flick = 0.8 })
 	else
-		sleekFringe(ctx, c, { -0.36, -0.13, 0.1, 0.34 }, { 0.4, 0.46, 0.44, 0.38 }, 0.34, { alt = shine, y = 0.6, spread = 0.45 })
+		sleekFringe(ctx, c, { -0.36, -0.13, 0.1, 0.34 }, { 0.4, 0.46, 0.44, 0.38 }, 0.34, { alt = shine, y = 0.6, spread = 0.45, scale = look.fringeLength })
 	end
 end
 
@@ -1266,7 +1266,7 @@ HAIR.bob = function(ctx, c, look)
 			curl = Vector3.new(-side * 0.18, 0, 0),
 		})
 	end
-	sleekFringe(ctx, c, { -0.32, -0.1, 0.12, 0.34 }, { 0.44, 0.38, 0.42, 0.36 }, 0.32, { alt = shine, y = 0.6, spread = 0.3 })
+	sleekFringe(ctx, c, { -0.32, -0.1, 0.12, 0.34 }, { 0.44, 0.38, 0.42, 0.36 }, 0.32, { alt = shine, y = 0.6, spread = 0.3, scale = look.fringeLength })
 end
 
 HAIR.bald = function(ctx, c, look)
@@ -2073,7 +2073,7 @@ ACC.cowboy_hat = function(ctx, look)
 	local tilt = CFrame.Angles(math.rad(10), 0, 0)
 	ctx.vcyl("Head", "HatBrim", 0.08, 2.1, CFrame.new(0, 0.6, 0.06) * tilt, orange)
 	for _, side in { -1, 1 } do
-		ctx.add("Head", "HatBrimCurl", Vector3.new(0.34, 0.08, 1.3), CFrame.new(side * 1.0, 0.7, 0.06) * tilt * CFrame.Angles(0, 0, side * 0.6), orange)
+		ctx.add("Head", "HatBrimCurl", Vector3.new(0.26, 0.08, 1.0), CFrame.new(side * 0.98, 0.69, 0.06) * tilt * CFrame.Angles(0, 0, side * 0.55), orange)
 	end
 	ctx.vcyl("Head", "HatCrown", 0.52, 1.3, CFrame.new(0, 0.88, 0.1) * tilt, orange)
 	ctx.ball("Head", "HatTop", Vector3.new(1.3, 0.32, 1.3), CFrame.new(0, 1.13, 0.13) * tilt, orange)
@@ -2840,24 +2840,46 @@ ACC.sun_flames = function(ctx, look)
 	local fire = look.energyColor or Color3.fromRGB(255, 120, 30)
 	local hot = Color3.fromRGB(255, 220, 90)
 	local arm = "Right Arm"
-	-- Sabre tenu pointe vers l'avant
-	local grip = CFrame.new(0, -1.05, -0.05) * CFrame.Angles(math.rad(-58), 0, 0)
-	ctx.add(arm, "FireTsuka", Vector3.new(0.13, 0.7, 0.18), grip * CFrame.new(0, 0.1, 0), Color3.fromRGB(30, 30, 34))
-	ctx.cyl(arm, "FireTsuba", 0.06, 0.42, grip * CFrame.new(0, 0.48, 0) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(40, 38, 42), { Material = Enum.Material.Metal })
-	local bladeCf = grip * CFrame.new(0, 0.5 + 1.25, 0)
-	ctx.add(arm, "FireBlade", Vector3.new(0.05, 2.5, 0.18), bladeCf, Color3.fromRGB(26, 24, 30), { Material = Enum.Material.Metal, Reflectance = 0.25 })
-	ctx.add(arm, "FireEdge", Vector3.new(0.055, 2.5, 0.04), bladeCf * CFrame.new(0, 0, -0.1), hot, { Material = Enum.Material.Neon })
-	ctx.style = { Material = Enum.Material.Neon, Transparency = 0.15, CastShadow = false }
-	-- Flammes le long de la lame (lames triangulaires inclinées vers l'arrière)
-	for i = 0, 4 do
-		local t = -1.0 + i * 0.5
-		ctx.blade(arm, i % 2 == 0 and fire or hot, bladeCf * CFrame.new(0, t, 0.05) * CFrame.Angles(math.rad(-55), 0, 0), 0.75 - i * 0.06, 0.32, 0.05, "SunFlame")
+	-- Corps de flammes (look.fireBody) : pas de sabre, les deux avant-bras s'embrasent
+	local arms = look.fireBody and { "Right Arm", "Left Arm" } or { arm }
+	if not look.fireBody then
+		-- Sabre tenu pointe vers l'avant
+		local grip = CFrame.new(0, -1.05, -0.05) * CFrame.Angles(math.rad(-58), 0, 0)
+		ctx.add(arm, "FireTsuka", Vector3.new(0.13, 0.7, 0.18), grip * CFrame.new(0, 0.1, 0), Color3.fromRGB(30, 30, 34))
+		ctx.cyl(arm, "FireTsuba", 0.06, 0.42, grip * CFrame.new(0, 0.48, 0) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(40, 38, 42), { Material = Enum.Material.Metal })
+		local bladeCf = grip * CFrame.new(0, 0.5 + 1.25, 0)
+		ctx.add(arm, "FireBlade", Vector3.new(0.05, 2.5, 0.18), bladeCf, Color3.fromRGB(26, 24, 30), { Material = Enum.Material.Metal, Reflectance = 0.25 })
+		ctx.add(arm, "FireEdge", Vector3.new(0.055, 2.5, 0.04), bladeCf * CFrame.new(0, 0, -0.1), hot, { Material = Enum.Material.Neon })
+		-- Flammes le long de la lame (lames triangulaires inclinées vers l'arrière)
+		ctx.style = { Material = Enum.Material.Neon, Transparency = 0.15, CastShadow = false }
+		for i = 0, 4 do
+			local t = -1.0 + i * 0.5
+			ctx.blade(arm, i % 2 == 0 and fire or hot, bladeCf * CFrame.new(0, t, 0.05) * CFrame.Angles(math.rad(-55), 0, 0), 0.75 - i * 0.06, 0.32, 0.05, "SunFlame")
+		end
 	end
+	ctx.style = { Material = Enum.Material.Neon, Transparency = 0.15, CastShadow = false }
 	-- Flammes autour de l'avant-bras
-	for i = 0, 3 do
-		local a = i * (math.pi / 2) + 0.4
-		local from = Vector3.new(math.cos(a) * 0.52, -0.55 + (i % 2) * 0.25, math.sin(a) * 0.52)
-		ctx.blade(arm, i % 2 == 0 and hot or fire, CFrame.new(from) * CFrame.Angles(0, -a, 0) * CFrame.Angles(0, 0, math.cos(a) * 0.3), 0.8, 0.34, 0.05, "SunFlame")
+	for _, limb in arms do
+		for i = 0, 3 do
+			local a = i * (math.pi / 2) + 0.4
+			local from = Vector3.new(math.cos(a) * 0.52, -0.55 + (i % 2) * 0.25, math.sin(a) * 0.52)
+			local big = look.fireBody and 1.5 or 1
+			ctx.blade(
+				limb,
+				i % 2 == 0 and hot or fire,
+				CFrame.new(from) * CFrame.Angles(0, -a, 0) * CFrame.Angles(0, 0, math.cos(a) * 0.3),
+				0.8 * big,
+				0.34 * big,
+				0.05,
+				"SunFlame"
+			)
+		end
+		if look.fireBody then
+			-- Avant-bras changé en flammes : enveloppe orangée translucide
+			ctx.style = { Material = Enum.Material.Neon, Transparency = 0.5, CastShadow = false }
+			ctx.ball(limb, "FireArm", Vector3.new(1.2, 1.4, 1.2), CFrame.new(0, -0.55, 0), fire)
+			ctx.style = { Material = Enum.Material.Neon, Transparency = 0.15, CastShadow = false }
+		end
 	end
 	ctx.style = nil
 	local core =

@@ -386,6 +386,7 @@ Characters.List = {
 		look = {
 			skin = SKIN,
 			hair = "bob",
+			fringeLength = 0.7,
 			hairColor = rgb(175, 95, 55),
 			top = rgb(36, 34, 54),
 			bottom = rgb(24, 22, 28),
@@ -1232,6 +1233,11 @@ Characters.List = {
 		evolve = {
 			-- ★★ : mode Ermite (pigments autour des yeux, verrues de crapaud)
 			[2] = { eyeShadow = rgb(255, 150, 60), eyes = rgb(240, 180, 40) },
+			-- ★★★ : orbe spirale géant dans la main
+			[3] = {
+				accessories = { "horned_headband", "sage_lines", "haori_jiriya", "scroll_back", "energy_fists" },
+				energyColor = rgb(90, 190, 255),
+			},
 		},
 		fusion = { prefix = "Ermite", suffix = "des Crapauds" },
 	},
@@ -1407,8 +1413,10 @@ Characters.List = {
 		},
 		attack = { kind = "flame", color = rgb(255, 120, 30), name = "Poing Ardent" },
 		evolve = {
+			-- ★★ : poings de feu
+			[2] = { accessories = { "cowboy_hat", "bead_necklace", "freckles", "energy_fists" }, energyColor = rgb(255, 120, 30) },
 			-- ★★★ : corps de flammes (les bras s'embrasent)
-			[3] = { accessories = { "cowboy_hat", "bead_necklace", "freckles", "sun_flames" } },
+			[3] = { accessories = { "cowboy_hat", "bead_necklace", "freckles", "sun_flames" }, fireBody = true },
 		},
 		fusion = { prefix = "Ardent", suffix = "des Flammes" },
 	},
@@ -1444,6 +1452,7 @@ Characters.List = {
 		look = {
 			skin = SKIN,
 			hair = "bob",
+			fringeLength = 0.55,
 			hairColor = rgb(24, 20, 32),
 			hairUnder = rgb(120, 70, 170),
 			top = rgb(26, 26, 36),

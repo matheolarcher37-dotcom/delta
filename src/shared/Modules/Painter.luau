@@ -420,6 +420,11 @@ function Facets.new(plates, mode: string?, w: number, h: number, pixelsPerStud: 
 	local self = setmetatable({ list = {}, w = w, h = h }, Facets)
 	for _, plate in plates do
 		local canvas = surface(plate.part, Enum.NormalId.Front, "Face", pixelsPerStud, mode)
+		if typeof(canvas) == "Instance" then
+			-- Le visage reste affiché plus loin que la tenue (c'est lui qui rend le perso
+			-- reconnaissable) : ~70 Frames seulement, donc peu coûteux.
+			canvas.MaxDistance = 100 * math.max(1, Painter.scale or 1)
+		end
 		table.insert(self.list, { g = canvas, u0 = plate.u0, u1 = plate.u1 })
 	end
 	return self
