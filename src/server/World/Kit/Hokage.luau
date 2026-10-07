@@ -513,10 +513,15 @@ local function face(ctx: Ctx, o: FaceOptions)
 			end
 		end
 	end
-	-- globes des yeux lisses (sans paupière), la bouche en trait fin
+	-- yeux clos gravés : un trait fin en arc (deux segments) au fond de l'orbite, sans relief ;
+	-- la bouche est aussi un trait fin
+	local lid = shade(FACE, -0.3)
 	for _, s in { -1, 1 } do
 		if o.hideEye ~= s then
-			E(ctx, "Oeil", o.soft and 0.95 or 1.05, 0.34, 0.16, at(ctx, s * 1.3, 0.16, -2.97, 0, -s * 0.2, 0))
+			local w = o.soft and 0.5 or 0.56
+			for _, k in { -1, 1 } do
+				B(ctx, "Oeil", w, 0.08, 0.12, at(ctx, s * 1.3 + k * w * 0.46, 0.1, -3.0, 0, -s * 0.2, -k * 0.1), lid)
+			end
 		end
 	end
 	if o.mask then
