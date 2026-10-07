@@ -34,8 +34,8 @@ local shade = Core.shade
 
 -- Palette de la roche (grès gris chaud). Les visages sont un peu plus clairs (pierre taillée).
 local ROCK = rgb(148, 143, 135)
-local STONE = rgb(178, 173, 165)
-local HAIR = rgb(166, 160, 151)
+local STONE = rgb(164, 159, 151)
+local HAIR = rgb(152, 147, 139)
 local DARK = rgb(112, 104, 95)
 local DEEP = rgb(70, 64, 58) -- creux : orbites, bouche, fissures
 local STRATA = {
@@ -119,26 +119,6 @@ local function B(ctx: Ctx, name: string, sx: number, sy: number, sz: number, cf:
 	return Build.deco(ctx.model, name, V3(sx, sy, sz) * ctx.u, cf, color or STONE, { Material = CARVE_MAT })
 end
 
--- Mèche plate en triangle (deux coins dos à dos) : base au repère `cf`, pointe vers +Y local,
--- face large vers l'avant. `len`, `width`, `thick` en unités.
-local function blade(ctx: Ctx, name: string, cf: CFrame, len: number, width: number, thick: number, color: Color3?)
-	local u = ctx.u
-	local size = V3(thick, len, width / 2) * u
-	for _, side in { -1, 1 } do
-		ctx.count += 1
-		local part = Build.wedge(
-			ctx.model,
-			name,
-			size,
-			cf * CFrame.new(side * width / 4 * u, len / 2 * u, 0) * CFrame.Angles(0, -side * math.pi / 2, 0),
-			color or HAIR,
-			{ Material = CARVE_MAT }
-		)
-		part.CanCollide = false
-		part.CanQuery = false
-	end
-end
-
 -- Pointe en volume (pyramide de 4 coins) : base au repère `cf`, pointe vers +Y local.
 local function spike(ctx: Ctx, name: string, cf: CFrame, len: number, width: number, depth: number, color: Color3?)
 	local u = ctx.u
@@ -149,28 +129,60 @@ local function spike(ctx: Ctx, name: string, cf: CFrame, len: number, width: num
 	end
 end
 
--- Mèche en volume : ellipsoïde allongé + pointe, pour les épis épais (base au repère `cf`).
+-- Mèche en volume : une « flamme » de pierre arrondie qui s'effile (trois fuseaux de plus en plus
+-- fins), comme les épis doux d'une sculpture (base au repère `cf`, vers +Y local).
 local function tuft(ctx: Ctx, name: string, cf: CFrame, len: number, width: number, depth: number)
 	local u = ctx.u
-	E(ctx, name, width, len * 0.62, depth, cf * CFrame.new(0, len * 0.22 * u, 0), HAIR)
-	spike(ctx, name, cf * CFrame.new(0, len * 0.3 * u, 0), len * 0.7, width * 0.78, depth * 0.78)
+	E(ctx, name, width * 1.15, len * 0.7, depth, cf * CFrame.new(0, len * 0.3 * u, 0), HAIR)
+	E(ctx, name, width * 0.8, len * 0.62, depth * 0.76, cf * CFrame.new(0, len * 0.55 * u, -depth * 0.04 * u), HAIR)
+	E(ctx, name, width * 0.44, len * 0.46, depth * 0.48, cf * CFrame.new(0, len * 0.77 * u, -depth * 0.08 * u), HAIR)
 end
 
--- Bandeau frontal (trois segments qui épousent le front) avec sa plaque gravée.
+-- Mèche en volume (base enfouie dans la calotte, pointe vers +Y local après rotation `roll`
+-- autour de l'axe avant et `rx` vers l'arrière) : un fuseau arrondi prolongé par une pointe.
+local function lock(ctx: Ctx, x: number, y: number, z: number, roll: number, len: number, width: number, depth: number, rx: number?)
+	tuft(ctx, "Meche", at(ctx, x, y, z, rx or 0, 0, roll), len, width, depth)
+end
+
+type FanSpec = {
+	n: number,
+	spread: number, -- demi-ouverture de l'éventail (radians)
+	center: number?, -- inclinaison d'ensemble (coiffure penchée)
+	y: number,
+	r: number, -- rayon du cercle des racines
+	z: number,
+	len: number,
+	fall: number, -- raccourcissement des mèches vers les côtés
+	width: number,
+	depth: number,
+	rx: number?,
+	phase: number?, -- décalage d'une demi-mèche (couches qui s'intercalent)
+	jitter: number?,
+}
+
+-- Éventail de mèches dressées autour du haut du crâne (vu de face : silhouette en pointes).
+local function fan(ctx: Ctx, o: FanSpec)
+	local n = o.n
+	for k = 0, n - 1 do
+		local t = n > 1 and ((k + (o.phase or 0) * 0.5) / (n - 1 + (o.phase or 0))) * 2 - 1 or 0
+		local theta = (o.center or 0) + t * o.spread + (o.jitter and math.sin(k * 2.7) * o.jitter or 0)
+		local len = o.len - math.abs(t) * o.fall
+		lock(ctx, -math.sin(theta) * o.r, o.y + math.cos(theta) * o.r * 0.45, o.z, theta, len, o.width, o.depth, o.rx)
+	end
+end
+
+-- Bandeau frontal : un anneau qui épouse le crâne, avec sa plaque gravée bombée.
 local function headband(ctx: Ctx, y: number, tilt: number?)
 	local u = ctx.u
 	local band = at(ctx, 0, y, 0, 0, 0, tilt or 0)
-	B(ctx, "Bandeau", 4.6, 1.05, 1.1, band * CFrame.new(0, 0, -3.25 * u))
+	E(ctx, "Bandeau", 7.5, 1.15, 7.7, band * CFrame.new(0, 0, 0.05 * u))
+	E(ctx, "Plaque", 3.0, 1.45, 0.9, band * CFrame.new(0, 0, -3.62 * u))
 	for _, s in { -1, 1 } do
-		B(ctx, "Bandeau", 2.4, 1.05, 1.1, band * CFrame.new(s * 2.95 * u, 0, -2.45 * u) * CFrame.Angles(0, s * 0.62, 0))
-		B(ctx, "Bandeau", 1.2, 1.0, 2.8, band * CFrame.new(s * 3.65 * u, 0, -0.6 * u) * CFrame.Angles(0, s * 0.12, 0))
-	end
-	B(ctx, "Plaque", 2.8, 1.35, 0.36, band * CFrame.new(0, 0, -3.86 * u))
-	for _, s in { -1, 1 } do
-		B(ctx, "Rivet", 0.22, 0.22, 0.12, band * CFrame.new(s * 1.15 * u, 0.42 * u, -4.06 * u), DARK)
+		E(ctx, "Rivet", 0.24, 0.24, 0.16, band * CFrame.new(s * 1.12 * u, 0.4 * u, -4.04 * u), DARK)
+		E(ctx, "Rivet", 0.24, 0.24, 0.16, band * CFrame.new(s * 1.12 * u, -0.4 * u, -4.04 * u), DARK)
 	end
 	-- symbole gravé de la feuille (spirale stylisée : un creux et sa pointe)
-	E(ctx, "Symbole", 0.7, 0.7, 0.16, band * CFrame.new(-0.12 * u, 0, -4.04 * u), DARK)
+	E(ctx, "Symbole", 0.7, 0.7, 0.16, band * CFrame.new(-0.12 * u, 0, -4.06 * u), DARK)
 	B(ctx, "Symbole", 0.18, 0.55, 0.12, band * CFrame.new(0.36 * u, 0.18 * u, -4.06 * u) * CFrame.Angles(0, 0, -0.6), DARK)
 end
 
@@ -214,8 +226,8 @@ local function face(ctx: Ctx, o: FaceOptions)
 		E(ctx, "Orbite", 1.95, 1.05, 0.8, at(ctx, s * 1.35, 0.1, -3.5), shade(STONE, -0.34))
 		if o.hideEye ~= s then
 			E(ctx, "Oeil", 1.45, 0.7, 0.6, at(ctx, s * 1.35, 0.08, -3.72), shade(STONE, -0.05))
-			E(ctx, "Paupiere", 1.65, 0.38 + lids, 0.55, at(ctx, s * 1.35, 0.36 - lids * 0.4, -3.84, 0, 0, -s * 0.06))
-			E(ctx, "Iris", 0.55, 0.55, 0.15, at(ctx, s * 1.28, 0.02, -4.0), shade(STONE, -0.2))
+			E(ctx, "Paupiere", 1.6, 0.3 + lids * 0.7, 0.5, at(ctx, s * 1.35, 0.34 - lids * 0.35, -3.8, 0, 0, -s * 0.06))
+			E(ctx, "Iris", 0.5, 0.5, 0.12, at(ctx, s * 1.28, 0.02, -3.98), shade(STONE, -0.12))
 		end
 		E(ctx, "Sourcil", 2.1, 0.42 * browSize, 0.6, at(ctx, s * 1.45, 1.12, -3.95, 0, s * 0.18, -s * brow))
 	end
@@ -254,8 +266,7 @@ local function face(ctx: Ctx, o: FaceOptions)
 		end
 	end
 	-- cou et épaules qui sortent de la roche (les blocs autour les cachent en partie)
-	E(ctx, "Cou", 3.6, 5.0, 3.6, at(ctx, 0, -5.3, 0.4))
-	E(ctx, "Epaules", 9.6, 4.0, 5.4, at(ctx, 0, -8.4, 1.4), ROCK)
+	E(ctx, "Cou", 3.8, 4.6, 3.8, at(ctx, 0, -5.1, 0.6))
 end
 
 ------------------------------------------------------------------------
@@ -280,25 +291,23 @@ STYLES.longs = function(ctx)
 		E(ctx, "Rideau", 2.2, 10.6, 3.4, at(ctx, s * 3.75, -2.7, 0.3, 0, 0, s * 0.04), HAIR)
 		E(ctx, "Meche", 1.4, 7.4, 2.0, at(ctx, s * 3.3, -1.6, -1.3, 0, 0, s * 0.05), HAIR)
 		-- pointes des mèches en bas
-		blade(ctx, "Pointe", at(ctx, s * 3.6, -7.7, -0.6, 0, 0, math.pi), 1.6, 1.6, 0.9)
+		lock(ctx, s * 3.6, -6.8, -0.4, math.pi - s * 0.06, 2.2, 2.0, 1.7)
 	end
 	B(ctx, "Raie", 0.18, 1.6, 0.3, at(ctx, 0, 4.3, -2.3, -0.6, 0, 0), DARK)
 	E(ctx, "Nuque", 7.6, 10, 4.0, at(ctx, 0, -2.4, 2.8), HAIR)
 end
 
--- Hiruzen : grands épis dressés en éventail, front ridé, bouc pointu (sage et calme).
+-- Hiruzen : grands épis dressés en flamme (deux couches), front ridé, bouc pointu (sage et calme).
 STYLES.epis = function(ctx)
 	face(ctx, { brow = 0.1, browSize = 1.2, lids = 0.12, age = true })
 	capHair(ctx, 6.0)
-	local n = 9
-	for k = 0, n - 1 do
-		local t = (k / (n - 1)) * 2 - 1
-		local cf = at(ctx, t * 2.7, 4.4 + (1 - math.abs(t)) * 0.7, 0.5 + math.abs(t) * 0.5, -0.22, 0, -t * 0.9)
-		tuft(ctx, "Epi", cf, 5.0 - math.abs(t) * 1.6, 2.1, 2.0)
-	end
-	-- petites mèches courtes au-dessus du front
+	-- couche arrière : longues mèches qui montent en éventail
+	fan(ctx, { n = 6, spread = 0.95, y = 3.4, r = 3.0, z = 1.4, len = 6.4, fall = 2.4, width = 2.7, depth = 2.3, rx = -0.18, phase = 0.5 })
+	-- couche avant : mèches plus courtes qui encadrent le front
+	fan(ctx, { n = 7, spread = 1.15, y = 3.1, r = 3.2, z = 0.5, len = 4.6, fall = 1.6, width = 2.5, depth = 2.1, rx = -0.1 })
+	-- naissance des cheveux : petites mèches dressées au-dessus du front dégarni
 	for k = -2, 2 do
-		spike(ctx, "Epi", at(ctx, k * 1.0, 3.9, -2.0, -0.5, 0, -k * 0.32), 2.2, 1.5, 1.3)
+		lock(ctx, k * 1.05, 3.85, -1.9, -k * 0.3, 2.2, 1.6, 1.4, -0.35)
 	end
 	-- rides du front et petites pattes d'oie
 	for _, y in { 2.2, 2.7 } do
@@ -308,7 +317,7 @@ STYLES.epis = function(ctx)
 		B(ctx, "Ride", 0.7, 0.1, 0.2, at(ctx, s * 2.35, 0.0, -3.42, 0, s * 0.5, s * 0.3), DARK)
 	end
 	-- bouc et moustache fine
-	blade(ctx, "Bouc", at(ctx, 0, -4.7, -3.0, 0.3, 0, math.pi), 1.7, 1.5, 0.9)
+	lock(ctx, 0, -4.2, -2.75, math.pi, 1.9, 1.5, 1.1, 0.35)
 	E(ctx, "Moustache", 2.4, 0.38, 0.55, at(ctx, 0, -2.32, -3.86), HAIR)
 end
 
@@ -320,27 +329,22 @@ STYLES.raie = function(ctx)
 		E(ctx, "Frange", 3.4, 2.4, 2.5, at(ctx, s * 1.85, 3.45, -2.45, 0, 0, s * 0.55), HAIR)
 		E(ctx, "Rideau", 2.4, 10.0, 3.6, at(ctx, s * 3.6, -2.2, -0.1, 0, 0, s * 0.03), HAIR)
 		E(ctx, "Meche", 1.4, 6.6, 2.0, at(ctx, s * 3.15, -0.8, -1.7, 0, 0, s * 0.06), HAIR)
-		blade(ctx, "Pointe", at(ctx, s * 3.5, -7.0, -0.4, 0, 0, math.pi), 1.5, 1.8, 1.0)
+		lock(ctx, s * 3.5, -6.0, -0.4, math.pi - s * 0.08, 2.2, 1.9, 1.6)
 	end
 	E(ctx, "Nuque", 7.8, 9.0, 4.0, at(ctx, 0, -1.9, 2.8), HAIR)
 	B(ctx, "Losange", 0.5, 0.5, 0.25, at(ctx, 0, 2.0, -3.72, 0, 0, math.rad(45)), DARK)
 end
 
--- Naruto : couronne d'épis au-dessus du bandeau, mèches sur les côtés, moustaches sur les joues.
+-- Naruto : couronne d'épis tout autour au-dessus du bandeau, mèches le long des joues,
+-- moustaches sur les joues.
 STYLES.bandeau = function(ctx)
 	face(ctx, { brow = 0.08, jaw = 0.98 })
 	capHair(ctx, 6.0)
-	local n = 9
-	for k = 0, n - 1 do
-		local t = (k / (n - 1)) * 2 - 1
-		local cf = at(ctx, t * 3.1, 3.8 + (1 - math.abs(t)) * 0.9, -0.4 + math.abs(t) * 0.7, -0.15, 0, -t * 0.85)
-		tuft(ctx, "Epi", cf, 4.2 - math.abs(t) * 0.9, 2.0, 1.8)
-	end
-	for k = 0, 3 do
-		spike(ctx, "Epi", at(ctx, -1.6 + k * 1.1, 4.6, 1.8, -0.9, 0, (1.5 - k) * 0.3), 3.0, 1.8, 1.6)
-	end
+	fan(ctx, { n = 7, spread = 1.0, y = 3.2, r = 3.1, z = 1.5, len = 5.0, fall = 1.0, width = 2.6, depth = 2.2, rx = -0.25, phase = 0.5 })
+	fan(ctx, { n = 9, spread = 1.45, y = 2.9, r = 3.4, z = 0.4, len = 4.0, fall = 0.6, width = 2.3, depth = 2.0, rx = -0.08 })
 	for _, s in { -1, 1 } do
-		blade(ctx, "Meche", at(ctx, s * 2.9, 2.3, -2.6, 0, 0, math.pi - s * 0.1), 3.4, 1.4, 0.8)
+		-- mèches qui tombent devant les oreilles
+		lock(ctx, s * 3.0, 2.0, -2.0, math.pi - s * 0.12, 3.6, 1.6, 1.3)
 		for k = 0, 2 do
 			B(ctx, "Moustache", 1.4, 0.15, 0.22, at(ctx, s * 2.0, -1.5 - k * 0.4, -3.4, 0, s * 0.4, s * (k - 1) * 0.18), DARK)
 		end
@@ -348,17 +352,12 @@ STYLES.bandeau = function(ctx)
 	headband(ctx, 2.75)
 end
 
--- Tobirama : cheveux courts hérissés vers l'arrière, bandeau, marques sur les joues et le menton.
+-- Tobirama : cheveux courts hérissés en désordre, bandeau à plaque, marques sur les joues et le menton.
 STYLES.plaque = function(ctx)
 	face(ctx, { brow = 0.18, browSize = 1.1, jaw = 1.04 })
 	capHair(ctx, 6.4)
-	for k = -3, 3 do
-		local cf = at(ctx, k * 1.0, 4.6 - math.abs(k) * 0.3, 0.8, -0.85, 0, -k * 0.24)
-		tuft(ctx, "Epi", cf, 3.4, 1.9, 1.7)
-	end
-	for k = -2, 2 do
-		spike(ctx, "Epi", at(ctx, k * 1.3, 5.4 - math.abs(k) * 0.4, 2.6, -1.25, 0, -k * 0.2), 2.6, 1.7, 1.5)
-	end
+	fan(ctx, { n = 6, spread = 0.9, y = 3.5, r = 2.9, z = 1.2, len = 4.0, fall = 0.8, width = 2.6, depth = 2.3, rx = -0.3, phase = 0.5 })
+	fan(ctx, { n = 8, spread = 1.3, y = 3.2, r = 3.3, z = 0.5, len = 3.2, fall = 0.5, width = 2.2, depth = 2.0, rx = -0.15, jitter = 0.18 })
 	for _, s in { -1, 1 } do
 		B(ctx, "Marque", 0.3, 1.5, 0.25, at(ctx, s * 1.62, -1.5, -3.55, 0, s * 0.3, s * 0.08), DARK)
 	end
@@ -366,24 +365,21 @@ STYLES.plaque = function(ctx)
 	headband(ctx, 2.8)
 end
 
--- Minato : épis en pointes, mèches qui tombent sur le front, longues mèches le long du visage.
+-- Minato : grandes mèches en pointes écartées sur les côtés (crinière), frange qui tombe sur le
+-- front, longues mèches le long du visage jusqu'à la mâchoire.
 STYLES.meches = function(ctx)
 	face(ctx, { brow = 0.05, lids = 0.04 })
-	capHair(ctx, 6.4)
-	for k = -3, 3 do
-		local cf = at(ctx, k * 1.05, 4.9 - math.abs(k) * 0.3, 1.2, -0.65, 0, -k * 0.3)
-		tuft(ctx, "Epi", cf, 3.8, 2.0, 1.8)
-	end
-	for k = -2, 2 do
-		spike(ctx, "Epi", at(ctx, k * 1.4, 4.8, 3.2, -1.2, 0, -k * 0.25), 3.0, 1.8, 1.6)
-	end
-	local bangs = { { -2.1, 0.42 }, { -1.05, 0.18 }, { 0.1, -0.05 }, { 1.15, -0.25 }, { 2.2, -0.45 } }
+	capHair(ctx, 6.4, 8.0)
+	fan(ctx, { n = 7, spread = 1.25, y = 3.0, r = 3.3, z = 1.4, len = 5.6, fall = 1.2, width = 2.7, depth = 2.3, rx = -0.2, phase = 0.5 })
+	fan(ctx, { n = 6, spread = 1.75, y = 2.4, r = 3.7, z = 0.7, len = 4.6, fall = 0.4, width = 2.4, depth = 2.1, rx = -0.05 })
+	-- frange : mèches pointues qui tombent sur le front
+	local bangs = { { -1.7, 0.3 }, { -0.6, 0.12 }, { 0.5, -0.1 }, { 1.6, -0.28 } }
 	for i, b in bangs do
-		local cf = at(ctx, b[1], 4.3, -2.9 - (i % 2) * 0.15, 0.25, 0, math.pi + b[2])
-		blade(ctx, "Frange", cf, 2.5 + (i % 2) * 0.6, 1.6, 0.8)
+		lock(ctx, b[1], 4.4, -2.55 - (i % 2) * 0.15, math.pi + b[2], 2.6 + (i % 2) * 0.5, 1.7, 1.3, 0.2)
 	end
+	-- longues mèches qui encadrent le visage
 	for _, s in { -1, 1 } do
-		blade(ctx, "Meche", at(ctx, s * 3.2, 1.8, -2.0, 0, 0, math.pi - s * 0.08), 6.2, 1.7, 1.0)
+		lock(ctx, s * 3.15, 2.6, -1.6, math.pi - s * 0.06, 6.2, 1.8, 1.5)
 	end
 end
 
@@ -391,13 +387,10 @@ end
 STYLES.penche = function(ctx)
 	face(ctx, { brow = 0.04, mask = true, hideEye = 1, lids = 0.14 })
 	capHair(ctx, 6.0)
-	for k = 0, 6 do
-		local t = k / 6
-		local cf = at(ctx, -2.6 + t * 5.0, 4.1 + math.sin(t * math.pi) * 0.8, 0.6, -0.2, 0, 0.6 - t * 0.35)
-		tuft(ctx, "Epi", cf, 5.0 + math.sin(t * math.pi) * 2.6, 2.3, 2.0)
-	end
+	fan(ctx, { n = 6, spread = 0.7, center = 0.45, y = 3.3, r = 3.1, z = 1.3, len = 6.6, fall = 1.8, width = 2.8, depth = 2.4, rx = -0.2, phase = 0.5 })
+	fan(ctx, { n = 6, spread = 0.8, center = 0.35, y = 3.0, r = 3.3, z = 0.5, len = 5.0, fall = 1.4, width = 2.5, depth = 2.1, rx = -0.08 })
 	for k = 0, 2 do
-		blade(ctx, "Frange", at(ctx, -1.8 + k * 1.6, 3.7, -2.4, 0.35, 0, math.pi + 0.35), 2.2, 1.5, 0.8)
+		lock(ctx, -1.8 + k * 1.5, 3.9, -2.4, math.pi + 0.35, 2.4, 1.6, 1.3, 0.25)
 	end
 	headband(ctx, 1.65, -0.3)
 end
@@ -464,11 +457,7 @@ local function cliffBody(model: Model, cf: CFrame, rng: Random): { number }
 				model,
 				"Strate",
 				V3(colW + rng:NextNumber(2, 8), h + 1.5, depth - front),
-				cf * CFrame.new(x0 + rng:NextNumber(-2, 2), y0 + h / 2, front + (depth - front) / 2) * CFrame.Angles(
-					0,
-					rng:NextNumber(-0.035, 0.035),
-					dip
-				),
+				cf * CFrame.new(x0 + rng:NextNumber(-2, 2), y0 + h / 2, front + (depth - front) / 2) * CFrame.Angles(0, rng:NextNumber(-0.035, 0.035), dip),
 				shade(STRATA[(b - 1) % #STRATA + 1], rng:NextNumber(-0.03, 0.03)),
 				{ Material = STRATA_MAT[(b % 3 == 0) and 2 or 1] }
 			)
@@ -482,7 +471,14 @@ local function cliffBody(model: Model, cf: CFrame, rng: Random): { number }
 			shade(GRASS, rng:NextNumber(-0.05, 0.04)),
 			{ Material = Enum.Material.Grass }
 		)
-		Core.ellipsoid(model, "SommetBosse", V3(colW * 1.3, 16, 70), cf * CFrame.new(x0 + rng:NextNumber(-8, 8), top + 3, 70 + rng:NextNumber(0, 40)), GRASS_LIGHT, Enum.Material.Grass)
+		Core.ellipsoid(
+			model,
+			"SommetBosse",
+			V3(colW * 1.3, 16, 70),
+			cf * CFrame.new(x0 + rng:NextNumber(-8, 8), top + 3, 70 + rng:NextNumber(0, 40)),
+			GRASS_LIGHT,
+			Enum.Material.Grass
+		)
 		-- lèvre d'herbe et de mousse qui pend sur le bord
 		Build.deco(
 			model,
@@ -510,7 +506,7 @@ local function cliffBody(model: Model, cf: CFrame, rng: Random): { number }
 				model,
 				"Bloc",
 				V3(26 - k * 4, 18 - k * 3, 22),
-				cf * CFrame.new(s * (half + k * 18 + 2), h * 0.45, -2 - k * 2) * CFrame.Angles(0, 0, rng:NextNumber(-0.4, 0.4)),
+				cf * CFrame.new(s * (half + k * 18 + 2), 6 - k, -8 - k * 4) * CFrame.Angles(0, 0, rng:NextNumber(-0.4, 0.4)),
 				shade(STRATA[(k + 4) % #STRATA + 1], 0.02),
 				ROCK_MAT
 			)
@@ -525,12 +521,12 @@ local function boulder(model: Model, cf: CFrame, rng: Random, px: number, py: nu
 	local front = lean(py)
 	local tone = shade(STRATA[rng:NextInteger(1, #STRATA)]:Lerp(ROCK, 0.4), rng:NextNumber(-0.02, 0.05))
 	local roll = rng:NextNumber()
-	if roll < 0.62 then
+	if roll < 0.75 then
 		Core.ellipsoid(
 			model,
 			"Bloc",
-			V3(size * rng:NextNumber(1.0, 1.3), size * rng:NextNumber(0.75, 0.95), size * 0.5),
-			cf * CFrame.new(px, py, front + size * 0.04) * CFrame.Angles(rng:NextNumber(-0.2, 0.2), rng:NextNumber(-0.3, 0.3), rng:NextNumber(-0.6, 0.6)),
+			V3(size * rng:NextNumber(1.05, 1.4), size * rng:NextNumber(0.8, 1.0), size * 0.62),
+			cf * CFrame.new(px, py, front + size * 0.12) * CFrame.Angles(rng:NextNumber(-0.12, 0.12), rng:NextNumber(-0.2, 0.2), rng:NextNumber(-0.6, 0.6)),
 			tone,
 			ROCK_MAT
 		)
@@ -538,8 +534,8 @@ local function boulder(model: Model, cf: CFrame, rng: Random, px: number, py: nu
 		Build.deco(
 			model,
 			"Bloc",
-			V3(size * rng:NextNumber(0.85, 1.2), size * rng:NextNumber(0.6, 0.85), size * 0.6),
-			cf * CFrame.new(px, py, front + size * 0.08) * CFrame.Angles(rng:NextNumber(-0.35, 0.2), rng:NextNumber(-0.45, 0.45), rng:NextNumber(-0.4, 0.4)),
+			V3(size * rng:NextNumber(0.9, 1.25), size * rng:NextNumber(0.65, 0.9), size * 0.8),
+			cf * CFrame.new(px, py, front + size * 0.22) * CFrame.Angles(rng:NextNumber(-0.18, 0.1), rng:NextNumber(-0.25, 0.25), rng:NextNumber(-0.3, 0.3)),
 			tone,
 			{ Material = ROCK_MAT }
 		)
@@ -549,8 +545,8 @@ local function boulder(model: Model, cf: CFrame, rng: Random, px: number, py: nu
 		Core.ellipsoid(
 			model,
 			"Bloc",
-			V3(s2 * 1.2, s2, s2 * 0.7),
-			cf * CFrame.new(px + rng:NextNumber(-0.5, 0.5) * size, py + rng:NextNumber(-0.45, 0.45) * size, front - size * 0.18),
+			V3(s2 * 1.2, s2, s2 * 0.8),
+			cf * CFrame.new(px + rng:NextNumber(-0.5, 0.5) * size, py + rng:NextNumber(-0.45, 0.45) * size, front - size * 0.05),
 			shade(tone, rng:NextNumber(-0.06, 0.06)),
 			ROCK_MAT
 		)
@@ -571,7 +567,7 @@ local function cliffFace(model: Model, cf: CFrame, rng: Random, bands: { number 
 			local d = nearHead(px, py)
 			if py < topAt(px) - 8 and math.abs(px) < half - 12 and d > 1.05 and rng:NextNumber() < 0.9 then
 				-- plus petits contre les têtes : ils les encadrent sans les cacher
-				local size = rng:NextNumber(14, 23) * math.clamp(0.6 + (d - 1.05) * 0.9, 0.6, 1)
+				local size = rng:NextNumber(17, 28) * math.clamp(0.6 + (d - 1.05) * 0.9, 0.6, 1)
 				boulder(model, cf, rng, px, py, size)
 			end
 		end
@@ -592,9 +588,16 @@ local function cliffFace(model: Model, cf: CFrame, rng: Random, bands: { number 
 			if by < topAt(x) - 14 and nearHead(x, by) > 1.25 then
 				local w = rng:NextNumber(18, 36)
 				local front = lean(by) - 6
-				Build.deco(model, "Corniche", V3(w, 2.6, 8), cf * CFrame.new(x, by, front) * CFrame.Angles(0, rng:NextNumber(-0.06, 0.06), 0), shade(STRATA[(b % #STRATA) + 1], 0.06), {
-					Material = Enum.Material.Slate,
-				})
+				Build.deco(
+					model,
+					"Corniche",
+					V3(w, 2.6, 8),
+					cf * CFrame.new(x, by, front) * CFrame.Angles(0, rng:NextNumber(-0.06, 0.06), 0),
+					shade(STRATA[(b % #STRATA) + 1], 0.06),
+					{
+						Material = Enum.Material.Slate,
+					}
+				)
 				if rng:NextNumber() < 0.65 then
 					Core.ellipsoid(model, "Mousse", V3(w * 0.7, 3, 7), cf * CFrame.new(x + rng:NextNumber(-4, 4), by + 1.6, front), MOSS, Enum.Material.Grass)
 				end
@@ -607,16 +610,24 @@ local function cliffFace(model: Model, cf: CFrame, rng: Random, bands: { number 
 		local len = rng:NextNumber(18, 44)
 		local y = rng:NextNumber(30, topAt(x) * 0.8)
 		if nearHead(x, y) > 1.2 and y + len / 2 < topAt(x) - 6 then
-			Build.deco(model, "Fissure", V3(rng:NextNumber(1.4, 2.6), len, 3), cf * CFrame.new(x, y, lean(y) - 1.2) * CFrame.Angles(0, 0, rng:NextNumber(-0.25, 0.25)), DEEP, {
-				Material = ROCK_MAT,
-			})
+			Build.deco(
+				model,
+				"Fissure",
+				V3(rng:NextNumber(0.8, 1.4), len, 2),
+				cf * CFrame.new(x, y, lean(y) - 0.4) * CFrame.Angles(0, 0, rng:NextNumber(-0.25, 0.25)),
+				shade(DARK, -0.25),
+				{
+					Material = Enum.Material.Slate,
+					CastShadow = false,
+				}
+			)
 		end
 	end
 	-- creux sombre derrière chaque tête : elle semble sortir d'une niche de la roche
 	for _, h in Hokage.Heads do
 		local e = EXTENT[h.style] or EXTENT.longs
 		local cy = h.y + (e[2] + e[3]) / 2 * U
-		Core.ellipsoid(model, "Niche", V3(e[1] * 2.3 * U, (e[2] - e[3]) * 1.04 * U, 3 * U), cf * CFrame.new(h.x, cy, lean(h.y) + 0.6 * U), shade(DARK, -0.12), ROCK_MAT)
+		Core.ellipsoid(model, "Niche", V3(e[1] * 2.3 * U, (e[2] - e[3]) * 1.04 * U, 3 * U), cf * CFrame.new(h.x, cy, lean(h.y) + 0.6 * U), shade(ROCK, -0.3), ROCK_MAT)
 	end
 end
 
@@ -678,7 +689,7 @@ local function cliffGreenery(model: Model, cf: CFrame, rng: Random)
 		end
 		return true
 	end
-	local count = 15
+	local count = 26
 	for i = 1, count do
 		local x = -half + 14 + (i - 0.5) / count * (Hokage.Width - 28) + rng:NextNumber(-8, 8)
 		local z = lean(topAt(x)) + ((i % 3 == 0) and rng:NextNumber(40, 100) or rng:NextNumber(14, 30))
@@ -686,7 +697,7 @@ local function cliffGreenery(model: Model, cf: CFrame, rng: Random)
 			local species = rng:NextNumber() < 0.55 and "ArbreFeuillu" or "Sapin"
 			Nature.tree(species, model, (cf * CFrame.new(x, topAt(x) + 2, z)).Position, {
 				rng = rng,
-				height = rng:NextNumber(26, 40),
+				height = rng:NextNumber(38, 64),
 				palette = "foret",
 				detail = "low",
 			})
@@ -708,7 +719,21 @@ local function cliffGreenery(model: Model, cf: CFrame, rng: Random)
 		local top = topAt(x)
 		if nearHead(x, top - 20) > 1.2 then
 			local len = rng:NextNumber(18, 40)
-			Core.ellipsoid(model, "Lierre", V3(rng:NextNumber(8, 14), len, 5), cf * CFrame.new(x, top - len / 2 + 2, lean(top - len / 2) - 3.5), shade(MOSS, rng:NextNumber(-0.1, 0.05)), Enum.Material.LeafyGrass)
+			-- grappe de lobes de plus en plus petits vers le bas (pas une simple capsule)
+			local lobes = rng:NextInteger(3, 5)
+			for k = 0, lobes - 1 do
+				local t = k / lobes
+				local w = rng:NextNumber(9, 14) * (1 - t * 0.55)
+				local y = top + 1 - t * len
+				Core.ellipsoid(
+					model,
+					"Lierre",
+					V3(w, len / lobes * 1.7, 2.6),
+					cf * CFrame.new(x + rng:NextNumber(-3, 3), y, lean(y) - 0.4) * CFrame.Angles(0, 0, rng:NextNumber(-0.3, 0.3)),
+					shade(MOSS, rng:NextNumber(-0.16, 0.02)),
+					Enum.Material.LeafyGrass
+				)
+			end
 		end
 	end
 end
