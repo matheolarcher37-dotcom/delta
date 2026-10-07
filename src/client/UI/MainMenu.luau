@@ -13,6 +13,7 @@ local Icons = require(script.Parent.Icons)
 local Components = require(script.Parent.Components)
 local Menus = require(script.Parent.Menus)
 local HUD = require(script.Parent.HUD)
+local RobuxShop = require(script.Parent.RobuxShop)
 local State = require(script.Parent.Parent.State)
 
 local MainMenu = {}
@@ -24,7 +25,7 @@ local WHITE = Color3.new(1, 1, 1)
 -- Toutes les fonctions qui existent dans le jeu.
 MainMenu.Entries = {
 	{ menu = "SkillTree", text = "Améliorations", icon = "upgrade", color = Color3.fromRGB(240, 170, 30), color2 = Color3.fromRGB(150, 80, 10) },
-	{ menu = "Shop", text = "Boutique", icon = "shop", color = Color3.fromRGB(200, 50, 230), color2 = Color3.fromRGB(100, 20, 150) },
+	{ menu = "RobuxShop", text = "Boutique", icon = "shop", color = Color3.fromRGB(200, 50, 230), color2 = Color3.fromRGB(100, 20, 150) },
 	{ menu = "Inventory", text = "Unités", icon = "unit", color = Color3.fromRGB(40, 190, 80), color2 = Color3.fromRGB(16, 100, 50) },
 	{ menu = "Inventory", arg = "items", text = "Objets", icon = "bag", color = Color3.fromRGB(40, 150, 240), color2 = Color3.fromRGB(20, 70, 160) },
 	{ menu = "Index", text = "Indice", icon = "book", color = Color3.fromRGB(230, 40, 90), color2 = Color3.fromRGB(130, 10, 50) },
@@ -339,6 +340,11 @@ local function buildEvent(gui: ScreenGui)
 end
 
 function MainMenu.init(gui: ScreenGui)
+	-- Boutique Robux (le bouton « Boutique » du menu et du HUD l'ouvre).
+	local ok, err = pcall(RobuxShop.init, gui)
+	if not ok then
+		warn("[AnimeTycoon] Échec de l'initialisation de la boutique Robux : " .. tostring(err))
+	end
 	buildMenu(gui)
 	buildEvent(gui)
 end
