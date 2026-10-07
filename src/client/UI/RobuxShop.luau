@@ -269,19 +269,21 @@ local function ownedTag(card: Instance)
 		StrokeThickness = 1.5,
 		Parent = tag,
 	})
+	-- Icône atténuée (sans CanvasGroup, qui couperait le badge « x2 » qui dépasse).
 	local icon = card:FindFirstChild("OfferIcon")
 	if icon then
-		local veil = new("CanvasGroup", {
-			Name = "OwnedVeil",
-			Size = UDim2.fromScale(1, 1),
-			BackgroundTransparency = 1,
-			GroupTransparency = 0.45,
-			ZIndex = icon.ZIndex,
-			Parent = icon,
-		})
-		for _, child in icon:GetChildren() do
-			if child ~= veil and child:IsA("GuiObject") then
-				child.Parent = veil
+		local function fade(value: number): number
+			return 1 - (1 - value) * 0.5
+		end
+		for _, item in icon:GetDescendants() do
+			if item:IsA("TextLabel") then
+				item.TextTransparency = fade(item.TextTransparency)
+				item.TextStrokeTransparency = fade(item.TextStrokeTransparency)
+			end
+			if item:IsA("GuiObject") then
+				item.BackgroundTransparency = fade(item.BackgroundTransparency)
+			elseif item:IsA("UIStroke") then
+				item.Transparency = fade(item.Transparency)
 			end
 		end
 	end
@@ -296,7 +298,7 @@ local function configTag(parent: Instance, entry)
 	local studio = isStudio()
 	Theme.label({
 		Name = "ConfigTag",
-		Text = studio and "🧪 Test Studio : achat simulé" or "Bientôt disponible",
+		Text = studio and "Test Studio : achat simulé" or "Bientôt disponible",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -4),
 		Size = UDim2.new(1, -20, 0, 14),
@@ -844,7 +846,7 @@ function RobuxShop.init(gui: ScreenGui)
 		subtitle = "Passes, packs et boosts en Robux",
 		tabs = {
 			{ id = "passes", text = "Passes", icon = "crown" },
-			{ id = "packs", text = "Packs", icon = "gift" },
+			{ id = "packs", text = "Packs", icon = "coin" },
 			{ id = "boosts", text = "Boosts", icon = "bolt" },
 		},
 		onTab = function(id)

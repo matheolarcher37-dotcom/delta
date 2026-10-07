@@ -714,9 +714,10 @@ test("Boutique Robux : onglets, barre de droite, achat simulé", function()
 	frames(10)
 	local root = gui:FindFirstChild("WindowRoot_BOUTIQUE ROBUX")
 	assert(root and root.Visible, "boutique Robux non ouverte")
-	for _, key in { "AutoRollPlus", "Roll2", "Roll3", "Coins2", "Luck2", "AutoRoll", "VIP" } do
+	for _, key in { "AutoRollPlus", "Roll2", "Roll3", "Coins2", "Luck2", "AutoRoll", "Slots", "VIP" } do
 		assert(root:FindFirstChild("Pass_" .. key, true), "carte manquante : " .. key)
 	end
+	assert(root:FindFirstChild("Info", true), "tuile « achats sûrs » absente")
 	RobuxShop.render("packs")
 	assert(root:FindFirstChild("Pack_CoinsXL", true) and root:FindFirstChild("Pack_GemsL", true), "onglet Packs")
 	RobuxShop.render("boosts")
@@ -730,6 +731,36 @@ test("Boutique Robux : onglets, barre de droite, achat simulé", function()
 	frames(45)
 	assert(not bar:FindFirstChild("Offer_Coins2"), "un passe possédé est encore proposé")
 	expectNoNewWarnings(before, "boutique Robux")
+end)
+
+test("Annonces en bandeau pendant un menu, boutique ouverte par le serveur", function()
+	local before = #warnings
+	local Remotes = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Remotes"))
+	local gui = alice.PlayerGui.AnimeTycoonUI
+	-- Le serveur demande la boutique (passe manquant) : elle s'ouvre sur les passes.
+	Menus.close()
+	signalFor(Remotes.event("Robux_OpenShop"), "OnClientEvent"):Fire("passes", "AutoRoll")
+	task.wait(0.2)
+	local root = gui:FindFirstChild("WindowRoot_BOUTIQUE ROBUX")
+	assert(root and root.Visible and Menus.current() == "RobuxShop", "boutique non ouverte par Robux_OpenShop")
+	-- Une annonce pendant la boutique : petit bandeau en haut, jamais par-dessus la fenêtre.
+	signalFor(Remotes.event("Announce"), "OnClientEvent"):Fire("BANDEAU TEST", "pendant un menu", Color3.new(1, 0, 0))
+	local announce = gui:FindFirstChild("Announce", true)
+	assert(announce, "cadre d'annonce absent")
+	local title = announce:FindFirstChild("Title")
+	local waited = 0
+	while not (announce.Visible and title.Text == "BANDEAU TEST") and waited < 14 do
+		task.wait(0.25)
+		waited += 0.25
+	end
+	assert(title.Text == "BANDEAU TEST", "annonce jamais affichée")
+	assert(announce.Position.Y.Scale == 0 and announce.Position.Y.Offset <= 60, "annonce au centre pendant un menu")
+	Menus.close()
+	task.wait(0.1)
+	if announce.Visible then
+		assert(announce.Position.Y.Scale > 0.2, "l'annonce ne revient pas au centre après le menu")
+	end
+	expectNoNewWarnings(before, "annonces")
 end)
 
 test("Notifications et annonces", function()
