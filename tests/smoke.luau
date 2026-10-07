@@ -350,4 +350,52 @@ test("Bases des joueurs + toutes les améliorations", function()
 	assert(total < 9000, "base trop lourde : " .. total .. " pièces")
 end)
 
+test("Épées du Forgeron : détaillées, effet propre, fourreau", function()
+	local Swords = requireModule(Shared.Config.Swords)
+	local SwordBuilder = requireModule(Shared.Modules.SwordBuilder)
+	local styles = {}
+	for _, sword in Swords.List do
+		assert(not styles[sword.look.style], "deux épées ont la même forme : " .. sword.look.style)
+		styles[sword.look.style] = true
+		local tool = SwordBuilder.buildTool(sword)
+		local handle = tool:FindFirstChild("Handle")
+		assert(handle and handle:FindFirstChild("SwingTrail") and handle:FindFirstChild("TrailTip"), sword.id .. " : traînée manquante")
+		local parts = countParts(tool)
+		assert(parts >= 25 and parts <= 80, sword.id .. " : " .. parts .. " pièces (attendu 25 à 80)")
+		-- Lame orientée vers -Z de la poignée.
+		assert(tool:GetAttribute("SwordTip") < -sword.look.length * 0.8, sword.id .. " : lame mal orientée")
+		local volume = tool:FindFirstChild("AuraVolume")
+		assert(volume and volume.Transparency == 1, sword.id .. " : volume d'effet manquant")
+		local auras, burst = 0, nil
+		for _, child in volume:GetChildren() do
+			if child:IsA("ParticleEmitter") then
+				if child.Name == "SwingBurst" then
+					burst = child
+				elseif child.Enabled then
+					auras += 1
+				end
+			end
+		end
+		assert(auras >= 1 and burst and not burst.Enabled, sword.id .. " : effet permanent ou gerbe de coup manquant")
+		local model = SwordBuilder.buildModel(sword)
+		assert(model:GetAttribute("Top") > model:GetAttribute("Bottom"), sword.id .. " : cadrage d'aperçu")
+		local sheath = SwordBuilder.buildSheath(sword)
+		local hilt, other = 0, 0
+		for _, part in sheath:GetDescendants() do
+			if part:IsA("BasePart") then
+				if part:GetAttribute("Hilt") then
+					hilt += 1
+				else
+					other += 1
+				end
+			end
+		end
+		assert(hilt >= 5, sword.id .. " : poignée rangée manquante")
+		assert(sheath:GetAttribute("Carry") == "back" or other >= 3, sword.id .. " : fourreau manquant")
+		print(string.format("   %-22s %2d pièces · fourreau %d", sword.name, parts, hilt + other))
+	end
+	-- Effet plus intense pour les meilleures épées.
+	assert(Swords.power(Swords.List[1]) == 0 and Swords.power(Swords.List[#Swords.List]) == 1, "intensité des effets")
+end)
+
 Harness.finish()

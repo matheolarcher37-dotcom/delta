@@ -866,15 +866,33 @@ test("Épées : épée rouillée de départ, Forgeron, coup d'épée", function(
 	assert(data.equippedSword == "vent", "épée non équipée")
 	tool = backpack:FindFirstChildOfClass("Tool")
 	assert(tool and tool:GetAttribute("SwordId") == "vent", "nouvelle épée absente")
+	local sheaths = 0
+	for _, child in alice.Character:GetChildren() do
+		if child.Name == "SwordSheath" then
+			sheaths += 1
+			assert(child:GetAttribute("SwordId") == "vent", "mauvais fourreau")
+		end
+	end
+	assert(sheaths == 1, "fourreau absent ou en double : " .. sheaths)
 	local enemy = services.CombatService:NearestEnemy(Vector3.zero, 500)
 	assert(enemy, "pas d'ennemi")
 	local pos = enemy.root.CFrame.Position
 	alice.Character:PivotTo(CFrame.lookAt(pos + Vector3.new(4, 0, 0), pos))
 	tool.Parent = alice.Character
 	local hp = enemy.hp
+	tool.Equipped:Fire()
+	task.wait()
+	local sheath = alice.Character:FindFirstChild("SwordSheath")
+	assert(sheath.PrimaryPart.Transparency == 1, "poignée rangée encore visible épée en main")
 	services.SwordService:Swing(alice, tool)
+	assert(tool.Handle.SwingTrail.Enabled and tool.AuraVolume.SwingBurst.Enabled, "traînée / gerbe du coup inactives")
 	task.wait(0.3)
 	assert(enemy.hp < hp or not enemy.alive, "l'épée n'a pas touché")
+	task.wait(0.2)
+	assert(not tool.Handle.SwingTrail.Enabled, "traînée restée active")
+	tool.Unequipped:Fire()
+	task.wait()
+	assert(sheath.PrimaryPart.Transparency == 0, "poignée rangée invisible")
 	assert(lastEvent("CombatFX") ~= nil, "pas d'effet de coup")
 	local okExpensive = invoke("BuySword", alice, "celeste")
 	assert(not okExpensive, "épée achetée sans assez d'argent")

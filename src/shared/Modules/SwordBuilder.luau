@@ -486,7 +486,7 @@ EFFECTS.thunder = function(ctx, vol, k)
 	local len = vol.Size.Z
 	arc(vol, "Arc1", len * 0.45, -len * 0.05, 0.16, look.edge, 0.18, 0.15, 7)
 	arc(vol, "Arc2", -len * 0.02, -len * 0.47, -0.14, WHITE:Lerp(look.edge, 0.5), 0.15, 0.2, -8)
-	glow(vol, look.aura, 0.6 + 1.6 * k, 6 + 4 * k)
+	glow(vol, look.aura, 0.5 + 1.1 * k, 6 + 4 * k)
 end
 
 EFFECTS.sun = function(ctx, vol, k)
@@ -801,7 +801,7 @@ STYLES.wind = {
 			block(ctx, "Sageo", Vector3.new(0.09, 0.016, 0.44), cf, look.hilt, Enum.Material.Fabric)
 			cf = cf * CFrame.new(0, 0, 0.2) * CFrame.Angles(0, math.rad(i % 2 == 1 and 30 or -24), 0) * CFrame.new(0, 0, 0.2)
 		end
-		ctx.back = back + 0.3
+		ctx.back = back + 1.15
 	end,
 	blade = function(ctx)
 		local look = ctx.look
@@ -986,8 +986,8 @@ STYLES.abyss = {
 		end
 		local z = -0.68
 		block(ctx, "GuardCore", Vector3.new(0.4, 0.3, 0.28), CFrame.new(0, 0, z), look.guard, Enum.Material.Metal)
-		orb(ctx, "Eye", Vector3.new(0.26, 0.34, 0.18), CFrame.new(0, 0, z), look.accent, Enum.Material.Neon)
-		block(ctx, "Pupil", Vector3.new(0.045, 0.36, 0.14), CFrame.new(0, 0, z), rgb(10, 4, 14), Enum.Material.SmoothPlastic)
+		orb(ctx, "Eye", Vector3.new(0.3, 0.42, 0.2), CFrame.new(0, 0, z), look.accent, Enum.Material.Neon)
+		block(ctx, "Pupil", Vector3.new(0.05, 0.44, 0.15), CFrame.new(0, 0, z), rgb(10, 4, 14), Enum.Material.SmoothPlastic)
 		for _, side in { -1, 1 } do
 			local h1 = CFrame.new(side * 0.2, 0, z) * CFrame.Angles(0, math.rad(side * 18), 0) * CFrame.new(side * 0.16, 0, 0)
 			block(ctx, "Horn", Vector3.new(0.34, 0.16, 0.16), h1, look.guard, Enum.Material.Metal)
@@ -1317,12 +1317,14 @@ end
 function SwordBuilder.attachSheath(sheath: Model, character: Model, sword, drawn: boolean?): boolean
 	local style = styleOf(sword)
 	local handle = sheath.PrimaryPart
-	local torso = (character:FindFirstChild("Torso") or character:FindFirstChild("LowerTorso")) :: BasePart?
-	local upper = (character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")) :: BasePart?
+	-- R6 (Torso), R15 (LowerTorso / UpperTorso), sinon la racine du perso (même gabarit que le Torso R6).
+	local root = character:FindFirstChild("HumanoidRootPart")
+	local torso = (character:FindFirstChild("Torso") or character:FindFirstChild("LowerTorso") or root) :: BasePart?
+	local upper = (character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso") or root) :: BasePart?
 	if not handle or not torso or not upper then
 		return false
 	end
-	local r6 = torso.Name == "Torso"
+	local r6 = torso.Name ~= "LowerTorso"
 	local target: CFrame
 	local anchor: BasePart
 	if style.carry == "back" then
