@@ -1,4 +1,7 @@
--- Traits : relance du trait d'un perso à l'Autel des Traits (au centre) avec un Cristal de Trait.
+-- Traits : relance du trait d'un perso à l'Autel des Traits (au centre).
+-- Chaque relance coûte 1 GEMME DE TRAIT (= Cristal de Trait, champ traitCrystals). Les gemmes se
+-- gagnent en tuant des ennemis et des boss, au punching-ball de la zone anti-AFK et en défis
+-- (voir QuestService), ou s'achètent avec des pièces.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -30,7 +33,7 @@ function TraitService:Reroll(player: Player, uid: any)
 		return false, "Perso introuvable."
 	end
 	if (data.traitCrystals or 0) < 1 then
-		return false, "Il te faut un Cristal de Trait 💎 (boss, ennemis du cœur de la zone, ou achat à l'autel)."
+		return false, "Il te faut une gemme de trait 💎 : tue des ennemis, tape le punching-ball de la zone anti-AFK ou réussis des défis !"
 	end
 	if self.services.TradeService:IsInTrade(player) then
 		return false, "Impossible pendant un échange."
@@ -39,6 +42,9 @@ function TraitService:Reroll(player: Player, uid: any)
 	local traitId = Traits.roll(rng)
 	entry.trait = traitId
 	DataService:Sync(player)
+	if self.services.QuestService then
+		self.services.QuestService:OnTraitReroll(player) -- défis « Relance N traits »
+	end
 	self.services.CharacterService:Refresh(player)
 	self.services.TeamService:RefreshTeam(player)
 	local trait = Traits.get(traitId)
@@ -64,7 +70,7 @@ function TraitService:BuyCrystal(player: Player)
 	end
 	data.traitCrystals = (data.traitCrystals or 0) + 1
 	DataService:Sync(player)
-	return true, "+1 Cristal de Trait 💎"
+	return true, "+1 gemme de trait 💎"
 end
 
 function TraitService:Start()

@@ -10,6 +10,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Economy = require(Shared.Config.Economy)
 local Characters = require(Shared.Config.Characters)
 local Layout = require(Shared.Config.Layout)
+local QuestsConfig = require(Shared.Config.Quests)
 local Formulas = require(Shared.Modules.Formulas)
 local SkillTree = require(Shared.Config.SkillTree)
 local Remotes = require(Shared.Modules.Remotes)
@@ -439,9 +440,20 @@ function CombatService:_reward(player: Player, record, universe, position: Vecto
 		DataService:AddMaterial(player, universe.material.id, amount)
 		Reward:FireClient(player, "material", amount, position, universe.material.id)
 	end
-	if record.tier == 3 and rng:NextNumber() < Economy.TraitCrystalTier3Chance then
-		data.traitCrystals = (data.traitCrystals or 0) + 1
-		Reward:FireClient(player, "crystal", 1, position)
+	-- Gemmes de trait (= Cristaux de Trait) : chance et quantité selon la force de l'ennemi.
+	local quests = self.services.QuestService
+	local gemRule = QuestsConfig.Gems.Tiers[record.tier]
+	if gemRule and rng:NextNumber() < gemRule.chance then
+		local amount = rng:NextInteger(gemRule.min, gemRule.max)
+		if quests then
+			quests:GrantGems(player, amount, position)
+		else
+			data.traitCrystals = (data.traitCrystals or 0) + amount
+			Reward:FireClient(player, "crystal", amount, position)
+		end
+	end
+	if quests then
+		quests:OnEnemyKilled(player, record, info) -- compteurs des défis
 	end
 	self.services.TeamService:GrantCombatXP(player, stats.xp)
 end
@@ -474,9 +486,15 @@ function CombatService:_rewardBoss(record, universe, position: Vector3)
 					Notify:FireClient(player, "🎁 Le boss a lâché une relique rare : " .. relic.name .. " !", "success")
 				end
 			end
-			local crystals = rng:NextInteger(Economy.TraitCrystalBossDrop[1], Economy.TraitCrystalBossDrop[2])
-			data.traitCrystals = (data.traitCrystals or 0) + crystals
-			Reward:FireClient(player, "crystal", crystals, position)
+			local crystals = rng:NextInteger(QuestsConfig.Gems.Boss.min, QuestsConfig.Gems.Boss.max)
+			local quests = self.services.QuestService
+			if quests then
+				quests:GrantGems(player, crystals, position)
+				quests:OnBossKilled(player, record) -- compteurs des défis
+			else
+				data.traitCrystals = (data.traitCrystals or 0) + crystals
+				Reward:FireClient(player, "crystal", crystals, position)
+			end
 			data.stats.bossKills += 1
 			self.services.TeamService:GrantCombatXP(player, stats.xp * math.max(share, 0.2))
 			Notify:FireClient(player, "🏆 Boss vaincu ! Participation : " .. math.floor(share * 100) .. "%", "success")

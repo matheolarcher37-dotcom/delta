@@ -14,6 +14,7 @@ local EVENTS = {
 	"TradeState", -- état de l'échange en cours (ou nil)
 	"OpenMenu", -- (nomDuMenu, argument?) ouvre un menu côté client (prompts de proximité)
 	"RollResult", -- { results = { {id, stars, rarity, price, dps, ...} }, pity = {...}, x10In = n } (machine ROULER)
+	"QuestNotify", -- (info) défis : { kind = "ready" | "progress" | "punch" | "punchTier", ... } (QuestService)
 
 	-- Client -> Serveur
 	"SetTarget", -- (ennemi) cible prioritaire de l'équipe
@@ -40,6 +41,8 @@ local FUNCTIONS = {
 	"CollectRolled", -- (clé du perso dans RolledQueue) -> ok, message (acheter un perso tiré)
 	"SetAutoRoll", -- (bool) -> ok, message
 	"PlaceUnit", -- (emplacement, uid | nil) -> ok, message (« Remplacer l'unité » d'une case de la base)
+	"QuestClaim", -- (idDéfi | idDéfiDuJour | "bonus") -> ok, message (réclamer la récompense d'un défi)
+	"QuestClaimAll", -- () -> ok, message (réclamer tout ce qui est prêt)
 }
 
 local Remotes = {}

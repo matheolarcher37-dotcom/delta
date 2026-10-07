@@ -32,6 +32,7 @@ local Nature = require(script.Parent.Kit.Nature)
 local Archi = require(script.Parent.Kit.Archi)
 local Props = require(script.Parent.Kit.Props)
 local Relief = require(script.Parent.Kit.Relief)
+local AfkZone = require(script.Parent.AfkZone)
 
 local WorldBuilder = {}
 
@@ -1309,6 +1310,7 @@ function WorldBuilder.build(options: { water: boolean? }?)
 			WorldBuilder.fillWater(existing)
 		end
 		Core.replaceSlots(existing)
+		AfkZone.ensure(existing) -- zone anti-AFK (construite si le fichier est plus ancien)
 		return { world = existing, zone = existing:FindFirstChild("Zone") }
 	end
 	if existing then
@@ -1321,6 +1323,7 @@ function WorldBuilder.build(options: { water: boolean? }?)
 	buildHub(world)
 	local zone = buildRing(world)
 	buildTradeCorner(world)
+	AfkZone.build(world) -- zone anti-AFK (punching-balls), voir World/AfkZone
 	buildBoards(world)
 	Build.folder(world, "Plots")
 	if not options or options.water ~= false then
