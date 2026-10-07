@@ -609,6 +609,8 @@ function Ninja.build(decor: Instance, rng: Random, _theme)
 		flowers = { rgb(240, 140, 170), rgb(250, 230, 120), rgb(250, 250, 246) },
 		lanternGlow = rgb(255, 196, 120),
 		fence = "bambou",
+		arch = rgb(186, 52, 40),
+		archCap = rgb(44, 40, 44),
 		stalls = { { rgb(184, 64, 48), "bowls" }, { rgb(62, 112, 106), "masks" }, { rgb(214, 128, 62), "fruits" } },
 		extra = function(parent, cf, r)
 			Props.trainingPost(parent, cf.Position, r)
@@ -616,6 +618,7 @@ function Ninja.build(decor: Instance, rng: Random, _theme)
 	}, free)
 	Common.forest(island, rng, {
 		groves = 34,
+		rimGroves = 22,
 		perGrove = { 5, 9 },
 		radius = { 24, 44 },
 		free = free,

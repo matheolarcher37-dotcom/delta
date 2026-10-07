@@ -1234,6 +1234,24 @@ local function buildTradeCorner(world: Folder)
 	Props.stoneLantern(corner, center + Vector3.new(-33, 0, -17))
 end
 
+-- Sentiers pavés jusqu'aux coins du marchand : leurs accès restent dégagés (rien de haut n'y
+-- pousse), le sentier montre que ce vide est voulu, même quand le marchand est ailleurs.
+local function buildMerchantPaths(world: Folder)
+	local folder = Build.folder(world, "SentiersMarchand")
+	for i, spot in Layout.MerchantSpots do
+		local dir = Vector3.new(spot.X, 0, spot.Z).Unit
+		local r = Vector3.new(spot.X, 0, spot.Z).Magnitude
+		-- derrière un panneau de la promenade, le sentier part de l'arrière du panneau
+		local start = Layout.WalkwayOuter - 1
+		for _, board in { Layout.Leaderboard, Layout.InfoBoard } do
+			if (board.Unit - dir).Magnitude < 0.05 then
+				start = board.Magnitude + 16
+			end
+		end
+		Relief.road(folder, dir * start, dir * (r - 12), 7, TOP_PATH - 0.03, { rng = Random.new(500 + i), role = "pave", curbRole = "bordure" })
+	end
+end
+
 ------------------------------------------------------------------------
 -- Panneaux (classement + infos univers)
 ------------------------------------------------------------------------
@@ -1386,6 +1404,7 @@ function WorldBuilder.build(options: { water: boolean? }?)
 	buildHub(world)
 	local zone = buildRing(world)
 	buildTradeCorner(world)
+	buildMerchantPaths(world)
 	buildBoards(world)
 	Build.folder(world, "Plots")
 	if not options or options.water ~= false then

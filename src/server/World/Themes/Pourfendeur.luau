@@ -824,10 +824,14 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 		flowers = { rgb(190, 150, 230), rgb(240, 170, 200), rgb(250, 250, 246) },
 		lanternGlow = rgb(255, 180, 110),
 		fence = "bambou",
+		arch = rgb(150, 44, 40),
+		archCap = rgb(40, 34, 38),
+		tree = "Cedre",
 		stalls = { { rgb(70, 60, 110), "bowls" }, { rgb(150, 60, 60), "masks" } },
 	}, free)
 	Common.forest(island, rng, {
 		groves = 35,
+		rimGroves = 22,
 		perGrove = { 5, 8 },
 		radius = { 20, 38 },
 		free = free,

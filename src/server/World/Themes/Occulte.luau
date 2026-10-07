@@ -535,6 +535,9 @@ function Occulte.build(decor: Instance, rng: Random, _theme)
 		flowers = { rgb(150, 90, 220), rgb(200, 60, 90), rgb(230, 230, 240) },
 		lanternGlow = rgb(170, 110, 255),
 		fence = "piquets",
+		arch = rgb(72, 64, 78),
+		tree = "Cedre",
+		treePalette = "nuit",
 		stalls = { { rgb(90, 50, 120), "masks" }, { rgb(60, 50, 70), "bowls" } },
 	}, free)
 	Common.forest(island, rng, {

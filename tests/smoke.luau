@@ -320,11 +320,15 @@ test("Lieux réservés dégagés (échanges, marchand, anti-AFK) dans les 5 univ
 		assert(#found == 0, universe.id .. " : objet dans un lieu réservé : " .. tostring(found[1]))
 		local dress = decor:FindFirstChild("Habillage", true)
 		assert(dress and (dress:GetAttribute("Elements") or 0) >= 30, universe.id .. " : île pas assez habillée")
+		assert((dress:GetAttribute("Landmarks") or 0) >= 8, universe.id .. " : pas assez de grands repères sur l'île")
 	end
+	-- un sentier pavé mène à chaque coin du marchand
+	local paths = Workspace.World:FindFirstChild("SentiersMarchand")
+	assert(paths and #paths:GetChildren() >= #Layout.MerchantSpots, "sentiers du marchand absents")
 	print("   aucun décor sur les lieux réservés ni sur leurs accès")
 end)
 
-test("Montagne des chefs (7 têtes sculptées) et enseignes artisanales", function()
+test("Montagne des chefs (8 têtes sculptées) et enseignes artisanales", function()
 	local Hokage = requireModule(Server.World.Kit.Hokage)
 	local Archi = requireModule(Server.World.Kit.Archi)
 	local R = Harness.roblox
@@ -333,12 +337,27 @@ test("Montagne des chefs (7 têtes sculptées) et enseignes artisanales", functi
 	local model = Hokage.mountain(folder, R.CFrame.new(0, 0, 2000), Harness.Random.new(3))
 	assert(model:GetAttribute("Slot") == "MontagneDesChefs", "emplacement remplaçable absent")
 	local heads = model:FindFirstChild("Tetes")
-	assert(heads and #heads:GetChildren() == 7, "il faut 7 têtes")
+	assert(heads and #heads:GetChildren() == 8, "il faut 8 têtes")
 	for _, head in heads:GetChildren() do
-		assert((head:GetAttribute("Pieces") or 0) >= 40, head.Name .. " : tête trop simple")
+		assert((head:GetAttribute("Pieces") or 0) >= 150, head.Name .. " : tête trop simple")
+		-- visage taillé en facettes (triangles faits de coins), pas en boules
+		local facets, balls = 0, 0
+		for _, d in head:GetDescendants() do
+			if d:IsA("WedgePart") and d.Name == "Facette" then
+				facets += 1
+			elseif d:IsA("Part") and d.Shape == R.Enum.PartType.Ball then
+				balls += 1
+			end
+		end
+		assert(facets >= 200, head.Name .. " : visage pas facetté (" .. facets .. ")")
+		assert(balls <= 6, head.Name .. " : trop de boules (" .. balls .. ")")
 	end
+	-- un triangle = deux coins dont les sommets retombent sur les trois points demandés
+	local tri = R.Instance.new("Folder")
+	local n = Hokage.triangle(tri, R.Vector3.new(0, 0, 0), R.Vector3.new(10, 0, 0), R.Vector3.new(3, 8, 0), R.Vector3.new(0, 0, -1), 1, R.Color3.new(1, 1, 1))
+	assert(n == 2 and #tri:GetChildren() == 2, "triangle : deux coins attendus")
 	local parts = countParts(model)
-	assert(parts < 2600, "montagne trop lourde : " .. parts)
+	assert(parts < 7000, "montagne trop lourde : " .. parts)
 	print("   montagne : " .. parts .. " pièces dont têtes " .. heads:GetAttribute("Pieces"))
 	folder:Destroy()
 	assert(Archi.stripIcon("🤝 COIN DES ÉCHANGES") == "COIN DES ÉCHANGES", "émoji non retiré")

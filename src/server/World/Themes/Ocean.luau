@@ -536,6 +536,8 @@ function Ocean.build(decor: Instance, rng: Random, _theme)
 		flowers = { rgb(230, 40, 70), rgb(250, 140, 40), rgb(250, 220, 80) },
 		lanternGlow = rgb(255, 200, 120),
 		fence = "corde",
+		arch = rgb(150, 112, 78),
+		tree = "Palmier",
 		ruins = false,
 		stalls = { { rgb(40, 110, 170), "fish" }, { rgb(220, 70, 60), "fruits" } },
 		extra = function(parent, cf, r)

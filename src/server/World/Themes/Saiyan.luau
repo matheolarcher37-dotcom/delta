@@ -630,6 +630,7 @@ function Saiyan.build(decor: Instance, rng: Random, _theme)
 		flowers = { rgb(250, 160, 40), rgb(250, 230, 90), rgb(240, 90, 80) },
 		lanternGlow = rgb(255, 210, 120),
 		fence = "piquets",
+		tree = "ArbreRond",
 		stalls = { { rgb(240, 130, 40), "fruits" }, { rgb(60, 110, 200), "bowls" } },
 	}, free)
 	Common.forest(island, rng, {

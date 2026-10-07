@@ -1107,7 +1107,7 @@ local function cliffGreenery(model: Model, cf: CFrame, rng: Random)
 		end
 		return true
 	end
-	local count = 24
+	local count = 30
 	for i = 1, count do
 		local x = -half + 10 + (i - 0.5) / count * (Hokage.Width - 20) + rng:NextNumber(-8, 8)
 		local deep = i % 3 == 0
@@ -1118,7 +1118,7 @@ local function cliffGreenery(model: Model, cf: CFrame, rng: Random)
 				rng = rng,
 				height = rng:NextNumber(36, 60),
 				palette = "foret",
-				detail = "low",
+				detail = "far",
 			})
 		end
 	end
@@ -1132,7 +1132,7 @@ local function cliffGreenery(model: Model, cf: CFrame, rng: Random)
 					rng = rng,
 					height = rng:NextNumber(30, 44),
 					palette = "foret",
-					detail = "low",
+					detail = "far",
 				})
 			end
 			Nature.bush(model, (cf * CFrame.new(x + rng:NextNumber(-6, 6), h + 2, 26 + k * 16)).Position, { rng = rng, height = rng:NextNumber(7, 11), palette = "foret" })

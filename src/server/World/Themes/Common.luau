@@ -17,6 +17,7 @@ local Nature = require(script.Parent.Parent.Kit.Nature)
 local Props = require(script.Parent.Parent.Kit.Props)
 local Archi = require(script.Parent.Parent.Kit.Archi)
 local Relief = require(script.Parent.Parent.Kit.Relief)
+local Hokage = require(script.Parent.Parent.Kit.Hokage)
 local WorldBuilder = require(script.Parent.Parent.WorldBuilder)
 
 local Common = {}
@@ -95,6 +96,7 @@ export type ForestSpec = {
 	maxR: number?,
 	undergrowth: { palette: any?, ferns: Color3?, flowers: { Color3 }?, rocks: Color3?, mushrooms: boolean? }?,
 	spacing: number?,
+	rimGroves: number?, -- bosquets de lisière (pourtour de l'île), par défaut 80 % de `groves`
 }
 
 local function pickSpecies(rng: Random, list: { { any } })
@@ -118,9 +120,7 @@ function Common.forest(folder: Instance, rng: Random, spec: ForestSpec): number
 	local taken: { Vector3 } = {}
 	local minR = spec.minR or (Layout.WalkwayOuter + 16)
 	local maxR = spec.maxR or (Layout.IslandRadius - 12)
-	Core.scatter(rng, spec.groves, Vector3.zero, minR, maxR, function(p)
-		return spec.free(p, 14)
-	end, function(center)
+	local function grove(center: Vector3)
 		local n = rng:NextInteger(spec.perGrove[1], spec.perGrove[2])
 		local gr = rng:NextNumber(spec.radius[1], spec.radius[2])
 		for _ = 1, n * 4 do
@@ -133,7 +133,7 @@ function Common.forest(folder: Instance, rng: Random, spec: ForestSpec): number
 			local h = rng:NextNumber(entry[3], entry[4])
 			local spacing = (spec.spacing or 0.32) * h
 			-- les arbres restent loin des lieux réservés et de leurs accès (même leur feuillage)
-			local ok = spec.free(p, 4) and not WorldBuilder.reserved(p, 4 + h * 0.25)
+			local ok = spec.free(p, 4) and not WorldBuilder.reserved(p, 4 + h * 0.4)
 			if ok then
 				for _, other in taken do
 					if (other - p).Magnitude < spacing then
@@ -144,10 +144,11 @@ function Common.forest(folder: Instance, rng: Random, spec: ForestSpec): number
 			end
 			if ok then
 				table.insert(taken, p)
-				-- détail complet seulement le long de la promenade (vus de près) ; plus loin, entre les
-				-- bases et sur le pourtour de l'île, le modèle allégé (même silhouette, moins de pièces)
+				-- détail complet le long de la promenade (vus de près), allégé entre les bases, version
+				-- lointaine sur le pourtour de l'île (même silhouette et mêmes couleurs, 5 à 7 pièces) :
+				-- on peut ainsi planter des forêts bien plus denses pour le même budget
 				local r = Vector3.new(p.X, 0, p.Z).Magnitude
-				local detail = r < Layout.WalkwayOuter + 60 and "normal" or "low"
+				local detail = r < Layout.WalkwayOuter + 60 and "normal" or (r < 545 and "low" or "far")
 				Nature.tree(entry[1], folder, Common.ground(p), { rng = rng, height = h, palette = entry[5], detail = detail })
 				planted += 1
 				n -= 1
@@ -185,7 +186,15 @@ function Common.forest(folder: Instance, rng: Random, spec: ForestSpec): number
 				end
 			end
 		end
-	end)
+	end
+	Core.scatter(rng, spec.groves, Vector3.zero, minR, maxR, function(p)
+		return spec.free(p, 14)
+	end, grove)
+	-- lisière : bosquets supplémentaires sur le pourtour de l'île, en version lointaine (peu de
+	-- pièces), pour que l'île paraisse boisée vue des bases et de haut
+	Core.scatter(rng, spec.rimGroves or math.floor(spec.groves * 0.8), Vector3.zero, 552, Layout.IslandRadius - 14, function(p)
+		return spec.free(p, 10)
+	end, grove)
 	return planted
 end
 
@@ -461,6 +470,11 @@ export type DressStyle = {
 	stalls: { { any } }?, -- étals près de la promenade : { couleur, marchandise }
 	ruins: boolean?,
 	extra: ((Instance, CFrame, Random) -> ())?, -- petit objet propre à l'univers près des bancs
+	tree: string?, -- essence des collines boisées (repères)
+	treePalette: string?,
+	hill: Color3?, -- herbe des collines
+	arch: Color3?, -- couleur du grand portique (sinon la pierre)
+	archCap: Color3?,
 }
 
 -- Ruine : socle de dalles, colonnes brisées (hauteurs différentes, sommets éclatés), une colonne
@@ -508,6 +522,83 @@ local function ruin(folder: Instance, cf: CFrame, stone: Color3, moss: Color3, r
 	return model
 end
 Common.ruin = ruin
+
+-- Grand rocher facetté posé au sol (repère visible de loin) : six faces de base, une couronne,
+-- un sommet, un coussin de mousse et deux petits rochers au pied.
+local function boulder(folder: Instance, base: Vector3, r: number, h: number, color: Color3, moss: Color3, rng: Random)
+	local model = Core.slot(folder, "GrandRocher", CFrame.new(base), h)
+	local ring, mid = {}, {}
+	local a0 = rng:NextNumber(0, math.pi * 2)
+	for k = 0, 5 do
+		local a = a0 + k / 6 * math.pi * 2 + rng:NextNumber(-0.18, 0.18)
+		local rr = r * rng:NextNumber(0.85, 1.12)
+		ring[k + 1] = base + Vector3.new(math.cos(a) * rr, -1, math.sin(a) * rr)
+		local am = a + math.pi / 6
+		local rm = r * rng:NextNumber(0.55, 0.75)
+		mid[k + 1] = base + Vector3.new(math.cos(am) * rm, h * rng:NextNumber(0.5, 0.7), math.sin(am) * rm)
+	end
+	local apex = base + Vector3.new(rng:NextNumber(-0.2, 0.2) * r, h, rng:NextNumber(-0.2, 0.2) * r)
+	local center = base + Vector3.new(0, h * 0.35, 0)
+	local function tri(a: Vector3, b: Vector3, c: Vector3)
+		local n = (b - a):Cross(c - a)
+		if n.Magnitude < 1e-6 then
+			return
+		end
+		n = n.Unit
+		if n:Dot((a + b + c) / 3 - center) < 0 then
+			n = -n
+		end
+		Hokage.triangle(model, a, b, c, n, 3, Core.shade(color, rng:NextNumber(-0.05, 0.04)))
+	end
+	for k = 1, 6 do
+		local k2 = k % 6 + 1
+		tri(ring[k], ring[k2], mid[k])
+		tri(ring[k2], mid[k2], mid[k])
+		tri(mid[k], mid[k2], apex)
+	end
+	Core.ellipsoid(model, "Mousse", Vector3.new(r * 0.9, 2.2, r * 0.8), CFrame.new(apex + Vector3.new(0, -1.4, 0)), moss, Enum.Material.Grass).CastShadow = false
+	for _ = 1, 2 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		Nature.rock(model, Common.ground(base + Vector3.new(math.cos(a), 0, math.sin(a)) * r * 1.25), r * rng:NextNumber(0.25, 0.4), { rng = rng, color = color, moss = moss })
+	end
+	return model
+end
+Common.boulder = boulder
+
+-- Grand portique (≈ 21 studs) : deux piliers, traverse, linteau débordant aux bouts relevés.
+local function bigArch(folder: Instance, cf: CFrame, color: Color3, cap: Color3, stone: Color3)
+	local model = Core.slot(folder, "GrandPortique", cf, 22)
+	for _, sx in { -1, 1 } do
+		Archi.block(model, "PortiqueSocle", Vector3.new(3.6, 1.6, 3.6), cf * CFrame.new(sx * 7.5, 0.8, 0), stone, Enum.Material.Slate)
+		Build.part(model, "PortiquePilier", Vector3.new(2.4, 19.5, 2.4), cf * CFrame.new(sx * 7.5, 10.9, 0), color, { Material = Enum.Material.Wood })
+	end
+	Build.part(model, "PortiqueTraverse", Vector3.new(17, 1.4, 1.6), cf * CFrame.new(0, 16, 0), color, { Material = Enum.Material.Wood })
+	Build.part(model, "PortiqueLinteau", Vector3.new(21, 1.6, 2.6), cf * CFrame.new(0, 19.6, 0), color, { Material = Enum.Material.Wood })
+	Build.part(model, "PortiqueChapeau", Vector3.new(19, 1.1, 3.4), cf * CFrame.new(0, 20.9, 0), cap, { Material = Enum.Material.Wood })
+	for _, sx in { -1, 1 } do
+		Build.wedge(model, "PortiqueBout", Vector3.new(3.4, 1.4, 3.2), cf * CFrame.new(sx * 11, 21.1, 0) * CFrame.Angles(0, sx * math.pi / 2, 0), cap, {
+			Material = Enum.Material.Wood,
+		})
+	end
+	Build.part(model, "PortiquePlaque", Vector3.new(2.6, 3.2, 0.5), cf * CFrame.new(0, 17.8, -0.9), cap, { Material = Enum.Material.Wood })
+	return model
+end
+
+-- Champ de fleurs (≈ 30 studs) : taches de couleur au ras du sol et fleurs dressées.
+local function flowerField(folder: Instance, center: Vector3, radius: number, colors: { Color3 }, rng: Random)
+	local model = Core.slot(folder, "ChampDeFleurs", CFrame.new(center), 2)
+	for k = 1, 7 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		local p = center + Vector3.new(math.cos(a), 0, math.sin(a)) * radius * math.sqrt(rng:NextNumber()) * 0.75
+		Core.flatDisc(model, "TacheFleurs", p, rng:NextNumber(7, 12), Common.ground(p).Y + 0.12 + k * 0.01, colors[(k - 1) % #colors + 1], Enum.Material.Grass)
+	end
+	for _ = 1, 16 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		local p = center + Vector3.new(math.cos(a), 0, math.sin(a)) * radius * math.sqrt(rng:NextNumber())
+		Nature.flower(model, Common.ground(p), colors[rng:NextInteger(1, #colors)], rng)
+	end
+	return model
+end
 
 -- Coin repos au bord du sentier : banc tourné vers le sentier, lanterne, massif de fleurs,
 -- parfois un objet propre à l'univers.
@@ -657,6 +748,61 @@ function Common.dressIsland(folder: Instance, rng: Random, style: DressStyle, ba
 			end
 		end
 	end
+	-- 7) GRANDS REPÈRES, visibles de loin, dans les grandes étendues d'herbe (entre et derrière
+	-- les bases) : grand rocher moussu, colline boisée, grand portique, champ de fleurs, étang
+	local kinds = { "rocher", "colline", "portique", "fleurs", "etang", "colline", "rocher", "fleurs" }
+	local hill = style.hill or Core.shade(moss, 0.1)
+	local landmarks = 0
+	for i = 0, 299 do
+		if landmarks >= 14 then
+			break
+		end
+		-- un repère par secteur de 30° autant que possible, puis au hasard
+		local angle = (i < 120) and ((i % 12) * 30 + 15 + rng:NextNumber(-12, 12)) or rng:NextNumber(0, 360)
+		local r = rng:NextNumber(430, 612)
+		local pos = Common.ground(Common.polar(angle, r))
+		local kind = kinds[landmarks % #kinds + 1]
+		if kind == "fleurs" and not style.flowers then
+			kind = "rocher"
+		end
+		local size = (kind == "colline" or kind == "fleurs") and 22 or 16
+		if free(pos, size) then
+			local face = CFrame.lookAt(pos, Vector3.new(0, pos.Y, 0))
+			if kind == "rocher" then
+				boulder(dress, pos, rng:NextNumber(13, 17), rng:NextNumber(12, 17), rock, moss, rng)
+			elseif kind == "colline" then
+				local model = Core.slot(dress, "CollineBoisee", face, 30)
+				Core.ellipsoid(model, "Colline", Vector3.new(48, 15, 38), face * CFrame.new(0, -2.5, 0) * CFrame.Angles(0, rng:NextNumber(-0.5, 0.5), 0), hill, Enum.Material.Grass)
+				for k = 0, 2 do
+					local q = (face * CFrame.new((k - 1) * 11 + rng:NextNumber(-2, 2), 0, rng:NextNumber(-6, 6))).Position
+					local top = pos.Y + 4.6 - math.abs(k - 1) * 1.6
+					Nature.tree(style.tree or "ArbreFeuillu", model, Vector3.new(q.X, top, q.Z), {
+						rng = rng,
+						height = rng:NextNumber(22, 32),
+						palette = style.treePalette,
+						detail = "low",
+					})
+				end
+				Nature.rock(model, (face * CFrame.new(16, 0, 10)).Position, 5, { rng = rng, color = rock, moss = moss })
+			elseif kind == "portique" then
+				bigArch(dress, face, style.arch or stone, style.archCap or Core.shade(style.arch or stone, -0.35), Core.shade(stone, -0.1))
+				Props.stoneLantern(dress, (face * CFrame.new(-12, 0, -4)).Position, 0.9, style.lanternGlow)
+				Props.stoneLantern(dress, (face * CFrame.new(12, 0, -4)).Position, 0.9, style.lanternGlow)
+			elseif kind == "fleurs" then
+				flowerField(dress, pos, 15, style.flowers :: { Color3 }, rng)
+			else
+				Relief.pond(dress, pos, 10, { rng = rng }, Nature)
+				for k = 0, 2 do
+					local a = math.rad(angle) + k * 2.1
+					Nature.rock(dress, Common.ground(pos + Vector3.new(math.cos(a), 0, math.sin(a)) * 15), rng:NextNumber(2.5, 4), { rng = rng, color = rock, moss = moss })
+				end
+			end
+			take(pos, size + 4)
+			landmarks += 1
+			placed += 1
+		end
+	end
+	dress:SetAttribute("Landmarks", landmarks)
 	dress:SetAttribute("Elements", placed)
 	return free
 end
