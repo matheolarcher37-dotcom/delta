@@ -1,5 +1,7 @@
 -- Menu principal (grande grille de tuiles brillantes avec toutes les fonctions du jeu + voyages)
 -- et fenêtre ÉVÉNEMENT (événement en cours, boss, univers actuel et suivant).
+-- Le bandeau du haut est partagé entre « Événement » et « Défis » (écran des défis : UI/Quests,
+-- initialisé ici avec le menu).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -13,6 +15,7 @@ local Icons = require(script.Parent.Icons)
 local Components = require(script.Parent.Components)
 local Menus = require(script.Parent.Menus)
 local HUD = require(script.Parent.HUD)
+local Quests = require(script.Parent.Quests)
 local State = require(script.Parent.Parent.State)
 
 local MainMenu = {}
@@ -54,7 +57,7 @@ local function buildMenu(gui: ScreenGui)
 		Icon = "calendar",
 		Color = Color3.fromRGB(150, 40, 70),
 		Color2 = Color3.fromRGB(20, 110, 130),
-		Size = UDim2.new(1, -24, 0, 76),
+		Size = UDim2.new(0.6, -18, 0, 76),
 		Position = UDim2.fromOffset(12, 0),
 		Wide = true,
 		Seed = 5,
@@ -64,6 +67,22 @@ local function buildMenu(gui: ScreenGui)
 		end,
 	})
 	local eventLabel = event:FindFirstChild("Label", true) :: TextLabel?
+	-- Bandeau « Défis » (pastille = récompenses prêtes à réclamer)
+	local quests = Components.tile({
+		Text = "Défis",
+		Icon = "target",
+		Color = Color3.fromRGB(230, 130, 20),
+		Color2 = Color3.fromRGB(150, 40, 30),
+		Size = UDim2.new(0.4, -18, 0, 76),
+		Position = UDim2.new(0.6, 6, 0, 0),
+		Wide = true,
+		Seed = 9,
+		Parent = content,
+		OnClick = function()
+			Menus.open("Quests")
+		end,
+	})
+	quests.Name = "QuestsTile"
 	local grid = new("Frame", {
 		Name = "Grid",
 		Size = UDim2.new(1, 0, 0, 318),
@@ -96,8 +115,11 @@ local function buildMenu(gui: ScreenGui)
 	end
 	pcall(function()
 		event.NextSelectionDown = tiles[1]
+		event.NextSelectionRight = quests
+		quests.NextSelectionLeft = event
+		quests.NextSelectionDown = tiles[math.min(5, #tiles)]
 		for i = 1, math.min(6, #tiles) do
-			tiles[i].NextSelectionUp = event
+			tiles[i].NextSelectionUp = i <= 3 and event or quests
 		end
 	end)
 	-- Voyages rapides
@@ -146,6 +168,8 @@ local function buildMenu(gui: ScreenGui)
 					eventLabel.Text = "Événement"
 				end
 				Components.setBadge(event, (name or state:GetAttribute("BossAlive")) and "!" or nil)
+				local ready = Quests.readyCount()
+				Components.setBadge(quests, ready > 0 and tostring(ready) or nil)
 			end
 			task.wait(0.5)
 		end
@@ -341,6 +365,10 @@ end
 function MainMenu.init(gui: ScreenGui)
 	buildMenu(gui)
 	buildEvent(gui)
+	local ok, err = pcall(Quests.init, gui)
+	if not ok then
+		warn("[AnimeTycoon] Échec de l'initialisation des Défis : " .. tostring(err))
+	end
 end
 
 return MainMenu

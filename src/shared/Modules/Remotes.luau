@@ -43,6 +43,7 @@ local FUNCTIONS = {
 	"PlaceUnit", -- (emplacement, uid | nil) -> ok, message (« Remplacer l'unité » d'une case de la base)
 	"QuestClaim", -- (idDéfi | idDéfiDuJour | "bonus") -> ok, message (réclamer la récompense d'un défi)
 	"QuestClaimAll", -- () -> ok, message (réclamer tout ce qui est prêt)
+	"QuestGoAfk", -- () -> ok, message (voyage jusqu'à l'entrée de la zone anti-AFK)
 }
 
 local Remotes = {}

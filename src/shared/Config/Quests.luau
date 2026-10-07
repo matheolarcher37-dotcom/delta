@@ -339,6 +339,66 @@ function Quests.dailyProgress(data: any, dailyId: string): (number, number)
 	return math.max(0, Quests.read(data, daily.key) - (base or 0)), daily.goal
 end
 
+local function dailyState(data: any)
+	local q = type(data) == "table" and type(data.Quests) == "table" and data.Quests or nil
+	local d = q and type(q.daily) == "table" and q.daily or nil
+	local list = d and type(d.list) == "table" and d.list or {}
+	local claimed = d and type(d.claimed) == "table" and d.claimed or {}
+	return d, list, claimed
+end
+
+-- Défi du jour prêt à réclamer ?
+function Quests.dailyReady(data: any, dailyId: string): boolean
+	local _, list, claimed = dailyState(data)
+	if not table.find(list, dailyId) or claimed[dailyId] then
+		return false
+	end
+	local progress, goal = Quests.dailyProgress(data, dailyId)
+	return progress >= goal
+end
+
+-- Coffre du jour prêt (les défis du jour sont tous réclamés) ?
+function Quests.bonusReady(data: any): boolean
+	local d, list, claimed = dailyState(data)
+	if not d or d.bonus == true or #list == 0 then
+		return false
+	end
+	for _, id in list do
+		if not claimed[id] then
+			return false
+		end
+	end
+	return true
+end
+
+-- Défi permanent prêt à réclamer ?
+function Quests.questReady(data: any, quest: Quest): boolean
+	local tier, _, progress, goal = Quests.status(data, quest)
+	return tier ~= nil and progress >= goal
+end
+
+-- Nombre de récompenses prêtes à réclamer (pastille du bouton Défis).
+function Quests.readyCount(data: any, category: string?): number
+	local n = 0
+	if category == nil or category == "daily" then
+		local _, list = dailyState(data)
+		for _, id in list do
+			if Quests.dailyReady(data, id) then
+				n += 1
+			end
+		end
+		if Quests.bonusReady(data) then
+			n += 1
+		end
+	end
+	for _, quest in Quests.List do
+		if (category == nil or quest.category == category) and Quests.questReady(data, quest) then
+			n += 1
+		end
+	end
+	return n
+end
+
 ------------------------------------------------------------------------
 -- Affichage
 ------------------------------------------------------------------------

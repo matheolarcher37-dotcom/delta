@@ -16,6 +16,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Quests = require(Shared.Config.Quests)
+local Layout = require(Shared.Config.Layout)
 local Remotes = require(Shared.Modules.Remotes)
 local AfkZone = require(script.Parent.Parent.World.AfkZone)
 
@@ -235,28 +236,8 @@ end
 -- Réclamer
 ------------------------------------------------------------------------
 
--- Défi du jour prêt à réclamer ?
-local function dailyReady(data, id: string): boolean
-	local q = ensure(data)
-	if not table.find(q.daily.list, id) or q.daily.claimed[id] then
-		return false
-	end
-	local progress, goal = Quests.dailyProgress(data, id)
-	return progress >= goal
-end
-
-local function bonusReady(data): boolean
-	local q = ensure(data)
-	if q.daily.bonus or #q.daily.list == 0 then
-		return false
-	end
-	for _, id in q.daily.list do
-		if not q.daily.claimed[id] then
-			return false
-		end
-	end
-	return true
-end
+local dailyReady = Quests.dailyReady
+local bonusReady = Quests.bonusReady
 
 function QuestService:Claim(player: Player, id: any): (boolean, string)
 	local data = self.services.DataService:Get(player)
@@ -345,26 +326,7 @@ end
 -- Nombre de récompenses prêtes (pastille du bouton Défis).
 function QuestService:ReadyCount(player: Player): number
 	local data = self.services.DataService:Get(player)
-	if not data then
-		return 0
-	end
-	local q = ensure(data)
-	local n = 0
-	for _, id in q.daily.list do
-		if dailyReady(data, id) then
-			n += 1
-		end
-	end
-	if bonusReady(data) then
-		n += 1
-	end
-	for _, quest in Quests.List do
-		local tier, _, progress, goal = Quests.status(data, quest)
-		if tier and progress >= goal then
-			n += 1
-		end
-	end
-	return n
+	return data and Quests.readyCount(data) or 0
 end
 
 ------------------------------------------------------------------------
@@ -721,6 +683,23 @@ function QuestService:_tickStations()
 	end
 end
 
+-- Voyage jusqu'à l'entrée de la zone anti-AFK (bouton de l'écran Défis).
+function QuestService:GoToAfkZone(player: Player): (boolean, string)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not character or not root then
+		return false, "Attends d'être apparu."
+	end
+	if self.services.TradeService and self.services.TradeService:IsInTrade(player) then
+		return false, "Impossible pendant un échange."
+	end
+	local center = Layout.AfkZone
+	local inward = (Vector3.zero - center).Unit
+	local spot = center + inward * 40 + Vector3.new(0, 4, 0)
+	character:PivotTo(CFrame.lookAt(spot, Vector3.new(center.X, spot.Y, center.Z)))
+	return true, "Bienvenue à la zone anti-AFK : prends un punching-ball libre !"
+end
+
 ------------------------------------------------------------------------
 -- Démarrage
 ------------------------------------------------------------------------
@@ -760,6 +739,10 @@ function QuestService:Start()
 			self:_check(player, nil)
 		end
 		return ok, message
+	end
+
+	Remotes.func("QuestGoAfk").OnServerInvoke = function(player)
+		return self:GoToAfkZone(player)
 	end
 
 	self:_setupStations()
