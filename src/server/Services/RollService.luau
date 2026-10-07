@@ -145,7 +145,7 @@ function RollService:Start()
 				local data = DataService:Get(player)
 				if data and data.AutoRoll then
 					local stats = Formulas.playerStats(data)
-					if stats.autoRoll and (not lastRoll[player] or os.clock() - lastRoll[player] >= stats.rollCooldown) then
+					if (stats.autoRoll or Robux.canAutoRoll(player)) and (not lastRoll[player] or os.clock() - lastRoll[player] >= stats.rollCooldown) then
 						local ok, err = pcall(self.Roll, self, player, true)
 						if not ok then
 							warn("[AnimeTycoon] Auto-roulage : " .. tostring(err))
@@ -325,7 +325,8 @@ function RollService:Roll(player: Player, auto: boolean?)
 		end
 		return false, "La machine recharge..."
 	end
-	local count = stats.rollsPerPull
+	-- Persos par roulage : passes Robux « Roulage x2 / x3 » (1 sans passe).
+	local count = math.max(stats.rollsPerPull, Robux.rollsPerPull(player))
 	if not makeRoom(data.RolledQueue, count) then
 		lastRoll[player] = now
 		local message = "Estrade pleine de persos rares : collecte-les d'abord !"
@@ -450,9 +451,12 @@ function RollService:SetAutoRoll(player: Player, enabled: boolean)
 	if not data then
 		return false, "Erreur."
 	end
-	if enabled and not Formulas.playerStats(data).autoRoll then
+	if enabled and not Formulas.playerStats(data).autoRoll and not Robux.canAutoRoll(player) then
 		data.AutoRoll = false
-		return false, "Débloque « Auto-roulage » dans l'arbre de compétences."
+		-- Passe Robux « Lancer AFK » : on ouvre la boutique Robux sur l'onglet des passes.
+		Remotes.event("Robux_OpenShop"):FireClient(player, "passes", "AutoRoll")
+		local pass = Robux.Passes.AutoRoll
+		return false, "🔒 L'auto-roulage demande le passe « " .. pass.name .. " » (" .. pass.price .. " Robux)."
 	end
 	data.AutoRoll = enabled
 	self.services.DataService:Sync(player)

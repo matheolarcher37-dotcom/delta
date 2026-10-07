@@ -245,27 +245,46 @@ local function ribbon(parent: Instance, text: string, color: Color3, props: { [s
 	return band
 end
 
-local function ownedTag(parent: Instance)
+-- Passe possédé : pastille ✓ ronde dans le coin haut droit (loin de l'icône) et icône atténuée.
+-- Le bouton du bas affiche aussi « POSSÉDÉ ✓ ».
+local function ownedTag(card: Instance)
 	local tag = new("Frame", {
 		Name = "Owned",
-		Position = UDim2.fromOffset(10, 10),
-		Size = UDim2.fromOffset(112, 26),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -9, 0, 9),
+		Size = UDim2.fromOffset(32, 32),
 		BackgroundColor3 = WHITE,
 		ZIndex = 9,
-		Parent = parent,
+		Parent = card,
 	})
 	Theme.round().Parent = tag
-	Theme.stroke(C.Stroke, 2).Parent = tag
+	Theme.stroke(C.Stroke, 2.5).Parent = tag
 	Theme.gradient({ Color3.fromRGB(120, 240, 130), C.Green, Color3.fromRGB(30, 140, 60) }, 90).Parent = tag
 	Theme.label({
-		Text = "✓ POSSÉDÉ",
-		Size = UDim2.new(1, -12, 1, -6),
-		Position = UDim2.fromOffset(6, 3),
-		FontFace = Theme.Faces.Title,
+		Text = "✓",
+		Size = UDim2.new(1, -8, 1, -8),
+		Position = UDim2.fromOffset(4, 4),
+		FontFace = Theme.Faces.Heavy,
 		ZIndex = 10,
 		StrokeThickness = 1.5,
 		Parent = tag,
 	})
+	local icon = card:FindFirstChild("OfferIcon")
+	if icon then
+		local veil = new("CanvasGroup", {
+			Name = "OwnedVeil",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			GroupTransparency = 0.45,
+			ZIndex = icon.ZIndex,
+			Parent = icon,
+		})
+		for _, child in icon:GetChildren() do
+			if child ~= veil and child:IsA("GuiObject") then
+				child.Parent = veil
+			end
+		end
+	end
 	return tag
 end
 
@@ -438,28 +457,85 @@ local function featuredCard(parent: Instance, key: string, size: UDim2)
 	return card, button
 end
 
+-- Tuile d'information (dernière case de la grille) : achats sûrs, passes définitifs.
+local function infoTile(parent: Instance, size: UDim2, position: UDim2)
+	local tile = new("Frame", { Name = "Info", Size = size, Position = position, BackgroundColor3 = WHITE, Parent = parent })
+	Theme.corner(18).Parent = tile
+	Theme.stroke(C.Stroke, 3).Parent = tile
+	Theme.gradient({ Color3.fromRGB(40, 44, 66), Color3.fromRGB(24, 26, 40), Color3.fromRGB(14, 14, 22) }, 90).Parent = tile
+	local holder = new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0, 50),
+		Size = UDim2.fromOffset(60, 60),
+		BackgroundTransparency = 1,
+		ZIndex = 3,
+		Parent = tile,
+	})
+	Icons.make("shield", holder, { px = 60, size = UDim2.fromScale(0.9, 0.9), ink = Theme.dark(RobuxShop.RobuxGreen, 0.5), zindex = 3 })
+	Theme.label({
+		Text = "ACHATS SÛRS",
+		Size = UDim2.new(1, -20, 0, 26),
+		Position = UDim2.fromOffset(10, 90),
+		FontFace = Theme.Faces.Title,
+		TextColor3 = Color3.fromRGB(120, 255, 190),
+		StrokeThickness = 2,
+		MaxSize = 24,
+		ZIndex = 3,
+		Parent = tile,
+	})
+	Theme.label({
+		Text = "Un passe est à toi pour toujours. Les boosts s'additionnent si tu en reprends.",
+		Size = UDim2.new(1, -24, 1, -128),
+		Position = UDim2.fromOffset(12, 120),
+		FontFace = Theme.Faces.Medium,
+		TextColor3 = Color3.fromRGB(210, 214, 230),
+		TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		StrokeThickness = 1,
+		MaxSize = 15,
+		ZIndex = 3,
+		Parent = tile,
+	})
+	return tile
+end
+
+local COLUMNS = 4
+local FEATURED_W = 300
+
 local function renderPasses(container: Frame)
-	local featured, featuredButton = featuredCard(container, "AutoRollPlus", UDim2.new(0, 330, 1, 0))
-	local _ = featured
-	local grid = new("Frame", { Name = "Grid", Size = UDim2.new(1, -342, 1, 0), Position = UDim2.fromOffset(342, 0), BackgroundTransparency = 1, Parent = container })
+	local _, featuredButton = featuredCard(container, "AutoRollPlus", UDim2.new(0, FEATURED_W, 1, 0))
+	local grid = new("Frame", {
+		Name = "Grid",
+		Size = UDim2.new(1, -(FEATURED_W + 12), 1, 0),
+		Position = UDim2.fromOffset(FEATURED_W + 12, 0),
+		BackgroundTransparency = 1,
+		Parent = container,
+	})
 	local buttons = {}
 	local index = 0
+	local function cell(i: number): (UDim2, UDim2)
+		local col = (i - 1) % COLUMNS
+		local row = (i - 1) // COLUMNS
+		return UDim2.new(1 / COLUMNS, -9, 0.5, -6), UDim2.new(col / COLUMNS, col * 3, row * 0.5, row * 12)
+	end
 	for _, key in Robux.PassOrder do
 		if key ~= "AutoRollPlus" then
 			index += 1
-			local col = (index - 1) % 3
-			local row = (index - 1) // 3
-			local _, button = passCard(grid, key, UDim2.new(1 / 3, -8, 0.5, -6), UDim2.new(col / 3, col * 4, row * 0.5, row * 12), index * 11)
+			local size, position = cell(index)
+			local _, button = passCard(grid, key, size, position, index * 11)
 			buttons[index] = button
 		end
 	end
+	if index < COLUMNS * 2 then
+		local size, position = cell(index + 1)
+		infoTile(grid, size, position)
+	end
 	refs.firstButton = featuredButton
-	-- Navigation manette : la vedette à gauche, la grille 3 x 2 à droite.
+	-- Navigation manette : la vedette à gauche, la grille 4 x 2 à droite.
 	pcall(function()
 		featuredButton.NextSelectionRight = buttons[1]
 		for i, button in buttons do
-			local col = (i - 1) % 3
-			if col == 0 then
+			if (i - 1) % COLUMNS == 0 then
 				button.NextSelectionLeft = featuredButton
 			end
 		end
@@ -616,7 +692,7 @@ end
 ------------------------------------------------------------------------
 
 local function multiplierPill(parent: Instance, icon: string, color: Color3, order: number)
-	local pill = Components.pill(parent, icon, "", color, { Size = UDim2.fromOffset(250, 40), LayoutOrder = order })
+	local pill = Components.pill(parent, icon, "", color, { Size = UDim2.new(1 / 3, -8, 0, 40), LayoutOrder = order })
 	return pill
 end
 
@@ -717,9 +793,9 @@ local function renderBoosts(container: Frame)
 	local vipPill = multiplierPill(row, "crown", C.Purple, 3)
 	table.insert(timers, function()
 		local t = now()
-		Components.setPillText(coinsPill, "Argent  x" .. (math.floor(Robux.coinMultiplier(player, t) * 100 + 0.5) / 100))
-		Components.setPillText(luckPill, "Chance  x" .. (math.floor(Robux.luckMultiplier(player, t) * 100 + 0.5) / 100))
-		Components.setPillText(vipPill, Robux.hasPass(player, "VIP") and "VIP actif 👑" or "Pas encore VIP")
+		Components.setPillText(coinsPill, "Argent x" .. (math.floor(Robux.coinMultiplier(player, t) * 100 + 0.5) / 100))
+		Components.setPillText(luckPill, "Chance x" .. (math.floor(Robux.luckMultiplier(player, t) * 100 + 0.5) / 100))
+		Components.setPillText(vipPill, Robux.hasPass(player, "VIP") and "VIP actif" or "Pas encore VIP")
 	end)
 	local cards = new("Frame", { Name = "Cards", Size = UDim2.new(1, 0, 1, -74), Position = UDim2.fromOffset(0, 74), BackgroundTransparency = 1, Parent = container })
 	local buttons = {}
@@ -768,7 +844,7 @@ function RobuxShop.init(gui: ScreenGui)
 		subtitle = "Passes, packs et boosts en Robux",
 		tabs = {
 			{ id = "passes", text = "Passes", icon = "crown" },
-			{ id = "packs", text = "Packs", icon = "bag" },
+			{ id = "packs", text = "Packs", icon = "gift" },
 			{ id = "boosts", text = "Boosts", icon = "bolt" },
 		},
 		onTab = function(id)
@@ -780,6 +856,20 @@ function RobuxShop.init(gui: ScreenGui)
 	})
 	refs.window = window
 	refs.container = new("Frame", { Name = "Offers", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = window.content })
+
+	-- Manette / télé : fenêtre réduite et remontée, pour que la barre d'indications (A, B, LB, RB)
+	-- reste bien dans la zone sûre de l'écran (marges des téléviseurs).
+	local holder = window.frame
+	if typeof(holder) == "Instance" and holder:IsA("GuiObject") then
+		local consoleScale = new("UIScale", { Name = "ConsoleScale", Parent = holder })
+		local function fitConsole()
+			local tv = Console.isGamepad() or Console.isTenFoot()
+			consoleScale.Scale = tv and 0.9 or 1
+			holder.Position = tv and UDim2.new(0.5, 0, 0.5, -10) or UDim2.fromScale(0.5, 0.52)
+		end
+		fitConsole()
+		Console.onModeChanged(fitConsole)
+	end
 
 	Components.registerWindow(Menus, "RobuxShop", window, function(arg)
 		local tab = (arg == "packs" or arg == "boosts" or arg == "passes") and arg or currentTab
@@ -813,6 +903,11 @@ function RobuxShop.init(gui: ScreenGui)
 			end
 		end)
 	end
+
+	-- Le serveur demande d'ouvrir la boutique (passe manquant, ex. « Lancer AFK »).
+	Remotes.event("Robux_OpenShop").OnClientEvent:Connect(function(tab)
+		RobuxShop.open((tab == "packs" or tab == "boosts") and tab or "passes")
+	end)
 
 	-- Achat validé : petite fête.
 	Remotes.event("Robux_Granted").OnClientEvent:Connect(function(kind, key, details)

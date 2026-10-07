@@ -1076,7 +1076,7 @@ test("Boutique Robux : passes simulés dans Studio, x2 Argent, x2 Chance", funct
 	services.CharacterService:_tick(alice, { syncTimer = 0 })
 	local incomeAfter = alice:GetAttribute("IncomePerSec") or 0
 	if incomeBefore > 10 then
-		assert(math.abs(incomeAfter / incomeBefore - 2) < 0.05, "revenus non doublés : " .. incomeBefore .. " -> " .. incomeAfter)
+		assert(math.abs(incomeAfter - 2 * incomeBefore) <= 2, "revenus non doublés : " .. incomeBefore .. " -> " .. incomeAfter)
 	end
 	task.wait(0.7)
 	local again, already = invoke("Robux_Buy", alice, "pass", "Coins2")
@@ -1178,6 +1178,53 @@ test("Boutique Robux : ProcessReceipt idempotent et sauvegardé", function()
 	assert(MarketplaceService.ProcessReceipt({ PlayerId = 999999, ProductId = 5555, PurchaseId = "R-X" }) == NotYet, "joueur absent")
 	assert(MarketplaceService.ProcessReceipt({ PlayerId = alice.UserId, ProductId = 1, PurchaseId = "R-Y" }) == NotYet, "produit inconnu")
 	Robux.Products.GemsS.id = 0
+end)
+
+test("Boutique Robux : effets des passes Roulage x2 / x3, Lancer AFK et Emplacements +", function()
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
+	local RollService = services.RollService
+	local dora = addPlayer("Dora")
+	task.wait(0.3)
+	local data = DataService:Get(dora)
+	assert(data, "données de Dora")
+	local function rollCount()
+		RollService:ResetCooldown(dora)
+		data.RolledQueue = {}
+		local ok, results = RollService:Roll(dora)
+		assert(ok, "roulage : " .. tostring(results))
+		return #results
+	end
+	-- Sans passe : UN perso par roulage (retour 6).
+	assert(rollCount() == 1, "sans passe : 1 perso attendu")
+	dora:SetAttribute("Pass_Roll2", true)
+	assert(rollCount() == 2, "Roulage x2 : 2 persos attendus")
+	dora:SetAttribute("Pass_Roll3", true)
+	assert(rollCount() == 3, "Roulage x3 : 3 persos attendus")
+	dora:SetAttribute("Pass_Roll2", nil)
+	dora:SetAttribute("Pass_Roll3", nil)
+	-- Lancer AFK : refusé sans le passe, et la boutique Robux s'ouvre sur les passes.
+	local okAuto, message = RollService:SetAutoRoll(dora, true)
+	assert(not okAuto and string.find(message, "Lancer AFK", 1, true), "auto-roulage sans passe : " .. tostring(message))
+	local open = lastEvent("Robux_OpenShop", dora)
+	assert(open and open.args[1] == "passes", "boutique non ouverte")
+	task.wait(0.7)
+	assert(invoke("Robux_BuyPass", dora, "AutoRoll"), "achat simulé de Lancer AFK")
+	assert(dora:GetAttribute("Pass_AutoRoll") == true, "Pass_AutoRoll absent")
+	assert(RollService:SetAutoRoll(dora, true), "auto-roulage refusé avec le passe")
+	local before = data.RollCount
+	RollService:ResetCooldown(dora)
+	data.RolledQueue = {}
+	task.wait(0.6)
+	assert(data.RollCount > before, "la machine ne roule pas toute seule avec Lancer AFK")
+	RollService:SetAutoRoll(dora, false)
+	-- Emplacements + : 2 cases d'unités en plus dans la base.
+	local display = Formulas.playerStats(data).display
+	task.wait(0.7)
+	assert(invoke("Robux_Buy", dora, "pass", "Slots"), "achat simulé d'Emplacements +")
+	assert(data.RobuxSlots == Robux.SlotsBonus, "cases en plus non notées")
+	assert(Formulas.playerStats(data).display == math.min(display + Robux.SlotsBonus, Economy.MaxDisplaySlots), "cases de la base non ajoutées")
+	removePlayer(dora)
 end)
 
 test("Classements : trois tableaux (Robux, pièces, perso le plus fort)", function()

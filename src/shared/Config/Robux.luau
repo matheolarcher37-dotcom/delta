@@ -23,6 +23,10 @@ Robux.StudioSimulate = true
 -- Bonus du passe VIP.
 Robux.VIP = { coins = 1.25, luck = 1.1 }
 
+-- Cases d'unités en plus dans la base avec le passe « Emplacements + » (data.RobuxSlots,
+-- ajouté aux cases de la cour et de l'arbre par Formulas.playerStats).
+Robux.SlotsBonus = 2
+
 ------------------------------------------------------------------------
 -- Passes (achat définitif)
 ------------------------------------------------------------------------
@@ -112,6 +116,17 @@ Robux.Passes = {
 			"ACHÈTE le perso pour toi",
 		},
 	},
+	Slots = {
+		id = 0,
+		name = "Emplacements +",
+		short = "+2 cases",
+		price = 199,
+		desc = "+2 cases d'unités dans ta base : 2 persos de plus qui rapportent.",
+		icon = "grid",
+		badge = "+2",
+		color = Color3.fromRGB(60, 200, 170),
+		order = 8,
+	},
 	VIP = {
 		id = 0,
 		name = "VIP",
@@ -125,7 +140,7 @@ Robux.Passes = {
 }
 
 -- Ordre d'affichage dans la boutique.
-Robux.PassOrder = { "AutoRollPlus", "Roll2", "Roll3", "Coins2", "Luck2", "AutoRoll", "VIP" }
+Robux.PassOrder = { "AutoRollPlus", "Roll2", "Roll3", "Coins2", "Luck2", "AutoRoll", "Slots", "VIP" }
 
 ------------------------------------------------------------------------
 -- Produits (achats répétables)
@@ -215,6 +230,11 @@ function Robux.luckMultiplier(who, now: number?): number
 		mult *= Robux.VIP.luck
 	end
 	return mult
+end
+
+-- Peut-on lancer l'auto-roulage (« Lancer AFK » ou « Roulement automatique + ») ?
+function Robux.canAutoRoll(who): boolean
+	return Robux.hasPass(who, "AutoRoll") or Robux.hasPass(who, "AutoRollPlus")
 end
 
 -- Nombre de persos par roulage donné par les passes : Roll3 → 3, sinon Roll2 → 2, sinon 1.

@@ -56,6 +56,14 @@ function MonetizationService:Start()
 	Remotes.func("Robux_Buy").OnServerInvoke = function(player, kind, key)
 		return self:RequestPurchase(player, kind, key)
 	end
+	-- Raccourci pour les autres fenêtres (ex. « Roulement automatique ») : achat d'un passe par sa clé.
+	Remotes.func("Robux_BuyPass").OnServerInvoke = function(player, key)
+		local ok, message = self:RequestPurchase(player, "pass", key)
+		if type(message) == "string" and message ~= "" then
+			Notify:FireClient(player, message, ok and "success" or "error")
+		end
+		return ok, message
+	end
 
 	pcall(function()
 		MarketplaceService.ProcessReceipt = function(info)
@@ -90,6 +98,9 @@ end
 
 function MonetizationService:_setup(player: Player, data)
 	player:SetAttribute("RobuxSpent", data.RobuxSpent or 0)
+	-- « Emplacements + » : recalculé à chaque arrivée (gardé si Roblox ne répond pas).
+	local previousSlots = data.RobuxSlots or 0
+	data.RobuxSlots = 0
 	-- Passes simulés dans Studio (jamais appliqués dans le vrai jeu en ligne).
 	if isStudio() then
 		for key in data.RobuxPasses do
@@ -111,8 +122,12 @@ function MonetizationService:_setup(player: Player, data)
 	task.spawn(function()
 		for key, pass in Robux.Passes do
 			if Robux.isConfigured(pass) and not Robux.hasPass(player, key) and player.Parent then
-				if self:Owns(player, pass.id) then
+				local owns, checked = self:Owns(player, pass.id)
+				if owns then
 					self:_applyPass(player, key, true)
+				elseif key == "Slots" and not checked and previousSlots > 0 then
+					data.RobuxSlots = previousSlots -- erreur passagère de Roblox : on garde les cases
+					self:_refreshSlots(player)
 				end
 			end
 		end
@@ -129,20 +144,21 @@ function MonetizationService:_setup(player: Player, data)
 end
 
 -- Le joueur possède-t-il ce passe Roblox ? (pcall + cache ; une erreur n'est pas mise en cache)
-function MonetizationService:Owns(player: Player, passId: number): boolean
+-- Renvoie (possédé, vérifié) : vérifié = false si Roblox n'a pas pu répondre.
+function MonetizationService:Owns(player: Player, passId: number): (boolean, boolean)
 	local cache = ownsCache[player.UserId]
 	if cache and cache[passId] ~= nil then
-		return cache[passId]
+		return cache[passId], true
 	end
 	local ok, owns = pcall(function()
 		return MarketplaceService:UserOwnsGamePassAsync(player.UserId, passId)
 	end)
 	if not ok then
-		return false
+		return false, false
 	end
 	ownsCache[player.UserId] = cache or {}
 	ownsCache[player.UserId][passId] = owns == true
-	return owns == true
+	return owns == true, true
 end
 
 ------------------------------------------------------------------------
@@ -157,6 +173,13 @@ end
 function MonetizationService:_applyPass(player: Player, key: string, silent: boolean?)
 	local already = Robux.hasPass(player, key)
 	player:SetAttribute("Pass_" .. key, true)
+	if key == "Slots" then
+		local data = self.services.DataService:Get(player)
+		if data and (data.RobuxSlots or 0) < Robux.SlotsBonus then
+			data.RobuxSlots = Robux.SlotsBonus
+			self:_refreshSlots(player)
+		end
+	end
 	if already then
 		return
 	end
@@ -168,6 +191,18 @@ function MonetizationService:_applyPass(player: Player, key: string, silent: boo
 	end
 	if not silent then
 		Granted:FireClient(player, "pass", key, {})
+	end
+end
+
+-- Cases de la base (passe « Emplacements + ») : reconstruit l'affichage des unités.
+function MonetizationService:_refreshSlots(player: Player)
+	self.services.DataService:Sync(player)
+	local CharacterService = self.services.CharacterService
+	if CharacterService and CharacterService.Refresh then
+		local ok, err = pcall(CharacterService.Refresh, CharacterService, player)
+		if not ok then
+			warn("[AnimeTycoon] Emplacements + : " .. tostring(err))
+		end
 	end
 end
 

@@ -62,6 +62,7 @@ local function template()
 		RobuxPasses = {}, -- { [clé] = "studio" } passes simulés dans Studio (jamais appliqués en ligne)
 		RobuxBoosts = {}, -- { [clé du boost] = heure de fin (os.time()) }
 		RobuxSpent = 0, -- total de Robux dépensés dans le jeu (classement)
+		RobuxSlots = 0, -- cases d'unités en plus (passe « Emplacements + », recalculé à chaque arrivée)
 	}
 end
 
@@ -112,6 +113,7 @@ local function migrate(data)
 		end
 	end
 	data.RobuxSpent = math.max(0, math.floor(tonumber(data.RobuxSpent) or 0))
+	data.RobuxSlots = math.clamp(math.floor(tonumber(data.RobuxSlots) or 0), 0, 4)
 	data.RollCount = math.max(0, math.floor(tonumber(data.RollCount) or 0))
 	data.X10Counter = math.max(0, math.floor(tonumber(data.X10Counter) or 0))
 	data.version = 2
@@ -424,7 +426,7 @@ function DataService:Reset(player: Player)
 	if profile and profile.loaded then
 		local fresh = template()
 		-- Les achats Robux ne sont jamais effacés (un reçu ne doit pas être accordé deux fois).
-		for _, key in { "Receipts", "RobuxPasses", "RobuxBoosts", "RobuxSpent" } do
+		for _, key in { "Receipts", "RobuxPasses", "RobuxBoosts", "RobuxSpent", "RobuxSlots" } do
 			fresh[key] = profile.data[key]
 		end
 		for key in profile.data do

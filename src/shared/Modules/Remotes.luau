@@ -15,6 +15,7 @@ local EVENTS = {
 	"OpenMenu", -- (nomDuMenu, argument?) ouvre un menu côté client (prompts de proximité)
 	"RollResult", -- { results = { {id, stars, rarity, price, dps, ...} }, pity = {...}, x10In = n } (machine ROULER)
 	"Robux_Granted", -- (type "pass" | "product", clé, détails) achat Robux validé (célébration côté client)
+	"Robux_OpenShop", -- (onglet "passes" | "packs" | "boosts", clé?) ouvre la boutique Robux (passe manquant)
 
 	-- Client -> Serveur
 	"SetTarget", -- (ennemi) cible prioritaire de l'équipe
@@ -42,6 +43,7 @@ local FUNCTIONS = {
 	"SetAutoRoll", -- (bool) -> ok, message
 	"PlaceUnit", -- (emplacement, uid | nil) -> ok, message (« Remplacer l'unité » d'une case de la base)
 	"Robux_Buy", -- ("pass" | "product", clé de Config/Robux) -> ok, message (ouvre l'achat Roblox)
+	"Robux_BuyPass", -- (clé du passe) -> ok, message (raccourci de Robux_Buy("pass", clé) pour les autres fenêtres)
 }
 
 local Remotes = {}

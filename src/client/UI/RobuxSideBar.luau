@@ -21,6 +21,7 @@ local Console = require(script.Parent.Console)
 local Menus = require(script.Parent.Menus)
 local RobuxShop = require(script.Parent.RobuxShop)
 local State = require(script.Parent.Parent.State)
+local ChatTags = require(script.Parent.Parent.Controllers.ChatTags)
 
 local RobuxSideBar = {}
 
@@ -30,6 +31,8 @@ local WHITE = Color3.new(1, 1, 1)
 local player = Players.LocalPlayer
 
 local BUTTON_W, BUTTON_H, GAP = 104, 92, 8
+local ICON_SIZE, ICON_Y, LABEL_Y, LABEL_H = 36, 23, 44, 21 -- icône au-dessus, libellé 4 px dessous
+local MAX_SHIFT = 240 -- au-delà, la barre passe SOUS les panneaux de droite au lieu de flotter vers le centre
 
 -- Offres proposées, dans l'ordre (les passes possédés sont sautés).
 RobuxSideBar.Offers = {
@@ -100,13 +103,13 @@ local function offerButton(parent: Instance, offer, order: number)
 	Theme.shine(body, 14, 0.35)
 	Theme.sparkles(body, 3, order * 7, 0.6, 3)
 	RobuxShop.sweep(body, 16, order * 0.21, sweeps)
-	RobuxShop.offerIcon(body, icon, color, 44, nil, UDim2.new(0.5, 0, 0, 27))
+	RobuxShop.offerIcon(body, icon, color, ICON_SIZE, nil, UDim2.new(0.5, 0, 0, ICON_Y))
 	Theme.label({
 		Name = "Label",
 		Text = offer.label,
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 49),
-		Size = UDim2.new(1, -10, 0, 19),
+		Position = UDim2.new(0.5, 0, 0, LABEL_Y),
+		Size = UDim2.new(1, -8, 0, LABEL_H),
 		FontFace = Theme.Faces.Title,
 		StrokeThickness = 2,
 		ZIndex = 7,
@@ -171,13 +174,13 @@ local function shopButton(parent: Instance, order: number)
 	Theme.shine(body, 14, 0.35)
 	Theme.sparkles(body, 3, 41, 0.6, 3)
 	RobuxShop.sweep(body, 16, 0.55, sweeps)
-	RobuxShop.robuxIcon(body, 40, WHITE, { Position = UDim2.new(0.5, 0, 0, 27), ZIndex = 4 })
+	RobuxShop.robuxIcon(body, ICON_SIZE - 2, WHITE, { Position = UDim2.new(0.5, 0, 0, ICON_Y), ZIndex = 4 })
 	Theme.label({
 		Name = "Label",
 		Text = "Boutique",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 49),
-		Size = UDim2.new(1, -10, 0, 19),
+		Position = UDim2.new(0.5, 0, 0, LABEL_Y),
+		Size = UDim2.new(1, -8, 0, LABEL_H),
 		FontFace = Theme.Faces.Title,
 		StrokeThickness = 2,
 		ZIndex = 7,
@@ -258,27 +261,63 @@ local function rootHeight(root: Frame): number
 	return height >= 300 and height or 770
 end
 
--- Place la barre : bord droit, à gauche des panneaux ancrés à droite qu'elle croiserait.
+-- Échelle de la barre : plus petite au toucher (téléphone), plus grande à la manette / télé
+-- (libellés d'au moins ~18 px à 1280 x 720).
+function RobuxSideBar.scaleFor(): number
+	if Console.isTouch() then
+		return 0.8
+	elseif Console.isGamepad() or Console.isTenFoot() then
+		return 1.14
+	end
+	return 1
+end
+
+-- Panneaux ancrés au bord droit du HUD (panneau de roulage, estrade, équipe...) : { y, h, right }.
+local function rightPanels(root: Frame, holder: Frame, H: number)
+	local list = {}
+	for _, child in root:GetChildren() do
+		if child ~= holder and child:IsA("GuiObject") and child.Visible and child.AnchorPoint.X == 1 and child.Position.X.Scale == 1 then
+			local h = child.Size.Y.Scale * H + child.Size.Y.Offset
+			local y = child.Position.Y.Scale * H + child.Position.Y.Offset - child.AnchorPoint.Y * h
+			table.insert(list, { y = y, h = h, right = -child.Position.X.Offset + child.Size.X.Offset + 10 })
+		end
+	end
+	return list
+end
+
+-- Place la barre : collée au bord droit ; si un panneau de droite la croise, à sa gauche, ou
+-- en dessous de lui quand elle devrait sinon flotter vers le centre de l'écran.
 function RobuxSideBar.layout()
 	local holder, root = refs.holder, refs.root
 	if not holder or not root then
 		return
 	end
 	local touch = Console.isTouch()
-	local scaleValue = touch and 0.8 or 1
+	local scaleValue = RobuxSideBar.scaleFor()
 	refs.scale.Scale = scaleValue
 	local count = #buttons
 	local height = (count * (BUTTON_H + GAP) - GAP) * scaleValue
 	local top = touch and 236 or 152
-	local bottom = top + height
 	local H = rootHeight(root)
-	local right = 16
-	for _, child in root:GetChildren() do
-		if child ~= holder and child:IsA("GuiObject") and child.Visible and child.AnchorPoint.X == 1 and child.Position.X.Scale == 1 then
-			local h = child.Size.Y.Scale * H + child.Size.Y.Offset
-			local y = child.Position.Y.Scale * H + child.Position.Y.Offset - child.AnchorPoint.Y * h
-			if y < bottom and y + h > top then
-				right = math.max(right, -child.Position.X.Offset + child.Size.X.Offset + 10)
+	local panels = rightPanels(root, holder, H)
+	local function rightFor(y0: number): (number, number)
+		local right, below = 16, y0
+		for _, panel in panels do
+			if panel.y < y0 + height and panel.y + panel.h > y0 then
+				right = math.max(right, panel.right)
+				below = math.max(below, panel.y + panel.h + 10)
+			end
+		end
+		return right, below
+	end
+	local right, below = rightFor(top)
+	if right > MAX_SHIFT then
+		-- Trop loin du bord : on essaie sous les panneaux (au-dessus du bouton de saut sur mobile).
+		local limit = H - (touch and 200 or 16)
+		if below + height <= limit then
+			local rightBelow = rightFor(below)
+			if rightBelow < right then
+				top, right = below, rightBelow
 			end
 		end
 	end
@@ -352,18 +391,9 @@ function RobuxSideBar.init(root: Frame)
 		end, false, Enum.ContextActionPriority.High.Value + 10, Enum.KeyCode.ButtonY)
 	end)
 
-	-- VIP : étiquette dorée devant le nom dans le chat.
-	pcall(function()
-		local TextChatService = game:GetService("TextChatService")
-		TextChatService.OnIncomingMessage = function(message)
-			local properties = Instance.new("TextChatMessageProperties")
-			local source = message.TextSource
-			local speaker = source and Players:GetPlayerByUserId(source.UserId)
-			if speaker and Robux.hasPass(speaker, "VIP") then
-				properties.PrefixText = '<font color="#FFD24A">[👑 VIP]</font> ' .. message.PrefixText
-			end
-			return properties
-		end
+	-- VIP : étiquette dorée devant le nom dans le chat (Controllers/ChatTags combine les étiquettes).
+	ChatTags.addPrefix("VIP", function(speaker: Player)
+		return Robux.hasPass(speaker, "VIP") and '<font color="#FFD24A">[👑 VIP]</font>' or nil
 	end)
 end
 
