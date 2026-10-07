@@ -737,7 +737,15 @@ HAIR.spiky = function(ctx, c, look)
 	if look.earLocks then
 		-- Deux mèches par côté qui descendent sous le bandeau, devant les oreilles
 		for _, side in { -1, 1 } do
-			ctx.lock("Head", c, Vector3.new(side * 0.58, base - 0.36, -0.24), Vector3.new(side * 0.14, -1, -0.08), 0.42, 0.26, { thickness = 0.1, facing = Vector3.new(side, 0, -0.4) })
+			ctx.lock(
+				"Head",
+				c,
+				Vector3.new(side * 0.58, base - 0.36, -0.24),
+				Vector3.new(side * 0.14, -1, -0.08),
+				0.42,
+				0.26,
+				{ thickness = 0.1, facing = Vector3.new(side, 0, -0.4) }
+			)
 			ctx.lock("Head", under, Vector3.new(side * 0.61, base - 0.34, -0.04), Vector3.new(side * 0.2, -1, 0), 0.5, 0.28, { thickness = 0.1, facing = Vector3.new(side, 0, 0) })
 		end
 	end
@@ -2331,7 +2339,15 @@ ACC.kesa = function(ctx, look)
 	local band = ctx.add("Torso", "Kesa", Vector3.new(0.96, 2.9, 1.1), cf, base, { Material = Enum.Material.Fabric })
 	local mode = ctx.paint == "parts" and "parts" or nil
 	-- Carreaux : rangées de hauteurs inégales, 2 ou 3 colonnes décalées (motif fixe, pas aléatoire)
-	local rows = { { 0.11, { 0.55, 0.45 } }, { 0.16, { 0.3, 0.7 } }, { 0.12, { 0.62, 0.38 } }, { 0.15, { 0.4, 0.6 } }, { 0.1, { 0.5, 0.5 } }, { 0.17, { 0.68, 0.32 } }, { 0.19, { 0.36, 0.64 } } }
+	local rows = {
+		{ 0.11, { 0.55, 0.45 } },
+		{ 0.16, { 0.3, 0.7 } },
+		{ 0.12, { 0.62, 0.38 } },
+		{ 0.15, { 0.4, 0.6 } },
+		{ 0.1, { 0.5, 0.5 } },
+		{ 0.17, { 0.68, 0.32 } },
+		{ 0.19, { 0.36, 0.64 } },
+	}
 	for fi, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
 		local S = Painter.sheet(band, face, mode, "Kesa" .. face.Name, 60)
 		Painter.cloth(S, base)
@@ -2508,7 +2524,14 @@ ACC.magma_fist = function(ctx, look)
 	ctx.ball(arm, "MagmaSleeve", Vector3.new(1.14, 1.1, 1.14), CFrame.new(0, -0.45, 0), lava, { Material = Enum.Material.Neon })
 	local fist = ctx.ball(arm, "MagmaFist", Vector3.new(1.24, 1.0, 1.24), CFrame.new(0, -1.0, 0), lava, { Material = Enum.Material.Neon })
 	ctx.ball(arm, "MagmaCore", Vector3.new(0.8, 0.6, 0.5), CFrame.new(0, -1.02, -0.42), core, { Material = Enum.Material.Neon })
-	ctx.ball(arm, "MagmaGlow", Vector3.new(1.7, 1.5, 1.7), CFrame.new(0, -0.95, 0), Color3.fromRGB(255, 140, 40), { Material = Enum.Material.Neon, Transparency = 0.72, CastShadow = false })
+	ctx.ball(
+		arm,
+		"MagmaGlow",
+		Vector3.new(1.7, 1.5, 1.7),
+		CFrame.new(0, -0.95, 0),
+		Color3.fromRGB(255, 140, 40),
+		{ Material = Enum.Material.Neon, Transparency = 0.72, CastShadow = false }
+	)
 	for i, e in { { -0.5, -0.5, -0.2, 0.42 }, { 0.5, -0.65, 0.2, 0.4 }, { -0.38, -1.25, 0.3, 0.38 }, { 0.42, -1.2, -0.3, 0.36 }, { 0.0, -0.3, 0.52, 0.4 } } do
 		ctx.ball(arm, "MagmaRock", Vector3.new(e[4], e[4] * 0.7, e[4]), CFrame.new(e[1], e[2], e[3]) * CFrame.Angles(i, i * 0.7, 0), rock, { Material = Enum.Material.Basalt })
 	end
@@ -2555,7 +2578,6 @@ ACC.justice_coat = function(ctx, look)
 	-- Manteau de la justice porté sur les épaules (amiral) : dos avec « 正義 », épaulettes à
 	-- franges dorées, pans qui tombent jusqu'aux genoux en s'évasant, bord doré peint, col relevé.
 	local white = look.coatColor or Color3.fromRGB(246, 246, 248)
-	local shadeW = Color3.fromRGB(222, 224, 232)
 	local gold = Color3.fromRGB(222, 176, 60)
 	local mode = ctx.paint == "parts" and "parts" or nil
 	local back = ctx.add("Torso", "Coat", Vector3.new(2.6, 3.6, 0.12), CFrame.new(0, -0.65, 0.68) * CFrame.Angles(0.08, 0, 0), white)
@@ -2590,7 +2612,10 @@ ACC.justice_coat = function(ctx, look)
 		ctx.add("Torso", "Epaulette", Vector3.new(0.98, 0.1, 0.98), CFrame.new(side * 1.56, 1.24, 0.02), gold, { Material = Enum.Material.Metal, Reflectance = 0.15 })
 		ctx.ball("Torso", "EpauletteKnob", Vector3.new(0.26, 0.16, 0.26), CFrame.new(side * 1.2, 1.3, -0.02), gold, { Material = Enum.Material.Metal })
 		for i = -2, 2 do
-			table.insert(tassels, ctx.cyl("Torso", "EpauletteFringe", 0.34, 0.1, CFrame.new(side * 2.3, 0.98, i * 0.2) * CFrame.Angles(0, 0, math.pi / 2), gold, { Material = Enum.Material.Metal }))
+			table.insert(
+				tassels,
+				ctx.cyl("Torso", "EpauletteFringe", 0.34, 0.1, CFrame.new(side * 2.3, 0.98, i * 0.2) * CFrame.Angles(0, 0, math.pi / 2), gold, { Material = Enum.Material.Metal })
+			)
 		end
 		-- Manche vide sur le côté (profil du manteau)
 		local sleeve = ctx.add("Torso", "CoatSleeve", Vector3.new(0.14, 3.0, 1.12), CFrame.new(side * 2.16, -0.5, 0.2), white)
@@ -2767,8 +2792,22 @@ ACC.hollow_purple = function(ctx, look)
 	local color = look.energyColor or Color3.fromRGB(170, 70, 255)
 	local orb = handOrb(ctx, "Right Arm", "HollowPurple", color, 1.0, Color3.fromRGB(245, 225, 255))
 	-- Deux demi-orbes (rouge et bleu) qui fusionnent
-	ctx.ball("Right Arm", "HollowRed", Vector3.new(0.32, 0.32, 0.32), CFrame.new(0.5, -0.95, -0.1), Color3.fromRGB(255, 70, 90), { Material = Enum.Material.Neon, CastShadow = false })
-	ctx.ball("Right Arm", "HollowBlue", Vector3.new(0.32, 0.32, 0.32), CFrame.new(-0.5, -1.25, 0.1), Color3.fromRGB(80, 150, 255), { Material = Enum.Material.Neon, CastShadow = false })
+	ctx.ball(
+		"Right Arm",
+		"HollowRed",
+		Vector3.new(0.32, 0.32, 0.32),
+		CFrame.new(0.5, -0.95, -0.1),
+		Color3.fromRGB(255, 70, 90),
+		{ Material = Enum.Material.Neon, CastShadow = false }
+	)
+	ctx.ball(
+		"Right Arm",
+		"HollowBlue",
+		Vector3.new(0.32, 0.32, 0.32),
+		CFrame.new(-0.5, -1.25, 0.1),
+		Color3.fromRGB(80, 150, 255),
+		{ Material = Enum.Material.Neon, CastShadow = false }
+	)
 	sparkles(orb, color, ctx.s, 16)
 end
 
@@ -2821,7 +2860,8 @@ ACC.sun_flames = function(ctx, look)
 		ctx.blade(arm, i % 2 == 0 and hot or fire, CFrame.new(from) * CFrame.Angles(0, -a, 0) * CFrame.Angles(0, 0, math.cos(a) * 0.3), 0.8, 0.34, 0.05, "SunFlame")
 	end
 	ctx.style = nil
-	local core = ctx.ball(arm, "SunFlameCore", Vector3.new(0.4, 0.4, 0.4), CFrame.new(0, -1.05, -0.3), hot, { Material = Enum.Material.Neon, Transparency = 0.3, CastShadow = false })
+	local core =
+		ctx.ball(arm, "SunFlameCore", Vector3.new(0.4, 0.4, 0.4), CFrame.new(0, -1.05, -0.3), hot, { Material = Enum.Material.Neon, Transparency = 0.3, CastShadow = false })
 	glowLight(core, fire, 9 * ctx.s, 1.8)
 	local emitter = Instance.new("ParticleEmitter")
 	emitter.Name = "SunFlames"

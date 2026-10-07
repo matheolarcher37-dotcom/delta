@@ -253,6 +253,47 @@ test("Boss lisibles (liseré, lumières, aura) et variétés des persos", functi
 	assert(angel:GetAttribute("Variety") == "angelic", "look.variety appliqué à la construction")
 end)
 
+test("Nouveaux persos v3.2, uniformes personnalisés, boss Akaino/Freezo", function()
+	local NEW = {
+		ninja = { "ninja_hinato", "ninja_jiriya" },
+		occulte = { "occ_nanamo", "occ_chosu" },
+		saiyan = { "sai_trunk", "sai_brolo" },
+		ocean = { "oce_robine", "oce_ase" },
+		pourfendeur = { "pou_shinobo", "pou_giyo" },
+	}
+	local rarities = { common = true, rare = true, epic = true, legendary = true, mythic = true }
+	for _, universe in Universes.List do
+		assert(#universe.characters >= 10, universe.id .. " : au moins 10 persos attendus (" .. #universe.characters .. ")")
+		for _, id in NEW[universe.id] or {} do
+			assert(table.find(universe.characters, id), id .. " absent des tables de tirage de " .. universe.id)
+			local def = Characters.get(id)
+			assert(def and def.universe == universe.id and rarities[def.rarity], id .. " : univers ou rareté de base invalide")
+		end
+	end
+	local function partNamed(look, name)
+		local model = CharacterBuilder.build(look, { scale = 1 })
+		local count = 0
+		for _, d in model:GetDescendants() do
+			if d:IsA("BasePart") and d.Name == name then
+				count += 1
+			end
+		end
+		return count
+	end
+	local function look(id)
+		return Formulas.describe({ id = id, level = 1, stars = 1 }).look
+	end
+	assert(partNamed(look("pou_giyo"), "HaoriBack") == 2, "Giyo : haori coupé en deux moitiés")
+	assert(partNamed(look("ninja_jiriya"), "OilPlate") == 1, "Jiriya : plaque du bandeau à cornes")
+	assert(partNamed(look("oce_ase"), "HatCrown") == 1, "Ase : chapeau de cow-boy")
+	assert(partNamed(look("occ_nobora"), "Skirt") == 1, "Nobora : jupe plissée")
+	assert(partNamed(look("occ_yuzi"), "HoodCord") == 2, "Yuzi : capuche à cordons")
+	assert(partNamed(Characters.Enemies.oce_akaino.look, "CoatPan") == 2, "Akaino : pans du manteau")
+	assert(partNamed(Characters.Enemies.oce_akaino.look, "MagmaSleeve") == 1, "Akaino : poing de magma soudé")
+	assert(partNamed(Characters.Enemies.sai_freezo.look, "GemShoulderBevel") == 8, "Freezo : épaulières biseautées")
+	assert(look("occ_megumo").uniformStyle == "spiral", "Megumo : col à bouton spirale")
+end)
+
 test("Construction de fusions (toutes les paires Légendaire/Mythique)", function()
 	local ids = {}
 	for id, def in Characters.List do
