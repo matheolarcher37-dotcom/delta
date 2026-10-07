@@ -1573,10 +1573,18 @@ ACC.boar_head = function(ctx, look)
 end
 
 ACC.hood = function(ctx, look)
-	-- Capuche rabattue dans le dos (sweat à capuche)
+	-- Capuche rouge rabattue (uniforme à capuche) : gros volume dans le dos qui dépasse des
+	-- épaules, intérieur sombre, col en anneau, revers qui descendent devant et cordons blancs.
 	local color = look.accColor or Color3.fromRGB(200, 30, 40)
-	ctx.ball("Torso", "Hood", Vector3.new(1.5, 0.85, 0.65), CFrame.new(0, 0.95, 0.6), color)
-	ctx.add("Torso", "HoodCollar", Vector3.new(2.04, 0.26, 1.06), CFrame.new(0, 0.88, 0), color)
+	local inner = darken(color, 0.4)
+	ctx.ball("Torso", "Hood", Vector3.new(1.8, 1.15, 0.85), CFrame.new(0, 0.9, 0.66) * CFrame.Angles(-0.25, 0, 0), color)
+	ctx.ball("Torso", "HoodInner", Vector3.new(1.2, 0.62, 0.3), CFrame.new(0, 1.12, 0.42) * CFrame.Angles(-0.4, 0, 0), inner)
+	ctx.add("Torso", "HoodCollar", Vector3.new(2.06, 0.26, 1.08), CFrame.new(0, 0.9, 0), color)
+	for _, side in { -1, 1 } do
+		ctx.add("Torso", "HoodLapel", Vector3.new(0.3, 0.62, 0.08), CFrame.new(side * 0.36, 0.62, -0.56) * CFrame.Angles(0, 0, -side * 0.3), color)
+		ctx.cyl("Torso", "HoodCord", 0.55, 0.06, CFrame.new(side * 0.16, 0.5, -0.58) * CFrame.Angles(0, 0, math.pi / 2), WHITE)
+		ctx.ball("Torso", "HoodCordTip", Vector3.new(0.09, 0.12, 0.09), CFrame.new(side * 0.16, 0.2, -0.58), Color3.fromRGB(220, 220, 225))
+	end
 end
 
 ACC.hood_full = function(ctx, look)
@@ -1661,6 +1669,32 @@ ACC.cloak_skirt = function(ctx, look)
 		end, { folds = true })
 	end
 	ctx.add("Torso", "SkirtHem", Vector3.new(2.14, 0.1, 1.14), CFrame.new(0, -2.82, 0), look.collarLining or darken(color, 0.3))
+end
+
+-- Jupe plissée (uniforme) : pièce 3D par-dessus le haut des jambes, plis peints sur les 4 faces,
+-- légèrement évasée (ourlet plus large), ceinture de cuir à boucle.
+ACC.pleated_skirt = function(ctx, look)
+	local color = look.skirtColor or look.bottom or Color3.fromRGB(30, 32, 50)
+	local mode = ctx.paint == "parts" and "parts" or nil
+	local length = look.skirtLength or 0.95
+	local skirt = ctx.add("Torso", "Skirt", Vector3.new(2.14, length, 1.14), CFrame.new(0, -0.95 - length / 2, 0), color)
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right } do
+		Painter.panel(skirt, face, mode, color, function(S)
+			local n = (face == Enum.NormalId.Left or face == Enum.NormalId.Right) and 3 or 6
+			for i = 0, n - 1 do
+				local x = (i + 0.5) / n
+				-- Pli creux : bande ombrée qui s'élargit vers le bas + arête claire
+				S:line(x + 0.18 / n, 0.08, x + 0.3 / n, 1, 0.22 / n, Painter.celShadow(color), { corner = 0, transparency = 0.25, z = 3 })
+				S:line(x - 0.3 / n, 0.04, x - 0.36 / n, 1, 0.04 / n, Painter.lighten(color, 0.22), { corner = 0, transparency = 0.3, z = 3 })
+				S:line(x + 0.05 / n, 0.12, x + 0.1 / n, 1, 0.025, Painter.inkOf(color), { z = 4 })
+			end
+			Painter.band(S, 0.95, 0.1, Painter.shade(color, 0.1), 5)
+		end, { folds = false })
+	end
+	ctx.add("Torso", "SkirtHem", Vector3.new(2.24, 0.12, 1.22), CFrame.new(0, -0.95 - length + 0.06, 0), Painter.shade(color, 0.12))
+	local belt = look.beltColor or Color3.fromRGB(110, 70, 45)
+	ctx.add("Torso", "SkirtBelt", Vector3.new(2.06, 0.13, 1.08), CFrame.new(0, -0.9, 0), belt)
+	ctx.add("Torso", "SkirtBuckle", Vector3.new(0.26, 0.18, 0.06), CFrame.new(0.3, -0.9, -0.55), GOLD, { Material = Enum.Material.Metal, Reflectance = 0.2 })
 end
 
 ACC.collar_high = function(ctx, look)

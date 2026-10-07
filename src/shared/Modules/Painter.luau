@@ -1852,21 +1852,72 @@ end
 
 OUTFITS.uniform = function(S, look, c)
 	local top = c.top
-	torsoEdges(S, top)
-	-- Col montant + boutons dorés (uniforme de pourfendeur)
-	S:rect(0.5, 0.055, 0.6, 0.11, shade(top, 0.1), { corner = 0.2, stroke = inkOf(top), strokeThickness = 1.2, z = 4 })
-	S:line(0.5, 0.11, 0.5, 0.95, 0.03, inkOf(top), { z = 3 })
+	local style = look.uniformStyle
 	local gold = look.buttonColor or Color3.fromRGB(235, 200, 90)
-	for i = 0, 3 do
-		local y = 0.2 + i * 0.16
-		S:oval(0.54, y, 0.085, 0.085, gold, { gradient = { lighten(gold, 0.4), gold, darken(gold, 0.3) }, stroke = darken(gold, 0.5), strokeThickness = 1, z = 5 })
+	local goldLit, goldDark = lighten(gold, 0.4), darken(gold, 0.3)
+	torsoEdges(S, top)
+	-- Col montant (plus haut pour « spiral » : uniforme d'exorciste à col officier)
+	local collarH = style == "spiral" and 0.17 or 0.11
+	S:rect(0.5, collarH / 2, style == "spiral" and 0.66 or 0.6, collarH, shade(top, 0.1), { corner = 0.2, stroke = inkOf(top), strokeThickness = 1.2, z = 4 })
+	castShadow(S, collarH, 0.06, top, 3)
+	if style == "spiral" then
+		-- Bouton en spirale doré sur le col (côté gauche), fermeture cachée décalée
+		local bx, by = 0.36, collarH * 0.55
+		S:oval(bx, by, 0.13, 0.13, gold, { gradient = { goldLit, gold, goldDark }, stroke = darken(gold, 0.55), strokeThickness = 1.2, z = 6 })
+		S:oval(bx, by, 0.085, 0.085, gold, { transparency = 1, stroke = darken(gold, 0.55), strokeThickness = 1, z = 7, fine = true })
+		S:oval(bx + 0.01, by - 0.005, 0.035, 0.035, darken(gold, 0.55), { z = 7, fine = true })
+		S:line(bx + 0.04, by, bx + 0.06, by + 0.035, 0.012, darken(gold, 0.55), { z = 7, fine = true })
+		S:line(0.42, collarH, 0.44, 0.95, 0.022, inkOf(top), { z = 3 })
+		S:line(0.435, collarH, 0.455, 0.95, 0.01, lighten(top, 0.18), { transparency = 0.3, z = 3, fine = true })
+		fold(S, 0.55, 0.3, 0.85, 0.4, top, { w = 0.06 })
+	elseif style == "zip" then
+		-- Veste fermée par une glissière décalée, deux poches à rabat
+		zipper(S, 0.58, collarH, 0.92, top, 5)
+		pocket(S, 0.27, 0.62, 0.3, 0.2, top, 5)
+		pocket(S, 0.8, 0.62, 0.26, 0.2, top, 5)
+	else
+		S:line(0.5, collarH, 0.5, 0.95, 0.03, inkOf(top), { z = 3 })
+		for i = 0, 3 do
+			local y = 0.2 + i * 0.16
+			S:oval(0.54, y, 0.085, 0.085, gold, { gradient = { goldLit, gold, goldDark }, stroke = darken(gold, 0.5), strokeThickness = 1, z = 5 })
+		end
 	end
 	torsoFolds(S, top)
 	fold(S, 0.2, 0.55, 0.4, 0.62, top, { w = 0.06 })
-	-- Ceinture blanche
-	if look.topAccent then
-		band(S, 0.86, 0.08, c.accent, 7)
-		S:box(0.5, 0.86, 0.24, 0.14, c.accent, { corner = 0.12, gradient = { WHITE, c.accent }, stroke = inkOf(c.accent), strokeThickness = 1.2, z = 9 })
+	-- Ceinture (blanche des pourfendeurs, ou de cuir avec boucle : look.beltColor)
+	local belt = look.beltColor or (look.topAccent and c.accent)
+	if belt then
+		band(S, 0.86, 0.08, belt, 7)
+		local buckle = look.beltColor and gold or belt
+		S:box(0.5, 0.86, 0.24, 0.14, buckle, { corner = 0.12, gradient = { lighten(buckle, 0.4), buckle }, stroke = inkOf(buckle), strokeThickness = 1.2, z = 9 })
+	end
+end
+
+-- Veste d'uniforme ouverte sur un maillot (manches retroussées : sleeves = "short", sleeveEnd).
+OUTFITS.openjacket = function(S, look, c)
+	local top, skin = c.top, c.skin
+	local under = look.underColor or WHITE
+	local gold = look.buttonColor or Color3.fromRGB(235, 200, 90)
+	torsoEdges(S, top)
+	-- Maillot (débardeur) qui se voit entre les pans
+	S:rect(0.5, 0.5, 0.44, 1, under, { gradient = { lighten(under, 0.05), shade(under, 0.12) }, gradientRotation = 90, z = 2 })
+	S:oval(0.5, 0.0, 0.3, 0.2, skin, { gradient = { shade(skin, 0.3), skin }, z = 3 })
+	fold(S, 0.38, 0.35, 0.5, 0.55, under, { w = 0.05, z = 3 })
+	fold(S, 0.6, 0.6, 0.48, 0.78, under, { w = 0.05, z = 3 })
+	-- Pans de la veste ouverte : ombre portée sur le maillot, revers, boutons d'un côté
+	for _, x in { 0.28, 0.72 } do
+		S:rect(x < 0.5 and x + 0.035 or x - 0.035, 0.5, 0.04, 1, shade(under, 0.35), { transparency = 0.35, z = 3 })
+		S:line(x, 0.0, x, 1.0, 0.025, inkOf(top), { z = 5 })
+	end
+	S:line(0.3, 0.0, 0.2, 0.22, 0.08, shade(top, 0.12), { corner = 0, z = 4 })
+	S:line(0.7, 0.0, 0.8, 0.22, 0.08, shade(top, 0.12), { corner = 0, z = 4 })
+	for i = 0, 3 do
+		S:oval(0.235, 0.22 + i * 0.16, 0.07, 0.07, gold, { gradient = { lighten(gold, 0.4), gold, darken(gold, 0.3) }, stroke = darken(gold, 0.5), strokeThickness = 1, z = 6 })
+	end
+	fold(S, 0.04, 0.4, 0.22, 0.55, top, { w = 0.06 })
+	fold(S, 0.96, 0.42, 0.78, 0.58, top, { w = 0.06 })
+	if look.waistband then
+		waistband(S, look.waistband, true)
 	end
 end
 
