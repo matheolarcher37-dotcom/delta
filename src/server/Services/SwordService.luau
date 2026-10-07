@@ -1,6 +1,8 @@
 -- Épées du joueur : on commence avec l'Épée Rouillée, le Forgeron (hub) en vend de meilleures.
 -- L'épée est un Tool classique (barre d'outils) : clic = coup d'épée, dégâts côté serveur
--- sur les ennemis devant le joueur, avec l'animation "toolslash" officielle et une traînée.
+-- sur les ennemis devant le joueur, avec l'animation "toolslash" officielle, des traînées
+-- colorées et une gerbe de particules propres à chaque épée. Rangée, l'épée reste visible sur
+-- le perso (fourreau à la hanche, Couperet dans le dos).
 
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
@@ -50,6 +52,7 @@ function SwordService:GiveTool(player: Player)
 	end
 	local tool = SwordBuilder.buildTool(sword)
 	tool.Parent = backpack
+	local sheath = self:AttachSheath(player, sword)
 	tool.Activated:Connect(function()
 		self:Swing(player, tool)
 	end)
@@ -58,6 +61,15 @@ function SwordService:GiveTool(player: Player)
 		if sound then
 			sound:Play()
 		end
+		if sheath and sheath.Parent then
+			SwordBuilder.setDrawn(sheath, true)
+		end
+		self:Flash(tool, 0.35)
+	end)
+	tool.Unequipped:Connect(function()
+		if sheath and sheath.Parent then
+			SwordBuilder.setDrawn(sheath, false)
+		end
 	end)
 	if wasHolding and character then
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -65,6 +77,61 @@ function SwordService:GiveTool(player: Player)
 			humanoid:EquipTool(tool)
 		end
 	end
+end
+
+-- Épée rangée visible sur le perso (fourreau à la hanche, ou Couperet dans le dos).
+function SwordService:AttachSheath(player: Player, sword): Model?
+	local character = player.Character
+	if not character then
+		return nil
+	end
+	local old = character:FindFirstChild("SwordSheath")
+	if old then
+		old:Destroy()
+	end
+	local ok, sheath = pcall(SwordBuilder.buildSheath, sword)
+	if not ok or not sheath then
+		return nil
+	end
+	if not SwordBuilder.attachSheath(sheath, character, sword, false) then
+		sheath:Destroy()
+		return nil
+	end
+	sheath.Parent = character
+	return sheath
+end
+
+-- Fait jaillir l'effet de l'épée un court instant : gerbe de particules, traînées et lueur.
+function SwordService:Flash(tool: Tool, duration: number)
+	local handle = tool:FindFirstChild("Handle")
+	local volume = tool:FindFirstChild("AuraVolume")
+	local switched: { Instance } = {}
+	for _, holder in { handle, volume } do
+		if holder then
+			for _, child in holder:GetChildren() do
+				if (child:IsA("Trail") and string.sub(child.Name, 1, 10) == "SwingTrail") or (child:IsA("ParticleEmitter") and child.Name == "SwingBurst") then
+					(child :: any).Enabled = true
+					table.insert(switched, child)
+				end
+			end
+		end
+	end
+	local light = volume and volume:FindFirstChild("Glow") :: PointLight?
+	local base = light and (light:GetAttribute("BaseBrightness") or light.Brightness)
+	if light and base then
+		light:SetAttribute("BaseBrightness", base)
+		light.Brightness = base * 2.2
+	end
+	task.delay(duration, function()
+		pcall(function()
+			for _, child in switched do
+				(child :: any).Enabled = false -- l'épée peut avoir été remplacée entre-temps
+			end
+			if light and base then
+				light.Brightness = base
+			end
+		end)
+	end)
 end
 
 function SwordService:Swing(player: Player, tool: Tool)
@@ -87,15 +154,7 @@ function SwordService:Swing(player: Player, tool: Tool)
 	anim.Parent = tool
 	Debris:AddItem(anim, 0.3)
 	local handle = tool:FindFirstChild("Handle")
-	local trail = handle and handle:FindFirstChild("SwingTrail") :: Trail?
-	if trail then
-		trail.Enabled = true
-		task.delay(0.35, function()
-			pcall(function()
-				trail.Enabled = false -- l'épée peut avoir été remplacée entre-temps
-			end)
-		end)
-	end
+	self:Flash(tool, 0.35)
 	local sound = handle and handle:FindFirstChild("Slash") :: Sound?
 	if sound then
 		sound:Play()

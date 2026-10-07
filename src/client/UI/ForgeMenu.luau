@@ -1,6 +1,7 @@
 -- FORGERON (stand du hub) : acheter et équiper des épées pour combattre soi-même.
 -- À gauche les épées (prix bien visible), à droite la fiche de l'épée : aperçu 3D, tuiles de
--- statistiques (dégâts, vitesse), portée, effet et bouton ACHETER / ÉQUIPER.
+-- statistiques (dégâts, vitesse), portée, effet (avec son rang d'éclat), détails de forge et
+-- bouton ACHETER / ÉQUIPER. L'aperçu tourne et laisse monter des étincelles de la couleur de l'effet.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -39,10 +40,58 @@ local FX_NAMES = {
 	ice = "Cristaux de glace",
 }
 
+-- Aperçu 3D : cadré sur toute l'épée (de la pointe au pommeau, ruban et chaîne compris).
 local function swordViewport(parent: Instance, sword, spin: boolean?)
 	local model = SwordBuilder.buildModel(sword)
-	local length = sword.look.length + 1.5
-	return Components.viewport(parent, model, Vector3.new(0, length * 0.42, 0), length * 2.2, nil, spin)
+	local top = model:GetAttribute("Top") or sword.look.length + 0.8
+	local bottom = model:GetAttribute("Bottom") or -0.7
+	local height = math.max(top - bottom, 2)
+	local wide = math.max(sword.look.width * 2.4, 1.6)
+	local span = math.max(height, wide)
+	return Components.viewport(parent, model, Vector3.new(0, (top + bottom) / 2, 0), span * 1.85, nil, spin)
+end
+
+-- Rang d'éclat de l'effet (1 à 5 étoiles selon le rang de l'épée).
+local function glowStars(sword): string
+	local stars = 1 + math.floor(Swords.power(sword) * 4 + 0.5)
+	return string.rep("★", stars) .. string.rep("☆", 5 - stars)
+end
+
+-- Étincelles qui montent dans l'aperçu, à la couleur de l'effet (plus nombreuses pour les
+-- meilleures épées).
+local function previewEmbers(holder: Frame, sword)
+	local power = Swords.power(sword)
+	if power <= 0 then
+		return
+	end
+	local tint = sword.look.aura or sword.look.trail
+	local rng = Random.new(sword.index or 1)
+	local embers = {}
+	for i = 1, 4 + math.floor(power * 10) do
+		local spark = Theme.sparkle(holder, UDim2.fromScale(0.5, 1), rng:NextInteger(7, 14), 0.35, 3)
+		for _, bar in spark:GetChildren() do
+			if bar:IsA("Frame") then
+				bar.BackgroundColor3 = Theme.light(tint, 0.25)
+			end
+		end
+		table.insert(
+			embers,
+			{ frame = spark, x = rng:NextNumber(0.25, 0.75), speed = rng:NextNumber(0.08, 0.18), phase = i / 7 + rng:NextNumber(0, 1), sway = rng:NextNumber(0.02, 0.06) }
+		)
+	end
+	Theme.onFrame(holder, function(_dt, t)
+		for _, e in embers do
+			local p = (t * e.speed + e.phase) % 1
+			e.frame.Position = UDim2.fromScale(e.x + math.sin(t * 2 + e.phase * 6) * e.sway, 0.95 - p * 0.85)
+			e.frame.Rotation = t * 60 + e.phase * 90
+			local fade = math.sin(p * math.pi)
+			for _, bar in e.frame:GetChildren() do
+				if bar:IsA("Frame") then
+					bar.BackgroundTransparency = 1 - fade * 0.75
+				end
+			end
+		end
+	end)
 end
 
 local function owned(id: string): boolean
@@ -81,6 +130,8 @@ local function renderDetail()
 	Theme.gradient({ WHITE, WHITE }, 90, { 0.4, 1 }).Parent = glow
 	local view = new("Frame", { Size = UDim2.new(1, 0, 1, -80), Position = UDim2.fromOffset(0, 70), BackgroundTransparency = 1, ZIndex = 2, Parent = preview })
 	swordViewport(view, sword, true).ZIndex = 2
+	local embers = new("Frame", { Name = "Embers", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 3, Parent = preview })
+	previewEmbers(embers, sword)
 	Theme.label({
 		Text = sword.name,
 		Position = UDim2.fromOffset(12, 10),
@@ -115,7 +166,42 @@ local function renderDetail()
 	Theme.list(Enum.FillDirection.Vertical, 6, Enum.HorizontalAlignment.Center).Parent = infos
 	Components.pill(infos, "star", "Dégâts / s : " .. Formulas.formatNumber(math.floor(sword.damage / sword.cooldown)), C.Red, { Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 1 })
 	Components.pill(infos, "target", "Portée : " .. tostring(sword.range) .. " studs", C.Blue, { Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 2 })
-	Components.pill(infos, "bolt", "Effet : " .. (FX_NAMES[sword.fx] or tostring(sword.fx)), tint, { Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 3 })
+	Components.pill(infos, "bolt", "Effet : " .. (FX_NAMES[sword.fx] or tostring(sword.fx)) .. "  " .. glowStars(sword), tint, { Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 3 })
+
+	-- Détails de forge : ce qui rend cette épée unique.
+	local details = new("Frame", {
+		Name = "Details",
+		Position = UDim2.fromOffset(0, 2 * 64 + 4 + 3 * 42 + 6),
+		Size = UDim2.new(1, 0, 1, -(2 * 64 + 4 + 3 * 42 + 6) - 128),
+		BackgroundColor3 = Color3.fromRGB(14, 14, 20),
+		BackgroundTransparency = 0.15,
+		Parent = right,
+	})
+	Theme.corner(10).Parent = details
+	Theme.stroke(Theme.dark(tint, 0.2), 2, 0.3).Parent = details
+	Theme.label({
+		Text = "DÉTAILS DE FORGE",
+		Position = UDim2.fromOffset(12, 6),
+		Size = UDim2.new(1, -24, 0, 20),
+		FontFace = Theme.Faces.Heavy,
+		TextColor3 = Theme.light(tint, 0.35),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxSize = 16,
+		Parent = details,
+	})
+	Theme.label({
+		Text = sword.look.features or sword.description,
+		Position = UDim2.fromOffset(12, 28),
+		Size = UDim2.new(1, -24, 1, -34),
+		FontFace = Theme.Faces.Bold,
+		TextColor3 = C.TextDim,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		TextWrapped = true,
+		StrokeThickness = 1,
+		MaxSize = 15,
+		Parent = details,
+	})
 
 	local isOwned = owned(sword.id)
 	local isEquipped = data ~= nil and data.equippedSword == sword.id
