@@ -944,6 +944,32 @@ HAIR.bun = function(ctx, c, look)
 	ctx.ball("Head", "BunTie", Vector3.new(0.44, 0.1, 0.44), CFrame.new(0, 0.74, 0.3), darken(c, 0.4))
 end
 
+HAIR.half_bun = function(ctx, c, look)
+	-- Demi-chignon du moine maudit : cheveux tirés en chignon haut sur l'arrière du crâne, le reste
+	-- lâché jusqu'aux épaules, mèches qui encadrent le visage et LA longue mèche sur le front.
+	local under, shine = hairTones(c, look)
+	cap(ctx, c, { back = false, height = 0.8, lift = 0.06 })
+	ctx.ball("Head", "HairBack", Vector3.new(1.36, 1.7, 0.62), CFrame.new(0, -0.22, 0.4), under)
+	ctx.ball("Head", "HairBack", Vector3.new(1.3, 1.55, 0.5), CFrame.new(0, -0.15, 0.5), c)
+	for _, side in { -1, 1 } do
+		-- Côtés qui couvrent les oreilles et tombent sur les épaules
+		ctx.ball("Head", "HairSide", Vector3.new(0.3, 1.4, 0.95), CFrame.new(side * 0.6, -0.12, 0.12), under)
+		ctx.lock("Head", c, Vector3.new(side * 0.6, 0.46, -0.22), Vector3.new(side * 0.1, -1, -0.04), 1.15, 0.34, { facing = Vector3.new(side, 0, 0.3), thickness = 0.13 })
+		ctx.lock("Head", shine, Vector3.new(side * 0.56, 0.5, -0.36), Vector3.new(side * 0.18, -1, -0.08), 0.62, 0.2, { facing = Vector3.new(side, 0, 0.4), thickness = 0.08 })
+	end
+	-- Front dégagé : raie au milieu, deux mèches balayées vers les tempes
+	for _, side in { -1, 1 } do
+		ctx.lock("Head", side < 0 and c or shine, Vector3.new(side * 0.08, 0.7, -0.5), Vector3.new(side, -0.42, 0.05), 0.62, 0.36, { facing = Vector3.new(0, 0.5, 1), thickness = 0.12 })
+	end
+	-- La longue mèche qui tombe devant (côté droit du perso = gauche de l'écran)
+	ctx.lock("Head", c, Vector3.new(0.12, 0.64, -0.63), Vector3.new(0.1, -1, -0.12), 0.92, 0.24, { facing = Vector3.new(-0.1, 0, 1), thickness = 0.1 })
+	ctx.lock("Head", shine, Vector3.new(0.1, 0.6, -0.66), Vector3.new(0.06, -1, -0.12), 0.5, 0.12, { facing = Vector3.new(-0.1, 0, 1), thickness = 0.06 })
+	-- Chignon haut + attache
+	ctx.ball("Head", "Bun", Vector3.new(0.62, 0.56, 0.6), CFrame.new(0, 0.86, 0.46), c)
+	ctx.ball("Head", "BunShine", Vector3.new(0.3, 0.14, 0.2), CFrame.new(-0.1, 1.04, 0.3) * CFrame.Angles(0.4, 0, 0.2), shine)
+	ctx.ball("Head", "BunTie", Vector3.new(0.46, 0.12, 0.46), CFrame.new(0, 0.68, 0.42) * CFrame.Angles(-0.5, 0, 0), darken(c, 0.5))
+end
+
 HAIR.topknot = function(ctx, c, look)
 	local under, _ = hairTones(c, look)
 	cap(ctx, c, { color2 = under, backLength = 1.15, height = 0.74 })
@@ -988,6 +1014,7 @@ HAIR.none = function() end
 ------------------------------------------------------------------------
 
 local ACC = {}
+local bossKit -- (défini plus bas, avec les accessoires des boss)
 local PAINTED = {
 	"whiskers",
 	"tear_lines",
@@ -1170,7 +1197,7 @@ ACC.cap = function(ctx, look)
 	ctx.ball("Head", "CapDome", Vector3.new(1.42, 0.86, 1.44), CFrame.new(0, 0.58, 0.02), color)
 	ctx.vcyl("Head", "Cap", 0.3, 1.42, CFrame.new(0, 0.42, 0.02), color)
 	ctx.vcyl("Head", "CapBand", 0.1, 1.44, CFrame.new(0, 0.31, 0.02), look.capBand or Color3.fromRGB(40, 60, 140))
-	ctx.add("Head", "Brim", Vector3.new(1.0, 0.07, 0.5), CFrame.new(0, 0.3, -0.86) * CFrame.Angles(math.rad(-8), 0, 0), look.capBrim or Color3.fromRGB(30, 30, 40))
+	ctx.add("Head", "Brim", Vector3.new(1.1, 0.07, 0.56), CFrame.new(0, 0.3, -0.84) * CFrame.Angles(math.rad(-8), 0, 0), look.capBrim or Color3.fromRGB(30, 34, 60))
 end
 
 ACC.bandana = function(ctx, look)
@@ -1576,7 +1603,8 @@ local function katana(ctx, limb: string, cf: CFrame, spec)
 	ctx.add(limb, "SageoTail", Vector3.new(0.04, 0.6, 0.06), cf * CFrame.new(0.1, l / 2 - 1.05, 0.05) * CFrame.Angles(0, 0, 0.1), cord)
 	-- Garde (tsuba) et rondelles (seppa)
 	local guardAt = cf * CFrame.new(0, l / 2 + 0.05, 0)
-	;(KATANA_GUARDS[spec.guard or "round"] or KATANA_GUARDS.round)(ctx, limb, guardAt, tsuba, trim)
+	local guard = KATANA_GUARDS[spec.guard or "round"] or KATANA_GUARDS.round
+	guard(ctx, limb, guardAt, tsuba, trim)
 	ctx.add(limb, "Seppa", Vector3.new(0.16, 0.05, 0.24), cf * CFrame.new(0, l / 2 + 0.11, 0), trim, metal)
 	-- Poignée (tsuka) tressée
 	local tl = spec.handleLength or 0.86
@@ -1702,6 +1730,286 @@ ACC.fins = function(ctx, look)
 end
 
 ------------------------------------------------------------------------
+-- Boss d'univers : tenues iconiques, effets et lisibilité dans l'arène
+------------------------------------------------------------------------
+
+-- Chaîne de segments arrondis passant par une liste de points (queue, cordon...).
+local function chain(ctx, limb: string, points: { Vector3 }, widths: { number }, colors: { Color3 })
+	for i = 1, #points - 1 do
+		local a, b = points[i], points[i + 1]
+		local d = b - a
+		local w = widths[i] or widths[#widths]
+		ctx.ball(limb, "Segment", Vector3.new(w, d.Magnitude + w * 0.6, w), alongY((a + b) / 2, d), colors[i] or colors[#colors])
+	end
+end
+
+-- Kesa (étole de moine en patchwork) en travers du torse, de l'épaule gauche à la hanche droite,
+-- avec son anneau de bronze (Kenjakou).
+ACC.kesa = function(ctx, look)
+	local gold = look.kesaColor or Color3.fromRGB(176, 128, 62)
+	local seamColor = darken(gold, 0.55)
+	local cf = CFrame.Angles(0, 0, 0.74)
+	local band = ctx.add("Torso", "Kesa", Vector3.new(0.66, 2.8, 1.12), cf, gold)
+	local mode = ctx.paint == "parts" and "parts" or nil
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local S = Painter.sheet(band, face, mode, "Kesa" .. face.Name, 60)
+		Painter.cloth(S, gold)
+		local rows = 7
+		for r = 0, rows - 1 do
+			for col = 0, 1 do
+				local tone = ((r + col) % 2 == 0) and lighten(gold, 0.08) or darken(gold, 0.1)
+				S:rect(0.27 + col * 0.46, (r + 0.5) / rows, 0.4, 0.8 / rows, tone, { gradient = { lighten(tone, 0.1), tone, darken(tone, 0.12) }, z = 1 })
+			end
+			S:rect(0.5, r / rows, 1, S:dy(0.05), seamColor, { z = 3 })
+		end
+		S:rect(0.5, 0.5, S:dx(0.05), 1, seamColor, { z = 3 })
+		-- Bordure (en) tout autour
+		S:rect(S:dx(0.04), 0.5, S:dx(0.08), 1, darken(gold, 0.35), { z = 4 })
+		S:rect(1 - S:dx(0.04), 0.5, S:dx(0.08), 1, darken(gold, 0.35), { z = 4 })
+		Painter.fold(S, 0.1, 0.62, 0.9, 0.66, gold, { w = 0.1, z = 5 })
+	end
+	-- Anneau (kan) sur la poitrine
+	local ring = cf * CFrame.new(0, 0.62, -0.6) * CFrame.Angles(0, math.pi / 2, 0)
+	ctx.cyl("Torso", "KesaRing", 0.06, 0.4, ring, Color3.fromRGB(196, 160, 90), { Material = Enum.Material.Metal, Reflectance = 0.2 })
+	ctx.cyl("Torso", "KesaRingHole", 0.07, 0.22, ring, darken(gold, 0.6))
+end
+
+-- Larges manches de kimono qui pendent sous les bras (robe de moine).
+ACC.wide_sleeves = function(ctx, look)
+	local color = look.sleeveColor or look.top or Color3.fromRGB(40, 38, 46)
+	local mode = ctx.paint == "parts" and "parts" or nil
+	for _, side in { "Left Arm", "Right Arm" } do
+		local sleeve = ctx.add(side, "KimonoSleeve", Vector3.new(1.2, 1.5, 1.5), CFrame.new(0, -0.08, 0.14), color)
+		local outer = side == "Left Arm" and Enum.NormalId.Left or Enum.NormalId.Right
+		for _, face in { Enum.NormalId.Front, Enum.NormalId.Back, outer } do
+			local S = Painter.panel(sleeve, face, mode, color, nil, { folds = face ~= Enum.NormalId.Back })
+			Painter.band(S, 0.95, 0.07, darken(color, 0.25), 7)
+		end
+		-- Fond de la manche qui pend dans le dos
+		ctx.ball(side, "KimonoSleeveBag", Vector3.new(1.1, 0.7, 0.9), CFrame.new(0, -0.7, 0.45), darken(color, 0.08))
+	end
+end
+
+-- Grosses boucles d'oreilles (écarteurs noirs cerclés de bronze).
+ACC.gauge_earrings = function(ctx, look)
+	for _, side in { -1, 1 } do
+		local cf = CFrame.new(side * (HEAD_R + 0.03), -0.3, 0.04)
+		ctx.cyl("Head", "Gauge", 0.06, 0.3, cf, Color3.fromRGB(196, 160, 90), { Material = Enum.Material.Metal, Reflectance = 0.2 })
+		ctx.cyl("Head", "GaugeCore", 0.08, 0.2, cf, Color3.fromRGB(18, 16, 20))
+	end
+	local _ = look
+end
+
+-- Armure organique de l'empereur du froid : dôme du crâne, épaules violettes brillantes.
+ACC.freezo_gems = function(ctx, look)
+	local gem = look.gemColor or look.topAccent or Color3.fromRGB(140, 60, 190)
+	local shine = { Reflectance = 0.18 }
+	ctx.ball("Head", "GemDome", Vector3.new(1.2, 0.66, 1.24), CFrame.new(0, 0.48, 0.1), gem, shine)
+	ctx.ball("Head", "GemDomeShine", Vector3.new(0.34, 0.12, 0.24), CFrame.new(-0.2, 0.74, -0.24) * CFrame.Angles(0.5, 0, 0.2), lighten(gem, 0.6))
+	for _, side in { "Left Arm", "Right Arm" } do
+		local x = side == "Left Arm" and -0.05 or 0.05
+		ctx.ball(side, "GemShoulder", Vector3.new(1.06, 0.56, 1.06), CFrame.new(x, 0.92, 0), gem, shine)
+		ctx.ball(side, "GemShoulderShine", Vector3.new(0.3, 0.12, 0.26), CFrame.new(x - 0.1, 1.14, -0.22) * CFrame.Angles(0.4, 0, 0), lighten(gem, 0.6))
+	end
+end
+
+-- Longue queue blanche qui s'enroule au sol, bout violet.
+ACC.freezo_tail = function(ctx, look)
+	local skin = look.skin or WHITE
+	local gem = look.gemColor or look.topAccent or Color3.fromRGB(140, 60, 190)
+	local pts = {
+		Vector3.new(0, -0.75, 0.42),
+		Vector3.new(0.15, -1.25, 1.05),
+		Vector3.new(0.55, -2.0, 1.55),
+		Vector3.new(1.2, -2.7, 1.55),
+		Vector3.new(1.75, -2.85, 0.95),
+		Vector3.new(1.85, -2.7, 0.35),
+	}
+	chain(ctx, "Torso", pts, { 0.5, 0.46, 0.4, 0.34, 0.28 }, { skin, skin, skin, skin, gem })
+end
+
+-- Poing de magma (amiral) : poing en lave incandescente, roche sombre, fumée et braises.
+ACC.magma_fist = function(ctx, look)
+	local lava = Color3.fromRGB(255, 104, 18)
+	local core = Color3.fromRGB(255, 196, 80)
+	local rock = Color3.fromRGB(70, 26, 16)
+	local arm = "Right Arm"
+	local s = ctx.s
+	local fist = ctx.ball(arm, "MagmaFist", Vector3.new(1.32, 1.05, 1.32), CFrame.new(0, -0.72, 0), lava, { Material = Enum.Material.Neon })
+	ctx.ball(arm, "MagmaCore", Vector3.new(0.9, 0.7, 0.9), CFrame.new(0, -0.82, -0.32), core, { Material = Enum.Material.Neon })
+	for i, e in { { -0.42, -0.35, -0.3, 0.5 }, { 0.4, -0.5, 0.25, 0.46 }, { -0.3, -1.05, 0.35, 0.42 }, { 0.38, -1.0, -0.35, 0.4 }, { 0.0, -0.1, 0.45, 0.44 } } do
+		ctx.ball(arm, "MagmaRock", Vector3.new(e[4], e[4] * 0.8, e[4]), CFrame.new(e[1], e[2], e[3]) * CFrame.Angles(i, i * 0.7, 0), rock, { Material = Enum.Material.CrackedLava })
+	end
+	-- Gouttes qui tombent
+	ctx.ball(arm, "MagmaDrip", Vector3.new(0.2, 0.34, 0.2), CFrame.new(0.15, -1.38, -0.1), lava, { Material = Enum.Material.Neon })
+	ctx.ball(arm, "MagmaDrip", Vector3.new(0.14, 0.24, 0.14), CFrame.new(-0.2, -1.32, 0.2), lava, { Material = Enum.Material.Neon })
+	local light = Instance.new("PointLight")
+	light.Name = "MagmaLight"
+	light.Color = Color3.fromRGB(255, 130, 50)
+	light.Brightness = 2
+	light.Range = math.min(40, 8 * s)
+	light.Shadows = false
+	light.Parent = fist
+	local smoke = Instance.new("ParticleEmitter")
+	smoke.Name = "MagmaSmoke"
+	smoke.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	smoke.Color = ColorSequence.new(Color3.fromRGB(70, 60, 60))
+	smoke.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5 * s), NumberSequenceKeypoint.new(1, 1.4 * s) })
+	smoke.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.55), NumberSequenceKeypoint.new(1, 1) })
+	smoke.Lifetime = NumberRange.new(1, 1.8)
+	smoke.Rate = 8
+	smoke.Speed = NumberRange.new(0.6 * s, 1.2 * s)
+	smoke.Acceleration = Vector3.new(0, 1.5 * s, 0)
+	smoke.LightInfluence = 0.6
+	smoke.Parent = fist
+	local embers = Instance.new("ParticleEmitter")
+	embers.Name = "MagmaEmbers"
+	embers.Texture = "rbxasset://textures/particles/fire_main.dds"
+	embers.Color = ColorSequence.new(Color3.fromRGB(255, 150, 40), Color3.fromRGB(255, 60, 10))
+	embers.LightEmission = 1
+	embers.LightInfluence = 0
+	embers.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.45 * s), NumberSequenceKeypoint.new(1, 0) })
+	embers.Lifetime = NumberRange.new(0.4, 0.8)
+	embers.Rate = 14
+	embers.Speed = NumberRange.new(0.5 * s, 1 * s)
+	embers.Parent = fist
+	local _ = look
+end
+
+-- Manteau de la justice (amiral) porté sur les épaules : col relevé, manches vides,
+-- « 正義 » (justice) dans le dos.
+ACC.justice_coat = function(ctx, look)
+	local white = look.coatColor or Color3.fromRGB(246, 246, 248)
+	local mode = ctx.paint == "parts" and "parts" or nil
+	local back = ctx.add("Torso", "Coat", Vector3.new(2.5, 3.5, 0.12), CFrame.new(0, -0.6, 0.66) * CFrame.Angles(0.08, 0, 0), white)
+	Painter.panel(back, Enum.NormalId.Back, mode, white, nil, { folds = true })
+	if mode ~= "parts" then
+		local gui = back:FindFirstChildOfClass("SurfaceGui")
+		if gui then
+			local label = Instance.new("TextLabel")
+			label.Name = "Justice"
+			label.BackgroundTransparency = 1
+			label.AnchorPoint = Vector2.new(0.5, 0.5)
+			label.Position = UDim2.fromScale(0.5, 0.3)
+			label.Size = UDim2.fromScale(0.8, 0.22)
+			label.Text = "正義"
+			label.TextScaled = true
+			label.Font = Enum.Font.GothamBlack
+			label.TextColor3 = Color3.fromRGB(28, 26, 32)
+			label.ZIndex = 8
+			label.Parent = gui
+		end
+	end
+	ctx.add("Torso", "CoatCollar", Vector3.new(2.2, 0.55, 0.14), CFrame.new(0, 1.12, 0.58) * CFrame.Angles(-0.25, 0, 0), white)
+	for _, side in { -1, 1 } do
+		ctx.add("Torso", "CoatShoulder", Vector3.new(1.32, 0.28, 1.32), CFrame.new(side * 1.52, 1.06, 0.05), white)
+		local sleeve = ctx.add("Torso", "CoatSleeve", Vector3.new(0.14, 2.7, 1.1), CFrame.new(side * 2.12, -0.4, 0.18), white)
+		Painter.panel(sleeve, side < 0 and Enum.NormalId.Left or Enum.NormalId.Right, mode, white, nil, { folds = true })
+		ctx.add("Torso", "CoatCuff", Vector3.new(0.16, 0.2, 1.12), CFrame.new(side * 2.12, -1.65, 0.18), Color3.fromRGB(215, 215, 222))
+	end
+end
+
+-- Insigne de la casquette de marine (mouette blanche sur fond bleu).
+ACC.cap_badge = function(ctx, look)
+	local band = look.capBand or Color3.fromRGB(40, 60, 140)
+	local at = CFrame.new(0, 0.6, -0.72) * CFrame.Angles(math.rad(-14), 0, 0)
+	ctx.cyl("Head", "CapBadge", 0.05, 0.34, at * CFrame.Angles(0, math.pi / 2, 0), band)
+	-- Mouette : deux ailes en "V" aplati
+	for _, side in { -1, 1 } do
+		ctx.add("Head", "CapBadgeGull", Vector3.new(0.15, 0.04, 0.04), at * CFrame.new(side * 0.065, 0.01, -0.03) * CFrame.Angles(0, 0, side * 0.35), WHITE)
+	end
+	-- Visière bien visible (bleu marine, plus large)
+	ctx.add("Head", "CapBrimEdge", Vector3.new(1.1, 0.06, 0.12), CFrame.new(0, 0.29, -1.06) * CFrame.Angles(math.rad(-8), 0, 0), darken(band, 0.3))
+end
+
+-- Ceinture de corde nouée (bleu marine) + deux pans.
+ACC.rope_belt = function(ctx, look)
+	local color = look.beltColor or Color3.fromRGB(40, 50, 110)
+	ctx.add("Torso", "RopeBelt", Vector3.new(2.06, 0.22, 1.06), CFrame.new(0, -0.86, 0), color)
+	ctx.add("Torso", "RopeBeltLine", Vector3.new(2.07, 0.04, 1.07), CFrame.new(0, -0.86, 0), lighten(color, 0.3))
+	ctx.ball("Torso", "RopeKnot", Vector3.new(0.3, 0.26, 0.2), CFrame.new(-0.35, -0.86, -0.56), color)
+	ctx.strand("Torso", color, Vector3.new(-0.38, -0.95, -0.58), Vector3.new(-0.1, -1, -0.05), 0.75, 0.14)
+	ctx.strand("Torso", darken(color, 0.15), Vector3.new(-0.3, -0.95, -0.58), Vector3.new(0.12, -1, -0.05), 0.6, 0.13)
+end
+
+-- Sceau de la boussole (technique du démon) : flocon lumineux sous ses pieds.
+ACC.compass_sigil = function(ctx, look)
+	local color = look.sigilColor or Color3.fromRGB(140, 220, 255)
+	local props = { Material = Enum.Material.Neon, Transparency = 0.3, CastShadow = false }
+	local y = -2.94
+	local R = 2.6
+	local n = 12
+	for i = 0, n - 1 do
+		local a = (i + 0.5) / n * math.pi * 2
+		local len = 2 * R * math.sin(math.pi / n) + 0.04
+		ctx.add("HumanoidRootPart", "Sigil", Vector3.new(len, 0.04, 0.09), CFrame.new(math.cos(a) * R, y, math.sin(a) * R) * CFrame.Angles(0, -a + math.pi / 2, 0), color, props)
+	end
+	for i = 0, 5 do
+		local a = i / 6 * math.pi
+		ctx.add("HumanoidRootPart", "Sigil", Vector3.new(2 * R + 0.5, 0.04, 0.07), CFrame.new(0, y, 0) * CFrame.Angles(0, a, 0), color, props)
+	end
+	local _ = look
+end
+
+-- Effets communs des boss (look.boss = { rim, light, aura, paintLight }) :
+--   * liseré lumineux (Highlight) qui détache la silhouette du décor, même dans une arène de nuit ;
+--   * lumière douce sur lui + lumière de face (visage et tenue lisibles) ;
+--   * aura de particules ;
+--   * peinture moins sensible à l'éclairage ambiant (tenue et visage lisibles dans la pénombre).
+bossKit = function(ctx, look)
+	local spec = look.boss
+	local model, s = ctx.model, ctx.s
+	local rim = spec.rim or WHITE
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "BossRim"
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.FillColor = rim
+	highlight.FillTransparency = spec.fill or 0.88
+	highlight.OutlineColor = rim
+	highlight.OutlineTransparency = spec.outline or 0.2
+	highlight.Parent = model
+	local glow = Instance.new("PointLight")
+	glow.Name = "BossGlow"
+	glow.Color = spec.light or rim
+	glow.Brightness = spec.brightness or 0.9
+	glow.Range = math.min(60, 7 * s)
+	glow.Shadows = false
+	glow.Parent = ctx.limbs.Torso
+	-- Lumière de face (invisible, devant la poitrine)
+	local key = ctx.add("Torso", "BossKeyLight", Vector3.new(0.2, 0.2, 0.2), CFrame.new(0, 1.2, -3), WHITE, { Transparency = 1, CastShadow = false })
+	local front = Instance.new("PointLight")
+	front.Name = "BossKey"
+	front.Color = spec.light or rim
+	front.Brightness = spec.keyBrightness or 0.7
+	front.Range = math.min(60, 6 * s)
+	front.Shadows = false
+	front.Parent = key
+	if spec.aura then
+		local aura = Instance.new("ParticleEmitter")
+		aura.Name = "BossAura"
+		aura.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		aura.Color = ColorSequence.new(spec.aura)
+		aura.LightEmission = 1
+		aura.LightInfluence = 0
+		aura.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5 * s), NumberSequenceKeypoint.new(1, 0) })
+		aura.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(1, 1) })
+		aura.Lifetime = NumberRange.new(0.8, 1.4)
+		aura.Rate = 16
+		aura.Speed = NumberRange.new(0.6 * s, 1.4 * s)
+		aura.SpreadAngle = Vector2.new(40, 40)
+		aura.Acceleration = Vector3.new(0, 1.2 * s, 0)
+		aura.EmissionDirection = Enum.NormalId.Top
+		aura.Parent = ctx.limbs.Torso
+	end
+	for _, d in model:GetDescendants() do
+		if d:IsA("SurfaceGui") then
+			d.LightInfluence = spec.paintLight or 0.45
+			d.Brightness = 1.15
+		end
+	end
+end
+
+------------------------------------------------------------------------
 -- API
 ------------------------------------------------------------------------
 
@@ -1724,6 +2032,7 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 	model.Name = opts.name or "Character"
 
 	local ctx = newContext(model, s, opts.paint or "gui")
+	Painter.scale = s
 	buildBody(ctx, look)
 
 	local hairColor = look.hairColor or BLACK
@@ -1754,6 +2063,11 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 			builder(ctx, look)
 		end
 	end
+
+	if look.boss then
+		bossKit(ctx, look)
+	end
+	Painter.scale = 1
 
 	local root = ctx.limbs.HumanoidRootPart
 	model.PrimaryPart = root

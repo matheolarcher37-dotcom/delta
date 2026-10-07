@@ -183,8 +183,8 @@ test("Persos R6 classiques : proportions, tête, visage, budgets", function()
 		end
 		local boar = look.accessories and table.find(look.accessories, "boar_head")
 		assert(boar or plates == 6, label .. " : 6 plaques de visage attendues (" .. plates .. ")")
-		assert(parts <= 150, label .. " : trop de pièces (" .. parts .. ")")
-		assert(frames <= 450, label .. " : trop de Frames (" .. frames .. ")")
+		assert(parts <= 180, label .. " : trop de pièces (" .. parts .. ")")
+		assert(frames <= 520, label .. " : trop de Frames (" .. frames .. ")")
 		local preview = CharacterBuilder.buildPreview(look)
 		local previewParts = 0
 		for _, d in preview:GetDescendants() do

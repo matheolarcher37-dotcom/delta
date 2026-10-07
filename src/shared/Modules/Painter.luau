@@ -13,6 +13,12 @@
 
 local Painter = {}
 
+-- Échelle du perso en cours de construction (boss x4.2...) : réglée par CharacterBuilder.build.
+-- Les épaisseurs et tailles "en studs" des dessins sont données pour un perso d'échelle 1 :
+-- sans cette correction, plis, coutures et contours d'un boss géant devenaient 4 fois plus fins
+-- (tenue en gros aplats, sans détails).
+Painter.scale = 1
+
 local WHITE = Color3.fromRGB(255, 255, 255)
 local INK = Color3.fromRGB(28, 22, 30)
 local MOUTH = Color3.fromRGB(110, 26, 38)
@@ -308,7 +314,9 @@ local function surface(part: BasePart, face: Enum.NormalId, name: string, pixels
 	gui.Name = name
 	gui.Face = face
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = pixelsPerStud
+	-- Perso géant : un peu plus de pixels qu'à l'échelle 1 (vu de près), sans exploser la mémoire.
+	local k = Painter.scale or 1
+	gui.PixelsPerStud = pixelsPerStud * math.min(k, 2) / k
 	gui.LightInfluence = 1
 	-- Distance d'affichage proportionnelle à la taille de la pièce (boss géants vus de plus loin).
 	local biggest = math.max(part.Size.X, part.Size.Y, part.Size.Z)
@@ -322,7 +330,8 @@ end
 -- Feuille peinte sur une face d'une pièce (SurfaceGui, ou pièces fines si mode == "parts").
 function Painter.sheet(part: BasePart, face: Enum.NormalId, mode: string?, name: string?, pixelsPerStud: number?)
 	local w, h = faceSize(part.Size, face)
-	return newSheet(surface(part, face, name or ("Paint" .. face.Name), pixelsPerStud or 70, mode), w, h)
+	local k = Painter.scale or 1
+	return newSheet(surface(part, face, name or ("Paint" .. face.Name), pixelsPerStud or 70, mode), w / k, h / k)
 end
 
 -- Ancienne API : toile brute (utilisée par les motifs des accessoires).
@@ -758,6 +767,28 @@ function Painter.face(plates, look, mode: string?, geom)
 	T.line(0.03, noseY + 0.11, 0.0, noseY + 0.025, 0.016, Painter.shade(skin, 0.3), { transparency = 0.5, z = 2, fine = true })
 	if not has(look, "mask_lower") and not has(look, "muzzle") and not has(look, "mask_bandage") and not has(look, "collar_high") then
 		mouth(T, look, skin, look.mouthY or (eyeY - 0.46))
+	end
+	if look.lipColor then
+		-- Lèvres colorées (empereur du froid : lèvres violettes)
+		local my = look.mouthY or (eyeY - 0.46)
+		T.box(0.01, my - 0.012, 0.15, 0.03, look.lipColor, { corner = 0.5, z = 1 })
+	end
+	if look.eyeMarks then
+		-- Marques sous les yeux (traits qui prolongent le coin extérieur vers la joue)
+		for _, s in { -1, 1 } do
+			local x = s * (eyeX + 0.1 * k)
+			T.line(x, eyeY - 0.02, x + s * 0.05, eyeY - 0.2, 0.026, look.eyeMarks, { z = 8 })
+			T.line(s * (eyeX - 0.02), eyeY - 0.11, s * (eyeX + 0.06), eyeY - 0.13, 0.018, look.eyeMarks, { transparency = 0.2, z = 8 })
+		end
+	end
+	if look.eyeKanji and not T.lite then
+		-- Rang de lune démoniaque gravé dans les iris : petits traits dans chaque œil
+		for _, s in { -1, 1 } do
+			local x = s * eyeX
+			T.line(x - 0.035, eyeY + 0.01, x + 0.035, eyeY + 0.01, 0.012, look.eyeKanji, { z = 5, corner = 0 })
+			T.line(x - 0.025, eyeY - 0.03, x + 0.025, eyeY - 0.03, 0.012, look.eyeKanji, { z = 5, corner = 0 })
+			T.line(x, eyeY + 0.03, x, eyeY - 0.05, 0.01, look.eyeKanji, { z = 5, corner = 0 })
+		end
 	end
 	faceMarks(T, look, skin, eyeX, eyeY)
 	return canvas
@@ -1376,6 +1407,12 @@ local function paintArm(S, look, c, side: string, isLeft: boolean)
 			fold(S, 0.15, 0.62, 0.85, 0.66, col, { z = 9, w = 0.05 })
 		end
 	end
+	if look.armPlates and side ~= "in" then
+		-- Plaques des avant-bras (armure organique)
+		local col = look.armPlates
+		S:box(0.5, 0.66, 0.92, 0.62, col, { corner = 0.35, gradient = { lighten(col, 0.35), col, darken(col, 0.3) }, stroke = inkOf(col), strokeThickness = 1.3, z = 8 })
+		S:oval(0.38, 0.6, 0.22, 0.22, lighten(col, 0.6), { transparency = 0.35, z = 9, fine = true })
+	end
 	if look.armband and isLeft then
 		-- Bandana noué sur le bras gauche (sabreur)
 		local col = look.armband
@@ -1491,6 +1528,20 @@ local function paintLeg(S, look, c, side: string, isLeft: boolean)
 			-- Genou
 			fold(S, 0.32, 0.62, 0.68, 0.6, skin, { w = 0.05, z = 1 })
 		end
+	elseif look.pantsStyle == "hakama" then
+		-- Hakama : larges plis plats verticaux, ourlet du bas
+		cloth(S, bottom)
+		if inner then
+			edgeShade(S, inner, 0.3, bottom)
+		end
+		if side ~= "in" then
+			for _, x in { 0.22, 0.5, 0.78 } do
+				S:line(x, 0.02, x + (x - 0.5) * 0.15, 0.9, 0.022, inkOf(bottom), { corner = 0, z = 3 })
+				S:line(x + 0.05, 0.02, x + 0.05 + (x - 0.5) * 0.15, 0.9, 0.09, celShadow(bottom), { corner = 0, transparency = 0.5, z = 2, fine = true })
+			end
+			fold(S, 0.1, 0.62, 0.9, 0.66, bottom, { w = 0.08 })
+		end
+		band(S, 0.9, 0.04, shade(bottom, 0.15), 4)
 	elseif look.pantsStyle ~= "plain" then
 		ninjaPants(S, look, c, side, isLeft, inner)
 	else
@@ -1514,6 +1565,14 @@ local function paintLeg(S, look, c, side: string, isLeft: boolean)
 			seam(S, 0.5, 0.0, 0.5, 0.82, bottom)
 			fold(S, 0.06, 0.46, 0.94, 0.5, bottom)
 			fold(S, 0.1, 0.72, 0.9, 0.7, bottom, { w = 0.1 })
+		end
+	end
+	if look.shinPlates then
+		-- Plaques des tibias (armure organique), bombées avec un reflet
+		local col = look.shinPlates
+		if side ~= "in" then
+			S:box(0.5, 0.72, 0.9, 0.95, col, { corner = 0.35, gradient = { lighten(col, 0.35), col, darken(col, 0.3) }, stroke = inkOf(col), strokeThickness = 1.3, z = 7 })
+			S:oval(0.38, 0.64, 0.22, 0.3, lighten(col, 0.6), { transparency = 0.35, z = 8, fine = true })
 		end
 	end
 	-- Bandes de jambe (tibias bandés façon ninja / jambières de pourfendeur)
@@ -1817,8 +1876,10 @@ OUTFITS.openvest = function(S, look, c)
 		S:line(0.5 + s * 0.25, 0.0, 0.5 + s * 0.25, 1.0, 0.035, inkOf(top), { corner = 0, z = 3 })
 		S:line(0.5 + s * 0.235, 0.0, 0.5 + s * 0.235, 1.0, 0.018, lighten(top, 0.3), { corner = 0, transparency = 0.3, z = 3, fine = true })
 	end
-	for i = 0, 2 do
-		S:oval(0.2, 0.25 + i * 0.17, 0.075, 0.075, Color3.fromRGB(245, 205, 90), { stroke = Color3.fromRGB(150, 110, 40), strokeThickness = 1, z = 4 })
+	if not look.noButtons then
+		for i = 0, 2 do
+			S:oval(0.2, 0.25 + i * 0.17, 0.075, 0.075, Color3.fromRGB(245, 205, 90), { stroke = Color3.fromRGB(150, 110, 40), strokeThickness = 1, z = 4 })
+		end
 	end
 	fold(S, 0.05, 0.4, 0.18, 0.55, top, { w = 0.06 })
 	fold(S, 0.95, 0.4, 0.82, 0.55, top, { w = 0.06 })
@@ -1941,6 +2002,61 @@ OUTFITS.shirtless = function(S, look, c)
 	local _ = look
 end
 
+-- Combinaison organique de l'empereur du froid : corps blanc, plaque pectorale violette
+-- bombée (reflet), ventre en segments, flancs lavande.
+local function biosuitPlate(S, color: Color3, y: number, h: number)
+	S:oval(0.5, y, 1.08, h, color, { gradient = { lighten(color, 0.35), color, darken(color, 0.35) }, stroke = inkOf(color), strokeThickness = 1.4, z = 4 })
+	S:oval(0.36, y - 0.06, 0.34, 0.14, lighten(color, 0.6), { transparency = 0.35, rotation = -18, z = 5 })
+	S:oval(0.62, y + 0.05, 0.1, 0.06, lighten(color, 0.7), { transparency = 0.2, z = 5, fine = true })
+end
+
+OUTFITS.biosuit = function(S, look, c)
+	local body = c.top
+	local gem = c.accent
+	torsoEdges(S, body)
+	S:rect(0.08, 0.6, 0.16, 0.8, body:Lerp(gem, 0.18), { fade = { 0.2, 1 }, gradientRotation = 0, z = 1, fine = true })
+	S:rect(0.92, 0.6, 0.16, 0.8, body:Lerp(gem, 0.18), { fade = { 1, 0.2 }, gradientRotation = 0, z = 1, fine = true })
+	biosuitPlate(S, gem, 0.2, 0.62)
+	-- Ventre en segments (abdominaux de l'armure organique)
+	for i = 0, 3 do
+		local y = 0.5 + i * 0.105
+		S:line(0.3, y, 0.48, y + 0.012, 0.03, shade(body, 0.28), { transparency = 0.1, z = 3 })
+		S:line(0.7, y, 0.52, y + 0.012, 0.03, shade(body, 0.28), { transparency = 0.1, z = 3 })
+	end
+	S:line(0.5, 0.44, 0.5, 0.92, 0.03, shade(body, 0.3), { z = 3 })
+	fold(S, 0.06, 0.5, 0.26, 0.7, body, { w = 0.08 })
+	fold(S, 0.94, 0.5, 0.74, 0.7, body, { w = 0.08 })
+	local _ = look
+end
+
+-- Motif de roses (costume de l'amiral magma) : fleurs sombres à spirale + feuilles.
+local function roses(S, color: Color3, n: number, seed: number)
+	local dark = darken(color, 0.45)
+	-- Pseudo-hasard déterministe (même motif à chaque construction)
+	local function jitter(i: number, k: number): number
+		local v = math.sin((seed * 12.9898 + i * 78.233 + k * 37.719)) * 43758.5453
+		return v - math.floor(v)
+	end
+	for i = 0, n - 1 do
+		local x = (i % 2 == 0 and 0.27 or 0.72) + (jitter(i, 1) - 0.5) * 0.16
+		local y = (i + 0.5) / n + (jitter(i, 2) - 0.5) * 0.08
+		local r = 0.22 + jitter(i, 3) * 0.06
+		S:oval(x, y, r, r * 0.9, dark, { stroke = darken(color, 0.65), strokeThickness = 1, z = 2 })
+		S:oval(x + S:dx(0.02), y, r * 0.55, r * 0.5, color, { transparency = 0.35, stroke = darken(color, 0.7), strokeThickness = 1, z = 2, fine = true })
+		S:line(x - S:dx(r * 0.6), y + S:dy(r * 0.5), x - S:dx(r * 1.0), y + S:dy(r * 0.75), 0.07, darken(color, 0.55), { z = 2, fine = true })
+	end
+end
+Painter.roses = roses
+
+-- Tatouages de lignes du démon (Akazo) : bandes horizontales terminées par des crochets.
+local function lineTattoo(S, y: number, ink: Color3, x0: number?, x1: number?)
+	local a, b = x0 or 0, x1 or 1
+	S:line(a, y, b, y, 0.05, ink, { corner = 0, z = 9 })
+	S:line(b, y, b, y + S:dy(0.12), 0.05, ink, { corner = 0, z = 9, fine = true })
+	S:line(a, y, a, y + S:dy(0.12), 0.05, ink, { corner = 0, z = 9, fine = true })
+end
+Painter.lineTattoo = lineTattoo
+
 -- Peint le dos du torse.
 local function torsoBack(S, look, c)
 	local outfit = c.outfit
@@ -1992,6 +2108,17 @@ local function torsoBack(S, look, c)
 		S:oval(0.5, 0.0, 0.46, 0.12, shade(c.top, 0.12), { stroke = inkOf(c.top), strokeThickness = 1.2, z = 2 })
 	elseif outfit == "shirtless" then
 		S:line(0.5, 0.15, 0.5, 0.85, 0.03, shade(c.skin, 0.3), { transparency = 0.4, z = 2 })
+	elseif outfit == "biosuit" then
+		biosuitPlate(S, c.accent, 0.22, 0.52)
+		S:line(0.5, 0.45, 0.5, 0.9, 0.03, shade(c.top, 0.3), { z = 3 })
+	end
+	if look.pattern == "roses" and outfit ~= "shirtless" then
+		roses(S, c.top, 4, 7)
+	end
+	if look.bodyTattoo then
+		for _, y in { 0.3, 0.5, 0.7 } do
+			lineTattoo(S, y, look.bodyTattoo, 0.0, 1.0)
+		end
 	end
 	if outfit == "openvest" or outfit == "openshirt" or outfit == "shirt" then
 		if look.waistband then
@@ -2037,7 +2164,16 @@ function Painter.dress(limbs, look, mode: string?)
 			local S = Painter.sheet(torso, face, mode, "Shirt" .. face.Name, 70)
 			cloth(S, top)
 			if name == "front" then
+				if look.pattern == "roses" then
+					roses(S, top, 4, 3)
+				end
 				painter(S, look, c)
+				if look.bodyTattoo then
+					-- Lignes tatouées sur la poitrine et le ventre (visibles entre les pans ouverts)
+					for _, y in { 0.42, 0.6, 0.76 } do
+						lineTattoo(S, y, look.bodyTattoo, 0.3, 0.7)
+					end
+				end
 				if mode ~= "parts" then
 					for _, x in { 0, 1 } do
 						S:rect(x, 0.5, S:dx(0.05), 1, INK, { transparency = 0.55, z = 20 })
@@ -2081,10 +2217,19 @@ function Painter.dress(limbs, look, mode: string?)
 					continue -- face collée au torse / à l'autre jambe : inutile dans les aperçus
 				end
 				local S = Painter.sheet(part, face, mode, (isArm and "Sleeve" or "Pants") .. face.Name, 70)
+				if look.pattern == "roses" and side ~= "in" and (not isArm or c.sleeves == "long") then
+					roses(S, isArm and c.sleeve or c.bottom, 2, (isArm and 11 or 17) + (isLeft and 1 or 0))
+				end
 				if isArm then
 					paintArm(S, look, c, side, isLeft)
 				else
 					paintLeg(S, look, c, side, isLeft)
+				end
+				if look.bodyTattoo then
+					-- Anneaux tatoués : avant-bras / poignets, mollets et chevilles
+					for _, y in (isArm and { 0.56, 0.7, 0.8 } or { 0.66, 0.78 }) do
+						lineTattoo(S, y, look.bodyTattoo)
+					end
 				end
 				if side == "front" and mode ~= "parts" then
 					-- Contour encré des bords (comme les vêtements classiques dessinés à la main)
