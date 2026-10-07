@@ -1,6 +1,7 @@
 -- ÉVOLUTION (Autel d'Éveil) : faire évoluer une unité (★ → ★★ → ★★★) avec les matériaux de son
 -- univers ET l'objet d'évolution qu'elle demande (vendu par le Marchand ambulant : Boule du Dragon
--- pour Goko, Parchemin d'Ermite pour Maruto...). À gauche les unités (les prêtes d'abord), à droite
+-- pour Goko, Parchemin d'Ermite pour Maruto...). À gauche les unités (les prêtes d'abord, puis
+-- celles qui attendent un objet du Marchand ou des ressources, avec un ruban), à droite
 -- l'avant / après, les conditions (coches vertes / croix rouges), l'objet requis (possédé, manquant,
 -- « chez le marchand »), le prix et le bouton ÉVEILLER.
 
@@ -38,11 +39,6 @@ local function ownedItems(data, itemId: string): number
 	return type(items) == "table" and (items[itemId] or 0) or 0
 end
 
-local function isReady(entry): boolean
-	local cost = Formulas.evolutionCost(entry)
-	return cost ~= nil and entry.level >= cost.levelRequired
-end
-
 local function canAfford(entry, data): boolean
 	local cost = Formulas.evolutionCost(entry)
 	if not cost or entry.level < cost.levelRequired or data.coins < cost.coins then
@@ -59,6 +55,29 @@ local function canAfford(entry, data): boolean
 	end
 	return true
 end
+
+-- État d'une unité dans la liste :
+-- "ready" (tout est réuni), "item" (niveau atteint, il manque l'objet du marchand),
+-- "short" (niveau et objet OK, il manque des pièces ou des matériaux), "level", "max".
+local function evolveState(entry, data): string
+	local cost = Formulas.evolutionCost(entry)
+	if not cost then
+		return "max"
+	end
+	if entry.level < cost.levelRequired then
+		return "level"
+	end
+	if canAfford(entry, data) then
+		return "ready"
+	end
+	local need = EvolutionItems.requirement(entry)
+	if need and ownedItems(data, need.item) < need.amount then
+		return "item"
+	end
+	return "short"
+end
+
+local STATE_ORDER = { ready = 1, item = 2, short = 3, level = 4, max = 5 }
 
 -- Ce que vend le marchand en ce moment (pour dire « en vente maintenant ! »).
 local function refreshMerchantStock()
@@ -167,8 +186,9 @@ local function itemBox(parent: Instance, need, data, order: number)
 	return box
 end
 
-local function preview(parent: Instance, entry, x: number, starsText: string, tint: Color3)
+local function preview(parent: Instance, entry, x: number, starsText: string, tint: Color3, name: string)
 	local frame = new("Frame", {
+		Name = name,
 		Size = UDim2.new(0.42, 0, 1, 0),
 		Position = UDim2.fromScale(x, 0),
 		BackgroundColor3 = WHITE,
@@ -178,6 +198,8 @@ local function preview(parent: Instance, entry, x: number, starsText: string, ti
 	Theme.corner(14).Parent = frame
 	Theme.stroke(tint, 2.5).Parent = frame
 	Theme.gradient({ Color3.fromRGB(34, 34, 46), Color3.fromRGB(16, 16, 22), Theme.dark(tint, 0.6) }, 90).Parent = frame
+	-- L'aperçu « après » est construit avec les étoiles visées (Goko ★★ = look Super Guerrier).
+	frame:SetAttribute("Stars", entry.stars or 1)
 	local desc = Formulas.describe(entry)
 	if desc then
 		local holder = new("Frame", { Size = UDim2.new(1, 0, 1, -30), BackgroundTransparency = 1, Parent = frame })
@@ -238,12 +260,12 @@ local function renderDetail()
 
 	-- Avant / après
 	local compare = new("Frame", { Size = UDim2.new(1, -32, 0, 150), Position = UDim2.fromOffset(16, 52), BackgroundTransparency = 1, Parent = sheet })
-	preview(compare, entry, 0, string.rep("★", entry.stars or 1) .. "  Nv." .. entry.level, tint)
+	preview(compare, entry, 0, string.rep("★", entry.stars or 1) .. "  Nv." .. entry.level, tint, "Before")
 	Components.bigSymbol(compare, "arrowRight", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(56, 56) })
 	if cost then
 		local nextEntry = table.clone(entry)
 		nextEntry.stars = cost.stars
-		preview(compare, nextEntry, 0.58, string.rep("★", cost.stars) .. "  Nv. max " .. Formulas.levelCap(cost.stars), C.Gold)
+		preview(compare, nextEntry, 0.58, string.rep("★", cost.stars) .. "  Nv. max " .. Formulas.levelCap(cost.stars), C.Gold, "After")
 	else
 		local maxBox = new("Frame", { Size = UDim2.new(0.42, 0, 1, 0), Position = UDim2.fromScale(0.58, 0), BackgroundColor3 = WHITE, Parent = compare })
 		Theme.corner(14).Parent = maxBox
@@ -314,25 +336,87 @@ local function renderDetail()
 	Components.setPriceAffordable(price, data.coins >= cost.coins)
 end
 
+-- Ruban posé sur une carte d'unité : vert « PRÊT ! », orange « OBJET MANQUANT » (avec l'objet),
+-- gris-bleu « RESSOURCES » (pièces ou matériaux).
+local RIBBONS = {
+	ready = { name = "Ready", text = "PRÊT !", colors = { Color3.fromRGB(120, 255, 140), Color3.fromRGB(30, 170, 70) } },
+	item = { name = "MissingItem", text = "OBJET\nMANQUANT", colors = { Color3.fromRGB(255, 190, 80), Color3.fromRGB(220, 110, 20) } },
+	short = { name = "MissingCoins", text = "RESSOURCES\nMANQUANTES", colors = { Color3.fromRGB(150, 170, 200), Color3.fromRGB(80, 96, 130) } },
+}
+
+local function ribbon(card: Instance, state: string, entry)
+	local style = RIBBONS[state]
+	if not style then
+		return
+	end
+	local twoLines = state ~= "ready"
+	local frame = new("Frame", {
+		Name = style.name,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, -12, 0, twoLines and 34 or 24),
+		BackgroundColor3 = WHITE,
+		ZIndex = 6,
+		Parent = card,
+	})
+	Theme.corner(8).Parent = frame
+	Theme.stroke(C.Stroke, 2).Parent = frame
+	Theme.gradient(style.colors, 90).Parent = frame
+	local textLeft = 4
+	if state == "item" then
+		-- Mini-aperçu de l'objet qui manque (pastille ronde à gauche du ruban).
+		local need = EvolutionItems.requirement(entry)
+		local item = need and EvolutionItems.get(need.item)
+		if item then
+			local tier = EvolutionItems.Tiers[item.tier]
+			local badge = new("Frame", {
+				Name = "ItemIcon",
+				AnchorPoint = Vector2.new(0, 0.5),
+				Position = UDim2.new(0, 2, 0.5, 0),
+				Size = UDim2.fromOffset(30, 30),
+				BackgroundColor3 = Color3.fromRGB(24, 18, 30),
+				ClipsDescendants = true,
+				ZIndex = 7,
+				Parent = frame,
+			})
+			badge:SetAttribute("ItemId", item.id)
+			Theme.corner(15).Parent = badge
+			Theme.stroke(tier.color, 2).Parent = badge
+			local view = Components.viewport(badge, EvolutionItems.build(item.id, 1), Vector3.new(0, 1.35, 0), 6.2)
+			view.ZIndex = 8
+			textLeft = 34
+		end
+	end
+	Theme.label({
+		Text = style.text,
+		Size = UDim2.new(1, -textLeft - 4, 1, -4),
+		Position = UDim2.fromOffset(textLeft, 2),
+		FontFace = Theme.Faces.Title,
+		MaxSize = twoLines and 13 or nil,
+		ZIndex = 7,
+		Parent = frame,
+	})
+end
+
 local function renderList()
 	Components.clear(refs.list)
 	refs.selectedCard = nil
+	local data = State.data
 	local list = State.sortedCharacters()
+	local states: { [string]: string } = {}
+	for _, item in list do
+		states[item.uid] = data and evolveState(item.entry, data) or "level"
+	end
 	table.sort(list, function(a, b)
-		local ra, rb = isReady(a.entry), isReady(b.entry)
-		if ra ~= rb then
-			return ra
-		end
-		local ma, mb = Formulas.evolutionCost(a.entry) == nil, Formulas.evolutionCost(b.entry) == nil
-		if ma ~= mb then
-			return mb
+		local sa, sb = STATE_ORDER[states[a.uid]], STATE_ORDER[states[b.uid]]
+		if sa ~= sb then
+			return sa < sb
 		end
 		if a.power == b.power then
 			return a.uid < b.uid
 		end
 		return a.power > b.power
 	end)
-	local data = State.data
 	if selected and data and not data.characters[selected] then
 		selected = nil
 	end
@@ -343,13 +427,23 @@ local function renderList()
 	page = math.clamp(page, 1, pages)
 	refs.pager.set(page, pages)
 	refs.list.Size = UDim2.new(1, 0, 1, pages > 1 and -50 or 0)
-	local ready = 0
-	for _, item in list do
-		if isReady(item.entry) then
-			ready += 1
+	local counts = { ready = 0, item = 0, short = 0 }
+	for _, state in states do
+		if counts[state] then
+			counts[state] += 1
 		end
 	end
-	window.subtitle.Text = ready > 0 and (ready .. " unité(s) prête(s) à évoluer !") or "Monte le niveau de tes unités pour les faire évoluer"
+	local parts = {}
+	if counts.ready > 0 then
+		table.insert(parts, counts.ready .. " prête(s) à évoluer !")
+	end
+	if counts.item > 0 then
+		table.insert(parts, counts.item .. " attend(ent) un objet du Marchand")
+	end
+	if counts.short > 0 then
+		table.insert(parts, counts.short .. " attend(ent) des pièces ou des matériaux")
+	end
+	window.subtitle.Text = #parts > 0 and table.concat(parts, "  ·  ") or "Monte le niveau de tes unités pour les faire évoluer"
 	if #list == 0 then
 		Components.emptyState(refs.list, "Aucune unité. Roule à la machine ROULER !", "dice")
 	end
@@ -368,21 +462,7 @@ local function renderList()
 		if item.uid == selected then
 			refs.selectedCard = card
 		end
-		if isReady(item.entry) then
-			local ribbon = new("Frame", {
-				Name = "Ready",
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.fromScale(0.5, 0.5),
-				Size = UDim2.new(1, -16, 0, 24),
-				BackgroundColor3 = WHITE,
-				ZIndex = 6,
-				Parent = card,
-			})
-			Theme.corner(8).Parent = ribbon
-			Theme.stroke(C.Stroke, 2).Parent = ribbon
-			Theme.gradient({ Color3.fromRGB(120, 255, 140), Color3.fromRGB(30, 170, 70) }, 90).Parent = ribbon
-			Theme.label({ Text = "PRÊT !", Size = UDim2.new(1, -8, 1, -4), Position = UDim2.fromOffset(4, 2), FontFace = Theme.Faces.Title, ZIndex = 7, Parent = ribbon })
-		end
+		ribbon(card, states[item.uid], item.entry)
 	end
 end
 
@@ -429,7 +509,7 @@ function Evolution.init(gui: ScreenGui)
 		end
 		local parts = { tostring(selected), tostring(math.floor(data.coins / 1000)) }
 		for uid, entry in data.characters do
-			table.insert(parts, uid .. ":" .. entry.level .. ":" .. entry.stars)
+			table.insert(parts, uid .. ":" .. entry.level .. ":" .. entry.stars .. ":" .. evolveState(entry, data))
 		end
 		for id, count in data.materials do
 			table.insert(parts, id .. "=" .. count)

@@ -200,7 +200,7 @@ EvolutionItems.List = {
 		price = 20000,
 		signature = true,
 		desc = "La boule à quatre étoiles. Goko passe SUPER GUERRIER (★★), comme Vejeta et Gohon.",
-		look = { kind = "dragonball", color = rgb(255, 150, 30), accent = rgb(220, 30, 30), stars = 4 },
+		look = { kind = "dragonball", color = rgb(255, 140, 20), accent = rgb(200, 20, 20), stars = 4 },
 	},
 	{
 		id = "sai_ki_divin",
@@ -412,6 +412,21 @@ function EvolutionItems.spotIndex(window: number, count: number): number
 	return ((window * 5 + math.floor(window / count)) % count) + 1
 end
 
+-- Objets signature d'un univers (hors objets de base déjà garantis), dans l'ordre du catalogue.
+function EvolutionItems.signatures(universeId: string?): { string }
+	local result = {}
+	local set = universeId and EvolutionItems.Universe[universeId]
+	if not set then
+		return result
+	end
+	for _, item in EvolutionItems.List do
+		if item.signature and item.universe == universeId and item.id ~= set[1] and item.id ~= set[2] then
+			table.insert(result, item.id)
+		end
+	end
+	return result
+end
+
 local function hashString(text: string?): number
 	local h = 0
 	for i = 1, #(text or "") do
@@ -437,6 +452,16 @@ function EvolutionItems.stock(window: number, universeId: string?)
 	if set then
 		add(set[1])
 		add(set[2])
+	end
+	-- Objets SIGNATURE de l'univers actuel : toujours au moins un en vente (deux si l'univers en a
+	-- 3 ou plus), et ils tournent d'un passage à l'autre. Exemple : en univers Guerriers, la Boule
+	-- du Dragon revient un passage sur deux.
+	local signatures = EvolutionItems.signatures(universeId)
+	if #signatures > 0 then
+		local count = #signatures >= 3 and 2 or 1
+		for k = 0, count - 1 do
+			add(signatures[((window * count + k) % #signatures) + 1])
+		end
 	end
 	local merchant = EvolutionItems.Merchant
 	while #result < merchant.Slots do
@@ -536,28 +561,37 @@ end
 
 local KINDS = {}
 
--- Boule du Dragon : verre orange, étoiles rouges à l'intérieur, reflet, coussin.
+-- Boule du Dragon : sphère de verre orange vif, étoiles rouges bien nettes collées à la surface,
+-- petit reflet arrondi, coussin de velours.
 KINDS.dragonball = function(ctx, look)
 	ctx.cushion(rgb(150, 30, 40))
 	local center = CFrame.new(0, 1.45, 0)
-	ctx.add("Orb", Vector3.new(2.1, 2.1, 2.1), center, look.color, { Shape = BALL, Material = Enum.Material.Glass, Transparency = 0.35, Reflectance = 0.2 })
-	ctx.add("Core", Vector3.new(1.3, 1.3, 1.3), center, lighten(look.color, 0.2), { Shape = BALL, Material = NEON, Transparency = 0.7 })
+	ctx.add("Orb", Vector3.new(2.1, 2.1, 2.1), center, look.color, { Shape = BALL, Material = Enum.Material.Glass, Transparency = 0.15, Reflectance = 0.15 })
+	-- Lueur intérieure très légère (la boule reste orange franc, pas une tache floue).
+	ctx.add("Core", Vector3.new(1.5, 1.5, 1.5), center, lighten(look.color, 0.35), { Shape = BALL, Material = NEON, Transparency = 0.9 })
 	local positions = {
 		[1] = { Vector2.new(0, 0) },
 		[2] = { Vector2.new(-0.3, 0.2), Vector2.new(0.3, -0.2) },
-		[3] = { Vector2.new(0, 0.35), Vector2.new(-0.32, -0.2), Vector2.new(0.32, -0.2) },
-		[4] = { Vector2.new(0, 0.4), Vector2.new(-0.4, 0), Vector2.new(0.4, 0), Vector2.new(0, -0.4) },
+		[3] = { Vector2.new(0, 0.36), Vector2.new(-0.34, -0.22), Vector2.new(0.34, -0.22) },
+		[4] = { Vector2.new(0, 0.42), Vector2.new(-0.42, 0), Vector2.new(0.42, 0), Vector2.new(0, -0.42) },
 	}
 	for _, p in positions[math.clamp(look.stars or 4, 1, 4)] do
-		ctx.star("Star", 0.4, center * CFrame.new(p.X, p.Y, -0.95), look.accent)
+		-- Posée juste sur la surface du verre (rayon 1,05), à plat, pour rester nette.
+		local z = -math.sqrt(math.max(0, 1.06 * 1.06 - p.X * p.X - p.Y * p.Y))
+		local spot = Vector3.new(p.X, p.Y, z)
+		ctx.star("Star", 0.55, center * CFrame.lookAt(Vector3.zero, spot) * CFrame.new(0, 0, -spot.Magnitude), look.accent)
 	end
-	ctx.add(
+	-- Reflet : petit ovale blanc, en haut à gauche.
+	local shine = ctx.add(
 		"Shine",
-		Vector3.new(0.5, 0.32, 0.1),
-		center * CFrame.new(-0.5, 0.55, -0.8) * CFrame.Angles(0, 0, math.rad(30)),
+		Vector3.new(0.5, 0.3, 0.1),
+		center * CFrame.new(-0.48, 0.55, -0.78) * CFrame.Angles(0.5, -0.45, math.rad(30)),
 		rgb(255, 255, 255),
-		{ Material = NEON, Transparency = 0.2 }
+		{ Material = NEON, Transparency = 0.4 }
 	)
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere
+	mesh.Parent = shine
 end
 
 -- Œil du clan : médaillon doré, iris rouge, pupille, virgules (ou motif « éternel »).

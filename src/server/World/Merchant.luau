@@ -36,6 +36,8 @@ local GOLD = rgb(240, 196, 80)
 Merchant.Color = EvolutionItems.Merchant.Color
 Merchant.DeckTop = 1.1
 Merchant.BeamHeight = 900
+Merchant.WagonYaw = 22 -- rotation de la roulotte (degrés)
+Merchant.BeaconZ = 17.6 -- position de la balise, derrière l'échoppe
 local DISPLAY_SCALE = 0.75 -- taille des objets exposés sur les étagères
 
 local SIGN_FONT = Font.new("rbxasset://fonts/families/Fondamento.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
@@ -101,7 +103,9 @@ local function buildWagon(model: Model, cf: CFrame)
 	local bodyH = 6.4
 	local bodyTop = bodyBottom + bodyH
 	local L, D = 15, 7.6
-	local center = cf * CFrame.new(0, 0, 6.4)
+	-- Tournée de 22° et un peu décalée : depuis l'accès, on voit son flanc peint (volets,
+	-- jardinière, rosaces) et ses roues, pas seulement le haut de sa façade derrière le comptoir.
+	local center = cf * CFrame.new(1, 0, 5.6) * CFrame.Angles(0, math.rad(Merchant.WagonYaw), 0)
 	-- Châssis, caisse peinte et dorures.
 	part(wagon, "Chassis", Vector3.new(L + 0.6, 0.6, D - 1), center * CFrame.new(0, bodyBottom - 0.3, 0), WOOD_DARK, Enum.Material.Wood)
 	part(wagon, "Body", Vector3.new(L, bodyH, D), center * CFrame.new(0, bodyBottom + bodyH / 2, 0), PAINT, Enum.Material.WoodPlanks)
@@ -185,7 +189,7 @@ local function buildWagon(model: Model, cf: CFrame)
 			wagon,
 			"Shaft",
 			(center * CFrame.new(x * 2, bodyBottom - 0.2, D / 2)).Position,
-			(center * CFrame.new(x * 2.2, deck + 0.3, D / 2 + 6)).Position,
+			(center * CFrame.new(x * 2.2, deck + 0.3, D / 2 + 3.4)).Position,
 			0.35,
 			0.35,
 			WOOD_DARK,
@@ -263,13 +267,17 @@ local function buildFront(model: Model, cf: CFrame): BasePart
 
 	-- Auvent rayé : de la roulotte jusqu'à la poutre avant (poteaux à x = ±7,6, z = -7).
 	local frontZ, frontY = -7.2, deck + 9.2
-	local backZ, backY = 2.4, deck + 12.6
+	local backZ, backY = 0.8, deck + 12.0
 	for _, x in { -1, 1 } do
 		part(stall, "Pole", Vector3.new(0.7, frontY - deck + 0.4, 0.7), cf * CFrame.new(x * 7.6, deck + (frontY - deck) / 2, frontZ), WOOD_DARK, Enum.Material.Wood)
 		deco(stall, "PoleFoot", Vector3.new(1.2, 0.5, 1.2), cf * CFrame.new(x * 7.6, deck + 0.25, frontZ), STONE, Enum.Material.Slate)
 		deco(stall, "PoleCap", Vector3.new(0.9, 0.9, 0.9), cf * CFrame.new(x * 7.6, frontY + 0.6, frontZ), GOLD, Enum.Material.Metal).Shape = Enum.PartType.Ball
+		-- Poteaux arrière (l'auvent ne s'appuie plus sur la roulotte, qui est tournée).
+		part(stall, "BackPole", Vector3.new(0.6, backY - deck, 0.6), cf * CFrame.new(x * 7.9, deck + (backY - deck) / 2, backZ), WOOD_DARK, Enum.Material.Wood)
+		deco(stall, "PoleFoot", Vector3.new(1.1, 0.5, 1.1), cf * CFrame.new(x * 7.9, deck + 0.25, backZ), STONE, Enum.Material.Slate)
 	end
 	deco(stall, "FrontBeam", Vector3.new(16, 0.6, 0.6), cf * CFrame.new(0, frontY, frontZ), WOOD_DARK, Enum.Material.Wood)
+	deco(stall, "BackBeam", Vector3.new(16.4, 0.5, 0.5), cf * CFrame.new(0, backY - 0.3, backZ), WOOD_DARK, Enum.Material.Wood)
 	local a = Vector3.new(0, frontY + 0.35, frontZ)
 	local b = Vector3.new(0, backY, backZ)
 	local length = (b - a).Magnitude
@@ -297,32 +305,51 @@ local function buildFront(model: Model, cf: CFrame): BasePart
 		Props.hangingLantern(stall, (cf * CFrame.new(x * 7.6, frontY - 1.6, frontZ)).Position, cf:VectorToWorldSpace(Vector3.new(x * 1.6, 0, 0)), rgb(255, 170, 80), 0.9)
 	end
 
-	-- Enseigne de bois sculptée « MARCHAND », suspendue par deux chaînes sous la poutre.
-	local signCF = cf * CFrame.new(0, frontY - 1.75, frontZ - 0.35)
-	for _, x in { -3.2, 3.2 } do
+	-- Grande enseigne de bois sculptée « MARCHAND », dressée AU-DESSUS de l'auvent, face à l'accès
+	-- (rien ne pend devant le vendeur). La plaque « Objets d'évolution » est posée sur la poutre,
+	-- sous l'enseigne, et y est reliée par deux chaînes.
+	local K = 1.6
+	local subCF = cf * CFrame.new(0, frontY + 0.3 + 0.55, frontZ - 0.5)
+	local signCF = subCF * CFrame.new(0, 0.55 + 0.7 + 1.2 * K, -0.05)
+	-- Montants qui tiennent l'enseigne, plantés dans la poutre.
+	for _, x in { -1, 1 } do
+		deco(stall, "SignPost", Vector3.new(0.5, 3.6 * K, 0.5), cf * CFrame.new(x * 3.9 * K, frontY + 1.8 * K, frontZ - 0.05), WOOD_DARK, Enum.Material.Wood)
+		deco(stall, "SignPostCap", Vector3.new(0.7, 0.7, 0.7), cf * CFrame.new(x * 3.9 * K, frontY + 3.6 * K + 0.3, frontZ - 0.05), GOLD, Enum.Material.Metal).Shape =
+			Enum.PartType.Ball
 		for k = 0, 1 do
 			deco(
 				stall,
 				"Chain",
-				Vector3.new(0.12, 0.34, 0.24),
-				signCF * CFrame.new(x, 1.25 + k * 0.3, 0) * CFrame.Angles(0, k % 2 == 0 and 0 or math.rad(90), 0),
+				Vector3.new(0.14, 0.4, 0.26),
+				signCF * CFrame.new(x * 2.6, -1.2 * K - 0.25 - k * 0.36, 0) * CFrame.Angles(0, k % 2 == 0 and 0 or math.rad(90), 0),
 				rgb(70, 70, 74),
 				Enum.Material.Metal
 			)
 		end
 	end
-	deco(stall, "SignFrame", Vector3.new(9.4, 2.4, 0.35), signCF, WOOD_DARK, Enum.Material.Wood)
-	local plank = deco(stall, "Sign", Vector3.new(8.8, 1.9, 0.45), signCF, rgb(118, 82, 52), Enum.Material.WoodPlanks)
-	for _, x in { -4.1, 4.1 } do
-		deco(stall, "SignCorner", Vector3.new(0.5, 0.5, 0.5), signCF * CFrame.new(x, 0.85, -0.05) * CFrame.Angles(0, 0, math.rad(45)), GOLD, Enum.Material.Metal)
-		deco(stall, "SignCorner", Vector3.new(0.5, 0.5, 0.5), signCF * CFrame.new(x, -0.85, -0.05) * CFrame.Angles(0, 0, math.rad(45)), GOLD, Enum.Material.Metal)
+	deco(stall, "SignFrame", Vector3.new(9.4 * K, 2.4 * K, 0.4), signCF, WOOD_DARK, Enum.Material.Wood)
+	local plank = deco(stall, "Sign", Vector3.new(8.8 * K, 1.9 * K, 0.5), signCF, rgb(118, 82, 52), Enum.Material.WoodPlanks)
+	-- Fronton sculpté au-dessus de l'enseigne.
+	deco(stall, "SignCrest", Vector3.new(3.2 * K, 0.7, 0.42), signCF * CFrame.new(0, 1.2 * K + 0.3, 0), WOOD_DARK, Enum.Material.Wood)
+	deco(stall, "SignCrestGem", Vector3.new(0.7, 0.7, 0.5), signCF * CFrame.new(0, 1.2 * K + 0.45, -0.05) * CFrame.Angles(0, 0, math.rad(45)), Merchant.Color, Enum.Material.Neon)
+	for _, x in { -4.1 * K, 4.1 * K } do
+		for _, y in { 0.85 * K, -0.85 * K } do
+			deco(stall, "SignCorner", Vector3.new(0.7, 0.7, 0.6), signCF * CFrame.new(x, y, -0.05) * CFrame.Angles(0, 0, math.rad(45)), GOLD, Enum.Material.Metal)
+		end
 	end
-	-- Petits motifs peints : une bourse dorée à gauche, un parchemin à droite.
-	cyl(stall, "MotifCoin", Vector3.new(0.12, 0.9, 0.9), signCF * CFrame.new(-3.55, 0, -0.26) * CFrame.Angles(0, math.rad(90), 0), GOLD, Enum.Material.Metal)
-	cyl(stall, "MotifCoinInner", Vector3.new(0.14, 0.5, 0.5), signCF * CFrame.new(-3.55, 0, -0.27) * CFrame.Angles(0, math.rad(90), 0), shade(GOLD, -0.25), Enum.Material.Metal)
-	cyl(stall, "MotifScroll", Vector3.new(0.9, 0.36, 0.36), signCF * CFrame.new(3.55, 0, -0.27), rgb(240, 226, 190))
-	for _, x in { 3.1, 4.0 } do
-		cyl(stall, "MotifScrollEnd", Vector3.new(0.14, 0.48, 0.48), signCF * CFrame.new(x, 0, -0.27), rgb(160, 40, 60))
+	-- Petits motifs peints : une pièce dorée à gauche, un parchemin à droite.
+	cyl(stall, "MotifCoin", Vector3.new(0.14, 0.9 * K, 0.9 * K), signCF * CFrame.new(-3.55 * K, 0, -0.3) * CFrame.Angles(0, math.rad(90), 0), GOLD, Enum.Material.Metal)
+	cyl(
+		stall,
+		"MotifCoinInner",
+		Vector3.new(0.16, 0.5 * K, 0.5 * K),
+		signCF * CFrame.new(-3.55 * K, 0, -0.31) * CFrame.Angles(0, math.rad(90), 0),
+		shade(GOLD, -0.25),
+		Enum.Material.Metal
+	)
+	cyl(stall, "MotifScroll", Vector3.new(0.9 * K, 0.36 * K, 0.36 * K), signCF * CFrame.new(3.55 * K, 0, -0.32), rgb(240, 226, 190))
+	for _, x in { 3.1 * K, 4.0 * K } do
+		cyl(stall, "MotifScrollEnd", Vector3.new(0.16, 0.48 * K, 0.48 * K), signCF * CFrame.new(x, 0, -0.32), rgb(160, 40, 60))
 	end
 	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
 		local label = Build.surfaceText(plank, face, "MARCHAND", rgb(250, 214, 120), {
@@ -333,10 +360,8 @@ local function buildFront(model: Model, cf: CFrame): BasePart
 		label.Size = UDim2.new(0.66, 0, 0.84, 0)
 		label.Position = UDim2.new(0.17, 0, 0.08, 0)
 	end
-	local sub = deco(stall, "SubSign", Vector3.new(6.4, 0.9, 0.25), signCF * CFrame.new(0, -1.55, 0), rgb(236, 220, 186), Enum.Material.Wood)
-	for _, x in { -2, 2 } do
-		deco(stall, "SubChain", Vector3.new(0.1, 0.5, 0.1), signCF * CFrame.new(x, -1.2, 0), rgb(70, 70, 74), Enum.Material.Metal)
-	end
+	deco(stall, "SubSignFrame", Vector3.new(7.6, 1.3, 0.3), subCF * CFrame.new(0, 0, 0.04), WOOD_DARK, Enum.Material.Wood)
+	local sub = deco(stall, "SubSign", Vector3.new(7.2, 1.0, 0.35), subCF, rgb(236, 220, 186), Enum.Material.Wood)
 	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
 		local label = Build.surfaceText(sub, face, "Objets d'évolution", rgb(90, 40, 30), { TextStrokeTransparency = 1 })
 		label.FontFace = SIGN_FONT
@@ -351,12 +376,30 @@ end
 local function buildBeacon(model: Model, cf: CFrame): BasePart
 	local beacon = Build.model(model, "Balise")
 	local color = Merchant.Color
-	local base = cf * CFrame.new(0, 0, 14.5)
+	local base = cf * CFrame.new(0, 0, Merchant.BeaconZ)
 	-- Socle de pierre gravée et cercle lumineux au sol.
 	Core.vcyl(beacon, "BeaconBase", base, 1.2, 6.4, STONE, Enum.Material.Slate)
 	Core.vcyl(beacon, "BeaconStep", base * CFrame.new(0, 1.2, 0), 0.8, 4.6, shade(STONE, -0.1), Enum.Material.Slate)
 	local ring = cyl(beacon, "GlowRing", Vector3.new(0.12, 9, 9), base * CFrame.new(0, 0.08, 0) * CFrame.Angles(0, 0, math.rad(90)), color, Enum.Material.Neon)
 	ring.Transparency = 0.55
+	-- Grand anneau lumineux au sol (16 segments) et lueur diffuse dedans.
+	local glow = cyl(beacon, "GroundGlow", Vector3.new(0.1, 14, 14), base * CFrame.new(0, 0.05, 0) * CFrame.Angles(0, 0, math.rad(90)), color, Enum.Material.Neon)
+	glow.Transparency = 0.82
+	glow.CastShadow = false
+	local ringRadius = 6.6
+	for i = 0, 15 do
+		local a = i * math.pi / 8
+		local seg = deco(
+			beacon,
+			"GroundRing",
+			Vector3.new(2.7, 0.16, 0.6),
+			base * CFrame.Angles(0, -a, 0) * CFrame.new(0, 0.1, -ringRadius),
+			Color3.new(1, 1, 1):Lerp(color, 0.5),
+			Enum.Material.Neon
+		)
+		seg.Transparency = 0.15
+		seg.CastShadow = false
+	end
 	-- Mât de bois sculpté, cerclé de métal doré.
 	Core.vcyl(beacon, "Mast", base * CFrame.new(0, 2, 0), 12, 1.3, WOOD_DARK, Enum.Material.Wood, true)
 	for _, y in { 3.2, 7.0, 11.4 } do
@@ -388,12 +431,20 @@ local function buildBeacon(model: Model, cf: CFrame): BasePart
 	local beamCF = crystalCF * CFrame.new(0, height / 2, 0) * CFrame.Angles(0, 0, math.rad(90))
 	local layers = {
 		{ "LightCore", 1.6, Color3.new(1, 1, 1):Lerp(color, 0.2), 0.05 },
-		{ "LightColumn", 4.4, color, 0.3 },
-		{ "LightHalo", 12, color, 0.84 },
+		{ "LightColumn", 7.5, color, 0.2 },
+		{ "LightHalo", 26, color, 0.6 },
+		{ "LightHalo2", 50, color, 0.85 },
 	}
 	for _, layer in layers do
 		local p = cyl(beacon, layer[1], Vector3.new(height, layer[2], layer[2]), beamCF, layer[3], Enum.Material.Neon)
 		p.Transparency = layer[4]
+		p.CastShadow = false
+	end
+	-- Éclat au sommet du rayon.
+	for _, flare in { { "TopFlare", 30, 0.45 }, { "TopFlareHalo", 80, 0.85 } } do
+		local p = deco(beacon, flare[1], Vector3.new(flare[2], flare[2], flare[2]), crystalCF * CFrame.new(0, height, 0), Color3.new(1, 1, 1):Lerp(color, 0.4), Enum.Material.Neon)
+		p.Shape = Enum.PartType.Ball
+		p.Transparency = flare[3]
 		p.CastShadow = false
 	end
 	-- Étincelles qui montent le long du rayon (Beam texturé qui défile + particules).
@@ -416,8 +467,8 @@ local function buildBeacon(model: Model, cf: CFrame): BasePart
 	sparkBeam.TextureMode = Enum.TextureMode.Static
 	sparkBeam.TextureLength = 14
 	sparkBeam.TextureSpeed = -0.6
-	sparkBeam.Width0 = 8
-	sparkBeam.Width1 = 10
+	sparkBeam.Width0 = 16
+	sparkBeam.Width1 = 20
 	sparkBeam.FaceCamera = true
 	sparkBeam.Transparency = NumberSequence.new(0.15)
 	sparkBeam.Parent = core
@@ -484,6 +535,56 @@ local function buildBeacon(model: Model, cf: CFrame): BasePart
 	status.TextColor3 = rgb(244, 230, 210)
 	status.TextStrokeTransparency = 0.5
 	status.Parent = plate
+	-- Seconde étiquette, haut sur le rayon (~120 studs), toujours au premier plan : on la voit
+	-- au-dessus des arbres et des bâtiments depuis toute la carte.
+	local sky = Instance.new("BillboardGui")
+	sky.Name = "MerchantSkyLabel"
+	sky.Size = UDim2.fromOffset(230, 64)
+	sky.StudsOffsetWorldSpace = Vector3.new(0, 120, 0)
+	sky.MaxDistance = 4000
+	sky.LightInfluence = 0
+	sky.AlwaysOnTop = true
+	sky.Adornee = core
+	sky.Parent = core
+	local skyPlate = Instance.new("Frame")
+	skyPlate.Name = "Plate"
+	skyPlate.Size = UDim2.new(1, 0, 0, 46)
+	skyPlate.BackgroundColor3 = rgb(52, 30, 24)
+	skyPlate.BackgroundTransparency = 0.08
+	skyPlate.Parent = sky
+	local skyCorner = Instance.new("UICorner")
+	skyCorner.CornerRadius = UDim.new(0, 10)
+	skyCorner.Parent = skyPlate
+	local skyStroke = Instance.new("UIStroke")
+	skyStroke.Color = color
+	skyStroke.Thickness = 3
+	skyStroke.Parent = skyPlate
+	local skyGradient = Instance.new("UIGradient")
+	skyGradient.Color = ColorSequence.new(rgb(140, 100, 70), rgb(60, 36, 26))
+	skyGradient.Rotation = 90
+	skyGradient.Parent = skyPlate
+	local skyTitle = Instance.new("TextLabel")
+	skyTitle.Name = "Title"
+	skyTitle.BackgroundTransparency = 1
+	skyTitle.Size = UDim2.new(1, -16, 1, -8)
+	skyTitle.Position = UDim2.fromOffset(8, 4)
+	skyTitle.FontFace = SIGN_FONT
+	skyTitle.Text = "MARCHAND"
+	skyTitle.TextScaled = true
+	skyTitle.TextColor3 = rgb(255, 222, 130)
+	skyTitle.TextStrokeTransparency = 0.3
+	skyTitle.TextStrokeColor3 = rgb(40, 20, 10)
+	skyTitle.Parent = skyPlate
+	-- Petite pointe sous la plaque, qui désigne le rayon.
+	local tip = Instance.new("Frame")
+	tip.Name = "Tip"
+	tip.AnchorPoint = Vector2.new(0.5, 0.5)
+	tip.Position = UDim2.new(0.5, 0, 0, 48)
+	tip.Size = UDim2.fromOffset(16, 16)
+	tip.Rotation = 45
+	tip.BackgroundColor3 = color
+	tip.BorderSizePixel = 0
+	tip.Parent = sky
 	return core
 end
 
@@ -495,13 +596,13 @@ local function buildDeck(model: Model, cf: CFrame)
 	local deck = Merchant.DeckTop
 	local floor = Build.model(model, "Plancher")
 	-- Fondation de pierre (descend sous le sol pour les terrains en pente) et plancher.
-	part(floor, "Foundation", Vector3.new(27, 5, 21), cf * CFrame.new(0, deck - 2.9, 1.2), STONE, Enum.Material.Cobblestone)
-	part(floor, "Deck", Vector3.new(26, 0.4, 20), cf * CFrame.new(0, deck - 0.2, 1.2), WOOD, Enum.Material.WoodPlanks)
-	for _, z in { -8.8, 11.2 } do
+	part(floor, "Foundation", Vector3.new(27, 5, 23), cf * CFrame.new(0, deck - 2.9, 2.2), STONE, Enum.Material.Cobblestone)
+	part(floor, "Deck", Vector3.new(26, 0.4, 22), cf * CFrame.new(0, deck - 0.2, 2.2), WOOD, Enum.Material.WoodPlanks)
+	for _, z in { -8.8, 13.2 } do
 		deco(floor, "DeckEdge", Vector3.new(26.4, 0.5, 0.5), cf * CFrame.new(0, deck - 0.15, z), WOOD_DARK, Enum.Material.Wood)
 	end
 	for _, x in { -13, 13 } do
-		deco(floor, "DeckEdge", Vector3.new(0.5, 0.5, 20.4), cf * CFrame.new(x, deck - 0.15, 1.2), WOOD_DARK, Enum.Material.Wood)
+		deco(floor, "DeckEdge", Vector3.new(0.5, 0.5, 22.4), cf * CFrame.new(x, deck - 0.15, 2.2), WOOD_DARK, Enum.Material.Wood)
 	end
 	-- Marches à l'avant.
 	part(floor, "Step", Vector3.new(14, 0.55, 1.8), cf * CFrame.new(0, deck - 0.55, -9.7), STONE, Enum.Material.Slate)
@@ -530,7 +631,7 @@ local function buildProps(model: Model, cf: CFrame)
 		deco(props, "ChestBand", Vector3.new(0.25, 1.45, 1.75), chestCF * CFrame.new(x * 0.9, 0.7, 0), GOLD, Enum.Material.Metal)
 	end
 	-- Grand sac à dos de voyage et couverture roulée, posés contre la roue.
-	local packCF = floorCF * CFrame.new(8.6, 0, 1.6) * CFrame.Angles(0, -0.4, 0)
+	local packCF = floorCF * CFrame.new(11, 0, 9.6) * CFrame.Angles(0, -0.9, 0)
 	Core.ellipsoid(props, "Backpack", Vector3.new(2.4, 3.2, 1.8), packCF * CFrame.new(0, 1.6, 0), rgb(130, 90, 60), Enum.Material.Fabric)
 	cyl(props, "Bedroll", Vector3.new(2.6, 1.0, 1.0), packCF * CFrame.new(0, 3.3, 0), rgb(60, 100, 140), Enum.Material.Fabric)
 	deco(props, "PackStrap", Vector3.new(0.3, 3.0, 1.9), packCF * CFrame.new(0.5, 1.6, 0), rgb(80, 50, 30), Enum.Material.Fabric)
@@ -549,7 +650,10 @@ local function buildNpc(model: Model, cf: CFrame)
 		warn("[AnimeTycoon] Marchand : vendeur non construit (" .. tostring(npc) .. ")")
 		return nil
 	end
-	npc:PivotTo(cf * CFrame.new(0, Merchant.DeckTop + CharacterBuilder.RootHeight, -0.4))
+	-- Debout sur une estrade d'un stud : il dépasse du comptoir jusqu'au buste.
+	local step = Build.part(model, "VendorStep", Vector3.new(4, 1, 2.6), cf * CFrame.new(0, Merchant.DeckTop + 0.5, -0.3), WOOD_OLD, { Material = Enum.Material.WoodPlanks })
+	Build.deco(model, "VendorStepEdge", Vector3.new(4.2, 0.2, 2.8), step.CFrame * CFrame.new(0, 0.45, 0), WOOD_DARK, { Material = Enum.Material.Wood })
+	npc:PivotTo(cf * CFrame.new(0, Merchant.DeckTop + 1 + CharacterBuilder.RootHeight, -0.4))
 	npc:SetAttribute("NPC", true)
 	npc:SetAttribute("DisplayName", "Marchand")
 	npc.Parent = model

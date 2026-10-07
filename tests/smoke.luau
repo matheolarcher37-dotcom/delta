@@ -112,6 +112,31 @@ test("Objets d'évolution : chaque perso a son objet, stock et coins du marchand
 		local spots = #Layout.MerchantSpots
 		assert(EvolutionItems.spotIndex(window, spots) ~= EvolutionItems.spotIndex(window + 1, spots), "même coin deux fois de suite")
 	end
+	-- Objets signature garantis : chaque univers en vend toujours un, et ils tournent. En Guerriers,
+	-- la Boule du Dragon (Goko → Super Guerrier) sort au moins une fois sur 4 passages de suite.
+	for _, universe in Universes.List do
+		local signatures = EvolutionItems.signatures(universe.id)
+		for window = 200, 230 do
+			local found = false
+			for _, entry in EvolutionItems.stock(window, universe.id) do
+				if table.find(signatures, entry.id) then
+					found = true
+				end
+			end
+			assert(#signatures == 0 or found, "aucun objet signature en vente : " .. universe.id)
+		end
+	end
+	for start = 300, 340 do
+		local dragon = 0
+		for window = start, start + 3 do
+			for _, entry in EvolutionItems.stock(window, "saiyan") do
+				if entry.id == "sai_dragon" then
+					dragon += 1
+				end
+			end
+		end
+		assert(dragon >= 1, "Boule du Dragon absente 4 passages de suite")
+	end
 	for _, spot in Layout.MerchantSpots do
 		assert(Layout.isReserved(spot), "coin du marchand non réservé")
 	end

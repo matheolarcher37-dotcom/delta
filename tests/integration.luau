@@ -285,8 +285,17 @@ test("Marchand ambulant : échoppe, rayon, stock, achat sur place", function()
 	local beacon = merchant:FindFirstChild("Balise")
 	local column = beacon and beacon:FindFirstChild("LightColumn")
 	assert(column and column.Size.X >= 800 and column.Material == roblox.Enum.Material.Neon, "rayon lumineux absent ou trop court")
+	assert(column.Size.Y >= 7 and beacon:FindFirstChild("LightHalo2"), "rayon trop fin pour être vu de loin")
+	local sky = merchant:FindFirstChild("MerchantSkyLabel", true)
+	assert(sky and sky.AlwaysOnTop and sky.StudsOffsetWorldSpace.Y >= 100 and sky.MaxDistance >= 4000, "étiquette MARCHAND du ciel absente")
 	assert(merchant:FindFirstChild("MerchantPrompt", true), "pas d'invite pour marchander")
 	assert(merchant:FindFirstChild("Marchand"), "pas de vendeur")
+	-- Le vendeur est sur son estrade (il dépasse du comptoir) et rien ne pend devant sa tête.
+	local counterTop = merchant.Etal.CounterTop.CFrame.Position.Y
+	local head = merchant.Marchand:FindFirstChild("Head", true)
+	assert(head and head.CFrame.Position.Y > counterTop + 1.8, "le vendeur ne dépasse pas du comptoir")
+	local sign = merchant.Etal.SubSign.CFrame.Position.Y - merchant.Etal.SubSign.Size.Y / 2
+	assert(sign > head.CFrame.Position.Y + head.Size.Y, "la sous-enseigne cache la tête du vendeur")
 	DataService:AddCoins(alice, 1000000)
 	local shop = invoke("Merchant_GetStock", alice)
 	assert(shop and #shop.items == EvolutionItems.Merchant.Slots, "stock invalide")

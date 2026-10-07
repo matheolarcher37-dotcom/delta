@@ -318,6 +318,24 @@ test("Marchand : écran, achat sur place, objet requis à l'Évolution, onglet O
 	task.wait(0.4)
 	assert((data.Items[firstId] or 0) == owned + 1, "achat depuis l'écran non effectué")
 	Menus.close("Shop")
+	-- De loin : « Montrer le chemin » pose une flèche devant le joueur et des lumières au sol.
+	alice.Character:PivotTo(counter.CFrame * CFrame.new(0, 1, -160))
+	Menus.open("Shop")
+	task.wait(0.4)
+	signalFor(find("BuyButton", find("WindowRoot_MARCHAND")), "Activated"):Fire()
+	task.wait(0.2)
+	local guideFolder = game:GetService("Workspace"):FindFirstChild("MerchantGuide")
+	assert(guideFolder and guideFolder:FindFirstChild("GuideArrow"), "pas de flèche vers le marchand")
+	local wisps = 0
+	for _, d in guideFolder:GetChildren() do
+		if d.Name == "Wisp" and d.Transparency < 1 then
+			wisps += 1
+		end
+	end
+	assert(wisps >= 3, "chemin de lumières absent")
+	alice.Character:PivotTo(counter.CFrame * CFrame.new(0, 1, -5))
+	task.wait(1.3)
+	assert(not game:GetService("Workspace"):FindFirstChild("MerchantGuide"), "le guidage ne s'efface pas à l'arrivée")
 	-- Évolution de Goko : la Boule du Dragon est demandée, avec un lien vers le marchand.
 	local goko = services.CharacterService:CreateEntry("sai_goko")
 	goko.level = 30
@@ -336,6 +354,33 @@ test("Marchand : écran, achat sur place, objet requis à l'Évolution, onglet O
 		end
 	end
 	assert(found, "la Boule du Dragon n'est pas demandée pour Goko")
+	-- Sa carte n'affiche pas « PRÊT ! » mais « OBJET MANQUANT » (avec la Boule du Dragon).
+	local evoWindow = find("WindowRoot_ÉVOLUTION")
+	local gokoCard = nil
+	for _, d in evoWindow:GetDescendants() do
+		if d:GetAttribute("SelKey") == uid then
+			gokoCard = d
+		end
+	end
+	assert(gokoCard, "carte de Goko absente")
+	assert(gokoCard:FindFirstChild("MissingItem") and not gokoCard:FindFirstChild("Ready"), "Goko marqué PRÊT sans la Boule du Dragon")
+	local icon = find("ItemIcon", gokoCard)
+	assert(icon and icon:GetAttribute("ItemId") == "sai_dragon", "mini-icône de l'objet manquant")
+	-- L'aperçu « après » montre Goko ★★ en Super Guerrier (cheveux dorés).
+	local after = find("After", evoWindow)
+	assert(after and after:GetAttribute("Stars") == 2, "aperçu ★★ absent")
+	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
+	local gold = Characters.resolveLook("sai_goko", 2).hairColor
+	local golden = false
+	for _, d in after:GetDescendants() do
+		if d:IsA("BasePart") then
+			local c = d.Color
+			if math.abs(c.R - gold.R) + math.abs(c.G - gold.G) + math.abs(c.B - gold.B) < 0.06 then
+				golden = true
+			end
+		end
+	end
+	assert(golden, "l'aperçu ★★ de Goko n'a pas les cheveux de Super Guerrier")
 	local merchantButton = find("MerchantButton", box)
 	assert(merchantButton, "pas de lien vers le marchand")
 	signalFor(merchantButton, "Activated"):Fire()

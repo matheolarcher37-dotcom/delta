@@ -4,12 +4,14 @@
 --   • à droite, la fiche de l'objet choisi : description, persos qui l'utilisent, tes unités qui
 --     l'attendent, et le bouton ACHETER.
 -- Il faut être devant le marchand pour acheter. De loin, l'écran montre son stock et le bouton
--- « Montrer le chemin » trace une ligne lumineuse jusqu'à lui.
+-- « Montrer le chemin » affiche une flèche qui flotte devant le joueur et un chemin de lumières
+-- posées au ras du sol, jusqu'à lui.
 -- Manette : la croix ou le joystick choisissent un objet, A achète / choisit, B ferme.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local EvolutionItems = require(Shared.Config.EvolutionItems)
@@ -33,7 +35,7 @@ local window
 local refs: { [string]: any } = {}
 local shopState = nil
 local selectedId: string? = nil
-local guide: { beam: Beam, a0: Attachment, a1: Attachment, holder: Part, endsAt: number }? = nil
+local guide: { folder: Folder, endsAt: number, conn: RBXScriptConnection? }? = nil
 
 ------------------------------------------------------------------------
 -- Aides
@@ -112,11 +114,152 @@ end
 -- Ligne lumineuse jusqu'au marchand (« Montrer le chemin »)
 ------------------------------------------------------------------------
 
+local GUIDE_WISPS = 9 -- lumières du chemin
+local GUIDE_STEP = 18 -- écart entre deux lumières (studs)
+local GUIDE_HOVER = 3 -- hauteur au-dessus du sol
+
+local guideRay: RaycastParams? = nil
+
+-- Hauteur du sol sous un point (rayon vers le bas), sinon `fallback`.
+local function groundY(x: number, z: number, fromY: number, fallback: number): number
+	local ok, result = pcall(function()
+		if not guideRay then
+			local params = RaycastParams.new()
+			params.FilterType = Enum.RaycastFilterType.Exclude
+			params.IgnoreWater = true
+			guideRay = params
+		end
+		local params = guideRay :: RaycastParams
+		local exclude = {}
+		if guide then
+			table.insert(exclude, guide.folder)
+		end
+		local character = Players.LocalPlayer and Players.LocalPlayer.Character
+		if character then
+			table.insert(exclude, character)
+		end
+		for _, name in { "Followers", "Enemies", "Units" } do
+			local folder = Workspace:FindFirstChild(name)
+			if folder then
+				table.insert(exclude, folder)
+			end
+		end
+		params.FilterDescendantsInstances = exclude
+		return Workspace:Raycast(Vector3.new(x, fromY + 15, z), Vector3.new(0, -90, 0), params)
+	end)
+	if ok and result and typeof(result.Position) == "Vector3" then
+		return result.Position.Y
+	end
+	return fallback
+end
+
+local function guidePart(parent: Instance, name: string, size: Vector3, color: Color3, transparency: number): Part
+	return new("Part", {
+		Name = name,
+		Anchored = true,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+		Material = Enum.Material.Neon,
+		Color = color,
+		Transparency = transparency,
+		Size = size,
+		Parent = parent,
+	})
+end
+
 local function stopGuide()
 	if guide then
-		guide.holder:Destroy()
-		guide.a0:Destroy()
+		if guide.conn then
+			guide.conn:Disconnect()
+		end
+		guide.folder:Destroy()
 		guide = nil
+	end
+end
+
+-- Construit la flèche (qui flotte devant le joueur) et les lumières du chemin.
+local function buildGuide(folder: Folder)
+	local arrow = new("Model", { Name = "GuideArrow", Parent = folder })
+	local shaft = guidePart(arrow, "Shaft", Vector3.new(0.7, 0.35, 2.6), WHITE:Lerp(ACCENT, 0.35), 0.05)
+	local left = guidePart(arrow, "HeadLeft", Vector3.new(0.7, 0.35, 2.2), WHITE:Lerp(ACCENT, 0.2), 0)
+	local right = guidePart(arrow, "HeadRight", Vector3.new(0.7, 0.35, 2.2), WHITE:Lerp(ACCENT, 0.2), 0)
+	arrow.PrimaryPart = shaft
+	new("PointLight", { Color = ACCENT, Range = 10, Brightness = 2, Parent = shaft })
+	local wisps = {}
+	local attachments = {}
+	for i = 1, GUIDE_WISPS do
+		local wisp = guidePart(folder, "Wisp", Vector3.new(1.1, 1.1, 1.1), WHITE:Lerp(ACCENT, 0.4), 0.1)
+		wisp.Shape = Enum.PartType.Ball
+		local halo = guidePart(wisp, "Halo", Vector3.new(2.4, 2.4, 2.4), ACCENT, 0.75)
+		halo.Shape = Enum.PartType.Ball
+		local attachment = new("Attachment", { Parent = wisp })
+		wisps[i] = { part = wisp, halo = halo }
+		attachments[i] = attachment
+		if i > 1 then
+			new("Beam", {
+				Name = "Link",
+				Attachment0 = attachments[i - 1],
+				Attachment1 = attachment,
+				Color = ColorSequence.new(WHITE, ACCENT),
+				LightEmission = 1,
+				LightInfluence = 0,
+				FaceCamera = true,
+				Width0 = 0.7,
+				Width1 = 0.7,
+				Texture = "rbxasset://textures/particles/sparkles_main.dds",
+				TextureMode = Enum.TextureMode.Static,
+				TextureLength = 5,
+				TextureSpeed = 1.5,
+				Transparency = NumberSequence.new(0.25),
+				Parent = wisp,
+			})
+		end
+	end
+	return { shaft = shaft, left = left, right = right, wisps = wisps }
+end
+
+-- Replace la flèche (chaque image) et le chemin (deux fois par seconde) vers le marchand.
+local function updateGuide(parts, refreshTrail: boolean)
+	local root = rootPart()
+	local target = merchantPosition()
+	if not root or not target then
+		return
+	end
+	local origin = root.CFrame.Position
+	local flat = Vector3.new(target.X - origin.X, 0, target.Z - origin.Z)
+	local distance = flat.Magnitude
+	if distance < 0.5 then
+		return
+	end
+	local dir = flat.Unit
+	-- Flèche : 7 studs devant, à hauteur de poitrine, qui monte et descend doucement.
+	local bob = math.sin(os.clock() * 3) * 0.3
+	local center = CFrame.lookAt(origin + dir * 7 + Vector3.new(0, 1 + bob, 0), origin + dir * 8 + Vector3.new(0, 1 + bob, 0))
+	parts.shaft.CFrame = center * CFrame.new(0, 0, 0.6)
+	parts.left.CFrame = center * CFrame.new(-0.62, 0, -0.9) * CFrame.Angles(0, math.rad(-40), 0)
+	parts.right.CFrame = center * CFrame.new(0.62, 0, -0.9) * CFrame.Angles(0, math.rad(40), 0)
+	if not refreshTrail then
+		return
+	end
+	-- Chemin : une lumière tous les 18 studs, posée 3 studs au-dessus du sol réel.
+	for i, wisp in parts.wisps do
+		local along = 10 + (i - 1) * GUIDE_STEP
+		local visible = along < distance - 6
+		local position = origin
+		if visible then
+			local flatPos = origin + dir * along
+			local fallback = origin.Y - 2.5 + (target.Y - origin.Y) * (along / distance)
+			position = Vector3.new(flatPos.X, groundY(flatPos.X, flatPos.Z, math.max(origin.Y, target.Y), fallback) + GUIDE_HOVER, flatPos.Z)
+		end
+		wisp.part.CFrame = CFrame.new(position)
+		wisp.part.Transparency = visible and 0.1 or 1
+		wisp.halo.Transparency = visible and 0.75 or 1
+		local link = wisp.part:FindFirstChild("Link")
+		if link and link:IsA("Beam") then
+			link.Enabled = visible
+		end
 	end
 end
 
@@ -128,37 +271,21 @@ local function startGuide()
 		Notifications.toast("Impossible de trouver le marchand pour l'instant.", "error")
 		return
 	end
-	local holder = new("Part", {
-		Name = "MerchantGuide",
-		Anchored = true,
-		CanCollide = false,
-		CanQuery = false,
-		CanTouch = false,
-		Transparency = 1,
-		Size = Vector3.new(1, 1, 1),
-		CFrame = CFrame.new(target + Vector3.new(0, 4, 0)),
-		Parent = Workspace,
-	})
-	local a1 = new("Attachment", { Parent = holder })
-	local a0 = new("Attachment", { Name = "MerchantGuideStart", Position = Vector3.new(0, -2, 0), Parent = root })
-	local beam = new("Beam", {
-		Attachment0 = a0,
-		Attachment1 = a1,
-		Color = ColorSequence.new(WHITE, ACCENT),
-		LightEmission = 1,
-		LightInfluence = 0,
-		FaceCamera = true,
-		Width0 = 1.2,
-		Width1 = 3,
-		Texture = "rbxasset://textures/particles/sparkles_main.dds",
-		TextureMode = Enum.TextureMode.Static,
-		TextureLength = 6,
-		TextureSpeed = 1.5,
-		Transparency = NumberSequence.new(0.2),
-		Parent = holder,
-	})
-	guide = { beam = beam, a0 = a0, a1 = a1, holder = holder, endsAt = State.now() + 90 }
-	Notifications.toast("Suis la ligne violette jusqu'au Marchand !", "info")
+	local folder = new("Folder", { Name = "MerchantGuide", Parent = Workspace })
+	local parts = buildGuide(folder)
+	local current = { folder = folder, endsAt = State.now() + 90, conn = nil }
+	guide = current
+	updateGuide(parts, true)
+	local timer = 0
+	current.conn = RunService.RenderStepped:Connect(function(dt)
+		timer += dt
+		local trail = timer >= 0.5
+		if trail then
+			timer = 0
+		end
+		updateGuide(parts, trail)
+	end)
+	Notifications.toast("Suis la flèche et les lumières violettes jusqu'au Marchand !", "info")
 	Menus.close("Shop")
 end
 
@@ -580,7 +707,7 @@ function Shop.init(gui: ScreenGui)
 			-- Ligne vers le marchand : s'efface à l'arrivée ou après 90 s.
 			if guide then
 				local distance = distanceToMerchant()
-				if (distance and distance < 24) or State.now() > guide.endsAt or not guide.a0.Parent then
+				if (distance and distance < 24) or State.now() > guide.endsAt or not guide.folder.Parent or not rootPart() then
 					stopGuide()
 				end
 			end
