@@ -765,7 +765,9 @@ function QuestService:Start()
 				for _, player in Players:GetPlayers() do
 					if DataService:IsLoaded(player) then
 						local changed = {}
-						for _, prefix in { "stat:RollCount", "stat:hatched", "stat:index", "stat:evolutions", "stat:fusions", "stat:skills", "stat:totalCoins", "stat:trades", "stat:playtime" } do
+						for _, prefix in
+							{ "stat:RollCount", "stat:hatched", "stat:index", "stat:evolutions", "stat:fusions", "stat:skills", "stat:totalCoins", "stat:trades", "stat:playtime" }
+						do
 							changed[prefix] = true
 						end
 						pcall(self._check, self, player, changed)

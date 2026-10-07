@@ -141,13 +141,13 @@ local function paintTraitCard(trait)
 			Parent = refs.traitChips,
 		})
 		Theme.round().Parent = chip
-		Theme.padding(10, 0).Parent = chip
+		Theme.padding(8, 0).Parent = chip
 		Theme.label({
 			Text = text,
 			Size = UDim2.fromOffset(0, 24),
 			AutomaticSize = Enum.AutomaticSize.X,
 			TextScaled = false,
-			TextSize = 15,
+			TextSize = 14,
 			FontFace = Theme.Faces.Heavy,
 			StrokeThickness = 1.5,
 			Parent = chip,
@@ -582,7 +582,13 @@ local function buildCrown(parent: Instance): Model
 		local pos = Vector3.new(math.cos(a) * 0.72, 0.5, math.sin(a) * 0.72)
 		part("Spike", Vector3.new(0.3, 0.75, 0.3), CFrame.new(pos) * CFrame.Angles(0, -a, 0) * CFrame.Angles(0, 0, math.rad(8)), GOLD)
 		part("Pearl", Vector3.new(0.26, 0.26, 0.26), CFrame.new(pos + Vector3.new(0, 0.45, 0)), Color3.fromRGB(255, 250, 230), Enum.PartType.Ball)
-		part("Jewel", Vector3.new(0.22, 0.22, 0.22), CFrame.new(math.cos(a + 0.6) * 0.86, 0, math.sin(a + 0.6) * 0.86), i % 2 == 0 and Color3.fromRGB(220, 30, 50) or Color3.fromRGB(40, 120, 255), Enum.PartType.Ball)
+		part(
+			"Jewel",
+			Vector3.new(0.22, 0.22, 0.22),
+			CFrame.new(math.cos(a + 0.6) * 0.86, 0, math.sin(a + 0.6) * 0.86),
+			i % 2 == 0 and Color3.fromRGB(220, 30, 50) or Color3.fromRGB(40, 120, 255),
+			Enum.PartType.Ball
+		)
 	end
 	crown.Parent = parent
 	return crown

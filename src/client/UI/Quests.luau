@@ -34,7 +34,20 @@ local READY = Color3.fromRGB(70, 214, 96)
 local fmt = QuestsConfig.formatNumber
 
 -- string.upper ne gère pas les lettres accentuées (UTF-8) : « Planète » → « PLANÈTE ».
-local ACCENTS = { ["é"] = "É", ["è"] = "È", ["ê"] = "Ê", ["ë"] = "Ë", ["à"] = "À", ["â"] = "Â", ["ç"] = "Ç", ["î"] = "Î", ["ï"] = "Ï", ["ô"] = "Ô", ["ù"] = "Ù", ["û"] = "Û" }
+local ACCENTS = {
+	["é"] = "É",
+	["è"] = "È",
+	["ê"] = "Ê",
+	["ë"] = "Ë",
+	["à"] = "À",
+	["â"] = "Â",
+	["ç"] = "Ç",
+	["î"] = "Î",
+	["ï"] = "Ï",
+	["ô"] = "Ô",
+	["ù"] = "Ù",
+	["û"] = "Û",
+}
 local function upper(text: string): string
 	local out = string.upper(text)
 	for lower, up in ACCENTS do
@@ -1188,7 +1201,9 @@ local function updateAfkPanel()
 	end
 	local nextTier = QuestsConfig.nextPunchTier(count)
 	if mine then
-		afk.status.Text = "Punching-ball n°" .. tostring(mine) .. " : continue !"
+		afk.status.Text = "Punching-ball n°"
+			.. tostring(mine)
+			.. " : continue !"
 			.. (nextTier and ("  Prochain palier : " .. nextTier[1] .. " → +" .. nextTier[2] .. " gemmes") or "")
 	else
 		afk.status.Text = "Prends un punching-ball libre et tape-le avec ton épée !"
@@ -1284,6 +1299,18 @@ local function hookStation(station: Model)
 	end
 	local anchor = station:FindFirstChild("PromptAnchor") :: BasePart?
 	local base = bag:GetPivot()
+	-- L'invite « Frapper » disparaît (chez ce joueur seulement) quand le sac est pris par un autre.
+	local prompt = anchor and anchor:FindFirstChildOfClass("ProximityPrompt")
+	local function refreshPrompt()
+		if not prompt then
+			return
+		end
+		local ownerId = station:GetAttribute("OwnerId")
+		local me = Players.LocalPlayer and Players.LocalPlayer.UserId
+		prompt.Enabled = ownerId == nil or ownerId == me
+	end
+	station:GetAttributeChangedSignal("OwnerId"):Connect(refreshPrompt)
+	refreshPrompt()
 	station:GetAttributeChangedSignal("HitTick"):Connect(function()
 		local dir = station:GetAttribute("HitDir")
 		local push = typeof(dir) == "Vector3" and dir.Magnitude > 0.01 and dir.Unit or Vector3.new(1, 0, 0)

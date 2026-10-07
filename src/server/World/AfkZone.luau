@@ -242,10 +242,11 @@ local function buildStation(parent: Instance, index: number, base: CFrame)
 	vcyl("BottomCap", bagTop - bagLength - 0.15, 0.4, 2.6, LEATHER_DARK, Enum.Material.Leather)
 	-- Écusson (cercle crème avec le numéro) devant et derrière
 	for _, side in { -1, 1 } do
-		local crest = Build.deco(bag, "Crest", Vector3.new(0.06, 1.5, 1.5), at(bagTop - bagLength / 2 + 0.2) * CFrame.new(0, 0, side * 1.41) * CFrame.Angles(0, math.rad(90), 0), CREAM, {
-			Material = Enum.Material.SmoothPlastic,
-			Shape = Enum.PartType.Cylinder,
-		})
+		local crest =
+			Build.deco(bag, "Crest", Vector3.new(0.06, 1.5, 1.5), at(bagTop - bagLength / 2 + 0.2) * CFrame.new(0, 0, side * 1.41) * CFrame.Angles(0, math.rad(90), 0), CREAM, {
+				Material = Enum.Material.SmoothPlastic,
+				Shape = Enum.PartType.Cylinder,
+			})
 		crest.CastShadow = false
 	end
 
@@ -305,7 +306,8 @@ function AfkZone.build(world: Instance): Model
 		local pathCF = CFrame.lookAt(mid, mid + inward)
 		Build.part(zone, "Path", Vector3.new(10, 0.3, pathLength), pathCF + Vector3.new(0, 0.1, 0), rgb(176, 168, 156), { Material = Enum.Material.Cobblestone }).CastShadow = false
 		for _, side in { -1, 1 } do
-			Build.part(zone, "PathEdge", Vector3.new(0.8, 0.45, pathLength), pathCF * CFrame.new(side * 5.4, 0.12, 0), STONE_DARK, { Material = Enum.Material.Slate }).CastShadow = false
+			Build.part(zone, "PathEdge", Vector3.new(0.8, 0.45, pathLength), pathCF * CFrame.new(side * 5.4, 0.12, 0), STONE_DARK, { Material = Enum.Material.Slate }).CastShadow =
+				false
 		end
 		-- Panneau au bord de la promenade
 		local signBase = (pathCF * CFrame.new(7.5, 0, pathLength / 2 - 2)).Position
@@ -338,7 +340,14 @@ function AfkZone.build(world: Instance): Model
 	})
 	for _, side in { -1, 1 } do
 		Props.stoneLantern(zone, (gateCF * CFrame.new(side * 12.5, 0, -3.5)).Position)
-		Props.banner(zone, (gateCF * CFrame.new(side * 9.8, 0, -1.5)).Position, 9, side < 0 and rgb(170, 44, 36) or rgb(40, 90, 170), nil, math.atan2(cf.LookVector.X, cf.LookVector.Z))
+		Props.banner(
+			zone,
+			(gateCF * CFrame.new(side * 9.8, 0, -1.5)).Position,
+			9,
+			side < 0 and rgb(170, 44, 36) or rgb(40, 90, 170),
+			nil,
+			math.atan2(cf.LookVector.X, cf.LookVector.Z)
+		)
 	end
 
 	-- Les 3 postes en arc de cercle, face à l'entrée
