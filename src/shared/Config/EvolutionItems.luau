@@ -551,7 +551,13 @@ KINDS.dragonball = function(ctx, look)
 	for _, p in positions[math.clamp(look.stars or 4, 1, 4)] do
 		ctx.star("Star", 0.34, center * CFrame.new(p.X, p.Y, -0.86), look.accent)
 	end
-	ctx.add("Shine", Vector3.new(0.5, 0.32, 0.1), center * CFrame.new(-0.5, 0.55, -0.8) * CFrame.Angles(0, 0, math.rad(30)), rgb(255, 255, 255), { Material = NEON, Transparency = 0.2 })
+	ctx.add(
+		"Shine",
+		Vector3.new(0.5, 0.32, 0.1),
+		center * CFrame.new(-0.5, 0.55, -0.8) * CFrame.Angles(0, 0, math.rad(30)),
+		rgb(255, 255, 255),
+		{ Material = NEON, Transparency = 0.2 }
+	)
 end
 
 -- Œil du clan : médaillon doré, iris rouge, pupille, virgules (ou motif « éternel »).
@@ -631,7 +637,13 @@ KINDS.blindfold = function(ctx, look)
 		})
 	end
 	for _, side in { -1, 1 } do
-		ctx.add("Tail", Vector3.new(0.3, 1.1, 0.08), center * CFrame.new(side * 0.22, -0.45, 0.88) * CFrame.Angles(0.25, 0, side * 0.35), look.color, { Material = Enum.Material.Fabric })
+		ctx.add(
+			"Tail",
+			Vector3.new(0.3, 1.1, 0.08),
+			center * CFrame.new(side * 0.22, -0.45, 0.88) * CFrame.Angles(0.25, 0, side * 0.35),
+			look.color,
+			{ Material = Enum.Material.Fabric }
+		)
 	end
 	ctx.add("Knot", Vector3.new(0.4, 0.4, 0.3), center * CFrame.new(0, 0, 0.84), darken(look.color, 0.2), { Material = Enum.Material.Fabric })
 	ctx.add("Glow", Vector3.new(0.9, 0.9, 0.9), center, look.accent, { Shape = BALL, Material = NEON, Transparency = 0.35 })
@@ -650,10 +662,16 @@ KINDS.infinity = function(ctx, look)
 	ctx.add("Red", Vector3.new(0.6, 0.6, 0.6), center * CFrame.new(1.15, -0.2, 0), rgb(255, 60, 70), { Shape = BALL, Material = NEON })
 	for i = 0, 11 do
 		local a = i * math.pi / 6
-		ctx.add("Ring", Vector3.new(0.5, 0.06, 0.06), center * CFrame.Angles(0.35, 0, 0) * CFrame.new(math.cos(a) * 1.25, 0, math.sin(a) * 1.25) * CFrame.Angles(0, -a + math.pi / 2, 0), rgb(230, 210, 255), {
-			Material = NEON,
-			Transparency = 0.3,
-		})
+		ctx.add(
+			"Ring",
+			Vector3.new(0.5, 0.06, 0.06),
+			center * CFrame.Angles(0.35, 0, 0) * CFrame.new(math.cos(a) * 1.25, 0, math.sin(a) * 1.25) * CFrame.Angles(0, -a + math.pi / 2, 0),
+			rgb(230, 210, 255),
+			{
+				Material = NEON,
+				Transparency = 0.3,
+			}
+		)
 	end
 end
 
@@ -685,7 +703,13 @@ KINDS.haki = function(ctx, look)
 		local r = 1.05
 		local p = Vector3.new(math.cos(a) * r, rng:NextNumber(-0.7, 0.7), math.sin(a) * r)
 		ctx.add("Bolt", Vector3.new(0.08, 0.7, 0.08), center * CFrame.new(p) * CFrame.Angles(0, -a, rng:NextNumber(-0.8, 0.8)), look.accent, { Material = NEON })
-		ctx.add("Bolt", Vector3.new(0.07, 0.45, 0.07), center * CFrame.new(p + Vector3.new(0, 0.42, 0)) * CFrame.Angles(0, -a, rng:NextNumber(-1.4, 1.4)), look.accent, { Material = NEON })
+		ctx.add(
+			"Bolt",
+			Vector3.new(0.07, 0.45, 0.07),
+			center * CFrame.new(p + Vector3.new(0, 0.42, 0)) * CFrame.Angles(0, -a, rng:NextNumber(-1.4, 1.4)),
+			look.accent,
+			{ Material = NEON }
+		)
 	end
 end
 
@@ -738,10 +762,16 @@ KINDS.aura = function(ctx, look)
 	for k, tilt in { 0.5, -0.5 } do
 		for i = 0, 9 do
 			local a = i * math.pi / 5 + k
-			ctx.add("Ring", Vector3.new(0.6, 0.07, 0.07), center * CFrame.Angles(tilt, 0, tilt * 0.6) * CFrame.new(math.cos(a) * 1.2, 0, math.sin(a) * 1.2) * CFrame.Angles(0, -a + math.pi / 2, 0), look.accent, {
-				Material = NEON,
-				Transparency = 0.25,
-			})
+			ctx.add(
+				"Ring",
+				Vector3.new(0.6, 0.07, 0.07),
+				center * CFrame.Angles(tilt, 0, tilt * 0.6) * CFrame.new(math.cos(a) * 1.2, 0, math.sin(a) * 1.2) * CFrame.Angles(0, -a + math.pi / 2, 0),
+				look.accent,
+				{
+					Material = NEON,
+					Transparency = 0.25,
+				}
+			)
 		end
 	end
 end

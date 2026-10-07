@@ -276,14 +276,60 @@ test("Poser et ouvrir la relique → premier perso", function()
 	assert(followers and #followers:GetChildren() == 1, "le perso ne suit pas le joueur")
 end)
 
-test("Boutique : acheter une relique", function()
+test("Marchand ambulant : échoppe, rayon, stock, achat sur place", function()
+	local EvolutionItems = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.EvolutionItems"))
+	local Layout = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Layout"))
+	local world = game:GetService("Workspace").World
+	local merchant = world:FindFirstChild("Merchant")
+	assert(merchant, "échoppe du marchand absente")
+	local beacon = merchant:FindFirstChild("Balise")
+	local column = beacon and beacon:FindFirstChild("LightColumn")
+	assert(column and column.Size.X >= 800 and column.Material == roblox.Enum.Material.Neon, "rayon lumineux absent ou trop court")
+	assert(merchant:FindFirstChild("MerchantPrompt", true), "pas d'invite pour marchander")
+	assert(merchant:FindFirstChild("Marchand"), "pas de vendeur")
 	DataService:AddCoins(alice, 1000000)
-	local shop = invoke("GetShop", alice)
-	assert(shop and #shop.items == 3, "boutique invalide")
-	local plot = services.PlotService:GetPlot(alice)
-	alice.Character:PivotTo(plot.cf * CFrame.new(-16, 3, 30))
-	local ok, message = invoke("BuyRelic", alice, shop.items[1].relicId)
+	local shop = invoke("Merchant_GetStock", alice)
+	assert(shop and #shop.items == EvolutionItems.Merchant.Slots, "stock invalide")
+	assert(#merchant.Display:GetChildren() == #shop.items, "étagères mal remplies")
+	-- Le marchand est à l'un des coins réservés.
+	local spot = Layout.MerchantSpots[shop.spot]
+	local pivot = merchant:GetPivot().Position
+	assert((roblox.Vector3.new(pivot.X, 0, pivot.Z) - spot).Magnitude < 1, "marchand hors de son coin")
+	local state = game:GetService("ReplicatedStorage"):FindFirstChild("GameState")
+	-- (Lune range les attributs en flottants 32 bits : petite tolérance.)
+	assert(math.abs((state:GetAttribute("MerchantMoveAt") or 0) - shop.moveAt) < 256, "compte à rebours non publié")
+	-- De loin : refusé.
+	alice.Character:PivotTo(CFrame.new(0, 3, 0))
+	local itemId = shop.items[1].id
+	local ok, message = invoke("Merchant_Buy", alice, itemId)
+	assert(not ok, "achat à distance accepté")
+	-- Devant le comptoir : accepté, stock décompté, objet ajouté.
+	local counter = merchant:FindFirstChild("Etal"):FindFirstChild("Counter")
+	alice.Character:PivotTo(counter.CFrame * CFrame.new(0, 1, -5))
+	local data = DataService:Get(alice)
+	local before = data.Items[itemId] or 0
+	local coins = data.coins
+	local newState
+	ok, message, newState = invoke("Merchant_Buy", alice, itemId)
 	assert(ok, "achat : " .. tostring(message))
+	assert(data.Items[itemId] == before + 1, "objet non ajouté")
+	assert(data.coins == coins - EvolutionItems.get(itemId).price, "prix non payé")
+	assert(newState.items[1].remaining == newState.items[1].stock - 1, "stock non décompté")
+	-- Épuisement du stock.
+	for _ = 1, newState.items[1].remaining do
+		invoke("Merchant_Buy", alice, itemId)
+	end
+	ok = invoke("Merchant_Buy", alice, itemId)
+	assert(not ok, "achat au-delà du stock accepté")
+	-- Objet hors stock refusé.
+	ok = invoke("Merchant_Buy", alice, "objet_inconnu")
+	assert(not ok, "objet inconnu accepté")
+	-- Déménagement : le marchand change de coin (jamais le même deux fois de suite).
+	local ShopService = services.ShopService
+	local index = ShopService.spot
+	local nextIndex = EvolutionItems.spotIndex(ShopService.window + 1, #Layout.MerchantSpots)
+	assert(nextIndex ~= index, "le marchand reste au même coin")
+	assert(not Layout.isReserved(roblox.Vector3.new(0, 0, 0)) and Layout.isReserved(spot), "coin du marchand non réservé")
 end)
 
 test("Combat : dégâts, mort d'un ennemi, récompenses", function()
@@ -737,19 +783,33 @@ test("Migration d'une ancienne sauvegarde (v1)", function()
 	removePlayer(carol)
 end)
 
-test("Évolution à l'Autel d'Éveil", function()
+test("Évolution à l'Autel d'Éveil (avec l'objet du marchand)", function()
+	local EvolutionItems = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.EvolutionItems"))
 	local data = DataService:Get(alice)
 	local entry = data.characters[firstUid]
 	entry.level = 30
 	table.clear(data.materials) -- le boss a pu en donner : on repart de zéro
+	table.clear(data.Items)
 	local ok, message = services.EvolutionService:Evolve(alice, firstUid)
 	assert(not ok, "évolution sans matériaux acceptée")
 	for _, universe in Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Universes")).List do
 		DataService:AddMaterial(alice, universe.material.id, 500)
 	end
+	-- Sans l'objet d'évolution : refusé, et rien n'est dépensé.
+	local coins = data.coins
+	ok, message = services.EvolutionService:Evolve(alice, firstUid)
+	assert(not ok and string.find(message, "Marchand"), "évolution sans objet acceptée : " .. tostring(message))
+	assert(data.coins == coins and entry.stars == 1, "dépense alors que l'évolution est refusée")
+	local need = EvolutionItems.requirement(entry)
+	assert(need and EvolutionItems.get(need.item), "objet requis inconnu")
+	DataService:AddItem(alice, need.item, need.amount)
 	ok, message = services.EvolutionService:Evolve(alice, firstUid)
 	assert(ok, "évolution : " .. tostring(message))
 	assert(entry.stars == 2, "étoiles")
+	assert((data.Items[need.item] or 0) == 0, "objet non consommé")
+	-- Goko : la Boule du Dragon pour passer Super Guerrier.
+	local goko = services.CharacterService:CreateEntry("sai_goko")
+	assert(EvolutionItems.requirement(goko).item == "sai_dragon", "Goko ne demande pas la Boule du Dragon")
 end)
 
 test("Fusion Crossover au portail", function()

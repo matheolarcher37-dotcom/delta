@@ -1,7 +1,8 @@
 -- Menu UNITÉS / OBJETS :
 --   • onglet Unités : grille de cartes 3D + grande fiche d'unité (statistiques, trait, type) avec
 --     les actions Équiper / Évoluer / Verrouiller / Vendre ;
---   • onglet Objets : reliques possédées (détails et probabilités) + matériaux et cristaux.
+--   • onglet Objets : objets d'évolution achetés au Marchand ambulant (à quoi ils servent, quelles
+--     unités les attendent), reliques possédées (détails et probabilités), matériaux et cristaux.
 -- Manette : LB / RB changent d'onglet, A choisit, B ferme.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,6 +12,7 @@ local Rarities = require(Shared.Config.Rarities)
 local Characters = require(Shared.Config.Characters)
 local Universes = require(Shared.Config.Universes)
 local Economy = require(Shared.Config.Economy)
+local EvolutionItems = require(Shared.Config.EvolutionItems)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 
@@ -36,6 +38,7 @@ local tab = "units"
 local page = 1
 local selected: string? = nil
 local selectedRelic: string? = nil
+local selectedItem: string? = nil -- objet d'évolution choisi
 local confirmingSell = false
 local refs: { [string]: any } = {}
 local render: (boolean?) -> ()
@@ -230,6 +233,103 @@ local function renderItemDetail()
 	Theme.list(Enum.FillDirection.Vertical, 8, Enum.HorizontalAlignment.Center).Parent = body
 	Theme.padding(6).Parent = body
 
+	local evo = selectedItem and EvolutionItems.get(selectedItem)
+	local evoOwned = evo and type(data.Items) == "table" and (data.Items[evo.id] or 0) or 0
+	if evo and evoOwned > 0 then
+		local tier = EvolutionItems.Tiers[evo.tier]
+		local universe = evo.universe and Universes.get(evo.universe)
+		local top = new("Frame", { Size = UDim2.new(1, 0, 0, 170), BackgroundTransparency = 1, LayoutOrder = 1, Parent = body })
+		local view = new("Frame", { Size = UDim2.fromOffset(170, 170), BackgroundColor3 = WHITE, ClipsDescendants = true, Parent = top })
+		Theme.corner(14).Parent = view
+		Theme.stroke(tier.color, 3).Parent = view
+		Theme.gradient({ Theme.dark(tier.color, 0.35), Color3.fromRGB(14, 14, 20) }, 90).Parent = view
+		Components.viewport(view, EvolutionItems.build(evo.id, 1), Vector3.new(0, 1.35, 0), 6.6, nil, true)
+		Theme.label({
+			Text = evo.name,
+			Position = UDim2.fromOffset(184, 8),
+			Size = UDim2.new(1, -190, 0, 36),
+			FontFace = Theme.Faces.Title,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			StrokeThickness = 2.5,
+			Parent = top,
+		})
+		Theme.label({
+			Text = "Objet d'évolution " .. string.lower(tier.name) .. "  ·  " .. (universe and universe.name or "Tous les univers"),
+			Position = UDim2.fromOffset(184, 48),
+			Size = UDim2.new(1, -190, 0, 22),
+			FontFace = Theme.Faces.Heavy,
+			TextColor3 = Theme.light(tier.color, 0.3),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Parent = top,
+		})
+		Components.pill(top, "bag", "Possédés : × " .. evoOwned, C.Green, { Position = UDim2.fromOffset(184, 80), Size = UDim2.fromOffset(220, 34) })
+		local shopButton = Components.button({
+			Text = "Marchand",
+			Icon = "shop",
+			Color = EvolutionItems.Merchant.Color,
+			Position = UDim2.fromOffset(184, 122),
+			Size = UDim2.fromOffset(190, 42),
+			TextSize = 18,
+			Parent = top,
+			OnClick = function()
+				Menus.open("Shop", evo.id)
+			end,
+		})
+		shopButton.Name = "MerchantButton"
+		Theme.label({
+			Text = evo.desc,
+			Size = UDim2.new(1, -24, 0, 44),
+			FontFace = Theme.Faces.Bold,
+			TextColor3 = Color3.fromRGB(230, 226, 240),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			TextWrapped = true,
+			StrokeThickness = 1.5,
+			MaxSize = 18,
+			LayoutOrder = 2,
+			Parent = body,
+		})
+		local waiting = 0
+		for _, entry in data.characters do
+			local need = EvolutionItems.requirement(entry)
+			if need and need.item == evo.id then
+				waiting += 1
+				if waiting == 1 then
+					Components.sectionTitle(body, "TES UNITÉS QUI EN ONT BESOIN", { LayoutOrder = 3, Size = UDim2.new(1, -24, 0, 24) }, C.Green)
+				end
+				if waiting <= 5 then
+					local desc = Formulas.describe(entry)
+					local stars = entry.stars or 1
+					Components.requirement(
+						body,
+						(desc and desc.name or "?") .. "  " .. string.rep("★", stars) .. " → " .. string.rep("★", stars + 1) .. "  (× " .. need.amount .. ")",
+						evoOwned >= need.amount,
+						3 + waiting,
+						28
+					).Size =
+						UDim2.new(1, -24, 0, 28)
+				end
+			end
+		end
+		Components.sectionTitle(body, "SERT À FAIRE ÉVOLUER", { LayoutOrder = 20, Size = UDim2.new(1, -24, 0, 24) })
+		local users = EvolutionItems.usedBy(evo.id)
+		Theme.label({
+			Text = #users > 0 and table.concat(users, ", ") or "Les persos venus d'autres mondes",
+			Size = UDim2.new(1, -24, 0, 40),
+			FontFace = Theme.Faces.Bold,
+			TextColor3 = C.TextDim,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			TextWrapped = true,
+			StrokeThickness = 1.2,
+			MaxSize = 16,
+			LayoutOrder = 21,
+			Parent = body,
+		})
+		Components.hintText(body, "Fais évoluer tes unités à l'Autel d'Éveil (stand FAIRE ÉVOLUER du hub, ou ta base).", { LayoutOrder = 22, Size = UDim2.new(1, -24, 0, 22) })
+		return
+	end
+
 	local relic = selectedRelic and Universes.getRelic(selectedRelic)
 	if relic and (data.relics[relic.id] or 0) > 0 then
 		local universe = Universes.get(relic.universe) or Universes.List[1]
@@ -334,6 +434,33 @@ local function renderItems()
 	refs.pager.set(1, 1)
 	local order = 0
 	local relicCount = 0
+	local itemCount = 0
+	-- Objets d'évolution (achetés au Marchand ambulant).
+	local items = type(data.Items) == "table" and data.Items or {}
+	for _, evo in EvolutionItems.List do
+		local owned = items[evo.id] or 0
+		if owned > 0 then
+			order += 1
+			itemCount += owned
+			local universe = evo.universe and Universes.get(evo.universe)
+			local _, preview = Components.itemCard(grid, {
+				title = evo.name,
+				subtitle = universe and universe.name or "Tous les univers",
+				subtitleColor = universe and Theme.light(universe.color, 0.3) or C.Cyan,
+				color = EvolutionItems.Tiers[evo.tier].color,
+				badge = "× " .. owned,
+				layoutOrder = order,
+				selected = selectedItem == evo.id,
+				selKey = "evo_" .. evo.id,
+				onClick = function()
+					selectedItem = selectedItem ~= evo.id and evo.id or nil
+					selectedRelic = nil
+					render(true)
+				end,
+			})
+			Components.viewport(preview, EvolutionItems.build(evo.id, 1), Vector3.new(0, 1.35, 0), 7.2, nil, false)
+		end
+	end
 	for _, universe in Universes.List do
 		for _, relic in universe.relics do
 			local owned = data.relics[relic.id] or 0
@@ -351,6 +478,7 @@ local function renderItems()
 					selected = selectedRelic == relic.id,
 					onClick = function()
 						selectedRelic = selectedRelic ~= relic.id and relic.id or nil
+						selectedItem = nil
 						render(true)
 					end,
 				})
@@ -359,10 +487,10 @@ local function renderItems()
 		end
 	end
 	if order == 0 then
-		Components.emptyState(grid, "Aucune relique pour l'instant.\nLa Boutique de ta base en vend !", "gift")
+		Components.emptyState(grid, "Aucun objet pour l'instant.\nLe Marchand ambulant vend des objets d'évolution : suis le rayon violet !", "bag")
 	end
-	Components.setPillText(refs.teamPill, "Reliques : " .. relicCount .. "  ·  Cristaux : " .. (data.traitCrystals or 0))
-	window.subtitle.Text = relicCount .. " reliques"
+	Components.setPillText(refs.teamPill, "Objets : " .. itemCount .. "  ·  Reliques : " .. relicCount)
+	window.subtitle.Text = itemCount .. " objets d'évolution  ·  " .. relicCount .. " reliques  ·  " .. (data.traitCrystals or 0) .. " cristaux"
 end
 
 ------------------------------------------------------------------------
@@ -375,7 +503,7 @@ local function viewKey(): string
 	if not data then
 		return ""
 	end
-	local parts = { tab, tostring(page), tostring(selected), tostring(selectedRelic), tostring(confirmingSell), table.concat(data.team, ",") }
+	local parts = { tab, tostring(page), tostring(selected), tostring(selectedRelic), tostring(selectedItem), tostring(confirmingSell), table.concat(data.team, ",") }
 	for uid, entry in data.characters do
 		table.insert(parts, uid .. ":" .. entry.level .. ":" .. (entry.stars or 1) .. ":" .. tostring(entry.aura) .. ":" .. tostring(entry.locked) .. ":" .. tostring(entry.trait))
 	end
@@ -385,6 +513,11 @@ local function viewKey(): string
 	if tab == "items" then
 		for id, count in data.materials do
 			table.insert(parts, id .. "#" .. count)
+		end
+		if type(data.Items) == "table" then
+			for id, count in data.Items do
+				table.insert(parts, "evo_" .. id .. "#" .. count)
+			end
 		end
 		table.insert(parts, tostring(data.traitCrystals) .. "c" .. tostring(math.floor(data.coins)))
 	end

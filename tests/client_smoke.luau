@@ -278,6 +278,98 @@ for _, menuName in { "Inventory", "Index", "Guide", "Shop", "Evolution", "Fusion
 	end)
 end
 
+test("Marchand : écran, achat sur place, objet requis à l'Évolution, onglet Objets", function()
+	local before = #warnings
+	local gui = alice.PlayerGui.AnimeTycoonUI
+	local EvolutionItems = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.EvolutionItems"))
+	local data = services.DataService:Get(alice)
+	local function find(name, root)
+		for _, d in (root or gui):GetDescendants() do
+			if d.Name == name then
+				return d
+			end
+		end
+		return nil
+	end
+	local function count(name, root)
+		local n = 0
+		for _, d in (root or gui):GetDescendants() do
+			if d.Name == name then
+				n += 1
+			end
+		end
+		return n
+	end
+	-- Devant le comptoir du marchand.
+	local merchant = game:GetService("Workspace").World.Merchant
+	local counter = merchant.Etal.Counter
+	alice.Character:PivotTo(counter.CFrame * CFrame.new(0, 1, -5))
+	Menus.open("Shop")
+	task.wait(0.4)
+	local shopWindow = find("WindowRoot_MARCHAND")
+	assert(shopWindow and shopWindow.Visible, "écran du marchand fermé")
+	assert(count("ItemCard", shopWindow) == EvolutionItems.Merchant.Slots, "objets du marchand manquants")
+	local buyButton = find("BuyButton", shopWindow)
+	assert(buyButton, "pas de bouton d'achat")
+	local Shop = Harness.require(Harness.find("StarterPlayer.StarterPlayerScripts.Client.UI.Shop"))
+	local firstId = Shop._state().items[1].id
+	local owned = data.Items[firstId] or 0
+	signalFor(buyButton, "Activated"):Fire()
+	task.wait(0.4)
+	assert((data.Items[firstId] or 0) == owned + 1, "achat depuis l'écran non effectué")
+	Menus.close("Shop")
+	-- Évolution de Goko : la Boule du Dragon est demandée, avec un lien vers le marchand.
+	local goko = services.CharacterService:CreateEntry("sai_goko")
+	goko.level = 30
+	local uid = services.CharacterService:AddCharacter(alice, goko)
+	data.Items.sai_dragon = nil
+	services.DataService:Sync(alice)
+	task.wait(0.3)
+	Menus.open("Evolution", uid)
+	task.wait(0.4)
+	local box = find("RequiredItem")
+	assert(box, "objet requis non affiché")
+	local found = false
+	for _, d in box:GetDescendants() do
+		if d:IsA("TextLabel") and string.find(d.Text, "Boule du Dragon") then
+			found = true
+		end
+	end
+	assert(found, "la Boule du Dragon n'est pas demandée pour Goko")
+	local merchantButton = find("MerchantButton", box)
+	assert(merchantButton, "pas de lien vers le marchand")
+	signalFor(merchantButton, "Activated"):Fire()
+	task.wait(0.3)
+	assert(find("WindowRoot_MARCHAND").Visible, "le lien n'ouvre pas le marchand")
+	Menus.close("Shop")
+	-- Inventaire › Objets : l'objet acheté apparaît, avec sa fiche.
+	Menus.open("Inventory", "items")
+	task.wait(0.3)
+	local card = nil
+	for _, d in gui:GetDescendants() do
+		if d.Name == "ItemCard" and d:GetAttribute("SelKey") == "evo_" .. firstId then
+			card = d
+		end
+	end
+	assert(card, "objet d'évolution absent de l'inventaire")
+	signalFor(card, "Activated"):Fire()
+	task.wait(0.3)
+	assert(find("MerchantButton", find("WindowRoot_UNITÉS")), "fiche de l'objet absente")
+	Menus.close("Inventory")
+	-- HUD : la pastille du marchand.
+	task.wait(0.4)
+	local chip = find("Shop", find("Chips"))
+	assert(chip and chip.Visible, "pastille du marchand absente")
+	local label = nil
+	for _, d in chip:GetDescendants() do
+		if d:IsA("TextLabel") and string.find(d.Text, "Marchand") then
+			label = d
+		end
+	end
+	assert(label, "la pastille n'affiche pas « Marchand : mm:ss »")
+	expectNoNewWarnings(before, "marchand")
+end)
+
 test("Inventaire : sélection et actions", function()
 	local before = #warnings
 	Menus.open("Inventory")

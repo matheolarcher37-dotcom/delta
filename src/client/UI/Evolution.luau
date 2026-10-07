@@ -1,11 +1,14 @@
 -- ÉVOLUTION (Autel d'Éveil) : faire évoluer une unité (★ → ★★ → ★★★) avec les matériaux de son
--- univers. À gauche les unités (les prêtes d'abord), à droite l'avant / après, les conditions
--- (coches vertes / croix rouges), le prix et le bouton ÉVEILLER.
+-- univers ET l'objet d'évolution qu'elle demande (vendu par le Marchand ambulant : Boule du Dragon
+-- pour Goko, Parchemin d'Ermite pour Maruto...). À gauche les unités (les prêtes d'abord), à droite
+-- l'avant / après, les conditions (coches vertes / croix rouges), l'objet requis (possédé, manquant,
+-- « chez le marchand »), le prix et le bouton ÉVEILLER.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Universes = require(Shared.Config.Universes)
+local EvolutionItems = require(Shared.Config.EvolutionItems)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 
@@ -27,6 +30,13 @@ local window
 local refs: { [string]: any } = {}
 local selected: string? = nil
 local page = 1
+local merchantStock: { [string]: number } = {} -- objets en vente chez le marchand (reste en stock)
+local merchantWindow = -1
+
+local function ownedItems(data, itemId: string): number
+	local items = data and data.Items
+	return type(items) == "table" and (items[itemId] or 0) or 0
+end
 
 local function isReady(entry): boolean
 	local cost = Formulas.evolutionCost(entry)
@@ -43,7 +53,118 @@ local function canAfford(entry, data): boolean
 			return false
 		end
 	end
+	local need = EvolutionItems.requirement(entry)
+	if need and ownedItems(data, need.item) < need.amount then
+		return false
+	end
 	return true
+end
+
+-- Ce que vend le marchand en ce moment (pour dire « en vente maintenant ! »).
+local function refreshMerchantStock()
+	local remote = State.remoteFunction("Merchant_GetStock")
+	if not remote then
+		return
+	end
+	task.spawn(function()
+		local ok, result = pcall(function()
+			return remote:InvokeServer()
+		end)
+		if ok and type(result) == "table" and type(result.items) == "table" then
+			local stock = {}
+			for _, entry in result.items do
+				stock[entry.id] = entry.remaining
+			end
+			merchantStock = stock
+			merchantWindow = result.window or -1
+			if Evolution._rerender then
+				Evolution._rerender()
+			end
+		end
+	end)
+end
+
+-- Encadré « OBJET REQUIS » : aperçu 3D, nom, quantité, statut et lien vers le marchand.
+local function itemBox(parent: Instance, need, data, order: number)
+	local item = EvolutionItems.get(need.item)
+	if not item then
+		return
+	end
+	local tier = EvolutionItems.Tiers[item.tier]
+	local have = ownedItems(data, item.id)
+	local ok = have >= need.amount
+	local box = new("Frame", {
+		Name = "RequiredItem",
+		Size = UDim2.new(1, 0, 0, 78),
+		BackgroundColor3 = WHITE,
+		LayoutOrder = order,
+		Parent = parent,
+	})
+	Theme.corner(12).Parent = box
+	Theme.stroke(ok and C.Green or tier.color, 2.5, 0.1).Parent = box
+	Theme.gradient({ Theme.dark(ok and C.Green or tier.color, 0.55), Color3.fromRGB(18, 16, 26) }, 0).Parent = box
+	local view = new("Frame", {
+		Name = "ItemView",
+		Position = UDim2.fromOffset(6, 6),
+		Size = UDim2.fromOffset(66, 66),
+		BackgroundColor3 = Color3.fromRGB(14, 12, 20),
+		ClipsDescendants = true,
+		Parent = box,
+	})
+	Theme.corner(10).Parent = view
+	Theme.stroke(tier.color, 2).Parent = view
+	Components.viewport(view, EvolutionItems.build(item.id, 1), Vector3.new(0, 1.35, 0), 6.6, nil, true)
+	Theme.label({
+		Text = "OBJET REQUIS : " .. need.amount .. " × " .. item.name,
+		Position = UDim2.fromOffset(82, 8),
+		Size = UDim2.new(1, -96, 0, 26),
+		FontFace = Theme.Faces.Title,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		StrokeThickness = 2,
+		MaxSize = 20,
+		Parent = box,
+	})
+	local status
+	local statusColor
+	if ok then
+		status = "Tu en as " .. have .. " : c'est bon !"
+		statusColor = Color3.fromRGB(150, 255, 170)
+	elseif (merchantStock[item.id] or 0) > 0 then
+		status = "Tu en as " .. have .. " · EN VENTE chez le Marchand en ce moment !"
+		statusColor = C.Gold
+	else
+		status = "Tu en as " .. have .. " · manquant : chez le Marchand ambulant"
+		statusColor = Color3.fromRGB(255, 160, 160)
+	end
+	Theme.label({
+		Name = "Status",
+		Text = status,
+		Position = UDim2.fromOffset(82, 38),
+		Size = UDim2.new(1, -96 - (ok and 0 or 120), 0, 22),
+		FontFace = Theme.Faces.Heavy,
+		TextColor3 = statusColor,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		StrokeThickness = 1.5,
+		MaxSize = 17,
+		Parent = box,
+	})
+	if not ok then
+		refs.merchantButton = Components.button({
+			Text = "MARCHAND",
+			Icon = "shop",
+			Color = EvolutionItems.Merchant.Color,
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, -8, 1, -8),
+			Size = UDim2.fromOffset(128, 36),
+			TextSize = 15,
+			Parent = box,
+			OnClick = function()
+				Menus.open("Shop", item.id)
+			end,
+		})
+		refs.merchantButton.Name = "MerchantButton"
+	end
+	return box
 end
 
 local function preview(parent: Instance, entry, x: number, starsText: string, tint: Color3)
@@ -116,7 +237,7 @@ local function renderDetail()
 	Components.rarityTag(sheet, Components.rarityOf(entry, desc), { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 18), Size = UDim2.fromOffset(130, 26) })
 
 	-- Avant / après
-	local compare = new("Frame", { Size = UDim2.new(1, -32, 0, 180), Position = UDim2.fromOffset(16, 54), BackgroundTransparency = 1, Parent = sheet })
+	local compare = new("Frame", { Size = UDim2.new(1, -32, 0, 150), Position = UDim2.fromOffset(16, 52), BackgroundTransparency = 1, Parent = sheet })
 	preview(compare, entry, 0, string.rep("★", entry.stars or 1) .. "  Nv." .. entry.level, tint)
 	Components.bigSymbol(compare, "arrowRight", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(56, 56) })
 	if cost then
@@ -140,20 +261,25 @@ local function renderDetail()
 	end
 
 	-- Conditions
-	local list = new("Frame", { Size = UDim2.new(1, -32, 0, 170), Position = UDim2.fromOffset(16, 246), BackgroundTransparency = 1, Parent = sheet })
-	Theme.list(Enum.FillDirection.Vertical, 6, Enum.HorizontalAlignment.Left).Parent = list
+	local list = new("Frame", { Size = UDim2.new(1, -32, 0, 230), Position = UDim2.fromOffset(16, 210), BackgroundTransparency = 1, Parent = sheet })
+	Theme.list(Enum.FillDirection.Vertical, 5, Enum.HorizontalAlignment.Left).Parent = list
+	refs.merchantButton = nil
 	if not cost then
 		Components.hintText(list, "Cette unité est au sommet de sa puissance !", { Size = UDim2.new(1, 0, 0, 30) })
 		return
 	end
-	Components.requirement(list, "Niveau " .. cost.levelRequired .. "  (actuel : " .. entry.level .. ")", entry.level >= cost.levelRequired, 1)
-	Components.requirement(list, Formulas.formatNumber(cost.coins) .. " pièces  (tu as " .. Formulas.formatNumber(data.coins) .. ")", data.coins >= cost.coins, 2)
+	Components.requirement(list, "Niveau " .. cost.levelRequired .. "  (actuel : " .. entry.level .. ")", entry.level >= cost.levelRequired, 1, 28)
+	Components.requirement(list, Formulas.formatNumber(cost.coins) .. " pièces  (tu as " .. Formulas.formatNumber(data.coins) .. ")", data.coins >= cost.coins, 2, 28)
 	local order = 2
 	for materialId, amount in cost.materials do
 		order += 1
 		local material = Universes.getMaterial(materialId)
 		local owned = data.materials[materialId] or 0
-		Components.requirement(list, amount .. " × " .. (material and material.name or materialId) .. "  (tu as " .. owned .. ")", owned >= amount, order)
+		Components.requirement(list, amount .. " × " .. (material and material.name or materialId) .. "  (tu as " .. owned .. ")", owned >= amount, order, 28)
+	end
+	local need = EvolutionItems.requirement(entry)
+	if need then
+		itemBox(list, need, data, 20)
 	end
 	local nextEntry = table.clone(entry)
 	nextEntry.stars = cost.stars
@@ -162,7 +288,7 @@ local function renderDetail()
 		"sword",
 		"Puissance " .. Formulas.formatNumber(Formulas.power(entry)) .. "  →  " .. Formulas.formatNumber(Formulas.power(nextEntry)),
 		C.Green,
-		{ AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 16, 1, -76), Size = UDim2.new(1, -32, 0, 34) }
+		{ AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 16, 1, -76), Size = UDim2.new(1, -32, 0, 32) }
 	)
 	local can = canAfford(entry, data)
 	local uid = selected :: string
@@ -282,11 +408,20 @@ function Evolution.init(gui: ScreenGui)
 			selected = arg
 			page = 1
 		end
+		refreshMerchantStock()
 		renderList()
 		renderDetail()
 	end, function()
 		return refs.selectedCard or window.firstSelectable()
 	end)
+	Evolution._rerender = function()
+		if window.isOpen then
+			Components.preserveSelection(window.content, function()
+				renderList()
+				renderDetail()
+			end)
+		end
+	end
 	local lastKey = ""
 	State.onChanged(function(data)
 		if not window.isOpen then
@@ -299,6 +434,12 @@ function Evolution.init(gui: ScreenGui)
 		for id, count in data.materials do
 			table.insert(parts, id .. "=" .. count)
 		end
+		if type(data.Items) == "table" then
+			for id, count in data.Items do
+				table.insert(parts, "item_" .. id .. "=" .. count)
+			end
+		end
+		table.insert(parts, "w" .. merchantWindow)
 		table.sort(parts)
 		local key = table.concat(parts, "|")
 		if key ~= lastKey then

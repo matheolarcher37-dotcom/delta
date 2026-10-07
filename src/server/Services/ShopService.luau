@@ -229,10 +229,7 @@ function ShopService:Start()
 						best = item
 					end
 				end
-				Notify:FireAllClients(
-					"Le Marchand s'est installé dans un autre coin : suis le rayon violet !" .. (best and (" (" .. best.name .. " en stock)") or ""),
-					"info"
-				)
+				Notify:FireAllClients("Le Marchand s'est installé dans un autre coin : suis le rayon violet !" .. (best and (" (" .. best.name .. " en stock)") or ""), "info")
 			end
 		end
 	end)

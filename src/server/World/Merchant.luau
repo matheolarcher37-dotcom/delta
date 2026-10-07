@@ -197,7 +197,14 @@ local function buildWagon(model: Model, cf: CFrame)
 		Props.hangingLantern(wagon, corner.Position, (corner.RightVector * x) * 1.4, rgb(255, 180, 90), 0.8)
 	end
 	for i, x in { -5.2, -4.2 } do
-		cyl(wagon, "Pan", Vector3.new(0.2, 1.1 - i * 0.15, 1.1 - i * 0.15), center * CFrame.new(x, bodyBottom + 1.4, D / 2 + 0.15) * CFrame.Angles(0, math.rad(90), 0), rgb(150, 100, 70), Enum.Material.Metal)
+		cyl(
+			wagon,
+			"Pan",
+			Vector3.new(0.2, 1.1 - i * 0.15, 1.1 - i * 0.15),
+			center * CFrame.new(x, bodyBottom + 1.4, D / 2 + 0.15) * CFrame.Angles(0, math.rad(90), 0),
+			rgb(150, 100, 70),
+			Enum.Material.Metal
+		)
 	end
 	return wagon, shelves
 end
@@ -231,7 +238,14 @@ local function buildFront(model: Model, cf: CFrame): BasePart
 		deco(stall, "ScaleCord", Vector3.new(0.04, 0.55, 0.04), top * CFrame.new(-4.6 + x * 1.05, 1.42, 0), rgb(60, 50, 40))
 	end
 	for i = 0, 5 do
-		cyl(stall, "Coin", Vector3.new(0.12, 0.6, 0.6), top * CFrame.new(-2.6 + (i % 2) * 0.15, 0.06 + i * 0.13, 0.2) * CFrame.Angles(0, 0, math.rad(90)), GOLD, Enum.Material.Metal)
+		cyl(
+			stall,
+			"Coin",
+			Vector3.new(0.12, 0.6, 0.6),
+			top * CFrame.new(-2.6 + (i % 2) * 0.15, 0.06 + i * 0.13, 0.2) * CFrame.Angles(0, 0, math.rad(90)),
+			GOLD,
+			Enum.Material.Metal
+		)
 	end
 	for i = 0, 3 do
 		cyl(stall, "Coin", Vector3.new(0.12, 0.6, 0.6), top * CFrame.new(-1.9, 0.06 + i * 0.13, -0.3) * CFrame.Angles(0, 0, math.rad(90)), GOLD, Enum.Material.Metal)
@@ -284,7 +298,14 @@ local function buildFront(model: Model, cf: CFrame): BasePart
 	local signCF = cf * CFrame.new(0, frontY - 2.3, frontZ - 0.35)
 	for _, x in { -3.2, 3.2 } do
 		for k = 0, 3 do
-			deco(stall, "Chain", Vector3.new(0.12, 0.34, 0.24), signCF * CFrame.new(x, 1.25 + k * 0.3, 0) * CFrame.Angles(0, k % 2 == 0 and 0 or math.rad(90), 0), rgb(70, 70, 74), Enum.Material.Metal)
+			deco(
+				stall,
+				"Chain",
+				Vector3.new(0.12, 0.34, 0.24),
+				signCF * CFrame.new(x, 1.25 + k * 0.3, 0) * CFrame.Angles(0, k % 2 == 0 and 0 or math.rad(90), 0),
+				rgb(70, 70, 74),
+				Enum.Material.Metal
+			)
 		end
 	end
 	deco(stall, "SignFrame", Vector3.new(9.4, 2.4, 0.35), signCF, WOOD_DARK, Enum.Material.Wood)
@@ -567,6 +588,9 @@ function Merchant.build(parent: Instance, groundY: ((Vector3) -> number)?): Mode
 	prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 	prompt.Parent = counter
 
+	-- Repère invisible au sol : sert de pivot pour déplacer toute l'échoppe d'un coin à l'autre.
+	local pivot = Build.deco(model, "Pivot", Vector3.new(1, 1, 1), cf, Color3.new(1, 1, 1), { Transparency = 1, CastShadow = false })
+	model.PrimaryPart = pivot
 	model.WorldPivot = cf
 	model:SetAttribute("SpotIndex", 1)
 	CollectionService:AddTag(model, "Merchant")

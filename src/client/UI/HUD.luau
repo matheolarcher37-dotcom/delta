@@ -343,7 +343,21 @@ local function buildBanner(root: Frame)
 	end
 	refs.eventChip, refs.eventLabel = chip("Event", C.Purple, "bolt")
 	refs.bossChip, refs.bossLabel = chip("Boss", C.Red, "skull")
-	refs.shopChip, refs.shopLabel = chip("Shop", C.Blue, "shop")
+	-- Marchand ambulant : compte à rebours + flèche qui indique sa direction.
+	refs.shopChip, refs.shopLabel = chip("Shop", Color3.fromRGB(214, 92, 255), "shop")
+	refs.shopChip.Size = UDim2.fromOffset(250, 32)
+	refs.shopLabel.Size = UDim2.new(1, -74, 1, -8)
+	local arrow = new("Frame", {
+		Name = "MerchantArrow",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -8, 0.5, 0),
+		Size = UDim2.fromOffset(24, 24),
+		BackgroundTransparency = 1,
+		ZIndex = 3,
+		Parent = refs.shopChip,
+	})
+	Icons.make("arrowRight", arrow, { px = 24, zindex = 3, ink = Color3.fromRGB(90, 30, 110) })
+	refs.shopArrow = arrow
 end
 
 ------------------------------------------------------------------------
@@ -747,10 +761,20 @@ function HUD.init(gui: ScreenGui)
 			elseif bossAt then
 				refs.bossLabel.Text = "Boss dans " .. Formulas.formatTime(bossAt - now)
 			end
-			local restock = state:GetAttribute("ShopRestockAt")
+			local restock = state:GetAttribute("MerchantMoveAt") or state:GetAttribute("ShopRestockAt")
 			refs.shopChip.Visible = restock ~= nil
 			if restock then
-				refs.shopLabel.Text = "Boutique : " .. Formulas.formatTime(restock - now)
+				refs.shopLabel.Text = "Marchand : " .. Formulas.formatTime(math.max(0, restock - now))
+				local target = state:GetAttribute("MerchantPosition")
+				local camera = workspace.CurrentCamera
+				refs.shopArrow.Visible = typeof(target) == "Vector3" and camera ~= nil
+				if typeof(target) == "Vector3" and camera then
+					-- Angle entre le regard de la caméra et la direction du marchand (vu de dessus).
+					local look = camera.CFrame.LookVector
+					local delta = target - camera.CFrame.Position
+					local angle = math.atan2(delta.X, -delta.Z) - math.atan2(look.X, -look.Z)
+					refs.shopArrow.Rotation = math.deg(angle) - 90
+				end
 			end
 			refs.objective.Text = objectiveText(State.data)
 			updateTeamHealth()
