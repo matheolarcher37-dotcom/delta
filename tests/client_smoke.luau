@@ -690,6 +690,48 @@ test("Échange : la fenêtre s'ouvre et se ferme", function()
 	expectNoNewWarnings(before, "échange")
 end)
 
+test("Boutique Robux : onglets, barre de droite, achat simulé", function()
+	local before = #warnings
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local RobuxShop = Harness.require(client.UI.RobuxShop)
+	local HUD = Harness.require(client.UI.HUD)
+	local gui = alice.PlayerGui.AnimeTycoonUI
+	local function frames(n)
+		for _ = 1, n do
+			Harness.services.RunService.RenderStepped:Fire(1 / 60)
+		end
+	end
+	local bar = gui:FindFirstChild("RobuxSideBar", true)
+	assert(bar and bar:FindFirstChild("Offer_Coins2") and bar:FindFirstChild("OpenShop"), "barre de droite absente")
+	-- Le bouton « Boutique » du HUD ouvre la boutique Robux.
+	local found = false
+	for _, info in HUD.Tiles do
+		found = found or (info.text == "Boutique" and info.menu == "RobuxShop")
+	end
+	assert(found, "la tuile Boutique n'ouvre pas la boutique Robux")
+	Menus.open("RobuxShop", "passes")
+	task.wait(0.3)
+	frames(10)
+	local root = gui:FindFirstChild("WindowRoot_BOUTIQUE ROBUX")
+	assert(root and root.Visible, "boutique Robux non ouverte")
+	for _, key in { "AutoRollPlus", "Roll2", "Roll3", "Coins2", "Luck2", "AutoRoll", "VIP" } do
+		assert(root:FindFirstChild("Pass_" .. key, true), "carte manquante : " .. key)
+	end
+	RobuxShop.render("packs")
+	assert(root:FindFirstChild("Pack_CoinsXL", true) and root:FindFirstChild("Pack_GemsL", true), "onglet Packs")
+	RobuxShop.render("boosts")
+	frames(40)
+	assert(root:FindFirstChild("Boost_BoostCombo", true), "onglet Boosts")
+	Menus.close()
+	-- Achat (simulé dans Studio) directement depuis la barre de droite.
+	signalFor(bar:FindFirstChild("Offer_Coins2"), "Activated"):Fire()
+	task.wait(0.3)
+	assert(alice:GetAttribute("Pass_Coins2") == true, "achat simulé non accordé")
+	frames(45)
+	assert(not bar:FindFirstChild("Offer_Coins2"), "un passe possédé est encore proposé")
+	expectNoNewWarnings(before, "boutique Robux")
+end)
+
 test("Notifications et annonces", function()
 	local before = #warnings
 	local Remotes = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Remotes"))

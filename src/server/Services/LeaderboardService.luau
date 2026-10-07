@@ -224,12 +224,14 @@ function LeaderboardService:_fetch()
 			return store:GetSortedAsync(false, 10)
 		end)
 		local list = {}
-		local okPage = ok and pages ~= nil and pcall(function()
-			for _, item in pages:GetCurrentPage() do
-				local userId = tonumber(item.key)
-				table.insert(list, { name = userId and nameFor(userId) or "Joueur", value = tonumber(item.value) or 0 })
-			end
-		end)
+		local okPage = ok
+			and pages ~= nil
+			and pcall(function()
+				for _, item in pages:GetCurrentPage() do
+					local userId = tonumber(item.key)
+					table.insert(list, { name = userId and nameFor(userId) or "Joueur", value = tonumber(item.value) or 0 })
+				end
+			end)
 		globalOk[id] = okPage == true
 		if okPage then
 			globalTop[id] = list

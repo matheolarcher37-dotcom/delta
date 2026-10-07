@@ -29,7 +29,7 @@ local new = Theme.new
 local WHITE = Color3.new(1, 1, 1)
 local player = Players.LocalPlayer
 
-local BUTTON_W, BUTTON_H, GAP = 96, 84, 8
+local BUTTON_W, BUTTON_H, GAP = 104, 92, 8
 
 -- Offres proposées, dans l'ordre (les passes possédés sont sautés).
 RobuxSideBar.Offers = {
@@ -76,7 +76,6 @@ local function offerButton(parent: Instance, offer, order: number)
 	local boost = isBoost and Robux.Boosts[entry.boosts[1]] or nil
 	local color = boost and boost.color or entry.color
 	local icon = boost and boost.icon or entry.icon
-	local badge = if isBoost then "x2" else entry.badge
 
 	local button = new("TextButton", {
 		Name = "Offer_" .. offer.key,
@@ -101,13 +100,13 @@ local function offerButton(parent: Instance, offer, order: number)
 	Theme.shine(body, 14, 0.35)
 	Theme.sparkles(body, 3, order * 7, 0.6, 3)
 	RobuxShop.sweep(body, 16, order * 0.21, sweeps)
-	RobuxShop.offerIcon(body, icon, color, 38, badge, UDim2.new(0.5, -4, 0, 24))
+	RobuxShop.offerIcon(body, icon, color, 44, nil, UDim2.new(0.5, 0, 0, 27))
 	Theme.label({
 		Name = "Label",
 		Text = offer.label,
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 44),
-		Size = UDim2.new(1, -8, 0, 20),
+		Position = UDim2.new(0.5, 0, 0, 49),
+		Size = UDim2.new(1, -10, 0, 19),
 		FontFace = Theme.Faces.Title,
 		StrokeThickness = 2,
 		ZIndex = 7,
@@ -118,7 +117,7 @@ local function offerButton(parent: Instance, offer, order: number)
 		Name = "Price",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, 0),
-		Size = UDim2.fromOffset(BUTTON_W - 14, 24),
+		Size = UDim2.fromOffset(BUTTON_W - 16, 26),
 		BackgroundColor3 = WHITE,
 		ZIndex = 8,
 		Parent = button,
@@ -126,12 +125,12 @@ local function offerButton(parent: Instance, offer, order: number)
 	Theme.round().Parent = price
 	Theme.stroke(C.Stroke, 2).Parent = price
 	Theme.gradient({ Color3.fromRGB(60, 225, 150), RobuxShop.RobuxGreen, Color3.fromRGB(0, 120, 74) }, 90).Parent = price
-	RobuxShop.robuxIcon(price, 16, WHITE, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), ZIndex = 9 })
+	RobuxShop.robuxIcon(price, 17, WHITE, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 9, 0.5, 0), ZIndex = 9 })
 	local priceLabel = Theme.label({
 		Name = "Amount",
 		Text = tostring(entry.price),
-		Size = UDim2.new(1, -34, 1, -4),
-		Position = UDim2.fromOffset(28, 2),
+		Size = UDim2.new(1, -40, 1, -5),
+		Position = UDim2.fromOffset(32, 2),
 		FontFace = Theme.Faces.Title,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		StrokeThickness = 1.5,
@@ -156,7 +155,7 @@ end
 local function shopButton(parent: Instance, order: number)
 	local button = new("TextButton", {
 		Name = "OpenShop",
-		Size = UDim2.fromOffset(BUTTON_W, 46),
+		Size = UDim2.fromOffset(BUTTON_W, BUTTON_H),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Text = "",
@@ -165,24 +164,48 @@ local function shopButton(parent: Instance, order: number)
 	})
 	button:SetAttribute("SelKey", "OpenShop")
 	local scale = new("UIScale", { Parent = button })
-	local body = new("Frame", { Name = "Body", Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, Parent = button })
-	Theme.corner(14).Parent = body
+	local body = new("Frame", { Name = "Body", Size = UDim2.new(1, 0, 1, -8), BackgroundColor3 = WHITE, Parent = button })
+	Theme.corner(16).Parent = body
 	Theme.stroke(C.Stroke, 2.5).Parent = body
-	Theme.gradient({ Color3.fromRGB(70, 235, 160), RobuxShop.RobuxGreen, Color3.fromRGB(0, 110, 70) }, 90).Parent = body
-	Theme.shine(body, 12, 0.35)
-	RobuxShop.sweep(body, 14, 0.55, sweeps)
-	RobuxShop.robuxIcon(body, 24, WHITE, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), ZIndex = 4 })
+	Theme.gradient({ Color3.fromRGB(70, 235, 160), RobuxShop.RobuxGreen, Color3.fromRGB(0, 100, 64) }, 90).Parent = body
+	Theme.shine(body, 14, 0.35)
+	Theme.sparkles(body, 3, 41, 0.6, 3)
+	RobuxShop.sweep(body, 16, 0.55, sweeps)
+	RobuxShop.robuxIcon(body, 40, WHITE, { Position = UDim2.new(0.5, 0, 0, 27), ZIndex = 4 })
 	Theme.label({
 		Name = "Label",
 		Text = "Boutique",
-		Size = UDim2.new(1, -42, 1, -14),
-		Position = UDim2.fromOffset(36, 7),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 49),
+		Size = UDim2.new(1, -10, 0, 19),
 		FontFace = Theme.Faces.Title,
 		StrokeThickness = 2,
 		ZIndex = 7,
 		Parent = body,
 	})
-	Console.hint(button, "Y", { Position = UDim2.fromOffset(-16, -10), ZIndex = 12 })
+	local more = new("Frame", {
+		Name = "Price",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, 0),
+		Size = UDim2.fromOffset(BUTTON_W - 16, 26),
+		BackgroundColor3 = WHITE,
+		ZIndex = 8,
+		Parent = button,
+	})
+	Theme.round().Parent = more
+	Theme.stroke(C.Stroke, 2).Parent = more
+	Theme.gradient({ Color3.fromRGB(255, 236, 120), C.Gold, Color3.fromRGB(210, 140, 20) }, 90).Parent = more
+	Theme.label({
+		Name = "Amount",
+		Text = "Tout voir",
+		Size = UDim2.new(1, -12, 1, -6),
+		Position = UDim2.fromOffset(6, 3),
+		FontFace = Theme.Faces.Title,
+		StrokeThickness = 1.5,
+		ZIndex = 9,
+		Parent = more,
+	})
+	Console.hint(button, "Y", { Position = UDim2.fromOffset(-14, -8), ZIndex = 12 })
 	Components.interactive(button, scale, 1.08)
 	button.Activated:Connect(function()
 		Components.click()
@@ -245,7 +268,7 @@ function RobuxSideBar.layout()
 	local scaleValue = touch and 0.8 or 1
 	refs.scale.Scale = scaleValue
 	local count = #buttons
-	local height = (math.max(0, count - 1) * (BUTTON_H + GAP) + 46) * scaleValue
+	local height = (count * (BUTTON_H + GAP) - GAP) * scaleValue
 	local top = touch and 236 or 152
 	local bottom = top + height
 	local H = rootHeight(root)
@@ -302,6 +325,7 @@ function RobuxSideBar.init(root: Frame)
 			for _, update in timers do
 				update()
 			end
+			RobuxSideBar.rebuild() -- ne reconstruit que si les offres ont changé
 			RobuxSideBar.layout()
 		end
 	end)

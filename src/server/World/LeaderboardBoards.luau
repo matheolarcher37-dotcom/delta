@@ -106,9 +106,19 @@ local function display(panel: BasePart, info)
 		local ratio = Instance.new("UIAspectRatioConstraint")
 		ratio.AspectRatio = 1
 		ratio.Parent = badge
-		text(badge, "Rang", tostring(i), UDim2.fromScale(0.8, 0.8), UDim2.fromScale(0.1, 0.1), i <= 3 and rgb(60, 36, 10) or rgb(240, 236, 230), Enum.Font.LuckiestGuy).TextStrokeTransparency = 1
+		text(badge, "Rang", tostring(i), UDim2.fromScale(0.8, 0.8), UDim2.fromScale(0.1, 0.1), i <= 3 and rgb(60, 36, 10) or rgb(240, 236, 230), Enum.Font.LuckiestGuy).TextStrokeTransparency =
+			1
 		text(row, "Nom", "—", UDim2.fromScale(0.5, 0.7), UDim2.fromScale(0.17, 0.15), i <= 3 and MEDALS[i] or rgb(240, 236, 230), Enum.Font.GothamBold, Enum.TextXAlignment.Left)
-		text(row, "Valeur", "", UDim2.fromScale(0.32, 0.7), UDim2.fromScale(0.65, 0.15), info.color:Lerp(rgb(255, 255, 255), 0.45), Enum.Font.GothamBlack, Enum.TextXAlignment.Right)
+		text(
+			row,
+			"Valeur",
+			"",
+			UDim2.fromScale(0.32, 0.7),
+			UDim2.fromScale(0.65, 0.15),
+			info.color:Lerp(rgb(255, 255, 255), 0.45),
+			Enum.Font.GothamBlack,
+			Enum.TextXAlignment.Right
+		)
 	end
 	text(bg, "Pied", "Mis à jour toutes les 2 minutes", UDim2.fromScale(0.9, 0.03), UDim2.fromScale(0.05, 0.955), rgb(150, 140, 130), Enum.Font.Gotham)
 	return gui
@@ -186,10 +196,17 @@ function LeaderboardBoards.build(parent: Instance, center: Vector3): { Model }
 	end
 	-- Petit dallage devant les tableaux.
 	local paving = Core.shade(STONE, 0.05)
-	Build.part(parent, "DallageClassements", Vector3.new(70, 0.4, 16), CFrame.lookAt(flat + toHub * 9 + Vector3.new(0, 0.2, 0), flat + toHub * 20 + Vector3.new(0, 0.2, 0)), paving, {
-		Material = Enum.Material.Cobblestone,
-		CanCollide = false,
-	})
+	Build.part(
+		parent,
+		"DallageClassements",
+		Vector3.new(70, 0.4, 16),
+		CFrame.lookAt(flat + toHub * 9 + Vector3.new(0, 0.2, 0), flat + toHub * 20 + Vector3.new(0, 0.2, 0)),
+		paving,
+		{
+			Material = Enum.Material.Cobblestone,
+			CanCollide = false,
+		}
+	)
 	return models
 end
 

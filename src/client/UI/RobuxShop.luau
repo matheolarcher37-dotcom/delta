@@ -339,13 +339,13 @@ local function passCard(parent: Instance, key: string, size: UDim2, position: UD
 	local pass = Robux.Passes[key]
 	local owned = Robux.hasPass(player, key)
 	local card = cardBase(parent, "Pass_" .. key, pass.color, size, position, seed)
-	glow(card, pass.color, 110, UDim2.new(0.5, 0, 0, 62))
-	RobuxShop.offerIcon(card, pass.icon, pass.color, 76, pass.badge, UDim2.new(0.5, 0, 0, 60))
+	glow(card, pass.color, 100, UDim2.new(0.5, 0, 0, 52))
+	RobuxShop.offerIcon(card, pass.icon, pass.color, 68, pass.badge, UDim2.new(0.5, 0, 0, 50))
 	Theme.label({
 		Name = "Title",
 		Text = pass.name,
 		Size = UDim2.new(1, -20, 0, 28),
-		Position = UDim2.fromOffset(10, 108),
+		Position = UDim2.fromOffset(10, 92),
 		FontFace = Theme.Faces.Title,
 		StrokeThickness = 2.5,
 		MaxSize = 26,
@@ -355,8 +355,8 @@ local function passCard(parent: Instance, key: string, size: UDim2, position: UD
 	Theme.label({
 		Name = "Desc",
 		Text = pass.desc,
-		Size = UDim2.new(1, -24, 0, 44),
-		Position = UDim2.fromOffset(12, 138),
+		Size = UDim2.new(1, -24, 0, 50),
+		Position = UDim2.fromOffset(12, 122),
 		FontFace = Theme.Faces.Medium,
 		TextColor3 = Color3.fromRGB(220, 222, 236),
 		TextWrapped = true,
@@ -367,8 +367,8 @@ local function passCard(parent: Instance, key: string, size: UDim2, position: UD
 	})
 	local button = RobuxShop.priceButton(card, pass.price, {
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -20),
-		Size = UDim2.new(1, -28, 0, 44),
+		Position = UDim2.new(0.5, 0, 1, -21),
+		Size = UDim2.new(1, -28, 0, 42),
 	}, function()
 		RobuxShop.buy("pass", key)
 	end)
@@ -474,7 +474,7 @@ local function coinPile(parent: Instance, tier: number)
 	local holder = new("Frame", {
 		Name = "Pile",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0, 58),
+		Position = UDim2.new(0.5, 0, 0, 50),
 		Size = UDim2.fromOffset(120, 80),
 		BackgroundTransparency = 1,
 		ZIndex = 3,
@@ -496,7 +496,7 @@ local function gemPile(parent: Instance, tier: number)
 	local holder = new("Frame", {
 		Name = "Pile",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0, 54),
+		Position = UDim2.new(0.5, 0, 0, 48),
 		Size = UDim2.fromOffset(120, 80),
 		BackgroundTransparency = 1,
 		ZIndex = 3,
@@ -519,20 +519,25 @@ local function packCard(parent: Instance, key: string, size: UDim2, position: UD
 	local isCoins = product.kind == "coins"
 	local color = isCoins and Color3.fromRGB(255, 180, 40) or Color3.fromRGB(40, 190, 240)
 	local card = cardBase(parent, "Pack_" .. key, color, size, position, seed)
-	glow(card, color, 110, UDim2.new(0.5, 0, 0, 56))
+	glow(card, color, 100, UDim2.new(0.5, 0, 0, 50))
 	if isCoins then
 		coinPile(card, product.tier)
 	else
 		gemPile(card, product.tier)
 	end
 	if product.ribbon then
-		ribbon(card, product.ribbon, product.ribbon == "MEILLEUR PRIX" and C.Red or C.Purple, { Position = UDim2.new(0.5, 0, 0, 0), Size = UDim2.fromOffset(150, 26) })
+		ribbon(card, product.ribbon, product.ribbon == "MEILLEUR PRIX" and C.Red or C.Purple, {
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -8, 0, 8),
+			Size = UDim2.fromOffset(product.ribbon == "MEILLEUR PRIX" and 132 or 104, 24),
+			Rotation = 6,
+		})
 	end
 	local amount = Theme.label({
 		Name = "Amount",
 		Text = "",
-		Size = UDim2.new(1, -20, 0, 34),
-		Position = UDim2.fromOffset(10, 98),
+		Size = UDim2.new(1, -20, 0, 32),
+		Position = UDim2.fromOffset(10, 88),
 		FontFace = Theme.Faces.Title,
 		TextColor3 = isCoins and C.Gold or Color3.fromRGB(150, 236, 255),
 		StrokeThickness = 2.5,
@@ -543,7 +548,7 @@ local function packCard(parent: Instance, key: string, size: UDim2, position: UD
 		Name = "Sub",
 		Text = product.name,
 		Size = UDim2.new(1, -20, 0, 18),
-		Position = UDim2.fromOffset(10, 132),
+		Position = UDim2.fromOffset(10, 121),
 		FontFace = Theme.Faces.Bold,
 		TextColor3 = Color3.fromRGB(220, 222, 236),
 		StrokeThickness = 1,
@@ -564,8 +569,8 @@ local function packCard(parent: Instance, key: string, size: UDim2, position: UD
 	table.insert(timers, update)
 	local button = RobuxShop.priceButton(card, product.price, {
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -20),
-		Size = UDim2.new(1, -28, 0, 42),
+		Position = UDim2.new(0.5, 0, 1, -21),
+		Size = UDim2.new(1, -28, 0, 38),
 	}, function()
 		RobuxShop.buy("product", key)
 	end)
@@ -576,7 +581,7 @@ end
 
 local function renderPacks(container: Frame)
 	Components.sectionTitle(container, "PIÈCES  ·  plus tu gagnes, plus les packs sont gros !", { Position = UDim2.fromOffset(4, 0), Size = UDim2.new(1, -8, 0, 24) })
-	local coins = new("Frame", { Name = "Coins", Size = UDim2.new(1, 0, 0, 222), Position = UDim2.fromOffset(0, 30), BackgroundTransparency = 1, Parent = container })
+	local coins = new("Frame", { Name = "Coins", Size = UDim2.new(1, 0, 0, 214), Position = UDim2.fromOffset(0, 30), BackgroundTransparency = 1, Parent = container })
 	local rowA, rowB = {}, {}
 	for i, key in Robux.CoinPacks do
 		local col = i - 1
@@ -586,10 +591,10 @@ local function renderPacks(container: Frame)
 	Components.sectionTitle(
 		container,
 		"GEMMES DE TRAIT  ·  pour relancer les traits de tes persos",
-		{ Position = UDim2.fromOffset(4, 262), Size = UDim2.new(1, -8, 0, 24) },
+		{ Position = UDim2.fromOffset(4, 254), Size = UDim2.new(1, -8, 0, 24) },
 		Color3.fromRGB(120, 220, 255)
 	)
-	local gems = new("Frame", { Name = "Gems", Size = UDim2.new(1, 0, 0, 206), Position = UDim2.fromOffset(0, 292), BackgroundTransparency = 1, Parent = container })
+	local gems = new("Frame", { Name = "Gems", Size = UDim2.new(1, 0, 0, 214), Position = UDim2.fromOffset(0, 284), BackgroundTransparency = 1, Parent = container })
 	for i, key in Robux.GemPacks do
 		local col = i - 1
 		local _, button = packCard(gems, key, UDim2.new(1 / 3, -8, 1, 0), UDim2.new(col / 3, col * 4, 0, 0), i * 9 + 3)
@@ -647,7 +652,8 @@ local function boostCard(parent: Instance, key: string, size: UDim2, position: U
 	})
 	Theme.label({
 		Name = "Desc",
-		Text = combo and "Chance ET argent doublés pendant 30 minutes." or (product.boosts[1] == "Luck" and "Chance doublée à la machine ROULER." or "Toutes tes pièces sont doublées."),
+		Text = combo and "Chance ET argent doublés pendant 30 minutes."
+			or (product.boosts[1] == "Luck" and "Chance doublée à la machine ROULER." or "Toutes tes pièces sont doublées."),
 		Size = UDim2.new(1, -30, 0, 40),
 		Position = UDim2.fromOffset(15, 246),
 		FontFace = Theme.Faces.Medium,
@@ -664,10 +670,10 @@ local function boostCard(parent: Instance, key: string, size: UDim2, position: U
 		Size = UDim2.new(1, -40, 0, 34),
 	})
 	local function update()
-		local left = 0
+		-- Actif seulement si TOUS les boosts du produit le sont (le plus court compte).
+		local left = math.huge
 		for _, boost in product.boosts do
-			local remaining = Robux.boostLeft(player, boost, now())
-			left = if left == 0 then remaining else math.min(left, remaining)
+			left = math.min(left, Robux.boostLeft(player, boost, now()))
 		end
 		Components.setPillText(status, left > 0 and ("ACTIF : " .. Formulas.formatTime(left)) or "Inactif · rachète pour prolonger")
 		local stroke = status:FindFirstChildOfClass("UIStroke")
@@ -774,8 +780,6 @@ function RobuxShop.init(gui: ScreenGui)
 	})
 	refs.window = window
 	refs.container = new("Frame", { Name = "Offers", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = window.content })
-	-- Icône Robux dans le coin du titre.
-	RobuxShop.robuxIcon(window.panel, 30, WHITE, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -78, 0, 20), ZIndex = 4 })
 
 	Components.registerWindow(Menus, "RobuxShop", window, function(arg)
 		local tab = (arg == "packs" or arg == "boosts" or arg == "passes") and arg or currentTab
