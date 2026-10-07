@@ -129,11 +129,63 @@ function Conveyor.chest(folder: Instance, cf: CFrame)
 		Speed = NumberRange.new(1, 3),
 		SpreadAngle = Vector2.new(40, 40),
 	})
-	local gui = Build.billboard(lid, UDim2.new(6, 60, 2.2, 24), Vector3.new(0, 4.2, 0), 120)
-	gui.Name = "StashGui"
-	local label = Kit.text(gui, "Amount", "¥ 0", UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.62), rgb(255, 225, 80), Enum.Font.LuckiestGuy)
-	Kit.text(gui, "Hint", "Marche sur le disque doré pour récupérer", UDim2.fromScale(0, 0.64), UDim2.fromScale(1, 0.34), rgb(255, 255, 255), Enum.Font.GothamBold)
+	Conveyor.stashBoard(lid)
+	local label = lid:FindFirstChild("Amount", true)
 	return model, pad, label
+end
+
+-- Compteur du coffre : grande carte aérée, bien AU-DESSUS du coffre (et des panneaux d'achat
+-- voisins), qui pousse vers le haut depuis son bord bas : titre, montant en très grand, revenu
+-- par seconde, puis la consigne sur sa propre ligne. Toujours au premier plan.
+function Conveyor.stashBoard(lid: BasePart): BillboardGui
+	local old = lid:FindFirstChild("StashGui")
+	if old then
+		old:Destroy()
+	end
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "StashGui"
+	gui.Adornee = lid
+	-- Carte = moitié haute (bord bas fixe, ~10 studs au-dessus du sol).
+	gui.Size = UDim2.new(6.4, 120, 2 * 3.4, 2 * 64)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 4.6, 0)
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	gui.MaxDistance = 130
+	gui.ResetOnSpawn = false
+	gui.Parent = lid
+	local card = Instance.new("Frame")
+	card.Name = "Card"
+	card.Size = UDim2.fromScale(1, 0.5)
+	card.BackgroundColor3 = rgb(22, 16, 34)
+	card.BackgroundTransparency = 0.12
+	card.BorderSizePixel = 0
+	card.Parent = gui
+	local cardCorner = Instance.new("UICorner")
+	cardCorner.CornerRadius = UDim.new(0.14, 0)
+	cardCorner.Parent = card
+	local cardStroke = Instance.new("UIStroke")
+	cardStroke.Color = rgb(255, 200, 60)
+	cardStroke.Thickness = 3
+	cardStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	cardStroke.Parent = card
+	Kit.gradient(card, { rgb(70, 46, 110), rgb(22, 14, 36) })
+	local title = Kit.text(card, "Titre", "💰 COFFRE DES REVENUS", UDim2.fromScale(0.06, 0.05), UDim2.fromScale(0.88, 0.16), rgb(255, 255, 255), Enum.Font.GothamBlack)
+	Kit.gradient(title, { rgb(255, 240, 170), rgb(255, 180, 60) })
+	Kit.text(card, "Amount", "¥ 0", UDim2.fromScale(0.05, 0.22), UDim2.fromScale(0.9, 0.38), rgb(255, 225, 80), Enum.Font.LuckiestGuy)
+	Kit.text(card, "Rate", "+0 / s", UDim2.fromScale(0.08, 0.61), UDim2.fromScale(0.84, 0.14), rgb(130, 255, 140), Enum.Font.GothamBlack)
+	local hintBar = Instance.new("Frame")
+	hintBar.Name = "HintBar"
+	hintBar.Position = UDim2.fromScale(0.05, 0.79)
+	hintBar.Size = UDim2.fromScale(0.9, 0.16)
+	hintBar.BackgroundColor3 = rgb(0, 0, 0)
+	hintBar.BackgroundTransparency = 0.45
+	hintBar.BorderSizePixel = 0
+	hintBar.Parent = card
+	local hintCorner = Instance.new("UICorner")
+	hintCorner.CornerRadius = UDim.new(0.5, 0)
+	hintCorner.Parent = hintBar
+	Kit.text(hintBar, "Hint", "Marche sur le disque doré pour récupérer", UDim2.fromScale(0.04, 0.1), UDim2.fromScale(0.92, 0.8), rgb(255, 255, 255), Enum.Font.GothamBold)
+	return gui
 end
 
 -- Grand compteur d'argent (lisible de loin, à la télé comme sur mobile).

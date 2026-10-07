@@ -4,12 +4,13 @@
 --   voisins d'une case = (q+1, r) (q-1, r) (q, r+1) (q, r-1) (q+1, r-1) (q-1, r+1).
 --   Pour dessiner (hexagones « pointe en haut ») : x = taille * √3 * (q + r/2), y = taille * 1,5 * r.
 -- Le cœur (0, 0) est au centre ; six grandes branches partent dans les six directions :
---   haut (0,-1)        : CHANCE (+ Chance x10, Instinct des traits)
---   haut-droite (1,-1) : TIRAGE (Taux d'apparition, Multi-tirage, Auto-roulage)
+--   haut (0,-1)        : CHANCE (+ Bénédiction, Instinct des traits)
+--   haut-droite (1,-1) : TIRAGE (Taux d'apparition, Marchandage, Flair des mutations)
+--   (rouler 2 ou 3 persos à la fois et l'auto-roulage se débloquent avec des passes Robux)
 --   droite (1,0)       : REVENU (+ Butin, Entraînement)
 --   bas (0,1)          : DÉGÂTS (+ Vitesse d'attaque)
 --   bas-gauche (-1,1)  : CRITIQUE (+ Dégâts critiques)
---   gauche (-1,0)      : EMPLACEMENTS (+ Pas légers, Pitié, Œil céleste)
+--   gauche (-1,0)      : EMPLACEMENTS (+ Pas légers, Pitié Mythique, Œil céleste)
 --
 -- Champs d'un nœud : id, name, icon (emoji), q, r, cost, currency ("Coins"), requires = { ids },
 -- effect = { stat, add }, desc, branch (nom de la branche, pour la couleur de l'écran).
@@ -20,11 +21,12 @@ local SkillTree = {}
 -- Valeurs de départ (sans aucun nœud acheté).
 SkillTree.Base = {
 	luck = 1, -- multiplicateur de chance des raretés Rare et plus
-	rollsPerPull = 1, -- persos tirés par roulage (1 → 2 → 3)
+	rollsPerPull = 1, -- persos tirés par roulage (toujours 1 ici : 2 ou 3 avec les passes Robux)
 	rollCooldown = 3.5, -- secondes entre deux roulages
-	x10Every = 10, -- un roulage « Chance x10 » tous les N roulages
-	pityMult = 1, -- multiplicateur des seuils de pitié (plus petit = pitié plus rapide)
-	autoRoll = false, -- auto-roulage débloqué ?
+	x10Every = 10, -- (ancien « Chance x10 », retiré en v3.2 : gardé pour les vieux scripts)
+	pityMult = 1, -- multiplicateur du seuil de pitié du Mythique (plus petit = plus rapide)
+	autoRoll = false, -- (l'auto-roulage est maintenant un passe Robux : Pass_AutoRoll)
+	rollDiscount = 0, -- réduction sur le prix des persos de la machine (0,1 = -10 %)
 	income = 1, -- multiplicateur de revenu des unités exposées
 	damage = 1, -- multiplicateur de dégâts de l'équipe
 	crit = 0, -- chance de critique ajoutée (0,05 = +5 %)
@@ -33,7 +35,7 @@ SkillTree.Base = {
 	loot = 0, -- pièces de combat en plus (0,1 = +10 %)
 	xp = 0, -- XP passive en plus
 	attackSpeed = 0, -- attaques plus rapides (0,05 = -5 % de temps entre deux attaques)
-	auraLuck = 1, -- multiplicateur de chance d'aura sur les persos tirés
+	auraLuck = 1, -- multiplicateur de chance de MUTATION sur les persos tirés
 	traitLuck = 1, -- multiplicateur de chance de trait sur les persos tirés
 	walkSpeed = 0, -- vitesse de marche en plus (studs/s)
 }
@@ -44,6 +46,7 @@ SkillTree.Limits = {
 	x10Every = 4,
 	pityMult = 0.4,
 	rollsPerPull = 3,
+	rollDiscount = 0.4,
 }
 
 SkillTree.Branches = {
@@ -83,19 +86,21 @@ SkillTree.Nodes = {
 	node("chance", "chance4", "Chance IV", "🍀", 0, -4, 150000, { "chance3" }, "luck", 0.35, "+35 % de chance."),
 	node("chance", "chance5", "Chance V", "🍀", 0, -5, 900000, { "chance4" }, "luck", 0.5, "+50 % de chance."),
 	node("chance", "chance_divine", "Chance Divine", "🌈", 0, -6, 12000000, { "chance5" }, "luck", 1, "+100 % de chance : les Mythiques arrivent !"),
-	node("chance", "x10_1", "Chance x10 I", "🔟", 1, -3, 18000, { "chance2" }, "x10Every", -1, "Le roulage « Chance x10 » arrive 1 roulage plus tôt."),
-	node("chance", "x10_2", "Chance x10 II", "🔟", 1, -4, 120000, { "x10_1" }, "x10Every", -1, "Encore 1 roulage plus tôt."),
-	node("chance", "x10_3", "Chance x10 III", "🔟", 1, -5, 750000, { "x10_2" }, "x10Every", -1, "Encore 1 roulage plus tôt."),
+	-- (ids x10_* gardés : les joueurs qui avaient « Chance x10 » ont maintenant « Bénédiction »)
+	node("chance", "x10_1", "Bénédiction I", "🙏", 1, -3, 18000, { "chance2" }, "luck", 0.1, "+10 % de chance (Rare et plus)."),
+	node("chance", "x10_2", "Bénédiction II", "🙏", 1, -4, 120000, { "x10_1" }, "luck", 0.15, "+15 % de chance."),
+	node("chance", "x10_3", "Bénédiction III", "🙏", 1, -5, 750000, { "x10_2" }, "luck", 0.25, "+25 % de chance."),
 	node("chance", "instinct", "Instinct", "🧬", 1, -2, 3000, { "chance1" }, "traitLuck", 0.5, "+50 % de chance d'obtenir un trait rare sur les persos tirés."),
 
 	-- TIRAGE (haut-droite)
 	node("tirage", "taux1", "Taux d'apparition I", "⏩", 1, -1, 800, { "coeur" }, "rollCooldown", -0.4, "Roulage 0,4 s plus rapide."),
-	node("tirage", "multi1", "Multi-tirage I", "👥", 2, -2, 75000, { "taux1" }, "rollsPerPull", 1, "Tire 2 persos à la fois au lieu d'1 !"),
+	-- (ids multi*/autoroll gardés : rouler 2-3 persos et l'auto-roulage sont des passes Robux)
+	node("tirage", "multi1", "Marchandage I", "🏷️", 2, -2, 75000, { "taux1" }, "rollDiscount", 0.1, "Les persos de la machine coûtent 10 % moins cher."),
 	node("tirage", "taux2", "Taux d'apparition II", "⏩", 3, -3, 220000, { "multi1" }, "rollCooldown", -0.4, "Roulage encore 0,4 s plus rapide."),
-	node("tirage", "multi2", "Multi-tirage II", "🎲", 4, -4, 4000000, { "taux2" }, "rollsPerPull", 1, "Tire 3 persos à la fois !"),
+	node("tirage", "multi2", "Marchandage II", "🏷️", 4, -4, 4000000, { "taux2" }, "rollDiscount", 0.15, "Les persos de la machine coûtent encore 15 % moins cher."),
 	node("tirage", "taux3", "Taux d'apparition III", "⏩", 3, -2, 600000, { "multi1" }, "rollCooldown", -0.4, "Roulage encore 0,4 s plus rapide."),
 	node("tirage", "turbo", "Machine Survoltée", "⚡", 5, -5, 15000000, { "multi2" }, "rollCooldown", -0.5, "Roulage 0,5 s plus rapide."),
-	node("tirage", "autoroll", "Auto-roulage", "🤖", 2, -1, 30000, { "taux1" }, "autoRoll", 1, "La machine roule toute seule (à activer dans le menu)."),
+	node("tirage", "autoroll", "Flair des Mutations", "🧪", 2, -1, 30000, { "taux1" }, "auraLuck", 0.3, "+30 % de chance de mutation (Or, Diamant, Sakura...) sur les persos tirés."),
 
 	-- REVENU (droite)
 	node("revenu", "revenu1", "Revenu I", "💰", 1, 0, 500, { "coeur" }, "income", 0.1, "+10 % de revenus des unités exposées."),
@@ -138,10 +143,10 @@ SkillTree.Nodes = {
 	node("domaine", "domaine", "Grand Domaine", "🏯", -5, 0, 6000000, { "slots4" }, "unitSlots", 2, "+2 emplacements d'unités !"),
 	node("domaine", "pas1", "Pas Légers I", "👟", -2, 1, 4000, { "slots1" }, "walkSpeed", 2, "Tu cours un peu plus vite."),
 	node("domaine", "pas2", "Pas Légers II", "👟", -3, 1, 35000, { "pas1" }, "walkSpeed", 3, "Tu cours encore plus vite."),
-	node("domaine", "pitie1", "Pitié I", "🛡️", -1, -1, 10000, { "chance1" }, "pityMult", -0.15, "Les garanties (Légendaire, Mythique, Secret) arrivent 15 % plus tôt."),
-	node("domaine", "pitie2", "Pitié II", "🛡️", -1, -2, 200000, { "pitie1" }, "pityMult", -0.15, "Les garanties arrivent encore 15 % plus tôt."),
-	node("domaine", "oeil1", "Œil Céleste I", "👁️", -2, -1, 25000, { "pitie1" }, "auraLuck", 0.5, "+50 % de chance d'aura sur les persos tirés."),
-	node("domaine", "oeil2", "Œil Céleste II", "👁️", -2, -2, 400000, { "oeil1" }, "auraLuck", 1, "+100 % de chance d'aura."),
+	node("domaine", "pitie1", "Pitié Mythique I", "🛡️", -1, -1, 10000, { "chance1" }, "pityMult", -0.15, "Le Mythique garanti arrive 15 % plus tôt."),
+	node("domaine", "pitie2", "Pitié Mythique II", "🛡️", -1, -2, 200000, { "pitie1" }, "pityMult", -0.15, "Le Mythique garanti arrive encore 15 % plus tôt."),
+	node("domaine", "oeil1", "Œil Céleste I", "👁️", -2, -1, 25000, { "pitie1" }, "auraLuck", 0.5, "+50 % de chance de mutation sur les persos tirés."),
+	node("domaine", "oeil2", "Œil Céleste II", "👁️", -2, -2, 400000, { "oeil1" }, "auraLuck", 1, "+100 % de chance de mutation."),
 }
 
 SkillTree.ById = {}
@@ -188,6 +193,7 @@ function SkillTree.stats(owned: { [string]: boolean }?)
 	s.x10Every = math.max(SkillTree.Limits.x10Every, math.floor(s.x10Every + 0.5))
 	s.pityMult = math.max(SkillTree.Limits.pityMult, s.pityMult)
 	s.rollsPerPull = math.clamp(math.floor(s.rollsPerPull + 0.5), 1, SkillTree.Limits.rollsPerPull)
+	s.rollDiscount = math.clamp(s.rollDiscount, 0, SkillTree.Limits.rollDiscount)
 	return s
 end
 

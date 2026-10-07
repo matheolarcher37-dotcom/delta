@@ -13,7 +13,7 @@ local EVENTS = {
 	"Reward", -- (type, quantité, position) pièces/objets qui volent vers le joueur
 	"TradeState", -- état de l'échange en cours (ou nil)
 	"OpenMenu", -- (nomDuMenu, argument?) ouvre un menu côté client (prompts de proximité)
-	"RollResult", -- { results = { {id, stars, rarity, price, dps, ...} }, pity = {...}, x10In = n } (machine ROULER)
+	"RollResult", -- { results = { {id, stars, rarity, aura (mutation), price, dps, ...} }, pity = { mythic = n } } (machine ROULER)
 
 	-- Client -> Serveur
 	"SetTarget", -- (ennemi) cible prioritaire de l'équipe
@@ -38,7 +38,10 @@ local FUNCTIONS = {
 	"BuySkill", -- (nodeId) -> ok, message (arbre de compétences)
 	"Roll", -- () -> ok, résultats | message (machine ROULER)
 	"CollectRolled", -- (clé du perso dans RolledQueue) -> ok, message (acheter un perso tiré)
-	"SetAutoRoll", -- (bool) -> ok, message
+	"SetAutoRoll", -- (bool) -> ok, message (« Lancer AFK », passe Robux AutoRoll)
+	"Roll_SetAutoBuy", -- (bool) -> ok, message (« Achat automatique », passe Robux AutoRollPlus)
+	"Roll_SaveAutoSettings", -- (réglages de la fenêtre « Roulement automatique ») -> ok, message
+	"Roll_SetMulti", -- (1 | 2 | 3) -> ok, message (persos par roulage, selon les passes x2 / x3)
 	"PlaceUnit", -- (emplacement, uid | nil) -> ok, message (« Remplacer l'unité » d'une case de la base)
 }
 

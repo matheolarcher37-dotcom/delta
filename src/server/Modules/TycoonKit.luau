@@ -495,20 +495,24 @@ end
 
 -- Panneau flottant d'un bouton : nom (+ icône), effet, prix dans une pastille verte/rouge.
 -- Taille mixte (studs + pixels) : lisible de loin comme de près, à la télé comme sur mobile.
+-- Le panneau POUSSE VERS LE HAUT depuis `offset` (son bord bas y reste collé, quelle que soit la
+-- distance) : la BillboardGui fait deux fois la hauteur du panneau, qui en occupe la moitié haute.
+-- Toujours au premier plan : jamais coupé par le sol, le socle ni les murs.
+Kit.BoardHeight = { studs = 2.4, pixels = 34 } -- hauteur du panneau (studs + pixels)
 function Kit.priceBoard(adornee: BasePart, title: string, effectLine: string, priceText: string, offset: Vector3): (BillboardGui, { [string]: Instance })
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "PriceGui"
-	gui.Size = UDim2.new(4.6, 120, 2.3, 60)
+	gui.Size = UDim2.new(4.8, 84, Kit.BoardHeight.studs * 2, Kit.BoardHeight.pixels * 2)
 	gui.StudsOffsetWorldSpace = offset
-	gui.AlwaysOnTop = false
+	gui.AlwaysOnTop = true
 	gui.LightInfluence = 0
-	gui.MaxDistance = 200
+	gui.MaxDistance = 120
 	gui.Adornee = adornee
 	gui.Parent = adornee
 
 	local card = Instance.new("Frame")
 	card.Name = "Card"
-	card.Size = UDim2.fromScale(1, 1)
+	card.Size = UDim2.fromScale(1, 0.5)
 	card.BackgroundColor3 = C.Panel
 	card.BackgroundTransparency = 0.08
 	card.BorderSizePixel = 0

@@ -8,6 +8,9 @@ local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Economy = require(Shared.Config.Economy)
+local Characters = require(Shared.Config.Characters)
+local Mutations = require(Shared.Config.Mutations)
+local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 
 local DataService = {}
@@ -29,7 +32,7 @@ local Notify = Remotes.event("Notify")
 
 local function template()
 	return {
-		version = 2,
+		version = 3,
 		coins = Economy.StartingCoins,
 		totalCoins = 0,
 		materials = {},
@@ -51,13 +54,105 @@ local function template()
 		-- v3 : machine ROULER et arbre de compétences
 		Skills = {}, -- { [idDeNœud] = true } (Config/SkillTree)
 		RollCount = 0, -- nombre total de roulages
-		X10Counter = 0, -- roulages depuis le dernier « Chance x10 »
-		Pity = { legendary = 0, mythic = 0, secret = 0 }, -- persos tirés depuis la dernière rareté garantie
-		AutoRoll = false,
-		RolledQueue = {}, -- persos tirés en attente sur l'estrade : { key, id, rarity, aura?, trait?, price, dps }
+		X10Counter = 0, -- (ancien « Chance x10 », retiré en v3.2)
+		Pity = { mythic = 0 }, -- persos tirés depuis le dernier Mythique (seule pitié du jeu)
+		AutoRoll = false, -- « Lancer AFK » en cours (passe Robux AutoRoll) — remis à faux à l'arrivée
+		AutoBuy = false, -- « Achat automatique » en cours (passe Robux AutoRollPlus) — idem
+		RollMulti = 0, -- persos par roulage choisis (0 = le maximum des passes Roulage x2 / x3)
+		-- Réglages de la fenêtre « Roulement automatique » (booléens explicites : faux = désactivé).
+		AutoRollSettings = {
+			pauseRarities = { common = false, uncommon = false, rare = false, epic = false, legendary = true, mythic = true, secret = true },
+			pauseMutations = {}, -- { [mutation] = vrai } : l'AFK s'arrête sur ces mutations
+			buyCharacters = {}, -- { [id du perso] = vrai } : cibles de l'achat automatique
+			buyRarities = {}, -- { [rareté] = vrai }
+			buyMutations = {}, -- { [mutation ou "aucune"] = vrai }
+		},
+		RolledQueue = {}, -- persos du dernier roulage, sur l'estrade : { key, id, rarity, aura? (= mutation), trait?, price, dps }
 		DisplayPins = {}, -- { ["numéro de case"] = uid } : unités placées à la main sur les cases de la base
 		FirstCollectDone = false,
 	}
+end
+
+-- v2 -> v3 (version 3.2) : rareté de BASE des persos, mutations, pitié du Mythique seulement.
+local function migrateRollV3(data)
+	-- Persos possédés : plus de rareté « de machine » collée dessus (ils reprennent la rareté
+	-- de leur fiche) ; les anciennes auras deviennent des mutations (Doré -> Or).
+	for _, entry in data.characters do
+		if type(entry) == "table" then
+			entry.rollRarity = nil
+			entry.aura = Mutations.normalize(entry.aura)
+		end
+	end
+	-- Estrade : chaque perso reprend sa rareté de base ; on garde les 3 plus rares.
+	local queue = {}
+	for _, item in data.RolledQueue do
+		local def = type(item) == "table" and Characters.get(item.id)
+		if def then
+			if item.rarity == "secret" and not item.aura then
+				item.aura = "arcenciel" -- l'ancien « Secret » = le Mythique Arc-en-ciel
+			end
+			item.aura = Mutations.normalize(item.aura)
+			item.rarity = Economy.RollRarities[def.rarity] and def.rarity or "common"
+			item.price = Formulas.rollPrice(item.rarity, item.aura, item.trait)
+			table.insert(queue, item)
+		end
+	end
+	table.sort(queue, function(a, b)
+		local oa, ob = Economy.RollRarities[a.rarity].order, Economy.RollRarities[b.rarity].order
+		if oa ~= ob then
+			return oa > ob
+		end
+		return (tonumber(a.at) or 0) > (tonumber(b.at) or 0)
+	end)
+	data.RolledQueue = {}
+	for i = 1, math.min(#queue, Economy.Roll.QueueMax) do
+		table.insert(data.RolledQueue, queue[i])
+	end
+	-- Pitié : seul le Mythique en a une désormais ; plus de « Chance x10 ».
+	data.Pity = { mythic = math.max(0, math.floor(tonumber(data.Pity.mythic) or 0)) }
+	data.X10Counter = 0
+end
+
+-- Réglages de l'auto-roulage : tables de booléens propres (sauvegardes abîmées ou modifiées).
+local function cleanAutoSettings(data)
+	local settings = data.AutoRollSettings
+	if type(settings) ~= "table" then
+		settings = template().AutoRollSettings
+		data.AutoRollSettings = settings
+	end
+	local valid = {
+		pauseRarities = function(key)
+			return Economy.RollRarities[key] ~= nil
+		end,
+		pauseMutations = function(key)
+			return Mutations.List[key] ~= nil or key == Mutations.None
+		end,
+		buyCharacters = function(key)
+			return Characters.get(key) ~= nil
+		end,
+		buyRarities = function(key)
+			return Economy.RollRarities[key] ~= nil
+		end,
+		buyMutations = function(key)
+			return Mutations.List[key] ~= nil or key == Mutations.None
+		end,
+	}
+	for field, isValid in valid do
+		if type(settings[field]) ~= "table" then
+			settings[field] = {}
+		end
+		for key, value in settings[field] do
+			if type(key) ~= "string" or type(value) ~= "boolean" or not isValid(key) then
+				settings[field][key] = nil
+			end
+		end
+	end
+	for key, value in pairs(settings) do
+		if valid[key] == nil then
+			settings[key] = nil
+		end
+		local _ = value
+	end
 end
 
 -- Mise à niveau des anciennes sauvegardes (après reconcile, qui ajoute les champs manquants).
@@ -92,12 +187,18 @@ local function migrate(data)
 			data.DisplayPins[key] = nil -- uid, ou false = case laissée vide exprès
 		end
 	end
-	for _, key in { "legendary", "mythic", "secret" } do
-		data.Pity[key] = math.max(0, math.floor(tonumber(data.Pity[key]) or 0))
-	end
+	data.Pity.mythic = math.max(0, math.floor(tonumber(data.Pity.mythic) or 0))
 	data.RollCount = math.max(0, math.floor(tonumber(data.RollCount) or 0))
 	data.X10Counter = math.max(0, math.floor(tonumber(data.X10Counter) or 0))
-	data.version = 2
+	if version < 3 then
+		migrateRollV3(data)
+	end
+	cleanAutoSettings(data)
+	data.RollMulti = math.clamp(math.floor(tonumber(data.RollMulti) or 0), 0, 3)
+	-- L'auto-roulage ne repart jamais tout seul à l'arrivée (le joueur le relance à la machine).
+	data.AutoRoll = false
+	data.AutoBuy = false
+	data.version = 3
 	return data
 end
 DataService.migrate = migrate

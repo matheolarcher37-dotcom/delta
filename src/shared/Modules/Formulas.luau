@@ -280,6 +280,7 @@ function Formulas.upgradeStats(upgrades, skills: { [string]: boolean }?)
 			"traitLuck",
 			"walkSpeed",
 			"loot",
+			"rollDiscount",
 		}
 	do
 		stats[key] = tree[key]
@@ -300,48 +301,111 @@ function Formulas.rollRarity(id: string?)
 	return Economy.RollRarities[id or "common"] or Economy.RollRarities.common
 end
 
--- Probabilités (0-1) de chaque rareté de la machine pour une chance donnée.
--- La chance multiplie les raretés Rare et plus (la racine carrée pour Peu commun) ; si le total
--- déborde, ce sont les raretés les plus communes qui cèdent leur place (le Commun garde 5 %).
-function Formulas.rollOdds(luck: number?): { [string]: number }
-	local l = math.max(1, luck or 1)
-	local wanted = {}
-	for _, id in Economy.RollOrder do
-		local info = Economy.RollRarities[id]
-		if info.order >= 3 then
-			wanted[id] = info.odds * l
-		elseif info.order == 2 then
-			wanted[id] = info.odds * math.sqrt(l)
+-- Raretés tirables dans un univers : { [rareté] = { ids des persos } }. Les raretés « facultatives »
+-- (Peu commun, Secret) ne comptent que si l'univers a des persos de cette rareté.
+function Formulas.rollPools(universeId: string?): { [string]: { string } }
+	local universe = Universes.get(universeId or "") or Universes.List[1]
+	local pools = {}
+	for _, id in universe.characters do
+		local def = Characters.get(id)
+		if def and Economy.RollRarities[def.rarity] then
+			pools[def.rarity] = pools[def.rarity] or {}
+			table.insert(pools[def.rarity], id)
 		end
 	end
+	return pools
+end
+
+-- Vrai si la rareté peut sortir (les raretés facultatives demandent des persos dans le pool).
+local function rarityAvailable(id: string, pools: { [string]: { string } }?): boolean
+	local info = Economy.RollRarities[id]
+	if not info then
+		return false
+	end
+	if not info.optional then
+		return true
+	end
+	return pools ~= nil and pools[id] ~= nil and #pools[id] > 0
+end
+Formulas.rollRarityAvailable = rarityAvailable
+
+-- Probabilités (0-1) de chaque rareté de la machine pour une chance donnée (`pools` : raretés
+-- présentes dans l'univers, voir rollPools ; sans `pools`, seules les raretés non facultatives).
+-- La chance multiplie les raretés Rare et plus (la racine carrée pour Peu commun) ; si le total
+-- déborde, c'est le Commun qui cède sa place (il garde toujours au moins 5 %).
+function Formulas.rollOdds(luck: number?, pools: { [string]: { string } }?): { [string]: number }
+	local l = math.max(1, luck or 1)
+	local total = 0
+	for _, id in Economy.RollOrder do
+		if rarityAvailable(id, pools) then
+			total += Economy.RollRarities[id].odds
+		end
+	end
+	total = math.max(total, 0.0001)
 	local odds = {}
 	local remaining = 95
 	for i = #Economy.RollOrder, 2, -1 do
 		local id = Economy.RollOrder[i]
-		local take = math.min(wanted[id] or 0, remaining)
-		odds[id] = take / 100
-		remaining -= take
+		local info = Economy.RollRarities[id]
+		if rarityAvailable(id, pools) then
+			local base = info.odds / total * 100
+			local wanted = info.order >= 3 and base * l or base * math.sqrt(l)
+			local take = math.min(wanted, remaining)
+			odds[id] = take / 100
+			remaining -= take
+		else
+			odds[id] = 0
+		end
 	end
 	odds.common = (100 - 95 + remaining) / 100
 	return odds
 end
 
--- Seuil de pitié (nombre de persos tirés) d'une rareté, après l'arbre.
-function Formulas.pityThreshold(rarityId: string, pityMult: number?): number
-	local base = Economy.Roll.Pity[rarityId] or 0
+-- Chance totale du joueur à la machine : arbre de compétences × passe « x2 Chance » (attribut
+-- Pass_Luck2) × potion de chance (attribut Boost_Luck = heure de fin) × événement éventuel.
+-- `player` peut être nil (aperçus) ; `now` = os.time() côté serveur.
+function Formulas.rollLuck(stats, player: Player?, now: number?, extra: number?): number
+	local luck = (stats and stats.luck or 1) * (extra or 1)
+	if player then
+		if player:GetAttribute("Pass_Luck2") == true then
+			luck *= Economy.Roll.PassLuck or 2
+		end
+		local boost = tonumber(player:GetAttribute("Boost_Luck"))
+		if boost and boost > (now or os.time()) then
+			luck *= Economy.Roll.BoostLuck or 2
+		end
+	end
+	return luck
+end
+
+-- Nombre de persos par roulage selon les passes Robux (Pass_Roll3 > Pass_Roll2 > 1) et le choix
+-- du joueur (`wanted`, 1 à 3 : on peut repasser à 1 même avec un passe).
+function Formulas.rollsPerRoll(player: Player?, wanted: number?): number
+	local owned = 1
+	if player then
+		if player:GetAttribute("Pass_Roll3") == true then
+			owned = 3
+		elseif player:GetAttribute("Pass_Roll2") == true then
+			owned = 2
+		end
+	end
+	local choice = math.floor(tonumber(wanted) or owned)
+	return math.clamp(choice, 1, math.min(owned, Economy.Roll.MaxPerRoll or 3))
+end
+
+-- Seuil de pitié (nombre de persos tirés) d'une rareté, après l'arbre. Seul le Mythique en a une.
+function Formulas.pityThreshold(rarityId: string?, pityMult: number?): number
+	local base = Economy.Roll.Pity[rarityId or Economy.Roll.PityRarity] or 0
 	return math.max(1, math.floor(base * (pityMult or 1) + 0.5))
 end
 
--- Prix (en ¥ = pièces) d'un perso tiré : rareté de la machine, aura et trait.
-function Formulas.rollPrice(rarityId: string, auraId: string?, traitId: string?): number
+-- Prix (en ¥ = pièces) d'un perso tiré : rareté du perso, mutation, trait, réduction de l'arbre.
+function Formulas.rollPrice(rarityId: string, mutationId: string?, traitId: string?, discount: number?): number
 	local info = Formulas.rollRarity(rarityId)
-	local aura = Auras.get(auraId)
+	local mutation = Auras.get(mutationId)
 	local trait = Traits.get(traitId)
-	-- Ce que la rareté GARANTIT (aura Arc-en-ciel et trait rare du Secret, trait du Peu commun)
-	-- est déjà compris dans son prix de base : seul le « bonus » au-delà est compté.
-	local auraMult = (aura and aura.id ~= info.aura) and aura.multiplier or 1
-	local tierBonus = trait and math.max(0, trait.tier - (info.traitMinTier or 0)) or 0
-	local price = info.price * auraMult * (1 + tierBonus * 0.3)
+	local tierBonus = trait and trait.tier or 0
+	local price = info.price * (mutation and mutation.multiplier or 1) * (1 + tierBonus * 0.3) * (1 - math.clamp(discount or 0, 0, 0.9))
 	-- Arrondi « joli » (2 chiffres significatifs).
 	local magnitude = 10 ^ math.max(0, math.floor(math.log10(math.max(price, 1))) - 1)
 	return math.floor(price / magnitude + 0.5) * magnitude
@@ -355,6 +419,28 @@ function Formulas.rollCollectFree(data, rarityId: string?): boolean
 	end
 	local info = Economy.RollRarities[rarityId or "common"]
 	return info ~= nil and info.order <= (Economy.Roll.FreeCollectMaxOrder or 0)
+end
+
+-- Vrai si un perso tiré correspond aux cibles de l'auto-roulage : `filter` = { characters = { [id] = true },
+-- rarities = { [rareté] = true }, mutations = { [mutation ou "aucune"] = true } }. Un groupe vide
+-- n'impose rien ; si les trois sont vides, rien ne correspond.
+function Formulas.rollMatches(item, filter): boolean
+	if type(item) ~= "table" or type(filter) ~= "table" then
+		return false
+	end
+	local any = false
+	local function check(set, value): boolean
+		if type(set) ~= "table" or next(set) == nil then
+			return true
+		end
+		any = true
+		return set[value] == true
+	end
+	local mutation = Auras.get(item.aura)
+	local okChar = check(filter.characters, item.id)
+	local okRarity = check(filter.rarities, item.rarity)
+	local okMutation = check(filter.mutations, mutation and mutation.id or "aucune")
+	return any and okChar and okRarity and okMutation
 end
 
 -- Dégâts par seconde d'un perso (affichés au-dessus des persos tirés).
