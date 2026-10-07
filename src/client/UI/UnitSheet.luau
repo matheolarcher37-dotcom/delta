@@ -259,7 +259,7 @@ function UnitSheet.build(parent: Instance, entry, actions: SheetActions?): Frame
 		Theme.stroke(rgb(10, 10, 14), 2).Parent = pill
 		Theme.gradient((mutation :: any).gradient or { mutation.color, mutation.color }, 0).Parent = pill
 		Theme.label({
-			Text = "✦ " .. mutation.name .. "  x" .. mutation.multiplier,
+			Text = "✦ " .. mutation.name .. "  " .. Auras.multText(mutation.id),
 			Size = UDim2.new(1, -10, 1, -4),
 			Position = UDim2.fromOffset(5, 2),
 			FontFace = Theme.Faces.Heavy,
@@ -331,7 +331,7 @@ function UnitSheet.build(parent: Instance, entry, actions: SheetActions?): Frame
 		Parent = footer,
 	})
 	Theme.label({
-		Text = (universe and universe.name or "") .. (aura and ("  ·  Mutation " .. aura.name .. " x" .. aura.multiplier) or ""),
+		Text = (universe and universe.name or "") .. (aura and ("  ·  Mutation " .. aura.name .. " " .. Auras.multText(aura.id)) or ""),
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -12, 0, 8),
 		Size = UDim2.new(0.42, 0, 0, 16),

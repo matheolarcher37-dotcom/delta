@@ -249,7 +249,7 @@ S.mannequins = {
 }
 
 S.aimant = {
-	pad = { -39, -47 },
+	pad = { -28, -45 }, -- loin du coffre (son compteur ne cache pas ce panneau),
 	build = function(ctx)
 		-- Arche aimantée au-dessus du bout du tapis : attire les pièces vers le coffre.
 		local cf = ctx.at(Spots.beltX, 0, -44.5)
@@ -634,7 +634,7 @@ S.arene2 = { -- gradins derrière la cour
 }
 
 S.coffre = { -- « Coffre du Shogun »
-	pad = { -55, -46.5 },
+	pad = { -55, -34 }, -- loin du coffre,
 	build = function(ctx)
 		local base = ctx.at(-55, 0, -56)
 		Build.part(ctx.folder, "Estrade", Vector3.new(9, 1, 6.6), base * CFrame.new(0, 0.5, 0), C.StoneMid, { Material = Enum.Material.Slate })

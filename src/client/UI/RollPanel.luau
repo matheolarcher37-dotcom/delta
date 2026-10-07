@@ -142,6 +142,8 @@ end
 ------------------------------------------------------------------------
 
 local PANEL_W, PANEL_H = 660, 146
+-- Au-dessus des boutons de voyage rapide et de la barre de conseils (bas du HUD).
+local PANEL_BOTTOM = 128
 
 local function multiButton(parent: Instance, n: number, x: number)
 	local holder = new("Frame", {
@@ -164,8 +166,8 @@ local function multiButton(parent: Instance, n: number, x: number)
 	local tag = new("Frame", {
 		Name = "Prix",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 1, -16),
-		Size = UDim2.fromOffset(70, 20),
+		Position = UDim2.new(0.5, 0, 1, -18),
+		Size = UDim2.fromOffset(84, 24),
 		BackgroundColor3 = rgb(20, 160, 80),
 		ZIndex = 6,
 		Parent = holder,
@@ -189,7 +191,7 @@ local function build(root: Frame)
 	local panel = new("Frame", {
 		Name = "MachinePanel",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -96),
+		Position = UDim2.new(0.5, 0, 1, -PANEL_BOTTOM),
 		Size = UDim2.fromOffset(PANEL_W, PANEL_H),
 		BackgroundColor3 = WHITE,
 		Visible = false,
@@ -295,7 +297,7 @@ local function build(root: Frame)
 	local pull = new("Frame", {
 		Name = "Tirage",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -96 - PANEL_H - 10),
+		Position = UDim2.new(0.5, 0, 1, -PANEL_BOTTOM - PANEL_H - 10),
 		Size = UDim2.fromOffset(PANEL_W, 86),
 		BackgroundTransparency = 1,
 		Visible = false,
@@ -398,7 +400,14 @@ local function pullCard(parent: Instance, item, index: number)
 		Theme.corner(9).Parent = chip
 		Theme.stroke(C.Stroke, 1.5).Parent = chip
 		Theme.gradient(mutation.gradient, 0).Parent = chip
-		Theme.label({ Text = "✦ " .. mutation.name, Size = UDim2.new(1, -6, 1, -2), Position = UDim2.fromOffset(3, 1), FontFace = Theme.Faces.Heavy, StrokeThickness = 1.5, Parent = chip })
+		Theme.label({
+			Text = "✦ " .. mutation.name,
+			Size = UDim2.new(1, -6, 1, -2),
+			Position = UDim2.fromOffset(3, 1),
+			FontFace = Theme.Faces.Heavy,
+			StrokeThickness = 1.5,
+			Parent = chip,
+		})
 	end
 	local priceRow = new("Frame", { Position = UDim2.fromOffset(10, 54), Size = UDim2.new(1, -116, 0, 24), BackgroundTransparency = 1, Parent = card })
 	Components.coinIcon(priceRow, 18, UDim2.fromOffset(9, 12))
@@ -409,6 +418,7 @@ local function pullCard(parent: Instance, item, index: number)
 		FontFace = Theme.Faces.Heavy,
 		TextColor3 = free and rgb(140, 255, 150) or C.Gold,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxSize = 18,
 		Parent = priceRow,
 	})
 	local affordable = free or (State.data and State.data.coins or 0) >= (item.price or 0)

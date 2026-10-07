@@ -146,7 +146,7 @@ function Conveyor.stashBoard(lid: BasePart): BillboardGui
 	gui.Name = "StashGui"
 	gui.Adornee = lid
 	-- Carte = moitié haute (bord bas fixe, ~10 studs au-dessus du sol).
-	gui.Size = UDim2.new(6.4, 120, 2 * 3.4, 2 * 64)
+	gui.Size = UDim2.new(7.4, 140, 2 * 3.9, 2 * 74)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, 4.6, 0)
 	gui.AlwaysOnTop = true
 	gui.LightInfluence = 0

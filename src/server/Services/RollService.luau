@@ -739,7 +739,13 @@ local function itemTagLines(item, def)
 		{ name = "Rarete", text = info.name, colors = info.gradient, font = Enum.Font.LuckiestGuy, weight = 0.9 },
 	}
 	if mutation then
-		table.insert(lines, { name = "Mutation", text = "✦ " .. mutation.name .. " ✦  x" .. mutation.multiplier, colors = mutation.gradient, font = Enum.Font.LuckiestGuy, weight = 0.75 })
+		table.insert(lines, {
+			name = "Mutation",
+			text = "✦ " .. mutation.name .. " ✦  " .. Mutations.multText(mutation.id),
+			colors = mutation.gradient,
+			font = Enum.Font.LuckiestGuy,
+			weight = 0.75,
+		})
 	end
 	if trait then
 		table.insert(lines, { name = "Bonus", text = "◆ " .. trait.name, color = trait.color or Color3.fromRGB(150, 230, 255), font = Enum.Font.GothamBold, weight = 0.5 })

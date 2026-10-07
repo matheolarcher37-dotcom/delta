@@ -78,10 +78,19 @@ Mutations.List = {
 		effect = "none",
 		look = {
 			tint = rgb(255, 170, 210),
-			tintAlpha = 0.24,
+			tintAlpha = 0.3,
 			hair = rgb(255, 168, 204),
 			mix = 0.6,
-			particles = { texture = SPARK, color = { rgb(255, 205, 225), rgb(255, 140, 190) }, rate = 7, size = 0.42, speed = 1.2, lifetime = 2.2, acceleration = Vector3.new(0.6, -1.2, 0), rotSpeed = 120 },
+			particles = {
+				texture = SPARK,
+				color = { rgb(255, 205, 225), rgb(255, 140, 190) },
+				rate = 7,
+				size = 0.42,
+				speed = 1.2,
+				lifetime = 2.2,
+				acceleration = Vector3.new(0.6, -1.2, 0),
+				rotSpeed = 120,
+			},
 		},
 	},
 	["or"] = {
@@ -93,7 +102,7 @@ Mutations.List = {
 		multiplier = 2.5,
 		chance = 0.035,
 		effect = "gold",
-		look = { tint = rgb(255, 196, 40), tintAlpha = 0.42, shine = true, hair = rgb(255, 196, 56), mix = 0.75, material = Enum.Material.Foil, reflectance = 0.2 },
+		look = { tint = rgb(255, 196, 40), tintAlpha = 0.55, shine = true, hair = rgb(255, 196, 56), mix = 0.75, material = Enum.Material.Foil, reflectance = 0.2 },
 	},
 	ombre = {
 		id = "ombre",
@@ -134,7 +143,7 @@ Mutations.List = {
 		effect = "none",
 		look = {
 			tint = rgb(190, 245, 255),
-			tintAlpha = 0.38,
+			tintAlpha = 0.46,
 			shine = true,
 			hair = rgb(196, 242, 255),
 			mix = 0.8,
@@ -154,11 +163,19 @@ Mutations.List = {
 		effect = "none",
 		look = {
 			tint = rgb(46, 34, 120),
-			tintAlpha = 0.5,
+			tintAlpha = 0.64,
 			shine = true,
 			hair = rgb(46, 34, 120),
 			mix = 0.7,
-			particles = { texture = SPARK, color = { rgb(255, 255, 255), rgb(160, 140, 255), rgb(255, 130, 230) }, rate = 10, size = 0.32, speed = 0.4, lifetime = 1.6, rotSpeed = 30 },
+			particles = {
+				texture = SPARK,
+				color = { rgb(255, 255, 255), rgb(160, 140, 255), rgb(255, 130, 230) },
+				rate = 10,
+				size = 0.32,
+				speed = 0.4,
+				lifetime = 1.6,
+				rotSpeed = 30,
+			},
 		},
 	},
 	angelique = {
@@ -172,12 +189,20 @@ Mutations.List = {
 		effect = "none",
 		look = {
 			tint = rgb(255, 250, 230),
-			tintAlpha = 0.34,
+			tintAlpha = 0.42,
 			shine = true,
 			hair = rgb(255, 246, 214),
 			mix = 0.45,
 			halo = true,
-			particles = { texture = SPARK, color = { rgb(255, 255, 255), rgb(255, 230, 150) }, rate = 8, size = 0.45, speed = 1.4, lifetime = 1.4, acceleration = Vector3.new(0, 1.5, 0) },
+			particles = {
+				texture = SPARK,
+				color = { rgb(255, 255, 255), rgb(255, 230, 150) },
+				rate = 8,
+				size = 0.45,
+				speed = 1.4,
+				lifetime = 1.4,
+				acceleration = Vector3.new(0, 1.5, 0),
+			},
 		},
 	},
 	arcenciel = {
@@ -194,7 +219,14 @@ Mutations.List = {
 			rainbowTint = true,
 			tintAlpha = 0.3,
 			shine = true,
-			particles = { texture = FIRE_SPARKS, color = { rgb(255, 90, 90), rgb(255, 230, 70), rgb(90, 255, 120), rgb(90, 170, 255), rgb(230, 100, 255) }, rate = 9, size = 0.4, speed = 1.6, lifetime = 1.2 },
+			particles = {
+				texture = FIRE_SPARKS,
+				color = { rgb(255, 90, 90), rgb(255, 230, 70), rgb(90, 255, 120), rgb(90, 170, 255), rgb(230, 100, 255) },
+				rate = 9,
+				size = 0.4,
+				speed = 1.6,
+				lifetime = 1.2,
+			},
 		},
 	},
 }
@@ -247,6 +279,14 @@ end
 function Mutations.multiplier(id: any): number
 	local m = Mutations.get(id)
 	return m and m.multiplier or 1
+end
+
+-- « x2,5 » (multiplicateur écrit à la française).
+function Mutations.multText(id: any): string
+	local m = Mutations.get(id)
+	local value = m and m.multiplier or 1
+	local text = value == math.floor(value) and tostring(math.floor(value)) or string.format("%.2f", value):gsub("0+$", "")
+	return "x" .. (string.gsub(text, "%.", ","))
 end
 
 -- Probabilité totale d'avoir une mutation (pour l'affichage), avec une chance donnée.

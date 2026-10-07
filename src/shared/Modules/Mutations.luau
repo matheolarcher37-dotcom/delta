@@ -115,7 +115,7 @@ local function halo(model: Model, scale: number)
 		local bead = Instance.new("Part")
 		bead.Name = "Perle"
 		bead.Shape = Enum.PartType.Ball
-		bead.Size = Vector3.one * 0.26 * scale
+		bead.Size = Vector3.one * 0.34 * scale
 		bead.Material = Enum.Material.Neon
 		bead.Color = Color3.fromRGB(255, 226, 120)
 		bead.CanCollide = false
@@ -124,7 +124,7 @@ local function halo(model: Model, scale: number)
 		bead.CastShadow = false
 		bead.Massless = true
 		bead.Anchored = head.Anchored
-		bead.CFrame = head.CFrame * CFrame.new(math.cos(a) * 0.62 * scale, 1.15 * scale, math.sin(a) * 0.62 * scale)
+		bead.CFrame = head.CFrame * CFrame.new(math.cos(a) * 0.72 * scale, 1.1 * scale, math.sin(a) * 0.72 * scale)
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = head
 		weld.Part1 = bead

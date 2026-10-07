@@ -273,6 +273,7 @@ local function sectionTitle(parent: Instance, value: string, order: number, colo
 		TextColor3 = color or WHITE,
 		ZIndex = 3,
 		StrokeThickness = 2,
+		MaxSize = 24,
 	})
 end
 
@@ -306,7 +307,7 @@ local function lockCover(parent: Instance, key: string, top: number): Frame
 		Position = UDim2.fromOffset(0, top),
 		Size = UDim2.new(1, 0, 1, -top),
 		BackgroundColor3 = rgb(6, 6, 10),
-		BackgroundTransparency = 0.28,
+		BackgroundTransparency = 0.08,
 		Active = true, -- bloque les clics sur ce qui est dessous
 		ZIndex = 8,
 		Parent = parent,
@@ -370,7 +371,7 @@ local function buildTitle(panel: Frame)
 	local tab = new("Frame", {
 		Name = "TitleTab",
 		Position = UDim2.fromOffset(-24, -26),
-		Size = UDim2.fromOffset(420, 74),
+		Size = UDim2.fromOffset(480, 74),
 		BackgroundColor3 = WHITE,
 		BorderSizePixel = 0,
 		ZIndex = 6,
@@ -387,14 +388,14 @@ local function buildTitle(panel: Frame)
 	local g = new("UIGradient", {
 		Color = Theme.sequence({ rgb(190, 120, 255), rgb(140, 60, 245), rgb(98, 32, 210) }),
 		Transparency = slant,
-		Rotation = 74,
+		Rotation = 18,
 		Parent = tab,
 	})
 	local _ = g
 	local under = new("Frame", {
 		Name = "TitleUnder",
 		Position = UDim2.fromOffset(-12, 40),
-		Size = UDim2.fromOffset(420, 26),
+		Size = UDim2.fromOffset(480, 26),
 		BackgroundColor3 = rgb(120, 50, 230),
 		BorderSizePixel = 0,
 		ZIndex = 5,
@@ -403,17 +404,19 @@ local function buildTitle(panel: Frame)
 	new("UIGradient", {
 		Color = Theme.sequence({ rgb(110, 40, 220), rgb(70, 20, 160) }),
 		Transparency = slant,
-		Rotation = 74,
+		Rotation = 18,
 		Parent = under,
 	})
 	text(tab, "Roulement automatique", {
 		Name = "Title",
-		Position = UDim2.fromOffset(44, 12),
-		Size = UDim2.new(1, -88, 0, 40),
+		Position = UDim2.fromOffset(50, 16),
+		Size = UDim2.new(1, -96, 0, 34),
 		TextXAlignment = Enum.TextXAlignment.Left,
+		TextWrapped = false,
 		FontFace = Theme.Faces.Heavy,
 		ZIndex = 7,
 		StrokeThickness = 2.5,
+		MaxSize = 30,
 	})
 end
 
@@ -559,7 +562,11 @@ local function buildAdvanced(panel: Frame)
 	Theme.corner(12).Parent = adv
 	Theme.stroke(rgb(255, 214, 40), 2).Parent = adv
 	Theme.gradient({ rgb(30, 28, 20), rgb(18, 16, 12) }, 90).Parent = adv
-	text(adv, "Avancé : que faut-il acheter ?", { Position = UDim2.fromOffset(10, 8), Size = UDim2.new(1, -120, 0, 28), ZIndex = 11, TextColor3 = rgb(255, 214, 40), TextXAlignment = Enum.TextXAlignment.Left })
+	text(
+		adv,
+		"Avancé : que faut-il acheter ?",
+		{ Position = UDim2.fromOffset(10, 8), Size = UDim2.new(1, -120, 0, 28), ZIndex = 11, TextColor3 = rgb(255, 214, 40), TextXAlignment = Enum.TextXAlignment.Left }
+	)
 	refs.advancedBack = flatButton(adv, {
 		Name = "Retour",
 		Size = UDim2.fromOffset(100, 32),
@@ -627,7 +634,11 @@ local function chip(parent: Instance, order: number, label: string, color: Color
 	})
 	Theme.corner(8).Parent = button
 	Theme.stroke(color, 2).Parent = button
-	text(button, label, { Name = "Label", Size = UDim2.new(1, -10, 1, -8), Position = UDim2.fromOffset(5, 4), ZIndex = 13, FontFace = Theme.Faces.Heavy, StrokeThickness = 1.5, MaxSize = 18 })
+	text(
+		button,
+		label,
+		{ Name = "Label", Size = UDim2.new(1, -10, 1, -8), Position = UDim2.fromOffset(5, 4), ZIndex = 13, FontFace = Theme.Faces.Heavy, StrokeThickness = 1.5, MaxSize = 18 }
+	)
 	local scale = new("UIScale", { Parent = button })
 	Components.interactive(button, scale, 1.05)
 	button.Activated:Connect(function()

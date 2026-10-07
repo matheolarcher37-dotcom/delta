@@ -100,7 +100,19 @@ SkillTree.Nodes = {
 	node("tirage", "multi2", "Marchandage II", "🏷️", 4, -4, 4000000, { "taux2" }, "rollDiscount", 0.15, "Les persos de la machine coûtent encore 15 % moins cher."),
 	node("tirage", "taux3", "Taux d'apparition III", "⏩", 3, -2, 600000, { "multi1" }, "rollCooldown", -0.4, "Roulage encore 0,4 s plus rapide."),
 	node("tirage", "turbo", "Machine Survoltée", "⚡", 5, -5, 15000000, { "multi2" }, "rollCooldown", -0.5, "Roulage 0,5 s plus rapide."),
-	node("tirage", "autoroll", "Flair des Mutations", "🧪", 2, -1, 30000, { "taux1" }, "auraLuck", 0.3, "+30 % de chance de mutation (Or, Diamant, Sakura...) sur les persos tirés."),
+	node(
+		"tirage",
+		"autoroll",
+		"Flair des Mutations",
+		"🧪",
+		2,
+		-1,
+		30000,
+		{ "taux1" },
+		"auraLuck",
+		0.3,
+		"+30 % de chance de mutation (Or, Diamant, Sakura...) sur les persos tirés."
+	),
 
 	-- REVENU (droite)
 	node("revenu", "revenu1", "Revenu I", "💰", 1, 0, 500, { "coeur" }, "income", 0.1, "+10 % de revenus des unités exposées."),

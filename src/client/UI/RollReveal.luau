@@ -28,6 +28,7 @@ local WHITE = Color3.new(1, 1, 1)
 
 local root: Frame
 local strip: Frame
+local stripScale: UIScale
 local flash: Frame
 local batch = 0
 
@@ -136,7 +137,7 @@ local function buildCard(parent: Instance, result, index: number)
 		Theme.stroke(C.Stroke, 2).Parent = chip
 		Theme.gradient(mutation.gradient, 0).Parent = chip
 		Theme.label({
-			Text = "✦ " .. mutation.name .. "  x" .. mutation.multiplier,
+			Text = "✦ " .. mutation.name .. "  " .. Mutations.multText(mutation.id),
 			Size = UDim2.new(1, -8, 1, -4),
 			Position = UDim2.fromOffset(4, 2),
 			FontFace = Theme.Faces.Heavy,
@@ -206,6 +207,15 @@ function RollReveal.show(payload)
 	local myBatch = batch
 	Components.clear(strip)
 	strip.Visible = true
+	-- À la machine, les commandes et la carte du perso tiré sont en bas et l'annonce géante au
+	-- centre : les cartes passent à droite (libre depuis la v3.2), un peu plus petites.
+	local okNear, near = pcall(function()
+		return require(script.Parent.RollPanel).isNear()
+	end)
+	local atMachine = okNear and near == true
+	strip.AnchorPoint = atMachine and Vector2.new(1, 0) or Vector2.new(0.5, 0)
+	strip.Position = atMachine and UDim2.new(1, -16, 0, 150) or UDim2.new(0.5, 0, 0, 232)
+	stripScale.Scale = atMachine and 0.75 or 1
 	local best = nil
 	for _, result in payload.results do
 		if not best or rarityOrder(result.rarity) > rarityOrder(best.rarity) then
@@ -226,7 +236,7 @@ function RollReveal.show(payload)
 			Text = "✦ MUTATION " .. string.upper(bestMutation.name) .. " ! ✦",
 			Size = UDim2.new(1, 0, 0, 32),
 			FontFace = Theme.Faces.Title,
-			LayoutOrder = 0,
+			LayoutOrder = 2, -- sous les cartes (l'annonce géante occupe le haut)
 			StrokeThickness = 3,
 			Parent = strip,
 		})
@@ -312,6 +322,7 @@ function RollReveal.init(gui: ScreenGui)
 		Parent = root,
 	})
 	Theme.list(Enum.FillDirection.Vertical, 4, Enum.HorizontalAlignment.Center).Parent = strip
+	stripScale = new("UIScale", { Parent = strip })
 	local remote = State.remoteEvent("RollResult")
 	if remote then
 		remote.OnClientEvent:Connect(RollReveal.show)

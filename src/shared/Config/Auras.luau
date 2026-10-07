@@ -18,6 +18,7 @@ local Auras = {}
 
 Auras.List = Mutations.List :: { [string]: any }
 Auras.RollOrder = Mutations.RollOrder
+Auras.multText = Mutations.multText
 
 function Auras.get(id: string?): Aura?
 	return Mutations.get(id)
