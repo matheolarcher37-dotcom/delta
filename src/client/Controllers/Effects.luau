@@ -1416,6 +1416,11 @@ local function makeCtx(data, attacker: Model?, target: Instance?, sig, mine: boo
 			if arm and arm:IsA("BasePart") then
 				return (arm.CFrame * CFrame.new(0, -arm.Size.Y * 0.55, 0)).Position
 			end
+			-- Créatures (CreatureBuilder) : bout de la patte avant droite (axe Y du coude vers le poignet).
+			local paw = attacker:FindFirstChild("RightForearm")
+			if paw and paw:IsA("BasePart") then
+				return (paw.CFrame * CFrame.new(0, paw.Size.Y * 0.5, 0)).Position
+			end
 			local root = rootOf(attacker)
 			if root then
 				return (root.CFrame * CFrame.new(0.9 * attackerScale, 0, -1.4 * attackerScale)).Position

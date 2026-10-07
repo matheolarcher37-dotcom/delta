@@ -266,12 +266,21 @@ test("Kourama : vraie créature (renard à neuf queues) compatible avec le comba
 	end
 	assert(tailCount == 9, "9 queues attendues (" .. tailCount .. ")")
 	assert(parts <= 260, "trop de pièces : " .. parts)
-	assert(lowest > -0.6 * s and lowest < 0.4 * s, "pattes pas au sol : " .. lowest)
+	assert(lowest > -0.15 * s and lowest < 0.4 * s, "pattes pas au sol : " .. lowest)
 	assert(highest > 5.2 * s, "trop petit pour un boss")
 	for _, name in { "Head", "Torso", "Jaw", "LeftEar", "RightEar" } do
 		assert(model:FindFirstChild(name), "pièce manquante : " .. name)
 	end
 	assert(model:FindFirstChild("Head").CanQuery and model:FindFirstChild("Torso").CanQuery, "non cliquable")
+	-- Les queues reçoivent aussi les clics (plus de la moitié de la silhouette).
+	for i = 1, 9 do
+		local seg = model:FindFirstChild("Tail" .. i .. "_2")
+		assert(seg and seg.CanQuery, "queue " .. i .. " non cliquable")
+	end
+	-- Portée (CombatService) et hauteur d'étiquette (NameTags) adaptées à la taille de la créature.
+	local reach, tagHeight = model:GetAttribute("Reach"), model:GetAttribute("TagHeight")
+	assert(type(reach) == "number" and reach > 2.5 + s * 1.6, "portée Reach manquante ou trop courte")
+	assert(type(tagHeight) == "number" and math.abs(tagHeight - (highest - root.CFrame.Position.Y)) < 2 * s, "TagHeight : " .. tostring(tagHeight))
 	-- Aperçu des menus : ancré, sans SurfaceGui.
 	local preview = Factory.buildPreview("ninja_kourama", 1, look)
 	assert(preview:GetAttribute("Creature") == "kurama", "aperçu R6")

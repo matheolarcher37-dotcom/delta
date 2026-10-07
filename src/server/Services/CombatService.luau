@@ -320,7 +320,8 @@ function CombatService:_updateEnemy(record, now: number)
 		local tpos = target.follower.root.Position
 		local delta = Vector3.new(tpos.X - root.Position.X, 0, tpos.Z - root.Position.Z)
 		local distance = delta.Magnitude
-		local reach = 2.5 + record.scale * 1.6
+		-- Les créatures (Kourama) portent leur propre portée : museau et griffes dépassent loin du centre.
+		local reach = record.model:GetAttribute("Reach") or (2.5 + record.scale * 1.6)
 		if distance > reach then
 			humanoid:MoveTo(tpos - delta.Unit * (reach - 1))
 		else
