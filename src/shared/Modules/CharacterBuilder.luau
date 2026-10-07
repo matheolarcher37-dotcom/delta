@@ -1515,26 +1515,145 @@ ACC.haori_sage = function(ctx, look)
 	end)
 end
 
-local function sword(ctx, limb: string, cf: CFrame, handle: Color3, sheath: Color3?, length: number?)
-	local l = length or 2.8
-	ctx.add(limb, "Sheath", Vector3.new(0.2, l, 0.2), cf, sheath or Color3.fromRGB(30, 30, 35))
-	ctx.cyl(limb, "Guard", 0.08, 0.45, cf * CFrame.new(0, l / 2 + 0.04, 0) * CFrame.Angles(0, 0, math.pi / 2), GOLD, { Material = Enum.Material.Metal })
-	ctx.add(limb, "Handle", Vector3.new(0.18, 0.8, 0.18), cf * CFrame.new(0, l / 2 + 0.48, 0), handle)
+-- Katana au fourreau, détaillé comme un vrai sabre japonais :
+--   * fourreau (saya) laqué avec reflet, embout (kojiri) et embouchure (koiguchi) en métal,
+--     bouton (kurikata) et cordon (sageo) noué qui s'enroule ;
+--   * garde (tsuba) en disque à liseré doré (ronde, en fleur, carrée ou en flammes) + rondelles ;
+--   * poignée (tsuka) au tressage en losanges (ito croisé sur la peau de raie blanche), virole
+--     (fuchi), pommeau (kashira) et ornement (menuki) dorés.
+-- `cf` = centre du fourreau, axe Y vers la poignée. spec = { handle, sheath, tsuba, trim,
+-- guard = "round" | "flower" | "square" | "flame", cord, length, shine }.
+local KATANA_GUARDS = {
+	round = function(ctx, limb, at, tsuba, trim)
+		ctx.cyl(limb, "Tsuba", 0.07, 0.5, at * CFrame.Angles(0, 0, math.pi / 2), tsuba, { Material = Enum.Material.Metal, Reflectance = 0.1 })
+		ctx.cyl(limb, "TsubaRim", 0.05, 0.54, at * CFrame.Angles(0, 0, math.pi / 2), trim, { Material = Enum.Material.Metal, Reflectance = 0.25 })
+	end,
+	flower = function(ctx, limb, at, tsuba, trim)
+		-- Garde en fleur : 4 lobes arrondis autour du centre
+		ctx.cyl(limb, "Tsuba", 0.07, 0.36, at * CFrame.Angles(0, 0, math.pi / 2), tsuba, { Material = Enum.Material.Metal })
+		for i = 0, 3 do
+			local a = i * math.pi / 2 + math.pi / 4
+			ctx.cyl(limb, "TsubaPetal", 0.06, 0.24, at * CFrame.new(math.cos(a) * 0.17, 0, math.sin(a) * 0.17) * CFrame.Angles(0, 0, math.pi / 2), trim, {
+				Material = Enum.Material.Metal,
+				Reflectance = 0.2,
+			})
+		end
+	end,
+	square = function(ctx, limb, at, tsuba, trim)
+		ctx.add(limb, "Tsuba", Vector3.new(0.42, 0.07, 0.48), at, tsuba, { Material = Enum.Material.Metal })
+		ctx.add(limb, "TsubaRim", Vector3.new(0.46, 0.05, 0.52), at, trim, { Material = Enum.Material.Metal, Reflectance = 0.2 })
+	end,
+	flame = function(ctx, limb, at, tsuba, trim)
+		-- Garde en flammes (pilier de la flamme) : disque rouge + langues de feu dorées
+		ctx.cyl(limb, "Tsuba", 0.07, 0.42, at * CFrame.Angles(0, 0, math.pi / 2), tsuba, { Material = Enum.Material.Metal })
+		for i = 0, 5 do
+			local a = i * math.pi / 3
+			local dir = Vector3.new(math.cos(a), 0, math.sin(a))
+			local from = (at * CFrame.new(dir * 0.14)).Position
+			local tip = at:VectorToWorldSpace(dir)
+			ctx.spike(limb, i % 2 == 0 and trim or tsuba, from, tip, 0.2, 0.14, { cross = true })
+		end
+	end,
+}
+
+local function katana(ctx, limb: string, cf: CFrame, spec)
+	local l = spec.length or 2.7
+	local sheath = spec.sheath or Color3.fromRGB(28, 26, 32)
+	local handle = spec.handle or Color3.fromRGB(30, 30, 36)
+	local trim = spec.trim or GOLD
+	local tsuba = spec.tsuba or Color3.fromRGB(38, 36, 40)
+	local metal = { Material = Enum.Material.Metal, Reflectance = 0.2 }
+	-- Fourreau : section ovale (aplati sur X), extrémités en métal
+	local saya = ctx.add(limb, "Sheath", Vector3.new(0.15, l, 0.22), cf, sheath, { Reflectance = spec.shine or 0.08 })
+	ctx.add(limb, "SheathShine", Vector3.new(0.155, l * 0.86, 0.035), cf * CFrame.new(0, 0, -0.085), lighten(sheath, 0.18))
+	ctx.add(limb, "Kojiri", Vector3.new(0.17, 0.14, 0.24), cf * CFrame.new(0, -l / 2 + 0.06, 0), trim, metal)
+	ctx.add(limb, "Koiguchi", Vector3.new(0.17, 0.08, 0.24), cf * CFrame.new(0, l / 2 - 0.04, 0), trim, metal)
+	-- Bouton du cordon + cordon (sageo) qui s'enroule autour du fourreau
+	local cord = spec.cord or lighten(handle, 0.15)
+	ctx.add(limb, "Kurikata", Vector3.new(0.19, 0.12, 0.08), cf * CFrame.new(0, l / 2 - 0.42, -0.1), sheath)
+	ctx.add(limb, "Sageo", Vector3.new(0.18, 0.05, 0.25), cf * CFrame.new(0, l / 2 - 0.55, 0) * CFrame.Angles(0.5, 0, 0), cord)
+	ctx.add(limb, "Sageo", Vector3.new(0.18, 0.05, 0.25), cf * CFrame.new(0, l / 2 - 0.8, 0) * CFrame.Angles(-0.5, 0, 0), cord)
+	ctx.add(limb, "SageoTail", Vector3.new(0.04, 0.6, 0.06), cf * CFrame.new(0.1, l / 2 - 1.05, 0.05) * CFrame.Angles(0, 0, 0.1), cord)
+	-- Garde (tsuba) et rondelles (seppa)
+	local guardAt = cf * CFrame.new(0, l / 2 + 0.05, 0)
+	;(KATANA_GUARDS[spec.guard or "round"] or KATANA_GUARDS.round)(ctx, limb, guardAt, tsuba, trim)
+	ctx.add(limb, "Seppa", Vector3.new(0.16, 0.05, 0.24), cf * CFrame.new(0, l / 2 + 0.11, 0), trim, metal)
+	-- Poignée (tsuka) tressée
+	local tl = spec.handleLength or 0.86
+	local tsukaCf = cf * CFrame.new(0, l / 2 + 0.14 + tl / 2, 0)
+	local samegawa = Color3.fromRGB(236, 232, 220)
+	local tsuka = ctx.add(limb, "Tsuka", Vector3.new(0.13, tl, 0.19), tsukaCf, samegawa)
+	local wraps = 6
+	for _, face in { Enum.NormalId.Left, Enum.NormalId.Right, Enum.NormalId.Front, Enum.NormalId.Back } do
+		local canvas = ctx.surface(tsuka, face, "Ito")
+		local lite = ctx.paint == "parts"
+		local side = face == Enum.NormalId.Left or face == Enum.NormalId.Right
+		for i = 0, wraps - 1 do
+			local y = (i + 0.5) / wraps
+			-- Deux rubans croisés en "X" : il reste un losange blanc entre chaque croisement
+			for _, rot in { 38, -38 } do
+				Painter.rect(canvas, 0.5, y, 1.5, 0.42 / wraps, handle, {
+					rotation = side and rot or rot * 0.6,
+					z = rot > 0 and 2 or 3,
+					fine = lite and (not side or rot < 0),
+				})
+			end
+			Painter.rect(canvas, 0.5, i / wraps, 1, 0.08 / wraps, darken(handle, 0.45), { z = 4, fine = true })
+		end
+	end
+	ctx.add(limb, "Fuchi", Vector3.new(0.15, 0.08, 0.21), cf * CFrame.new(0, l / 2 + 0.17, 0), trim, metal)
+	ctx.add(limb, "Kashira", Vector3.new(0.15, 0.09, 0.21), cf * CFrame.new(0, l / 2 + 0.14 + tl + 0.03, 0), trim, metal)
+	ctx.ball(limb, "Menuki", Vector3.new(0.05, 0.16, 0.1), tsukaCf * CFrame.new(0.07, 0, 0), trim, metal)
+	ctx.ball(limb, "Menuki", Vector3.new(0.05, 0.16, 0.1), tsukaCf * CFrame.new(-0.07, 0.05, 0), trim, metal)
+	local _ = saya
+end
+CharacterBuilder.katana = katana
+
+-- Ancienne signature (poignée, fourreau, longueur) conservée pour les accessoires.
+local function sword(ctx, limb: string, cf: CFrame, handle: Color3, sheath: Color3?, length: number?, extra)
+	local spec = extra and table.clone(extra) or {}
+	spec.handle = spec.handle or handle
+	spec.sheath = spec.sheath or sheath
+	spec.length = spec.length or length
+	katana(ctx, limb, cf, spec)
+end
+
+-- Sabre(s) d'un perso : look.katana = { handle, sheath, tsuba, trim, guard, cord } ou liste de
+-- specs pour plusieurs sabres.
+local function katanaSpec(look, index: number, fallback)
+	local k = look.katana
+	if type(k) == "table" and k[1] then
+		return k[index] or k[1]
+	end
+	return k or fallback
 end
 
 ACC.sword_hip = function(ctx, look)
-	sword(ctx, "Torso", CFrame.new(-1.12, -0.75, 0.05) * CFrame.Angles(math.rad(-70), 0, 0), look.accColor or WHITE)
+	local spec = katanaSpec(look, 1, { handle = look.accColor or WHITE })
+	sword(ctx, "Torso", CFrame.new(-1.13, -0.75, 0.05) * CFrame.Angles(math.rad(-70), 0, 0), spec.handle or look.accColor or WHITE, nil, nil, spec)
 end
 
 ACC.swords = function(ctx, look)
-	local handle = look.accColor or WHITE
-	sword(ctx, "Torso", CFrame.new(-1.12, -0.75, -0.1) * CFrame.Angles(math.rad(-70), 0, 0), handle)
-	sword(ctx, "Torso", CFrame.new(-1.15, -0.8, 0.2) * CFrame.Angles(math.rad(-65), 0, 0), Color3.fromRGB(200, 40, 40))
-	sword(ctx, "Torso", CFrame.new(1.12, -0.75, 0.05) * CFrame.Angles(math.rad(-70), 0, 0), Color3.fromRGB(30, 30, 30))
+	-- Trois sabres (Wado blanc, Sandai rouge, Shusui noir par défaut)
+	local defaults = {
+		{ handle = WHITE, sheath = Color3.fromRGB(240, 240, 238), tsuba = GOLD, trim = GOLD, guard = "flower", cord = Color3.fromRGB(235, 235, 235) },
+		{ handle = Color3.fromRGB(200, 40, 40), sheath = Color3.fromRGB(150, 25, 30), guard = "round", cord = Color3.fromRGB(230, 70, 60) },
+		{ handle = Color3.fromRGB(30, 30, 30), sheath = Color3.fromRGB(25, 22, 26), tsuba = Color3.fromRGB(60, 50, 40), guard = "square", trim = Color3.fromRGB(200, 170, 90) },
+	}
+	local spots = {
+		CFrame.new(-1.13, -0.75, -0.12) * CFrame.Angles(math.rad(-70), 0, 0),
+		CFrame.new(-1.2, -0.82, 0.2) * CFrame.Angles(math.rad(-64), 0, 0),
+		CFrame.new(1.13, -0.75, 0.05) * CFrame.Angles(math.rad(-70), 0, 0),
+	}
+	for i, cf in spots do
+		local spec = look.katana and katanaSpec(look, i, defaults[i]) or defaults[i]
+		katana(ctx, "Torso", cf, spec)
+	end
 end
 
 ACC.sword_back = function(ctx, look)
-	sword(ctx, "Torso", CFrame.new(0, 0, 0.62) * CFrame.Angles(0, 0, 0.75), look.accColor or Color3.fromRGB(80, 60, 130), nil, 3.2)
+	local spec = katanaSpec(look, 1, { handle = look.accColor or Color3.fromRGB(80, 60, 130) })
+	sword(ctx, "Torso", CFrame.new(0, 0, 0.64) * CFrame.Angles(0, 0, 0.75), spec.handle or look.accColor or Color3.fromRGB(80, 60, 130), nil, 3.1, spec)
 end
 
 ACC.big_sword = function(ctx, look)
