@@ -216,6 +216,43 @@ test("Construction des ennemis et boss", function()
 	end
 end)
 
+test("Boss lisibles (liseré, lumières, aura) et variétés des persos", function()
+	for id, def in Characters.Enemies do
+		if def.look.boss then
+			local model = CharacterBuilder.build(def.look, { scale = 4.2, humanoid = true })
+			assert(model:FindFirstChildOfClass("Highlight"), id .. " : liseré lumineux (Highlight) attendu")
+			local lights, guis = 0, 0
+			for _, d in model:GetDescendants() do
+				if d:IsA("PointLight") then
+					lights += 1
+				elseif d:IsA("SurfaceGui") then
+					guis += 1
+					assert(d.LightInfluence < 1, id .. " : peinture lisible dans la pénombre")
+					assert(d.Name ~= "ShirtFront" or d.PixelsPerStud < 70, id .. " : résolution des peintures adaptée à la taille")
+				end
+			end
+			assert(lights >= 2, id .. " : lumières sur le boss")
+			assert(guis > 10, id .. " : tenue peinte")
+		end
+	end
+	-- Les ennemis ordinaires n'ont pas de Highlight (limite de 31 par client)
+	local minion = CharacterBuilder.build(Characters.Enemies.sai_saibamon.look, { scale = 1 })
+	assert(not minion:FindFirstChildOfClass("Highlight"), "pas de Highlight hors boss")
+	local look = Formulas.describe({ id = "sai_goko", level = 1, stars = 1 }).look
+	for _, v in { "Or", "Diamant", "Sakura", "Angélique", "Ombre", "Galaxie", "Arc-en-ciel", "dore", "neant" } do
+		local model = CharacterBuilder.build(look, { scale = 1 })
+		assert(CharacterBuilder.applyVariety(model, v), "variété inconnue : " .. v)
+		assert(model:GetAttribute("Variety"), v .. " : attribut Variety")
+	end
+	local plain = CharacterBuilder.build(look, { scale = 1 })
+	assert(not CharacterBuilder.applyVariety(plain, "inconnue"), "variété inconnue refusée")
+	local withVariety = table.clone(look)
+	withVariety.variety = "Angélique"
+	local angel = CharacterBuilder.build(withVariety, { scale = 1 })
+	assert(angel:FindFirstChild("VarietyHalo"), "auréole de la variété Angélique")
+	assert(angel:GetAttribute("Variety") == "angelic", "look.variety appliqué à la construction")
+end)
+
 test("Construction de fusions (toutes les paires Légendaire/Mythique)", function()
 	local ids = {}
 	for id, def in Characters.List do

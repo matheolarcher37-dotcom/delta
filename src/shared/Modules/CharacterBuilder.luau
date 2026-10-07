@@ -2137,7 +2137,15 @@ ACC.hollow_purple = function(ctx, look)
 	local color = look.energyColor or Color3.fromRGB(170, 70, 255)
 	local orb = ctx.ball("Right Arm", "HollowPurple", Vector3.new(1.1, 1.1, 1.1), CFrame.new(0.15, -1.55, -0.55), color, { Material = Enum.Material.Neon, Transparency = 0.1 })
 	ctx.ball("Right Arm", "HollowPurpleCore", Vector3.new(0.55, 0.55, 0.55), CFrame.new(0.15, -1.55, -0.55), Color3.fromRGB(240, 220, 255), { Material = Enum.Material.Neon })
-	ctx.vcyl("Right Arm", "HollowPurpleRing", 0.05, 1.5, CFrame.new(0.15, -1.55, -0.55) * CFrame.Angles(0.4, 0, 0.3), lighten(color, 0.3), { Material = Enum.Material.Neon, Transparency = 0.4 })
+	ctx.vcyl(
+		"Right Arm",
+		"HollowPurpleRing",
+		0.05,
+		1.5,
+		CFrame.new(0.15, -1.55, -0.55) * CFrame.Angles(0.4, 0, 0.3),
+		lighten(color, 0.3),
+		{ Material = Enum.Material.Neon, Transparency = 0.4 }
+	)
 	glowLight(orb, color, 12 * ctx.s, 2)
 	sparkles(orb, color, ctx.s, 16)
 end
@@ -2314,6 +2322,10 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 		bossKit(ctx, look)
 	end
 	Painter.scale = 1
+	model:SetAttribute("BaseScale", s)
+	if look.variety then
+		CharacterBuilder.applyVariety(model, look.variety)
+	end
 
 	local root = ctx.limbs.HumanoidRootPart
 	model.PrimaryPart = root
@@ -2353,6 +2365,186 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 	model:SetAttribute("BaseScale", s)
 	model:SetAttribute("RootHeight", CharacterBuilder.RootHeight * s)
 	return model
+end
+
+------------------------------------------------------------------------
+-- Variétés (mutations) : la rareté de BASE du perso ne change pas, la variété se voit en plus.
+-- Uniquement des changements de pièces (teinte et matière des cheveux, auréole, ailes, fleur) :
+-- les particules des mutations restent gérées par les effets côté client (Config/Auras).
+------------------------------------------------------------------------
+
+local VARIETY_ALIASES = {
+	dore = "gold",
+	["or"] = "gold",
+	golden = "gold",
+	diamant = "diamond",
+	blossom = "sakura",
+	cerisier = "sakura",
+	angelique = "angelic",
+	["angélique"] = "angelic",
+	ange = "angelic",
+	ombre = "shadow",
+	arcenciel = "rainbow",
+	["arc-en-ciel"] = "rainbow",
+	galaxie = "galaxy",
+	givre = "frost",
+	flamme = "fire",
+	foudre = "lightning",
+	neant = "void",
+	["néant"] = "void",
+}
+
+local VARIETIES = {
+	gold = { hair = Color3.fromRGB(255, 196, 56), mix = 0.75, material = Enum.Material.Metal, reflectance = 0.25 },
+	diamond = { hair = Color3.fromRGB(196, 242, 255), mix = 0.8, material = Enum.Material.Glass, reflectance = 0.35, transparency = 0.08 },
+	sakura = { hair = Color3.fromRGB(255, 168, 204), mix = 0.6, flower = true },
+	angelic = { hair = Color3.fromRGB(255, 248, 226), mix = 0.82, halo = true, wings = true },
+	shadow = { hair = Color3.fromRGB(36, 20, 56), mix = 0.7 },
+	galaxy = { hair = Color3.fromRGB(46, 34, 120), mix = 0.7, material = Enum.Material.Neon, neonHalf = true },
+	rainbow = { rainbow = true },
+	frost = { hair = Color3.fromRGB(170, 230, 255), mix = 0.45, material = Enum.Material.Ice },
+	fire = { hair = Color3.fromRGB(255, 120, 40), mix = 0.4 },
+	lightning = { hair = Color3.fromRGB(255, 236, 90), mix = 0.35 },
+	void = { hair = Color3.fromRGB(120, 50, 200), mix = 0.45 },
+}
+CharacterBuilder.Varieties = VARIETIES
+
+local function isHair(part: BasePart): boolean
+	local n = part.Name
+	return string.sub(n, 1, 4) == "Hair" or n == "Bun" or n == "BunShine" or n == "Knot" or n == "Cranium"
+end
+
+-- Applique une variété à un perso déjà construit (marche aussi sur les modèles perso R6).
+-- `variety` : identifiant français ou anglais ("Or", "Diamant", "Sakura", "Angélique"...).
+-- Renvoie true si la variété est connue.
+function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
+	if not variety or variety == "" then
+		return false
+	end
+	local key = string.lower(variety)
+	key = VARIETY_ALIASES[key] or key
+	local spec = VARIETIES[key]
+	if not spec then
+		return false
+	end
+	if model:GetAttribute("Variety") == key then
+		return true
+	end
+	model:SetAttribute("Variety", key)
+	local s = model:GetAttribute("BaseScale") or 1
+	local head = model:FindFirstChild("Head") :: BasePart?
+	local i = 0
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and isHair(d) then
+			i += 1
+			if spec.rainbow then
+				d.Color = Color3.fromHSV((i * 0.13) % 1, 0.55, 1)
+			elseif spec.hair then
+				d.Color = d.Color:Lerp(spec.hair, spec.mix or 0.6)
+				if spec.material and (not spec.neonHalf or i % 3 == 0) then
+					d.Material = spec.material
+				end
+				if spec.reflectance then
+					d.Reflectance = spec.reflectance
+				end
+				if spec.transparency then
+					d.Transparency = spec.transparency
+				end
+			end
+		end
+	end
+	if not head then
+		return true
+	end
+	local function attach(name: string, size: Vector3, offset: CFrame, color: Color3, props)
+		local part = Instance.new("Part")
+		part.Name = name
+		part.Size = size * s
+		part.CFrame = head.CFrame * CFrame.new(offset.Position * s) * offset.Rotation
+		part.Color = color
+		part.Material = Enum.Material.SmoothPlastic
+		part.CanCollide = false
+		part.CanTouch = false
+		part.CanQuery = false
+		part.Massless = true
+		part.Anchored = false
+		part.CastShadow = false
+		for k, v in props or {} do
+			if k == "sphere" then
+				local mesh = Instance.new("SpecialMesh")
+				mesh.MeshType = Enum.MeshType.Sphere
+				mesh.Parent = part
+			else
+				(part :: any)[k] = v
+			end
+		end
+		local weld = Instance.new("Weld")
+		weld.Part0 = head
+		weld.Part1 = part
+		weld.C0 = head.CFrame:Inverse() * part.CFrame
+		weld.Parent = part
+		part.Parent = model
+		return part
+	end
+	if spec.halo then
+		-- Auréole dorée lumineuse au-dessus de la tête
+		local halo = attach("VarietyHalo", Vector3.new(0.08, 1.3, 1.3), CFrame.new(0, 1.35, 0.1) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(255, 226, 120), {
+			Material = Enum.Material.Neon,
+			Shape = Enum.PartType.Cylinder,
+		})
+		attach("VarietyHaloHole", Vector3.new(0.1, 0.95, 0.95), CFrame.new(0, 1.35, 0.1) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(255, 250, 230), {
+			Shape = Enum.PartType.Cylinder,
+			Transparency = 0.6,
+		})
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 236, 170)
+		light.Range = 8 * s
+		light.Brightness = 1
+		light.Shadows = false
+		light.Parent = halo
+	end
+	if spec.wings then
+		-- Petites ailes blanches dans le dos (plumes en éventail)
+		local torso = model:FindFirstChild("Torso") :: BasePart?
+		if torso then
+			for _, side in { -1, 1 } do
+				for k = 0, 2 do
+					local part = Instance.new("Part")
+					part.Name = "VarietyWing"
+					part.Size = Vector3.new(0.12, 1.5 - k * 0.3, 0.5) * s
+					part.Color = Color3.fromRGB(255, 255, 250):Lerp(Color3.fromRGB(230, 236, 255), k * 0.3)
+					part.Material = Enum.Material.SmoothPlastic
+					part.CanCollide = false
+					part.CanTouch = false
+					part.CanQuery = false
+					part.Massless = true
+					part.CastShadow = false
+					part.CFrame = torso.CFrame * CFrame.new(side * (0.5 + k * 0.32) * s, (0.55 - k * 0.12) * s, 0.75 * s) * CFrame.Angles(0, 0, side * (0.7 + k * 0.35))
+					local mesh = Instance.new("SpecialMesh")
+					mesh.MeshType = Enum.MeshType.Sphere
+					mesh.Parent = part
+					local weld = Instance.new("Weld")
+					weld.Part0 = torso
+					weld.Part1 = part
+					weld.C0 = torso.CFrame:Inverse() * part.CFrame
+					weld.Parent = part
+					part.Parent = model
+				end
+			end
+		end
+	end
+	if spec.flower then
+		-- Fleur de cerisier dans les cheveux (5 pétales + cœur)
+		local center = CFrame.new(0.45, 0.62, -0.35) * CFrame.Angles(0, -0.6, 0)
+		for k = 0, 4 do
+			local a = k / 5 * math.pi * 2
+			attach("VarietyPetal", Vector3.new(0.2, 0.2, 0.06), center * CFrame.new(math.cos(a) * 0.12, math.sin(a) * 0.12, 0), Color3.fromRGB(255, 186, 214), {
+				sphere = true,
+			})
+		end
+		attach("VarietyFlowerCore", Vector3.new(0.1, 0.1, 0.1), center * CFrame.new(0, 0, -0.03), Color3.fromRGB(255, 230, 120), { sphere = true })
+	end
+	return true
 end
 
 -- Modèle ancré pour les aperçus des menus (visage et tenue en pièces : visibles en ViewportFrame).
