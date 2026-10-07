@@ -11,6 +11,7 @@ local Rarities = require(Shared.Config.Rarities)
 local Characters = require(Shared.Config.Characters)
 local Universes = require(Shared.Config.Universes)
 local Economy = require(Shared.Config.Economy)
+local Mutations = require(Shared.Config.Mutations)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 
@@ -170,7 +171,14 @@ local function renderUnits()
 	local stats = State.stats()
 	local count = #list
 	Components.setPillText(refs.teamPill, "Équipe " .. #data.team .. " / " .. stats.team .. "  ·  " .. count .. "/" .. Economy.MaxCharacters)
-	window.subtitle.Text = count .. " unités  ·  " .. #data.team .. " dans l'équipe"
+	-- Persos mutés (Or, Diamant...) : la mutation s'affiche sur leur carte et dans leur fiche.
+	local mutated = 0
+	for _, item in list do
+		if Mutations.get(item.entry.aura) then
+			mutated += 1
+		end
+	end
+	window.subtitle.Text = count .. " unités  ·  " .. mutated .. " mutées  ·  " .. #data.team .. " dans l'équipe"
 end
 
 ------------------------------------------------------------------------

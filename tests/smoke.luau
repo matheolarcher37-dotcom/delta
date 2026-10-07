@@ -95,10 +95,16 @@ test("Arbre de compétences : 40-60 nœuds hexagonaux cohérents", function()
 		all[n.id] = true
 	end
 	local max = SkillTree.stats(all)
-	assert(max.rollsPerPull == 3, "multi-tirage maximum : " .. max.rollsPerPull)
-	assert(max.autoRoll == true and max.luck > 3 and max.rollCooldown >= SkillTree.Limits.rollCooldown, "statistiques maximales")
+	-- v3.2 : rouler 2-3 persos à la fois et l'auto-roulage sont des passes Robux, plus des nœuds.
+	assert(max.rollsPerPull == 1, "l'arbre ne doit plus donner de multi-tirage : " .. max.rollsPerPull)
+	assert(max.autoRoll == false, "l'arbre ne doit plus donner l'auto-roulage")
+	for _, n in SkillTree.Nodes do
+		assert(n.effect.stat ~= "rollsPerPull" and n.effect.stat ~= "autoRoll" and n.effect.stat ~= "x10Every", "nœud de l'ancien roulage : " .. n.id)
+	end
+	assert(max.luck > 3 and max.rollCooldown >= SkillTree.Limits.rollCooldown, "statistiques maximales")
+	assert(max.rollDiscount > 0 and max.rollDiscount <= SkillTree.Limits.rollDiscount, "Marchandage sans effet")
 	local none = SkillTree.stats({})
-	assert(none.rollsPerPull == 1 and none.luck == 1 and none.autoRoll == false, "statistiques de départ")
+	assert(none.rollsPerPull == 1 and none.luck == 1 and none.autoRoll == false and none.rollDiscount == 0, "statistiques de départ")
 	-- Coûts croissants le long de chaque branche.
 	for _, n in SkillTree.Nodes do
 		for _, req in n.requires do
@@ -119,23 +125,112 @@ test("Machine ROULER : probabilités, prix, pitié", function()
 		assert(odds.common >= 0.05 - 1e-9, "le Commun doit garder 5 %")
 	end
 	assert(Formulas.rollOdds(2).legendary > Formulas.rollOdds(1).legendary, "la chance n'augmente pas les Légendaires")
+	-- Raretés facultatives (Peu commun, Secret) : seulement si l'univers a des persos de ce rang.
+	local base = Formulas.rollOdds(1)
+	assert(base.uncommon == 0 and base.secret == 0, "Peu commun / Secret tirables sans perso")
+	local pools = Formulas.rollPools("ninja")
+	local poolOdds = Formulas.rollOdds(1, pools)
+	for id, p in poolOdds do
+		if p > 0 then
+			assert(pools[id] and #pools[id] > 0, "rareté tirable sans perso dans l'univers : " .. id)
+		end
+	end
+	assert(math.abs(base.common - 0.7) < 1e-6 and math.abs(base.mythic - 0.002) < 1e-6, "chances de base inattendues")
 	local last = 0
 	for _, id in Economy.RollOrder do
 		local price = Formulas.rollPrice(id)
 		assert(price > last, "prix non croissants : " .. id)
 		last = price
 	end
-	assert(Formulas.rollPrice("rare", "dore") > Formulas.rollPrice("rare"), "l'aura n'augmente pas le prix")
-	-- Ce que la rareté garantit n'est pas facturé une 2e fois : un Secret (aura Arc-en-ciel et
-	-- trait de palier 3 garantis) coûte bien le prix annoncé.
-	assert(Formulas.rollPrice("secret", "arcenciel", "critique") == Economy.RollRarities.secret.price, "prix du Secret ≠ prix annoncé")
-	assert(Formulas.rollPrice("mythic", "arcenciel") < Formulas.rollPrice("secret", "arcenciel", "critique"), "Mythique Arc-en-ciel plus cher qu'un Secret")
+	assert(Formulas.rollPrice("rare", "or") > Formulas.rollPrice("rare"), "la mutation n'augmente pas le prix")
+	assert(Formulas.rollPrice("rare", "dore") == Formulas.rollPrice("rare", "or"), "l'ancienne aura Doré n'est pas l'Or")
+	assert(Formulas.rollPrice("epic", nil, nil, 0.25) < Formulas.rollPrice("epic"), "Marchandage sans effet sur le prix")
 	-- Première collecte offerte : seulement jusqu'au Rare.
 	assert(Formulas.rollCollectFree({ FirstCollectDone = false }, "rare"), "Rare non offert")
 	assert(not Formulas.rollCollectFree({ FirstCollectDone = false }, "legendary"), "Légendaire offert")
 	assert(not Formulas.rollCollectFree({ FirstCollectDone = true }, "common"), "2e collecte offerte")
-	assert(Formulas.pityThreshold("legendary", 0.7) < Formulas.pityThreshold("legendary", 1), "pitié de l'arbre sans effet")
+	-- Pitié : UNIQUEMENT le Mythique.
+	assert(#Economy.Roll.PityOrder == 1 and Economy.Roll.PityOrder[1] == "mythic", "pitié hors Mythique")
+	assert(Formulas.pityThreshold("mythic", 0.7) < Formulas.pityThreshold("mythic", 1), "pitié de l'arbre sans effet")
+	assert(Formulas.pityThreshold("legendary") == 1 and Economy.Roll.Pity.legendary == nil, "pitié du Légendaire encore là")
+	-- Persos par roulage : passes Robux (Pass_Roll2 / Pass_Roll3), 1 sinon.
+	local fake = { attrs = {} }
+	function fake:GetAttribute(name)
+		return self.attrs[name]
+	end
+	assert(Formulas.rollsPerRoll(nil) == 1 and Formulas.rollsPerRoll(fake :: any) == 1, "1 perso par roulage par défaut")
+	fake.attrs.Pass_Roll2 = true
+	assert(Formulas.rollsPerRoll(fake :: any) == 2 and Formulas.rollsPerRoll(fake :: any, 3) == 2, "passe x2")
+	fake.attrs.Pass_Roll3 = true
+	assert(Formulas.rollsPerRoll(fake :: any) == 3 and Formulas.rollsPerRoll(fake :: any, 1) == 1, "passe x3 / retour à 1")
+	-- Chance : passe x2 et potion.
+	assert(Formulas.rollLuck({ luck = 1.5 }, fake :: any, 100) == 1.5, "chance sans bonus")
+	fake.attrs.Pass_Luck2 = true
+	fake.attrs.Boost_Luck = 200
+	assert(Formulas.rollLuck({ luck = 1.5 }, fake :: any, 100) == 6, "passe x2 Chance + potion")
+	assert(Formulas.rollLuck({ luck = 1.5 }, fake :: any, 300) == 3, "potion terminée encore active")
+	-- Cibles de l'achat automatique.
+	local item = { id = "ninja_maruto", rarity = "epic", aura = "or" }
+	assert(not Formulas.rollMatches(item, { characters = {}, rarities = {}, mutations = {} }), "aucune cible = rien")
+	assert(Formulas.rollMatches(item, { characters = { ninja_maruto = true }, rarities = {}, mutations = {} }), "cible perso")
+	assert(Formulas.rollMatches(item, { characters = {}, rarities = { epic = true }, mutations = { ["or"] = true } }), "cible rareté + mutation")
+	assert(not Formulas.rollMatches(item, { characters = {}, rarities = { epic = true }, mutations = { diamant = true } }), "mauvaise mutation acceptée")
+	assert(Formulas.rollMatches({ id = "x", rarity = "rare" }, { characters = {}, rarities = {}, mutations = { aucune = true } }), "« Pas de mutation »")
 	assert(#Economy.Upgrades >= 25 and #Economy.Upgrades <= 30, "25 à 30 améliorations attendues")
+end)
+
+test("Mutations (variétés) : liste, tirage, apparence", function()
+	local Mutations = requireModule(Shared.Config.Mutations)
+	local Auras = requireModule(Shared.Config.Auras)
+	local MutationsFx = requireModule(Shared.Modules.Mutations)
+	for _, id in { "or", "diamant", "sakura", "angelique", "ombre", "galaxie", "arcenciel", "foudre", "givre", "flamme", "neant" } do
+		local m = Mutations.get(id)
+		assert(m and m.id == id and m.multiplier > 1 and m.chance > 0 and m.chance < 0.1, "mutation invalide : " .. id)
+		assert(type(m.gradient) == "table" and #m.gradient >= 2, "dégradé manquant : " .. id)
+		assert(Auras.get(id) == m, "Auras et Mutations divergent : " .. id)
+	end
+	assert(Mutations.get("dore") == Mutations.get("or"), "ancienne aura Doré non reconnue")
+	assert(Mutations.get(Mutations.None) == nil and Mutations.get("inconnue") == nil, "mutation fantôme")
+	local total = Mutations.totalChance(1)
+	assert(total > 0.05 and total < 0.3, "chance totale de mutation : " .. total)
+	assert(Mutations.totalChance(2) > total, "la chance de mutation n'augmente pas")
+	local rng = Harness.Random.new(42)
+	local counts, n = {}, 20000
+	for _ = 1, n do
+		local id = Mutations.roll(rng, 1) or "aucune"
+		counts[id] = (counts[id] or 0) + 1
+	end
+	assert(counts.aucune / n > 0.7, "trop de mutations")
+	assert((counts["or"] or 0) > (counts.arcenciel or 0), "l'Arc-en-ciel sort plus que l'Or")
+	-- Apparence : voile sur les habits peints, particules, rien en double.
+	local entry = { id = "ninja_maruto", level = 1, stars = 1 }
+	for _, id in { "or", "sakura", "angelique", "arcenciel" } do
+		local model = CharacterBuilder.build(Formulas.describe(entry).look, { name = "Test" })
+		assert(MutationsFx.apply(model, id), "mutation non posée : " .. id)
+		local veils, particles = 0, 0
+		for _, d in model:GetDescendants() do
+			if d.Name == "MutationVoile" then
+				veils += 1
+			elseif d.Name == "MutationParticules" then
+				particles += 1
+			end
+		end
+		assert(veils > 0, "aucun voile coloré : " .. id)
+		assert(model:GetAttribute("Mutation") == id, "attribut Mutation absent : " .. id)
+		MutationsFx.apply(model, id)
+		local again = 0
+		for _, d in model:GetDescendants() do
+			if d.Name == "MutationVoile" then
+				again += 1
+			end
+		end
+		assert(again == veils, "mutation posée deux fois : " .. id)
+		if Mutations.get(id).look.particles then
+			assert(particles == 1, "particules absentes : " .. id)
+		end
+		model:Destroy()
+	end
+	assert(not MutationsFx.apply(CharacterBuilder.build(Formulas.describe(entry).look, { name = "T" }), "inconnue"), "mutation inconnue posée")
 end)
 
 test("Construction de tous les persos (★1 à ★3)", function()

@@ -485,7 +485,7 @@ local function objectiveText(data): string
 	end
 	local queue = data.RolledQueue
 	if type(queue) == "table" and #queue > 0 then
-		return "Des persos t'attendent sur l'estrade : récupère-les !"
+		return "Ton perso tiré t'attend sur l'estrade : collecte-le, ou roule encore pour le laisser passer !"
 	end
 	if characterCount == 0 then
 		if State.remoteFunction("Roll") then
@@ -655,7 +655,8 @@ local function layoutForDevice()
 	-- Sur téléphone, le bouton de saut et le joystick occupent les coins du bas.
 	local touch = Console.isTouch()
 	if refs.team then
-		-- Tactile : en haut à droite, au-dessus du panneau ROULER (loin du bouton de saut).
+		-- Tactile : en haut à droite (loin du bouton de saut). Il n'y a plus de panneau ROULER
+		-- permanent à droite (v3.2) : les commandes du roulage s'affichent à la machine.
 		refs.team.Position = touch and UDim2.new(1, -16, 0, 162) or UDim2.new(1, -16, 1, -14)
 	end
 	if refs.gridScale then

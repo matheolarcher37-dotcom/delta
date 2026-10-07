@@ -348,28 +348,113 @@ test("Révélation des persos tirés (RollResult)", function()
 	local RollReveal = Harness.require(client.UI.RollReveal)
 	RollReveal.show({
 		results = {
-			{ id = "occ_goju", stars = 1, rarity = "mythic", price = 250000, dps = 4200 },
-			{ id = "ninja_maruto", stars = 1, rarity = "rare", price = 900, dps = 80 },
-			{ id = "sai_goko", stars = 1, rarity = "secret", price = 1000000, dps = 9000 },
+			{ id = "occ_goju", stars = 1, rarity = "mythic", price = 250000, dps = 4200, aura = "diamant" },
+			{ id = "ninja_maruto", stars = 1, rarity = "epic", price = 900, dps = 80 },
+			{ id = "sai_goko", stars = 1, rarity = "mythic", price = 1000000, dps = 9000, aura = "or" },
 		},
-		pity = { legendary = 10, mythic = 100, secret = 1000 },
-		x10In = 4,
-		x10 = true,
+		pity = { mythic = 100 },
+		count = 3,
 	})
 	task.wait(0.4)
 	local strip = alice.PlayerGui.AnimeTycoonUI.RollReveal.Strip
-	local cards = 0
+	local cards, chips = 0, 0
 	for _, d in strip:GetDescendants() do
 		if string.sub(d.Name, 1, 8) == "RollCard" then
 			cards += 1
+		elseif d.Name == "Mutation" and d:IsA("Frame") then
+			chips += 1
 		end
 	end
 	assert(cards == 3, "3 cartes attendues, " .. cards .. " trouvées")
+	assert(chips == 2, "mutations non affichées sur les cartes : " .. chips)
+	local banner = strip:FindFirstChild("Mutation")
+	assert(banner and banner.Text:find("DIAMANT"), "bandeau de la meilleure mutation absent")
 	for _ = 1, 10 do
 		Harness.services.RunService.RenderStepped:Fire(1 / 60)
 	end
 	task.wait(3.2)
 	expectNoNewWarnings(before, "révélation du roulage")
+end)
+
+test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement automatique »", function()
+	local before = #warnings
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local RollPanel = Harness.require(client.UI.RollPanel)
+	local AutoRoll = Harness.require(client.UI.AutoRoll)
+	local State = Harness.require(client.State)
+	local data = services.DataService:Get(alice)
+	local ui = alice.PlayerGui.AnimeTycoonUI
+	-- Passe Robux posé sur le joueur (le harnais ne déclenche pas tout seul le signal d'attribut).
+	local function setAttr(name, value)
+		alice:SetAttribute(name, value)
+		signalFor(alice, "Attr:" .. name):Fire()
+	end
+	-- Plus de panneau ROULAGE permanent à droite du HUD.
+	assert(ui.HUD:FindFirstChild("RollPanel") == nil, "l'ancien panneau ROULAGE est encore dans le HUD")
+	local panel = RollPanel.panel()
+	assert(panel and panel.Name == "MachinePanel", "commandes de la machine absentes")
+	-- Loin de la machine : rien. À la machine : ROULER, x1/x2/x3, AUTO.
+	RollPanel.forceNear(false)
+	assert(panel.Visible == false, "commandes affichées loin de la machine")
+	RollPanel.forceNear(true)
+	assert(panel.Visible == true, "commandes cachées à la machine")
+	local r = RollPanel.refs()
+	assert(r.multi[2].tag.Visible and r.multi[3].tag.Visible, "prix Robux des passes x2 / x3 absents")
+	assert(r.multi[2].price.Text:find("R%$"), "prix du passe x2 : " .. r.multi[2].price.Text)
+	assert(r.pityText.Text:find("Mythique"), "pitié du Mythique absente : " .. r.pityText.Text)
+	setAttr("Pass_Roll2", true)
+	task.wait(0.1)
+	assert(not r.multi[2].tag.Visible, "passe x2 possédé mais encore « à acheter »")
+	-- AUTO ouvre la fenêtre « Roulement automatique ».
+	signalFor(r.autoButton, "Activated"):Fire()
+	task.wait(0.2)
+	assert(Menus.current() == "AutoRoll", "la fenêtre AUTO ne s'ouvre pas")
+	local refs = AutoRoll.refs()
+	assert(refs.root.Visible, "fenêtre invisible")
+	assert(refs.leftCover.Visible and refs.rightCover.Visible, "colonnes non verrouillées sans passe")
+	local rows = 0
+	for _, d in refs.leftList:GetChildren() do
+		if string.sub(d.Name, 1, 4) == "Row_" then
+			rows += 1
+		end
+	end
+	assert(rows >= 5 + 6, "lignes de rareté / mutation manquantes : " .. rows)
+	-- Avec le passe : on lance l'AFK depuis la fenêtre.
+	setAttr("Pass_AutoRoll", true)
+	task.wait(0.1)
+	assert(not refs.leftCover.Visible, "colonne gauche encore verrouillée avec le passe")
+	assert(refs.rightCover.Visible, "colonne droite déverrouillée sans le passe +")
+	signalFor(refs.afkButton, "Activated"):Fire()
+	task.wait(0.3)
+	assert(data.AutoRoll == true, "« Lancer » n'a pas lancé l'auto-roulage")
+	signalFor(refs.afkButton, "Activated"):Fire()
+	task.wait(0.3)
+	assert(data.AutoRoll == false, "« Arrêter » n'a pas arrêté l'auto-roulage")
+	-- Une ligne Activé / Désactivé enregistre le réglage.
+	local commonRow = refs.leftList:FindFirstChild("Row_Commun")
+	local toggle = commonRow and commonRow:FindFirstChild("Toggle")
+	assert(toggle, "ligne Commun absente")
+	signalFor(toggle, "Activated"):Fire()
+	task.wait(0.6)
+	assert(data.AutoRollSettings.pauseRarities.common == true, "réglage non enregistré")
+	signalFor(toggle, "Activated"):Fire()
+	task.wait(0.6)
+	assert(data.AutoRollSettings.pauseRarities.common == false, "réglage non désactivé")
+	-- Avancé (achat automatique +).
+	setAttr("Pass_AutoRollPlus", true)
+	task.wait(0.1)
+	assert(not refs.rightCover.Visible, "colonne droite encore verrouillée avec le passe +")
+	AutoRoll.showAdvanced(true)
+	assert(refs.advanced.Visible and #refs.advancedList:GetChildren() > 3, "panneau Avancé vide")
+	AutoRoll.showAdvanced(false)
+	Menus.close("AutoRoll")
+	assert(not refs.root.Visible, "fenêtre AUTO non fermée")
+	for _, key in { "Pass_Roll2", "Pass_AutoRoll", "Pass_AutoRollPlus" } do
+		setAttr(key, nil)
+	end
+	RollPanel.forceNear(nil)
+	local _ = State
+	expectNoNewWarnings(before, "machine ROULER")
 end)
 
 test("Boucle de la base vue par le client : rouler, collecter, poser une unité", function()
@@ -392,12 +477,12 @@ test("Boucle de la base vue par le client : rouler, collecter, poser une unité"
 	for _ in data.characters do
 		owned += 1
 	end
-	-- Le bouton « Prendre » du panneau envoie la CLÉ du perso (pas sa position).
+	-- Le bouton « Collecter » de la carte du perso tiré envoie la CLÉ du perso (pas sa position).
 	local firstKey = State.data.RolledQueue[1].key
 	data.RolledQueue[1].rarity = "common" -- la collecte offerte ne vaut que jusqu'au Rare
 	local takeButton = nil
 	for _, d in alice.PlayerGui.AnimeTycoonUI:GetDescendants() do
-		if d.Name == "Queued1" then
+		if d.Name == "Tire1" then
 			for _, b in d:GetDescendants() do
 				if b:IsA("TextButton") then
 					takeButton = b
@@ -406,7 +491,7 @@ test("Boucle de la base vue par le client : rouler, collecter, poser une unité"
 			end
 		end
 	end
-	assert(takeButton, "bouton « Prendre » absent du panneau")
+	assert(takeButton, "bouton « Collecter » absent de la carte du perso tiré")
 	signalFor(takeButton, "Activated"):Fire()
 	task.wait(0.3)
 	local ok = true

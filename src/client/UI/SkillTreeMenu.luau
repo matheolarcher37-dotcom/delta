@@ -211,11 +211,11 @@ local function refreshNodes()
 	local stats = State.treeStats()
 	local lines = {
 		{ "Chance", string.format("x%.2f", stats.luck or 1), "clover" },
-		{ "Persos par tirage", tostring(stats.rollsPerPull or 1), "team" },
 		{ "Temps de roulage", string.format("%.1f s", stats.rollCooldown or 3.5), "hourglass" },
-		{ "Chance x10 tous les", tostring(stats.x10Every or 10) .. " roul.", "dice" },
-		{ "Pitié", string.format("x%.2f", stats.pityMult or 1), "shield" },
-		{ "Auto-roulage", stats.autoRoll and "Oui" or "Non", "robot" },
+		{ "Prix des persos", string.format("-%d%%", math.floor((stats.rollDiscount or 0) * 100 + 0.5)), "coin" },
+		{ "Chance de mutation", string.format("x%.2f", stats.auraLuck or 1), "gem" },
+		{ "Mythique garanti", Formulas.formatNumber(Formulas.pityThreshold("mythic", stats.pityMult)) .. " persos", "shield" },
+		{ "Persos par roulage", "1 (x2 / x3 : Robux)", "team" },
 		{ "Revenu", string.format("+%d%%", math.floor(((stats.income or 1) - 1) * 100 + 0.5)), "coin" },
 		{ "Dégâts", string.format("+%d%%", math.floor(((stats.damage or 1) - 1) * 100 + 0.5)), "sword" },
 		{ "Critique", string.format("+%d%%", math.floor((stats.crit or 0) * 100 + 0.5)), "target" },

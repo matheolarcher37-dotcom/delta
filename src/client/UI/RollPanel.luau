@@ -1,48 +1,55 @@
--- Panneau de ROULAGE (côté droit du HUD) : « Chance x10 dans N », pitié (Légendaire, Mythique,
--- Secret), chance actuelle, bouton ROULER (X à la manette), auto-roulage, et les persos tirés qui
--- attendent sur l'estrade (bouton « Prendre » = remote CollectRolled).
--- Les remotes Roll / CollectRolled / SetAutoRoll sont créées par le domaine BASE : tant qu'elles
--- n'existent pas, les boutons affichent « Bientôt disponible ».
+-- Commandes de la MACHINE ROULER (v3.2) : elles n'apparaissent QUE quand on est à la machine de
+-- sa base (plus de panneau permanent à droite de l'écran).
+--
+--   • bouton ROULER (X à la manette quand aucune invite n'est affichée ; E / X sur l'invite de la
+--     machine), avec le temps de recharge ;
+--   • x1 / x2 / x3 : persos par roulage (x2 et x3 = passes Robux : le bouton ouvre l'achat) ;
+--   • AUTO : ouvre la fenêtre « Roulement automatique » (UI/AutoRoll.luau) ;
+--   • la pitié du Mythique (la seule du jeu) et la chance actuelle ;
+--   • au-dessus : LE perso tiré (rareté, mutation, prix) avec son bouton « Collecter ».
+-- Loin de la machine, seule une petite pastille rappelle que l'auto-roulage tourne (avec Arrêter).
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Characters = require(Shared.Config.Characters)
 local Economy = require(Shared.Config.Economy)
+local Layout = require(Shared.Config.Layout)
+local Mutations = require(Shared.Config.Mutations)
 local Formulas = require(Shared.Modules.Formulas)
 
 local Theme = require(script.Parent.Theme)
 local Icons = require(script.Parent.Icons)
 local Components = require(script.Parent.Components)
 local Console = require(script.Parent.Console)
+local Menus = require(script.Parent.Menus)
 local Notifications = require(script.Parent.Notifications)
+local AutoRoll = require(script.Parent.AutoRoll)
 local State = require(script.Parent.Parent.State)
 
 local RollPanel = {}
 
 local C = Theme.Colors
 local new = Theme.new
+local rgb = Color3.fromRGB
 local WHITE = Color3.new(1, 1, 1)
 
+local player = Players.LocalPlayer
 local refs: { [string]: any } = {}
 local rolling = false
 local cooldownUntil = 0
+local near = false
 
-local PITY_DEFAULT = { legendary = 150, mythic = 1200, secret = 8000 }
-local PITY_ROWS = { "legendary", "mythic", "secret" }
+-- Position de la machine dans une base (repère local de la base : -Z = entrée), comme
+-- TycoonStructures.Spots.machine côté serveur.
+RollPanel.MachineLocal = Vector3.new(0, 0, -30)
+-- Zone « à la machine » (repère local de la machine) : estrade, bouton, panneau, tapis rouge.
+RollPanel.Zone = { halfX = 34, zMin = -32, zMax = 10, maxY = 24 }
 
--- Seuil de pitié d'une rareté (après l'arbre de compétences).
-function RollPanel.pityThreshold(rarityId: string, pityMult: number?): number
-	local fn = (Formulas :: any).pityThreshold
-	if fn then
-		local ok, value = pcall(fn, rarityId, pityMult)
-		if ok and type(value) == "number" then
-			return value
-		end
-	end
-	local roll = (Economy :: any).Roll
-	local base = (roll and roll.Pity and roll.Pity[rarityId]) or PITY_DEFAULT[rarityId] or 100
-	return math.max(1, math.floor(base * (pityMult or 1) + 0.5))
+-- Seuil de pitié du Mythique (après l'arbre de compétences).
+function RollPanel.pityThreshold(rarityId: string?, pityMult: number?): number
+	return Formulas.pityThreshold(rarityId or Economy.Roll.PityRarity, pityMult)
 end
 
 local function characterName(id: string?): string
@@ -50,15 +57,34 @@ local function characterName(id: string?): string
 	return def and def.name or "Perso"
 end
 
+-- CFrame de la machine de MA base (ou nil).
+function RollPanel.machineCFrame(): CFrame?
+	local index = player and player:GetAttribute("PlotIndex")
+	if type(index) ~= "number" or not Layout.PlotAngles[index] then
+		return nil
+	end
+	return Layout.plotCFrame(index) * CFrame.new(RollPanel.MachineLocal)
+end
+
+-- Vrai si le joueur se tient à sa machine ROULER.
+function RollPanel.isNearMachine(): boolean
+	local cf = RollPanel.machineCFrame()
+	local character = player and player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not cf or not root then
+		return false
+	end
+	local p = cf:PointToObjectSpace(root.CFrame.Position)
+	local zone = RollPanel.Zone
+	return math.abs(p.X) <= zone.halfX and p.Z >= zone.zMin and p.Z <= zone.zMax and p.Y <= zone.maxY
+end
+
 ------------------------------------------------------------------------
 -- Actions
 ------------------------------------------------------------------------
 
 function RollPanel.roll()
-	if rolling then
-		return
-	end
-	if os.clock() < cooldownUntil then
+	if rolling or os.clock() < cooldownUntil then
 		return
 	end
 	rolling = true
@@ -67,232 +93,160 @@ function RollPanel.roll()
 	if ok then
 		local stats = State.treeStats()
 		cooldownUntil = os.clock() + (stats.rollCooldown or 3)
-	elseif type(result) == "string" then
+	elseif type(result) == "string" and not State.remoteFunction("Roll") then
 		Notifications.toast(result, "error")
 	end
 end
 
-local function setAuto(value: boolean)
-	local ok, message = State.invoke("SetAutoRoll", value)
-	if type(message) == "string" then
-		Notifications.toast(message, ok and "success" or "error")
+-- Manette (X) : ne roule QUE si on est à la machine.
+local function rollFromGamepad()
+	if near then
+		RollPanel.roll()
 	end
 end
 
--- On envoie la CLÉ du perso (jamais sa position : la file bouge à chaque roulage).
 local function collect(key: string)
 	local ok, message = State.invoke("CollectRolled", key)
-	if type(message) == "string" then
-		Notifications.toast(message, ok and "success" or "error")
+	if not ok and type(message) == "string" and not State.remoteFunction("CollectRolled") then
+		Notifications.toast(message, "error")
 	end
+end
+
+local function ownsMulti(n: number): boolean
+	if n <= 1 then
+		return true
+	end
+	if n == 2 then
+		return AutoRoll.hasPass("Roll2") or AutoRoll.hasPass("Roll3")
+	end
+	return AutoRoll.hasPass("Roll3")
+end
+
+local function chooseMulti(n: number)
+	if not ownsMulti(n) then
+		AutoRoll.promptPass(n == 3 and "Roll3" or "Roll2")
+		return
+	end
+	State.invoke("Roll_SetMulti", n)
+end
+
+-- Persos par roulage actuellement (passes + choix du joueur).
+function RollPanel.currentMulti(): number
+	local data = State.data or {}
+	local wanted = tonumber(data.RollMulti) or 0
+	return Formulas.rollsPerRoll(player, wanted ~= 0 and wanted or nil)
 end
 
 ------------------------------------------------------------------------
 -- Construction
 ------------------------------------------------------------------------
 
-local function pityRow(parent: Instance, rarityId: string, order: number)
-	local info = Theme.rarity(rarityId)
-	local row = new("Frame", {
-		Name = "Pity_" .. rarityId,
-		Size = UDim2.new(1, 0, 0, 30),
+local PANEL_W, PANEL_H = 660, 146
+
+local function multiButton(parent: Instance, n: number, x: number)
+	local holder = new("Frame", {
+		Name = "Multi" .. n,
+		Position = UDim2.fromOffset(x, 0),
+		Size = UDim2.fromOffset(78, 66),
 		BackgroundTransparency = 1,
-		LayoutOrder = order,
 		Parent = parent,
 	})
-	local label = Theme.label({
-		Text = info.name,
-		Size = UDim2.new(0.42, 0, 0, 16),
-		FontFace = Theme.Faces.Heavy,
-		TextColor3 = info.rainbow and WHITE or Theme.light(info.color, 0.2),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		Parent = row,
-	})
-	if info.rainbow then
-		Theme.gradient(Theme.RainbowColors, 0).Parent = label
-	end
-	local count = Theme.label({
-		Name = "Count",
-		Text = "0 / 0",
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.fromScale(1, 0),
-		Size = UDim2.new(0.56, 0, 0, 16),
-		FontFace = Theme.Faces.Bold,
-		TextColor3 = C.TextDim,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		StrokeThickness = 1.5,
-		Parent = row,
-	})
-	local bar = Components.progressBar(row, info.rainbow and C.Magenta or info.color, {
-		Size = UDim2.new(1, 0, 0, 9),
-		Position = UDim2.fromOffset(0, 19),
-	})
-	return { count = count, bar = bar }
-end
-
-local ROW_H = 38
-local PANEL_H = 276
-
-local function buildQueueRow(parent: Instance, item, index: number)
-	local rarityId = item.rarity or "common"
-	local info = Theme.rarity(rarityId)
-	local free = Formulas.rollCollectFree(State.data, rarityId)
-	local row = new("Frame", {
-		Name = "Queued" .. index,
-		Size = UDim2.new(1, -6, 0, ROW_H),
-		BackgroundColor3 = WHITE,
-		LayoutOrder = index,
-		Parent = parent,
-	})
-	Theme.corner(10).Parent = row
-	if info.rainbow then
-		Theme.rainbowStroke(row, 2)
-	else
-		Theme.stroke(info.color, 2).Parent = row
-	end
-	Theme.gradient({ Theme.dark(info.rainbow and C.Magenta or info.color, 0.5), Color3.fromRGB(16, 16, 24) }, 0).Parent = row
-	Theme.label({
-		Text = characterName(item.id),
-		Size = UDim2.new(1, -96, 0, 18),
-		Position = UDim2.fromOffset(8, 2),
-		FontFace = Theme.Faces.Title,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		Parent = row,
-	})
-	local priceRow = new("Frame", { Size = UDim2.new(1, -96, 0, 15), Position = UDim2.fromOffset(8, 20), BackgroundTransparency = 1, Parent = row })
-	Components.coinIcon(priceRow, 14, UDim2.fromOffset(8, 8))
-	Theme.label({
-		Text = (free and "OFFERT" or Formulas.formatNumber(item.price or 0)) .. "   ·   " .. info.name,
-		Size = UDim2.new(1, -20, 1, 0),
-		Position = UDim2.fromOffset(20, 0),
-		FontFace = Theme.Faces.Heavy,
-		TextColor3 = free and Color3.fromRGB(140, 255, 150) or C.Gold,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		StrokeThickness = 1.5,
-		Parent = priceRow,
-	})
-	local affordable = free or (State.data and State.data.coins or 0) >= (item.price or 0)
-	local key = item.key
-	Components.button({
-		Text = free and "Offert" or "Prendre",
-		Color = affordable and C.Green or C.Gray,
-		Size = UDim2.fromOffset(82, ROW_H - 6),
-		Position = UDim2.new(1, -88, 0, 3),
-		TextSize = 18,
-		Parent = row,
+	local button = Components.button({
+		Text = "x" .. n,
+		Color = C.Gray,
+		Size = UDim2.fromScale(1, 1),
+		TextSize = 26,
+		Parent = holder,
 		OnClick = function()
-			if type(key) == "string" then
-				collect(key)
-			end
+			chooseMulti(n)
 		end,
 	})
+	local tag = new("Frame", {
+		Name = "Prix",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 1, -16),
+		Size = UDim2.fromOffset(70, 20),
+		BackgroundColor3 = rgb(20, 160, 80),
+		ZIndex = 6,
+		Parent = holder,
+	})
+	Theme.corner(10).Parent = tag
+	Theme.stroke(C.Stroke, 2).Parent = tag
+	local price = Theme.label({
+		Name = "Texte",
+		Text = "",
+		Size = UDim2.new(1, -8, 1, -4),
+		Position = UDim2.fromOffset(4, 2),
+		FontFace = Theme.Faces.Heavy,
+		ZIndex = 7,
+		StrokeThickness = 1.5,
+		Parent = tag,
+	})
+	return { holder = holder, button = button, tag = tag, price = price }
 end
 
 local function build(root: Frame)
 	local panel = new("Frame", {
-		Name = "RollPanel",
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -16, 0, 170),
-		Size = UDim2.fromOffset(250, PANEL_H),
+		Name = "MachinePanel",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -96),
+		Size = UDim2.fromOffset(PANEL_W, PANEL_H),
 		BackgroundColor3 = WHITE,
+		Visible = false,
 		Parent = root,
 	})
 	refs.panel = panel
-	Theme.corner(16).Parent = panel
+	Theme.corner(18).Parent = panel
 	Theme.stroke(C.Stroke, 3).Parent = panel
-	Theme.gradient({ Color3.fromRGB(36, 30, 56), Color3.fromRGB(18, 16, 28) }, 90).Parent = panel
+	Theme.gradient({ rgb(40, 32, 64), rgb(18, 16, 28) }, 90).Parent = panel
 	local edge = new("Frame", { Size = UDim2.new(1, -6, 1, -6), Position = UDim2.fromOffset(3, 3), BackgroundTransparency = 1, Parent = panel })
-	Theme.corner(14).Parent = edge
-	Theme.stroke(C.Purple, 1.5, 0.4).Parent = edge
+	Theme.corner(16).Parent = edge
+	Theme.stroke(C.Purple, 1.5, 0.35).Parent = edge
+	refs.scale = new("UIScale", { Parent = panel })
 
-	-- Titre
-	local header = new("Frame", {
-		Name = "Header",
-		Size = UDim2.new(1, -12, 0, 34),
-		Position = UDim2.fromOffset(6, 6),
-		BackgroundColor3 = WHITE,
-		Parent = panel,
-	})
-	Theme.corner(11).Parent = header
-	Theme.gradient({ Color3.fromRGB(190, 90, 255), Color3.fromRGB(110, 40, 200) }, 0).Parent = header
-	Theme.sparkles(header, 4, 5, 0.6)
-	local dice = new("Frame", { Position = UDim2.fromOffset(6, 4), Size = UDim2.fromOffset(26, 26), BackgroundTransparency = 1, Parent = header })
-	Icons.make("dice", dice, { px = 26, ink = Color3.fromRGB(110, 40, 200) })
+	-- En-tête : titre + pitié du Mythique
+	local header = new("Frame", { Name = "Header", Size = UDim2.new(1, -24, 0, 34), Position = UDim2.fromOffset(12, 6), BackgroundTransparency = 1, Parent = panel })
+	local dice = new("Frame", { Position = UDim2.fromOffset(0, 3), Size = UDim2.fromOffset(28, 28), BackgroundTransparency = 1, Parent = header })
+	Icons.make("dice", dice, { px = 28, ink = rgb(110, 40, 200) })
 	refs.dice = dice
-	Theme.label({
-		Text = "ROULAGE",
-		Size = UDim2.new(0.6, 0, 0, 24),
-		Position = UDim2.fromOffset(38, 5),
+	local title = Theme.label({
+		Text = "MACHINE ROULER",
+		Position = UDim2.fromOffset(36, 4),
+		Size = UDim2.fromOffset(220, 26),
 		FontFace = Theme.Faces.Title,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		StrokeThickness = 2.5,
 		Parent = header,
 	})
-	refs.luck = Theme.label({
-		Name = "Luck",
+	Theme.gradient({ rgb(255, 240, 160), rgb(255, 170, 40) }, 90).Parent = title
+	refs.pityText = Theme.label({
+		Name = "Pitie",
+		Text = "",
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -8, 0, 7),
-		Size = UDim2.fromOffset(90, 20),
+		Position = UDim2.new(1, 0, 0, 0),
+		Size = UDim2.fromOffset(330, 18),
 		FontFace = Theme.Faces.Heavy,
-		TextColor3 = Color3.fromRGB(170, 255, 170),
+		TextColor3 = rgb(255, 150, 170),
 		TextXAlignment = Enum.TextXAlignment.Right,
+		StrokeThickness = 1.5,
 		Parent = header,
 	})
+	refs.pityBar = Components.progressBar(header, rgb(255, 60, 100), {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, 0, 0, 22),
+		Size = UDim2.fromOffset(330, 9),
+	})
 
-	-- Chance x10 : segments
-	local x10 = new("Frame", {
-		Name = "X10",
-		Size = UDim2.new(1, -24, 0, 44),
-		Position = UDim2.fromOffset(12, 46),
-		BackgroundTransparency = 1,
-		Parent = panel,
-	})
-	refs.x10Label = Theme.label({
-		Size = UDim2.new(1, 0, 0, 20),
-		FontFace = Theme.Faces.Title,
-		TextColor3 = C.Gold,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		Parent = x10,
-	})
-	local segments = new("Frame", { Size = UDim2.new(1, 0, 0, 14), Position = UDim2.fromOffset(0, 26), BackgroundTransparency = 1, Parent = x10 })
-	local segLayout = Theme.list(Enum.FillDirection.Horizontal, 3, Enum.HorizontalAlignment.Left)
-	segLayout.Parent = segments
-	refs.segments = segments
-
-	-- Pitié
-	Theme.label({
-		Name = "PityTitle",
-		Text = "GARANTIES (persos tirés)",
-		Size = UDim2.new(1, -24, 0, 14),
-		Position = UDim2.fromOffset(12, 92),
-		FontFace = Theme.Faces.Heavy,
-		TextColor3 = C.TextDim,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		StrokeThickness = 1.5,
-		Parent = panel,
-	})
-	local pity = new("Frame", {
-		Name = "PityRows",
-		Size = UDim2.new(1, -24, 0, 102),
-		Position = UDim2.fromOffset(12, 108),
-		BackgroundTransparency = 1,
-		Parent = panel,
-	})
-	Theme.list(Enum.FillDirection.Vertical, 4, Enum.HorizontalAlignment.Left).Parent = pity
-	refs.pity = {}
-	for i, rarityId in PITY_ROWS do
-		refs.pity[rarityId] = pityRow(pity, rarityId, i)
-	end
-
-	-- Boutons
+	-- Rangée de boutons
+	local row = new("Frame", { Name = "Boutons", Position = UDim2.fromOffset(12, 44), Size = UDim2.new(1, -24, 0, 66), BackgroundTransparency = 1, Parent = panel })
 	refs.rollButton = Components.button({
 		Text = "ROULER",
 		Icon = "dice",
-		Color = Color3.fromRGB(255, 180, 30),
-		Size = UDim2.new(0.64, -6, 0, 50),
-		Position = UDim2.new(0, 12, 1, -60),
+		Color = rgb(255, 180, 30),
+		Size = UDim2.fromOffset(232, 66),
 		Hint = "X",
-		Parent = panel,
+		TextSize = 32,
+		Parent = row,
 		OnClick = RollPanel.roll,
 	})
 	local cooldown = new("Frame", {
@@ -307,59 +261,90 @@ local function build(root: Frame)
 	})
 	Theme.corner(12).Parent = cooldown
 	refs.cooldown = cooldown
+	refs.multi = {}
+	for i, n in { 1, 2, 3 } do
+		refs.multi[n] = multiButton(row, n, 244 + (i - 1) * 86)
+	end
 	refs.autoButton = Components.button({
 		Text = "AUTO",
-		Color = C.Gray,
-		Size = UDim2.new(0.36, -12, 0, 50),
-		Position = UDim2.new(0.64, 6, 1, -60),
-		TextSize = 20,
-		Parent = panel,
+		Icon = "robot",
+		Color = C.Purple,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, 0, 0, 0),
+		Size = UDim2.fromOffset(148, 66),
+		TextSize = 24,
+		Parent = row,
 		OnClick = function()
-			local info = State.rollInfo()
-			if not info.autoUnlocked then
-				Notifications.toast("Débloque l'Auto-roulage dans les Améliorations !", "info")
-				return
-			end
-			setAuto(not info.autoRoll)
+			AutoRoll.toggle()
 		end,
 	})
 
-	-- Persos qui attendent sur l'estrade (tous : jusqu'à Economy.Roll.QueueMax). Sur PC/console,
-	-- entre le panneau et l'équipe (ancré par le bas) ; sur tactile, à gauche du panneau, loin du
-	-- bouton de saut. La liste défile si la place manque.
-	local queueBox = new("Frame", {
-		Name = "QueueBox",
-		Size = UDim2.fromOffset(256, 40),
+	-- Ligne d'état
+	refs.status = Theme.label({
+		Name = "Etat",
+		Text = "",
+		Position = UDim2.fromOffset(14, 116),
+		Size = UDim2.new(1, -28, 0, 20),
+		FontFace = Theme.Faces.Bold,
+		TextColor3 = C.TextDim,
+		StrokeThickness = 1.5,
+		Parent = panel,
+	})
+
+	-- Perso(s) tiré(s) : cartes au-dessus du panneau
+	local pull = new("Frame", {
+		Name = "Tirage",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -96 - PANEL_H - 10),
+		Size = UDim2.fromOffset(PANEL_W, 86),
 		BackgroundTransparency = 1,
 		Visible = false,
 		Parent = root,
 	})
-	refs.queueTitle = Theme.label({
-		Name = "Title",
-		Text = "",
-		Size = UDim2.new(1, -6, 0, 20),
-		FontFace = Theme.Faces.Title,
-		TextColor3 = C.Gold,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		Parent = queueBox,
+	local layout = Theme.list(Enum.FillDirection.Horizontal, 10, Enum.HorizontalAlignment.Center)
+	layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	layout.Parent = pull
+	refs.pull = pull
+
+	-- Pastille « auto-roulage en cours » (loin de la machine)
+	local pill = new("Frame", {
+		Name = "AutoPill",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 104),
+		Size = UDim2.fromOffset(360, 40),
+		BackgroundColor3 = WHITE,
+		Visible = false,
+		Parent = root,
 	})
-	local queue = new("ScrollingFrame", {
-		Name = "Queue",
-		Position = UDim2.fromOffset(0, 24),
-		Size = UDim2.new(1, 0, 1, -24),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		ScrollBarThickness = 5,
-		ScrollBarImageColor3 = C.Gold,
-		ScrollingDirection = Enum.ScrollingDirection.Y,
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		CanvasSize = UDim2.new(),
-		Selectable = false,
-		Parent = queueBox,
+	Theme.corner(20).Parent = pill
+	Theme.stroke(C.Stroke, 2.5).Parent = pill
+	Theme.gradient({ rgb(150, 70, 255), rgb(90, 30, 190) }, 90).Parent = pill
+	refs.pillText = Theme.label({
+		Text = "🤖 Auto-roulage en cours",
+		Position = UDim2.fromOffset(14, 8),
+		Size = UDim2.new(1, -140, 0, 24),
+		FontFace = Theme.Faces.Heavy,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = pill,
 	})
-	Theme.list(Enum.FillDirection.Vertical, 4, Enum.HorizontalAlignment.Left).Parent = queue
-	refs.queue = queue
-	refs.queueBox = queueBox
+	Components.button({
+		Text = "Arrêter",
+		Color = C.Red,
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -5, 0.5, 0),
+		Size = UDim2.fromOffset(118, 32),
+		TextSize = 18,
+		Parent = pill,
+		OnClick = function()
+			if State.data and State.data.AutoBuy then
+				State.invoke("Roll_SetAutoBuy", false)
+			end
+			if State.data and State.data.AutoRoll then
+				State.invoke("SetAutoRoll", false)
+			end
+		end,
+	})
+	refs.pill = pill
 	refs.root = root
 
 	Theme.onFrame(cooldown, function()
@@ -371,140 +356,212 @@ local function build(root: Frame)
 		else
 			cooldown.Visible = false
 		end
-		if rolling then
-			refs.dice.Rotation = (refs.dice.Rotation + 12) % 360
-		else
-			refs.dice.Rotation = 0
-		end
+		refs.dice.Rotation = rolling and (refs.dice.Rotation + 12) % 360 or 0
 	end)
 end
 
-local lastQueueKey = ""
-local function refresh()
-	local info = State.rollInfo()
-	local stats = info.stats
-	refs.luck.Text = string.format("Chance x%.2f", stats.luck or 1)
-	if info.x10In <= 1 then
-		refs.x10Label.Text = "CHANCE x10 : PROCHAIN ROULAGE !"
+-- Carte d'un perso tiré (au-dessus du panneau).
+local function pullCard(parent: Instance, item, index: number)
+	local rarityId = item.rarity or "common"
+	local info = Theme.rarity(rarityId)
+	local mutation = Mutations.get(item.aura)
+	local free = Formulas.rollCollectFree(State.data, rarityId)
+	local card = new("Frame", {
+		Name = "Tire" .. index,
+		Size = UDim2.fromOffset(212, 86),
+		BackgroundColor3 = WHITE,
+		LayoutOrder = index,
+		Parent = parent,
+	})
+	Theme.corner(12).Parent = card
+	if info.rainbow or (mutation and mutation.rainbow) then
+		Theme.rainbowStroke(card, 3)
 	else
-		refs.x10Label.Text = "Chance x10 dans " .. info.x10In
+		Theme.stroke(mutation and mutation.color or info.color, 3).Parent = card
 	end
-	-- Segments
-	local every = math.clamp(info.x10Every, 1, 20)
-	local existing = {}
-	for _, child in refs.segments:GetChildren() do
-		if child:IsA("Frame") then
-			table.insert(existing, child)
-		end
+	Theme.gradient({ Theme.dark(info.rainbow and C.Magenta or info.color, 0.45), rgb(16, 16, 24) }, 90).Parent = card
+	Theme.label({
+		Name = "Nom",
+		Text = characterName(item.id),
+		Position = UDim2.fromOffset(10, 5),
+		Size = UDim2.new(1, -20, 0, 22),
+		FontFace = Theme.Faces.Title,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = card,
+	})
+	local tags = new("Frame", { Name = "Tags", Position = UDim2.fromOffset(10, 29), Size = UDim2.new(1, -20, 0, 18), BackgroundTransparency = 1, Parent = card })
+	local list = Theme.list(Enum.FillDirection.Horizontal, 6, Enum.HorizontalAlignment.Left)
+	list.Parent = tags
+	Components.rarityTag(tags, rarityId, { Size = UDim2.fromOffset(92, 18), LayoutOrder = 1 })
+	if mutation then
+		local chip = new("Frame", { Name = "Mutation", Size = UDim2.fromOffset(92, 18), BackgroundColor3 = WHITE, LayoutOrder = 2, Parent = tags })
+		Theme.corner(9).Parent = chip
+		Theme.stroke(C.Stroke, 1.5).Parent = chip
+		Theme.gradient(mutation.gradient, 0).Parent = chip
+		Theme.label({ Text = "✦ " .. mutation.name, Size = UDim2.new(1, -6, 1, -2), Position = UDim2.fromOffset(3, 1), FontFace = Theme.Faces.Heavy, StrokeThickness = 1.5, Parent = chip })
 	end
-	if #existing ~= every then
-		for _, child in existing do
-			child:Destroy()
-		end
-		existing = {}
-		for i = 1, every do
-			local seg = new("Frame", {
-				Name = "Seg" .. i,
-				Size = UDim2.new(1 / every, -3, 1, 0),
-				BackgroundColor3 = Color3.fromRGB(40, 40, 56),
-				LayoutOrder = i,
-				Parent = refs.segments,
-			})
-			Theme.corner(4).Parent = seg
-			Theme.stroke(C.Stroke, 1.5).Parent = seg
-			table.insert(existing, seg)
-		end
-		table.sort(existing, function(a, b)
-			return a.LayoutOrder < b.LayoutOrder
-		end)
-	end
-	local filled = every - info.x10In
-	for i, seg in existing do
-		seg.BackgroundColor3 = i <= filled and (i == every and C.Orange or C.Gold) or Color3.fromRGB(40, 40, 56)
-	end
-	-- Pitié
-	for _, rarityId in PITY_ROWS do
-		local row = refs.pity[rarityId]
-		local current = tonumber(info.pity[rarityId]) or 0
-		local threshold = RollPanel.pityThreshold(rarityId, stats.pityMult)
-		row.count.Text = Formulas.formatNumber(current) .. " / " .. Formulas.formatNumber(threshold)
-		row.bar.set(current / threshold)
-	end
-	-- Auto
-	if info.autoUnlocked then
-		Components.setButtonText(refs.autoButton, info.autoRoll and "AUTO ✓" or "AUTO")
-		Components.setButtonColor(refs.autoButton, info.autoRoll and C.Green or C.Blue)
-	else
-		Components.setButtonText(refs.autoButton, "AUTO")
-		Components.setButtonColor(refs.autoButton, C.Gray)
-	end
-	-- File d'attente
-	local parts = {}
-	for i, item in info.queue do
-		table.insert(parts, i .. ":" .. tostring(item.key or item.id) .. ":" .. tostring(item.price))
-	end
-	local coinsOk = {}
-	for _, item in info.queue do
-		table.insert(coinsOk, (State.data and State.data.coins or 0) >= (item.price or 0) and "1" or "0")
-	end
-	local key = table.concat(parts, "|") .. table.concat(coinsOk) .. tostring(State.data and State.data.FirstCollectDone)
-	if key ~= lastQueueKey then
-		lastQueueKey = key
-		Components.clear(refs.queue)
-		refs.queueTitle.Text = "SUR L'ESTRADE (" .. #info.queue .. "/" .. Economy.Roll.QueueMax .. ")"
-		for i, item in info.queue do
-			buildQueueRow(refs.queue, item, i)
-		end
-		RollPanel.layoutQueue()
-	end
+	local priceRow = new("Frame", { Position = UDim2.fromOffset(10, 54), Size = UDim2.new(1, -116, 0, 24), BackgroundTransparency = 1, Parent = card })
+	Components.coinIcon(priceRow, 18, UDim2.fromOffset(9, 12))
+	Theme.label({
+		Text = free and "OFFERT" or Formulas.formatNumber(item.price or 0),
+		Position = UDim2.fromOffset(22, 0),
+		Size = UDim2.new(1, -22, 1, 0),
+		FontFace = Theme.Faces.Heavy,
+		TextColor3 = free and rgb(140, 255, 150) or C.Gold,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = priceRow,
+	})
+	local affordable = free or (State.data and State.data.coins or 0) >= (item.price or 0)
+	local key = item.key
+	Components.button({
+		Text = free and "Offert" or "Collecter",
+		Color = affordable and C.Green or C.Gray,
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -6, 1, -6),
+		Size = UDim2.fromOffset(102, 34),
+		TextSize = 17,
+		Parent = card,
+		OnClick = function()
+			if type(key) == "string" then
+				collect(key)
+			end
+		end,
+	})
+	return card
 end
 
--- Place la liste de l'estrade selon l'appareil et la hauteur réellement libre.
-function RollPanel.layoutQueue()
-	local box, root = refs.queueBox, refs.root
-	if not box or not root then
+local lastPullKey = ""
+local function refresh()
+	if not refs.panel then
 		return
 	end
-	local count = #State.rollInfo().queue
-	box.Visible = count > 0
-	local scale = math.max(0.1, Theme.getScale())
-	local okSize, absolute = pcall(function()
-		return root.AbsoluteSize
-	end)
-	local height = (okSize and typeof(absolute) == "Vector2") and absolute.Y / scale or 0
-	if height < 300 then
-		height = 770
+	local data = State.data or {}
+	local stats = State.treeStats()
+	-- Pitié du Mythique
+	local tier = Economy.Roll.PityRarity
+	local threshold = RollPanel.pityThreshold(tier, stats.pityMult)
+	local current = tonumber(data.Pity and data.Pity[tier]) or 0
+	local remaining = math.max(1, threshold - current)
+	refs.pityText.Text = remaining <= 1 and "MYTHIQUE GARANTI AU PROCHAIN !" or ("Mythique garanti dans " .. Formulas.formatNumber(remaining) .. " persos")
+	refs.pityBar.set(current / threshold)
+	-- x1 / x2 / x3
+	local multi = RollPanel.currentMulti()
+	for n, info in refs.multi do
+		local owned = ownsMulti(n)
+		Components.setButtonColor(info.button, n == multi and C.Green or (owned and C.Blue or C.Gray))
+		info.tag.Visible = not owned
+		if not owned then
+			local pass = AutoRoll.passInfo(n == 3 and "Roll3" or "Roll2")
+			info.price.Text = "🔒 " .. pass.price .. " R$"
+		end
 	end
-	local wanted = 24 + count * (ROW_H + 4)
-	local free
-	if Console.isTouch() then
-		-- À gauche du panneau ROULER, sous la bannière : le coin bas-droit est au bouton de saut.
-		box.AnchorPoint = Vector2.new(1, 0)
-		box.Position = UDim2.new(1, -16 - 250 - 10, 0, 170)
-		free = height - 170 - 120
-	else
-		-- Juste au-dessus de l'équipe (bas droite, 70 de haut à 14 du bord).
-		box.AnchorPoint = Vector2.new(1, 1)
-		box.Position = UDim2.new(1, -13, 1, -98)
-		free = height - 98 - (170 + PANEL_H + 8)
+	-- AUTO
+	local running = data.AutoRoll == true or data.AutoBuy == true
+	Components.setButtonText(refs.autoButton, running and "AUTO ✓" or "AUTO")
+	Components.setButtonColor(refs.autoButton, running and C.Green or C.Purple)
+	-- État
+	local luck = Formulas.rollLuck(stats, player, State.now())
+	local bits = {
+		(string.format("Chance x%.2f", luck):gsub("%.", ",")),
+		multi .. " perso" .. (multi > 1 and "s" or "") .. " par roulage",
+	}
+	if data.AutoBuy then
+		table.insert(bits, "🛒 Achat automatique en cours")
+	elseif data.AutoRoll then
+		table.insert(bits, "🤖 Lancer AFK en cours")
 	end
-	box.Size = UDim2.fromOffset(256, math.max(24 + ROW_H, math.min(wanted, free)))
+	refs.status.Text = table.concat(bits, "   ·   ")
+	-- Pastille loin de la machine
+	refs.pill.Visible = running and not near
+	refs.pillText.Text = data.AutoBuy and "🛒 Achat automatique en cours" or "🤖 Auto-roulage en cours"
+	-- Perso(s) tiré(s)
+	local queue = data.RolledQueue or {}
+	local parts = {}
+	for _, item in queue do
+		local affordable = (data.coins or 0) >= (item.price or 0)
+		table.insert(parts, tostring(item.key) .. ":" .. tostring(item.price) .. ":" .. (affordable and "1" or "0"))
+	end
+	local key = table.concat(parts, "|") .. tostring(data.FirstCollectDone)
+	if key ~= lastPullKey then
+		lastPullKey = key
+		Components.clear(refs.pull)
+		for i, item in queue do
+			if i > Economy.Roll.QueueMax then
+				break
+			end
+			pullCard(refs.pull, item, i)
+		end
+	end
+	refs.pull.Visible = near and #queue > 0
+end
+
+-- Affiche / cache les commandes selon la position du joueur.
+local function setNear(value: boolean)
+	if value == near then
+		return
+	end
+	near = value
+	refs.panel.Visible = value
+	if value then
+		refs.scale.Scale = 0.85
+		Theme.tween(refs.scale, 0.22, { Scale = 1 }, Enum.EasingStyle.Back)
+	end
+	refresh()
+end
+
+function RollPanel.isNear(): boolean
+	return near
+end
+
+-- Pour les tests et les rendus : force l'affichage « à la machine » (nil = position réelle).
+local forced: boolean? = nil
+function RollPanel.forceNear(value: boolean?)
+	forced = value
+	if value ~= nil then
+		near = not value
+		setNear(value)
+	end
 end
 
 function RollPanel.init(gui: ScreenGui, hudRoot: Frame?)
 	local root = hudRoot or Theme.scaledRoot(gui, "RollHUD", 1)
+	pcall(AutoRoll.init, gui)
 	build(root)
 	refresh()
 	State.onChanged(refresh)
-	Console.setAction("roll", RollPanel.roll)
-	Console.onModeChanged(RollPanel.layoutQueue)
-	pcall(function()
-		root:GetPropertyChangedSignal("AbsoluteSize"):Connect(RollPanel.layoutQueue)
+	Console.setAction("roll", rollFromGamepad)
+	if player then
+		for _, attribute in { "Pass_Roll2", "Pass_Roll3", "Pass_AutoRoll", "Pass_AutoRollPlus", "Pass_Luck2", "Boost_Luck" } do
+			player:GetAttributeChangedSignal(attribute):Connect(refresh)
+		end
+	end
+	-- Position du joueur 4 fois par seconde ; à la machine, mise à jour complète chaque seconde
+	-- (fin d'une potion de chance, etc.). La fenêtre AUTO reste ouverte si on s'éloigne.
+	task.spawn(function()
+		local tick = 0
+		while refs.panel and refs.panel.Parent do
+			local ok, value = pcall(RollPanel.isNearMachine)
+			if forced ~= nil then
+				value = forced
+			end
+			if ok then
+				setNear(value and Menus.current() ~= "SkillTree")
+			end
+			tick += 1
+			if near and tick % 4 == 0 then
+				refresh()
+			end
+			task.wait(0.25)
+		end
 	end)
 end
 
 function RollPanel.panel(): Frame?
 	return refs.panel
+end
+
+function RollPanel.refs()
+	return refs
 end
 
 return RollPanel

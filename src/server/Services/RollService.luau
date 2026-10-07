@@ -472,7 +472,6 @@ end
 -- Remet à zéro le délai entre deux roulages (tests, commandes admin).
 function RollService:ResetCooldown(player: Player)
 	lastRoll[player] = nil
-	confirmUntil[player] = nil
 end
 
 ------------------------------------------------------------------------

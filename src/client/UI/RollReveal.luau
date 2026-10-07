@@ -3,14 +3,16 @@
 -- dégâts par seconde. Pour les grosses raretés (Légendaire et plus) : éclair de lumière,
 -- rayons tournants et grande annonce.
 --
--- Données reçues : { results = { { id, stars, rarity, price, dps, aura?, trait? } }, pity = {...},
---                    x10In = n, x10 = vrai si c'était un roulage « Chance x10 » }
+-- Données reçues : { results = { { id, stars, rarity, price, dps, aura? (= mutation), trait? } },
+--                    pity = { mythic = n }, luck, count, auto = vrai pendant l'auto-roulage }
+-- La rareté est celle du perso (sa fiche) ; la MUTATION (Or, Diamant...) s'affiche en plus.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Characters = require(Shared.Config.Characters)
+local Mutations = require(Shared.Config.Mutations)
 local Formulas = require(Shared.Modules.Formulas)
 
 local Theme = require(script.Parent.Theme)
@@ -118,6 +120,31 @@ local function buildCard(parent: Instance, result, index: number)
 		ZIndex = 3,
 	})
 	local _ = tag
+	-- Mutation (variété) : pastille au-dessus de la rareté.
+	local mutation = Mutations.get(result.aura)
+	if mutation then
+		local chip = new("Frame", {
+			Name = "Mutation",
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.new(0.5, 0, 0.6, -3),
+			Size = UDim2.fromOffset(136, 24),
+			BackgroundColor3 = WHITE,
+			ZIndex = 4,
+			Parent = card,
+		})
+		Theme.corner(12).Parent = chip
+		Theme.stroke(C.Stroke, 2).Parent = chip
+		Theme.gradient(mutation.gradient, 0).Parent = chip
+		Theme.label({
+			Text = "✦ " .. mutation.name .. "  x" .. mutation.multiplier,
+			Size = UDim2.new(1, -8, 1, -4),
+			Position = UDim2.fromOffset(4, 2),
+			FontFace = Theme.Faces.Heavy,
+			ZIndex = 5,
+			StrokeThickness = 1.5,
+			Parent = chip,
+		})
+	end
 	Theme.label({
 		Name = "CharName",
 		Text = def and def.name or "???",
@@ -185,17 +212,25 @@ function RollReveal.show(payload)
 			best = result
 		end
 	end
-	if payload.x10 then
-		local x10 = Theme.label({
-			Name = "X10",
-			Text = "CHANCE x10 !",
-			Size = UDim2.new(1, 0, 0, 30),
+	-- Bandeau « MUTATION ! » quand un perso tiré est muté.
+	local bestMutation = nil
+	for _, result in payload.results do
+		local m = Mutations.get(result.aura)
+		if m and (not bestMutation or m.multiplier > bestMutation.multiplier) then
+			bestMutation = m
+		end
+	end
+	if bestMutation then
+		local banner = Theme.label({
+			Name = "Mutation",
+			Text = "✦ MUTATION " .. string.upper(bestMutation.name) .. " ! ✦",
+			Size = UDim2.new(1, 0, 0, 32),
 			FontFace = Theme.Faces.Title,
 			LayoutOrder = 0,
 			StrokeThickness = 3,
 			Parent = strip,
 		})
-		Theme.gradient({ C.Yellow, C.Orange }, 90).Parent = x10
+		Theme.gradient(bestMutation.gradient, 90).Parent = banner
 	end
 	local cards = new("Frame", {
 		Name = "Cards",
@@ -219,7 +254,8 @@ function RollReveal.show(payload)
 			end
 		end)
 	end
-	if best and rarityOrder(best.rarity) >= rarityOrder("legendary") then
+	local bigMutation = bestMutation and bestMutation.multiplier >= 3.5
+	if best and (rarityOrder(best.rarity) >= rarityOrder("legendary") or bigMutation) then
 		local info = Theme.rarity(best.rarity)
 		local def = Characters.get(best.id or "")
 		task.delay(0.25, function()
@@ -234,7 +270,7 @@ function RollReveal.show(payload)
 		end)
 	end
 	-- Les cartes restent un moment puis s'envolent.
-	task.delay(2.6, function()
+	task.delay(payload.auto and 1.8 or 2.6, function()
 		if myBatch ~= batch then
 			return
 		end
