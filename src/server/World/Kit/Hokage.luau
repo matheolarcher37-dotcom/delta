@@ -5,24 +5,27 @@
 --
 --        rang du haut :   Hashirama     Hiruzen        Tsunade       Naruto
 --        rang du bas  :          Tobirama      Minato         Kakashi        Boruto
---                         (emblème de la feuille gravé sur un gros rocher, en bas à gauche)
+--                         (médaillon de la feuille gravé, en bas à gauche)
 --
--- La roche est faite de GROS BLOCS ANGULEUX (pavés, coins et pointes inclinés de 5 à 25°, de 12 à
--- 42 studs, à moitié enfoncés, avec des joints sombres) : autour des visages, les blocs avancent
--- davantage et forment un cadre en creux. Quelques gros rochers arrondis seulement.
+-- La roche : des ROCHERS FACETTÉS (taillés en triangles, à moitié enfoncés) et des blocs
+-- anguleux calmes (pavés, coins, roulis de 4 à 14°) en trois tailles, avec des joints sombres ;
+-- autour des visages, les rochers avancent davantage et forment le cadre en creux du monument.
+-- Un médaillon de pierre porte la spirale de la feuille gravée.
 --
--- Les visages sont des volumes nets et calmes : front, arcade continue en coin, orbites creusées
--- (plus sombres, sans paupière en relief), nez triangulaire, pommettes en facettes, bouche réduite
--- à un trait fin, menton carré, oreilles, cou. Les cheveux sont des MÈCHES PLATES ET EFFILÉES
--- (deux coins dos à dos : base large, pointe fine), plaquées contre le crâne et orientées selon la
--- coiffure ; les cheveux longs sont de grandes plaques plates de chaque côté du visage.
+-- Les VISAGES sont des surfaces taillées en facettes, comme une sculpture dégrossie au ciseau :
+-- un maillage de 110 triangles (deux coins par triangle, Hokage.triangle) qui dessine front,
+-- arcades, orbites, nez triangulaire, pommettes, bouche réduite à un trait fin, menton carré et
+-- mâchoire. Expression calme. Les cheveux : coiffe facettée (épis : masse + épis plats et effilés
+-- qui se dressent ; cheveux longs : raie creusée en V, sillons gravés, grands rideaux facettés
+-- jusqu'aux épaules), bandeaux plats avec plaque gravée.
 --
 -- Tout est dans la même pierre gris ardoise (falaise et têtes, écart de teinte faible) : ce sont
 -- les ombres qui dessinent les visages. Le modèle est un emplacement remplaçable (DecorSlot
 -- "MontagneDesChefs") : un modèle du même nom rangé dans ServerStorage > ModelesDeco le remplace.
 --
--- Budget : ≈ 1 100 pièces en tout (têtes ≈ 55 à 75 pièces chacune), arbres clonés depuis des
--- modèles maîtres. Le modèle est en LevelOfDetail « StreamingMesh » (simplifié de loin).
+-- Budget : ≈ 5 600 pièces en tout, dont ≈ 3 100 pour les 8 têtes (360 à 430 chacune) ; arbres du
+-- sommet en version lointaine (clones). Le modèle est en LevelOfDetail « StreamingMesh »
+-- (simplifié de loin par le moteur).
 
 local Build = require(script.Parent.Parent.Parent.Modules.Build)
 local Core = require(script.Parent.Core)
@@ -40,7 +43,6 @@ local FACE = rgb(126, 128, 134)
 local HAIR = rgb(116, 118, 125)
 local JOINT = rgb(96, 98, 105) -- joints et creux entre les blocs
 local DEEP = rgb(62, 64, 70) -- traits gravés : bouche, symbole
-local SOCKET = rgb(98, 100, 107) -- orbites creusées
 local TONES = {
 	rgb(120, 122, 128),
 	rgb(113, 115, 121),
@@ -130,13 +132,6 @@ local function B(ctx: Ctx, name: string, sx: number, sy: number, sz: number, cf:
 	return part
 end
 
--- Coin (WedgePart) en unités : dessous plat, dos vertical (+Z), pente vers l'avant et le haut
--- (la forme d'un nez vu de profil : arête qui prend la lumière, dessous dans l'ombre).
-local function W(ctx: Ctx, name: string, sx: number, sy: number, sz: number, cf: CFrame, color: Color3?): WedgePart
-	ctx.count += 1
-	return Build.wedge(ctx.model, name, V3(sx, sy, sz) * ctx.u, cf, color or FACE, { Material = CARVE_MAT, CanCollide = false, CanQuery = false })
-end
-
 -- MÈCHE plate et effilée : deux coins dos à dos forment un triangle isocèle (base large de `w`
 -- enfoncée à la racine `root`, pointe fine au bout), épais de `t`. Les deux moitiés reculent un peu
 -- de part et d'autre de l'arête centrale (`crest`, en radians) : la lumière dessine la mèche.
@@ -190,10 +185,6 @@ local function capPoint(a: number, p: number, inset: number?): (Vector3, Vector3
 	local d = V3(math.sin(a) * math.cos(p), math.cos(a) * math.cos(p), -math.sin(p))
 	local pos = CAP_C + d * CAP_R * (inset or 0.93)
 	return pos, V3(d.X / CAP_R.X, d.Y / CAP_R.Y, d.Z / CAP_R.Z).Unit
-end
-
-local function cap(ctx: Ctx)
-	E(ctx, "Calotte", CAP_R.X * 2, CAP_R.Y * 2, CAP_R.Z * 2, at(ctx, CAP_C.X, CAP_C.Y, CAP_C.Z), HAIR)
 end
 
 -- Rang d'épis : `n` mèches de l'angle `a0` à `a1` (0 = vers le haut), racines dans la calotte à
@@ -911,7 +902,14 @@ local function cliffBody(model: Model, cf: CFrame, rng: Random)
 			shade(GRASS, rng:NextNumber(-0.05, 0.04)),
 			{ Material = Enum.Material.Grass }
 		)
-		Core.ellipsoid(model, "SommetBosse", V3(colW * 1.4, 18, 80), cf * CFrame.new(x0 + rng:NextNumber(-8, 8), top + 2, 80 + rng:NextNumber(0, 30)), GRASS_LIGHT, Enum.Material.Grass)
+		Core.ellipsoid(
+			model,
+			"SommetBosse",
+			V3(colW * 1.4, 18, 80),
+			cf * CFrame.new(x0 + rng:NextNumber(-8, 8), top + 2, 80 + rng:NextNumber(0, 30)),
+			GRASS_LIGHT,
+			Enum.Material.Grass
+		)
 	end
 	-- flancs : gradins qui descendent et reculent, habillés de blocs anguleux et d'herbe
 	for _, s in { -1, 1 } do
@@ -921,12 +919,26 @@ local function cliffBody(model: Model, cf: CFrame, rng: Random)
 			local h = edge * (0.86 - k * 0.2)
 			local x = s * (half - 6 + k * 24 + w / 2)
 			local z = 14 + k * 16
-			Build.part(model, "Flanc", V3(w, h, depth - k * 20), cf * CFrame.new(x, h / 2, z + (depth - k * 20) / 2) * CFrame.Angles(0, s * rng:NextNumber(0.05, 0.2), 0), shade(JOINT, 0.05), {
-				Material = ROCK_MAT,
-			})
-			Build.part(model, "FlancHerbe", V3(w + 4, 4, depth - k * 20 - 6), cf * CFrame.new(x, h + 1, z + 4 + (depth - k * 20 - 6) / 2), shade(GRASS, rng:NextNumber(-0.06, 0.03)), {
-				Material = Enum.Material.Grass,
-			})
+			Build.part(
+				model,
+				"Flanc",
+				V3(w, h, depth - k * 20),
+				cf * CFrame.new(x, h / 2, z + (depth - k * 20) / 2) * CFrame.Angles(0, s * rng:NextNumber(0.05, 0.2), 0),
+				shade(JOINT, 0.05),
+				{
+					Material = ROCK_MAT,
+				}
+			)
+			Build.part(
+				model,
+				"FlancHerbe",
+				V3(w + 4, 4, depth - k * 20 - 6),
+				cf * CFrame.new(x, h + 1, z + 4 + (depth - k * 20 - 6) / 2),
+				shade(GRASS, rng:NextNumber(-0.06, 0.03)),
+				{
+					Material = Enum.Material.Grass,
+				}
+			)
 			local y = 8
 			while y < h - 8 do
 				local bh = rng:NextNumber(16, 26)
@@ -936,7 +948,6 @@ local function cliffBody(model: Model, cf: CFrame, rng: Random)
 		end
 	end
 end
-
 
 -- Paroi : maçonnerie naturelle de gros blocs anguleux en trois tailles, serrés, avec des joints
 -- sombres (la paroi derrière). Autour des visages, les blocs avancent davantage et forment un

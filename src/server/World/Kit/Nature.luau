@@ -577,7 +577,14 @@ local function buildFar(model: Model, rng: Random, pal: { Color3 }, trunkColor: 
 		for i = 0, 3 do
 			local a = i / 4 * math.pi * 2 + 0.4
 			local dir = Vector3.new(math.cos(a), -0.25, math.sin(a))
-			Core.ellipsoid(model, "Leaves", Vector3.new(H * 0.42, H * 0.05, H * 0.13), CFrame.lookAt(top + dir * H * 0.2, top + dir * H * 0.4) * CFrame.Angles(0, math.pi / 2, 0), tone(pal, 0.4 + i * 0.1, rng), LEAF)
+			Core.ellipsoid(
+				model,
+				"Leaves",
+				Vector3.new(H * 0.42, H * 0.05, H * 0.13),
+				CFrame.lookAt(top + dir * H * 0.2, top + dir * H * 0.4) * CFrame.Angles(0, math.pi / 2, 0),
+				tone(pal, 0.4 + i * 0.1, rng),
+				LEAF
+			)
 		end
 		return
 	end
