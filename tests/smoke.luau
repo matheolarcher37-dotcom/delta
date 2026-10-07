@@ -243,7 +243,10 @@ test("Kourama : vraie créature (renard à neuf queues) compatible avec le comba
 			assert(d.CollisionGroup == "Enemies", d.Name .. " hors groupe Enemies")
 			if d ~= root then
 				assert(not d.CanCollide and d.Massless, d.Name .. " : collision / masse")
-				lowest = math.min(lowest, d.CFrame.Position.Y - d.Size.Y / 2)
+				-- Étendue verticale réelle de la pièce tournée (les queues sont couchées en éventail).
+				local cf, size = d.CFrame, d.Size
+				local half = (math.abs(cf.RightVector.Y) * size.X + math.abs(cf.UpVector.Y) * size.Y + math.abs(cf.LookVector.Y) * size.Z) / 2
+				lowest = math.min(lowest, cf.Position.Y - half)
 				highest = math.max(highest, d.CFrame.Position.Y)
 			end
 		elseif d:IsA("Motor6D") then

@@ -347,9 +347,10 @@ local TAIL_WIDTH = { 0.55, 0.84, 1.0, 0.98, 0.8, 0.52 }
 local function buildTail(ctx, index: number, count: number)
 	local C = FOX
 	local u = (index - 1) / (count - 1) * 2 - 1 -- -1 (gauche) .. 1 (droite)
-	local fan = u * math.rad(118) -- 0 = vers le haut
+	-- 0 = vers le haut ; courbe adoucie : le milieu s'écarte bien, les extrêmes restent au-dessus du sol.
+	local fan = math.sign(u) * math.abs(u) ^ 0.8 * math.rad(104)
 	local base = Vector3.new(math.sin(fan) * 0.55, 2.5 + math.cos(fan) * 0.15, 2.15)
-	local dir = Vector3.new(math.sin(fan), math.cos(fan) + 0.25, 0.4 + 0.15 * math.cos(fan)).Unit
+	local dir = Vector3.new(math.sin(fan), math.cos(fan) + 0.4, 0.4 + 0.15 * math.cos(fan)).Unit
 	local tangent = Vector3.new(math.cos(fan), -math.sin(fan), 0)
 	-- Repère : Y le long de la queue, X dans le plan de l'éventail.
 	local back = tangent:Cross(dir).Unit
