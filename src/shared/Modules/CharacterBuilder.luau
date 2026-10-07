@@ -356,6 +356,57 @@ local function newContext(model: Model, s: number, paint: string)
 		return part
 	end
 
+	-- Mèche lisse et souple (cheveux longs ou mi-longs) : suite de 2 à 4 ellipsoïdes plats qui
+	-- s'affinent et se courbent (`curl` ajouté à la direction à chaque segment), en deux tons
+	-- (le bout plus sombre), avec une bande de reflet claire (`shine`) sur le haut, côté extérieur.
+	-- o = { segments, facing (normale sortante), thickness, curl, taper, shine (Color3), dark }
+	local function ribbonFrame(center: Vector3, up: Vector3, facing: Vector3): CFrame
+		local right = up:Cross(facing)
+		if right.Magnitude < 0.05 then
+			right = Vector3.new(1, 0, 0)
+		end
+		right = right.Unit
+		return CFrame.fromMatrix(center, right, up, right:Cross(up).Unit)
+	end
+	function ctx.sleek(limbName: string, color: Color3, from: Vector3, dir: Vector3, length: number, width: number, o)
+		local opts = o or {}
+		local n = opts.segments or 3
+		local facing = opts.facing or Vector3.new(from.X, 0, from.Z)
+		if facing.Magnitude < 0.05 then
+			facing = Vector3.new(0, 0, -1)
+		end
+		facing = facing.Unit
+		local depth = opts.thickness or math.max(0.1, width * 0.42)
+		local curl = opts.curl or Vector3.zero
+		local dark = opts.dark or shadeOf(color)
+		local d = dir.Unit
+		local p = from
+		local seg = length / n
+		local first
+		for i = 1, n do
+			local k = 1 - (i - 1) / math.max(1, n - 1) * (opts.taper or 0.5)
+			local tone = i == n and color:Lerp(dark, 0.6) or (i == 1 and color or color:Lerp(dark, 0.25))
+			local part = ctx.ball(limbName, opts.name or "HairSleek", Vector3.new(width * k, seg * 1.95, depth * k), ribbonFrame(p + d * (seg * 0.5), d, facing), tone)
+			first = first or part
+			p += d * seg
+			if i < n then
+				d = (d + curl).Unit
+			end
+		end
+		if opts.point ~= false then
+			-- Bout effilé : petite pointe (demi-pyramide côté extérieur) dans le prolongement
+			local k = 1 - (opts.taper or 0.5)
+			local tone = color:Lerp(dark, 0.6)
+			ctx.cone(limbName, ribbonFrame(p - d * (seg * 0.42), d, facing), seg * 0.75, width * k * 0.85, depth * k * 1.6, tone, dark, 1, opts.name or "HairSleek")
+		end
+		if opts.shine then
+			local up = dir.Unit
+			local frame = ribbonFrame(from + up * (seg * 0.8), up, facing)
+			ctx.ball(limbName, "HairSleekShine", Vector3.new(width * 0.26, seg * 1.15, depth * 0.5), frame * CFrame.new(-width * 0.12, 0, depth * 0.32), opts.shine)
+		end
+		return first
+	end
+
 	-- Peinture (SurfaceGui dans le monde, pièces fines dans les aperçus).
 	function ctx.surface(part: BasePart, face: Enum.NormalId, name: string)
 		if ctx.paint == "parts" then
@@ -544,6 +595,21 @@ local function fringe(ctx, color: Color3, xs: { number }, length: number, width:
 			width,
 			{ facing = Vector3.new(-x * 0.6, 0, 1), thickness = opts.thickness, tip = opts.tip }
 		)
+	end
+end
+
+-- Frange en mèches lisses (cheveux souples) : xs = positions de gauche à droite vu de face.
+local function sleekFringe(ctx, color: Color3, xs: { number }, length: any, width: number, o)
+	local opts = o or {}
+	for i, x in xs do
+		local z = -math.sqrt(math.max(0, 0.68 * 0.68 - x * x)) - 0.03
+		local dir = Vector3.new(x * (opts.spread or 0.5) + x * (opts.flick or 0), -1, -(opts.out or 0.1))
+		ctx.sleek("Head", (opts.alt and i % 2 == 0) and opts.alt or color, Vector3.new(x, opts.y or 0.58, z), dir, (type(length) == "table" and length[i]) or length, width * 0.85, {
+			segments = 1,
+			facing = Vector3.new(x * 0.7, 0, -1),
+			thickness = opts.thickness or 0.11,
+			taper = 0.3,
+		})
 	end
 end
 
@@ -740,27 +806,43 @@ HAIR.spiky_back = function(ctx, c, look)
 end
 
 HAIR.long = function(ctx, c, look)
-	-- Longs cheveux lisses : frange écartée sur le front, longues mèches de côté, nappe dans le dos.
+	-- Longs cheveux lisses : frange en mèches souples, longues mèches qui encadrent le visage et
+	-- s'écartent au bout, nappe dans le dos découpée en mèches.
 	local under, shine = hairTones(c, look)
 	local tip = look.hairTip
 	cap(ctx, c, { back = false, height = 0.84 })
 	local length = look.hairLength or 2.4
 	ctx.ball("Head", "HairBack", Vector3.new(1.34, length, 0.6), CFrame.new(0, TOP - 0.1 - length / 2 + 0.25, 0.4), under)
-	ctx.ball("Head", "HairBack", Vector3.new(1.28, length * 0.94, 0.5), CFrame.new(0, TOP - 0.1 - length / 2 + 0.2, 0.5), c)
 	if tip then
 		ctx.ball("Head", "HairTip", Vector3.new(1.18, 0.8, 0.52), CFrame.new(0, TOP - length + 0.1, 0.5), tip)
 	end
+	-- Mèches du dos (par-dessus la nappe)
+	for _, x in { -0.42, 0, 0.42 } do
+		ctx.sleek("Head", x == 0 and c or c:Lerp(under, 0.3), Vector3.new(x, 0.35, 0.62), Vector3.new(x * 0.18, -1, 0.1), length - 0.35, 0.56, {
+			facing = Vector3.new(x, 0, 1),
+			thickness = 0.16,
+			curl = Vector3.new(x * 0.1, 0, 0.04),
+			taper = 0.35,
+		})
+	end
 	for _, side in { -1, 1 } do
 		ctx.ball("Head", "HairSide", Vector3.new(0.28, 1.5, 0.95), CFrame.new(side * 0.6, 0.0, 0.1), under)
-		-- Mèche longue qui encadre le visage (deux tons)
-		ctx.strand("Head", c, Vector3.new(side * 0.62, 0.45, -0.28), Vector3.new(side * 0.14, -1, -0.06), 1.25, 0.24, 0.2)
-		ctx.strand("Head", shine, Vector3.new(side * 0.6, 0.45, -0.36), Vector3.new(side * 0.12, -1, -0.08), 0.7, 0.12, 0.1)
+		-- Longue mèche qui encadre le visage, qui s'écarte au bout (deux tons + reflet)
+		ctx.sleek("Head", c, Vector3.new(side * 0.6, 0.48, -0.3), Vector3.new(side * 0.1, -1, -0.06), 1.45, 0.3, {
+			facing = Vector3.new(side, 0, -0.35),
+			curl = Vector3.new(side * 0.14, 0, -0.02),
+			shine = shine,
+		})
+		ctx.sleek("Head", c:Lerp(under, 0.4), Vector3.new(side * 0.62, 0.36, 0.1), Vector3.new(side * 0.16, -1, 0.05), 1.6, 0.36, {
+			facing = Vector3.new(side, 0, 0.3),
+			curl = Vector3.new(side * 0.12, 0, 0.02),
+		})
 	end
 	if look.forehead then
-		-- Front dégagé, raie au milieu : deux mèches courbées
-		fringe(ctx, c, { -0.3, -0.12, 0.12, 0.3 }, { 0.36, 0.26, 0.26, 0.36 }, 0.26, { y = 0.6, spread = 2.2, out = 0.08, thickness = 0.12 })
+		-- Front dégagé, raie au milieu : mèches qui partent vers les tempes
+		sleekFringe(ctx, c, { -0.3, -0.12, 0.12, 0.3 }, { 0.4, 0.3, 0.3, 0.4 }, 0.26, { y = 0.62, spread = 2.2, out = 0.06, flick = 0.8 })
 	else
-		fringe(ctx, c, { -0.36, -0.13, 0.1, 0.34 }, { 0.36, 0.42, 0.4, 0.34 }, 0.36, { alt = shine, y = 0.58, spread = 0.5, thickness = 0.16 })
+		sleekFringe(ctx, c, { -0.36, -0.13, 0.1, 0.34 }, { 0.4, 0.46, 0.44, 0.38 }, 0.34, { alt = shine, y = 0.6, spread = 0.45 })
 	end
 end
 
@@ -777,35 +859,37 @@ end
 
 HAIR.long_bangs = function(ctx, c, look)
 	-- Cheveux longs noirs à raie au milieu (ninja au manteau à nuages, copie des cheveux en maillage
-	-- d'"Ipachi") : longues mèches qui encadrent le visage jusqu'au menton, volume sur la nuque et
-	-- les épaules, queue de cheval basse.
+	-- d'"Ipachi") : longues mèches souples qui encadrent le visage jusqu'au menton, volume sur la
+	-- nuque et les épaules, queue de cheval basse.
 	local under, shine = hairTones(c, look)
 	cap(ctx, c, { back = false, height = 0.86 })
 	ctx.ball("Head", "HairBack", Vector3.new(1.4, 1.5, 0.66), CFrame.new(0, -0.12, 0.36), under)
 	ctx.ball("Head", "HairBack", Vector3.new(1.34, 1.3, 0.56), CFrame.new(0, -0.02, 0.46), c)
 	for _, side in { -1, 1 } do
-		-- Mèches de devant (deux par côté, la plus longue jusqu'au menton)
-		ctx.lock("Head", c, Vector3.new(side * 0.3, 0.64, -0.6), Vector3.new(side * 0.32, -1, -0.12), 1.08, 0.36, { facing = Vector3.new(side * 0.3, 0, 1), thickness = 0.13 })
-		ctx.lock(
-			"Head",
-			shine,
-			Vector3.new(side * 0.26, 0.62, -0.64),
-			Vector3.new(side * 0.28, -1, -0.14),
-			0.56,
-			0.16,
-			{ facing = Vector3.new(side * 0.3, 0, 1), thickness = 0.06 }
-		)
-		ctx.lock("Head", under, Vector3.new(side * 0.56, 0.52, -0.34), Vector3.new(side * 0.18, -1, -0.06), 1.22, 0.38, { facing = Vector3.new(side, 0, 0.35), thickness = 0.14 })
+		-- Mèches de devant : la raie, puis la longue mèche jusqu'au menton qui s'écarte au bout
+		ctx.sleek("Head", c, Vector3.new(side * 0.22, 0.66, -0.6), Vector3.new(side * 0.42, -1, -0.1), 1.15, 0.36, {
+			facing = Vector3.new(side * 0.35, 0, -1),
+			curl = Vector3.new(side * 0.1, 0, 0),
+			shine = shine,
+		})
+		ctx.sleek("Head", under:Lerp(c, 0.4), Vector3.new(side * 0.56, 0.5, -0.34), Vector3.new(side * 0.16, -1, -0.06), 1.3, 0.38, {
+			facing = Vector3.new(side, 0, -0.35),
+			curl = Vector3.new(side * 0.1, 0, -0.02),
+		})
 		-- Volume sur les côtés (cache les oreilles)
 		ctx.ball("Head", "HairSide", Vector3.new(0.32, 1.25, 1.0), CFrame.new(side * 0.6, -0.02, 0.1), under)
 		-- Mèches qui tombent sur les épaules
-		ctx.lock("Head", c, Vector3.new(side * 0.5, -0.1, 0.35), Vector3.new(side * 0.2, -1, 0.2), 0.8, 0.42, { facing = Vector3.new(side, 0, 0.6), thickness = 0.14 })
+		ctx.sleek("Head", c, Vector3.new(side * 0.5, -0.05, 0.35), Vector3.new(side * 0.25, -1, 0.2), 0.95, 0.44, {
+			segments = 2,
+			facing = Vector3.new(side, 0, 0.6),
+			curl = Vector3.new(side * 0.15, 0, 0.05),
+		})
 	end
 	-- Petite mèche au milieu du front
-	ctx.lock("Head", c, Vector3.new(0, 0.66, -0.66), Vector3.new(0, -1, -0.12), 0.42, 0.26, { facing = Vector3.new(0, 0, 1), thickness = 0.1 })
+	ctx.sleek("Head", c, Vector3.new(0, 0.68, -0.66), Vector3.new(0.05, -1, -0.12), 0.48, 0.24, { segments = 2, facing = Vector3.new(0, 0, -1), thickness = 0.1 })
 	-- Queue de cheval basse
 	ctx.ball("Head", "HairTie", Vector3.new(0.3, 0.24, 0.24), CFrame.new(0, -0.45, 0.66), darken(c, 0.45))
-	ctx.strand("Head", c, Vector3.new(0, -0.5, 0.72), Vector3.new(0, -1, 0.15), look.tailLength or 1.3, 0.4, 0.32)
+	ctx.sleek("Head", c, Vector3.new(0, -0.5, 0.72), Vector3.new(0, -1, 0.15), look.tailLength or 1.3, 0.4, { facing = Vector3.new(0, 0, 1), thickness = 0.3, taper = 0.6 })
 end
 
 HAIR.side_ponytail = function(ctx, c, look)
@@ -1049,17 +1133,24 @@ HAIR.bowl = function(ctx, c, look)
 end
 
 HAIR.bob = function(ctx, c, look)
-	-- Carré lisse (androïde, sorcière au marteau) : volume arrondi jusqu'au menton, mèches pointues
-	-- qui encadrent le visage, frange effilée.
+	-- Carré lisse (androïde, sorcière au marteau) : volume arrondi jusqu'au menton, mèches souples
+	-- qui rentrent vers le cou, frange effilée.
 	local under, shine = hairTones(c, look)
 	cap(ctx, c, { back = false, height = 0.86 })
 	ctx.ball("Head", "HairBob", Vector3.new(1.42, 1.3, 1.1), CFrame.new(0, 0.08, 0.2), under)
 	for _, side in { -1, 1 } do
-		ctx.lock("Head", c, Vector3.new(side * 0.58, 0.5, -0.24), Vector3.new(side * 0.14, -1, -0.04), 1.05, 0.4, { facing = Vector3.new(side, 0, 0.3), thickness = 0.14 })
-		ctx.lock("Head", shine, Vector3.new(side * 0.5, 0.56, -0.42), Vector3.new(side * 0.2, -1, -0.1), 0.72, 0.24, { facing = Vector3.new(side, 0, 0.5), thickness = 0.08 })
-		ctx.lock("Head", under, Vector3.new(side * 0.5, 0.3, 0.3), Vector3.new(side * 0.2, -1, 0.15), 0.85, 0.5, { facing = Vector3.new(side, 0, 0.8), thickness = 0.14 })
+		ctx.sleek("Head", c, Vector3.new(side * 0.6, 0.52, -0.26), Vector3.new(side * 0.12, -1, -0.04), 1.1, 0.42, {
+			facing = Vector3.new(side, 0, -0.3),
+			curl = Vector3.new(-side * 0.16, 0, -0.02),
+			shine = shine,
+		})
+		ctx.sleek("Head", c:Lerp(under, 0.35), Vector3.new(side * 0.56, 0.4, 0.3), Vector3.new(side * 0.16, -1, 0.12), 0.95, 0.52, {
+			segments = 2,
+			facing = Vector3.new(side, 0, 0.8),
+			curl = Vector3.new(-side * 0.18, 0, 0),
+		})
 	end
-	fringe(ctx, c, { -0.32, -0.1, 0.12, 0.34 }, { 0.42, 0.36, 0.4, 0.34 }, 0.32, { alt = shine, y = 0.58, spread = 0.35 })
+	sleekFringe(ctx, c, { -0.32, -0.1, 0.12, 0.34 }, { 0.44, 0.38, 0.42, 0.36 }, 0.32, { alt = shine, y = 0.6, spread = 0.3 })
 end
 
 HAIR.bald = function(ctx, c, look)
