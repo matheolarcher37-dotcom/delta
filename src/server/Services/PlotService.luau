@@ -150,7 +150,8 @@ local function bindPlot(index: number, model: Model)
 	plot.stashPad = stash:FindFirstChild("Pad")
 	-- Ancien compteur (fichier pré-construit avant la v3.2) : on le remplace par le nouveau.
 	local lid = stash:FindFirstChild("Lid") :: BasePart?
-	if lid and not stash:FindFirstChild("Rate", true) then
+	local stashGui = lid and lid:FindFirstChild("StashGui")
+	if lid and not (stashGui and stashGui:GetAttribute("Version") == Conveyor.StashCardVersion) then
 		Conveyor.stashBoard(lid)
 	end
 	plot.stashLabel = stash:FindFirstChild("Amount", true)
@@ -602,9 +603,9 @@ function PlotService:_buildPad(player: Player, plot, parent: Instance, upgrade)
 		(upgrade.icon or "") .. " " .. upgrade.name,
 		tierTag .. Kit.effectText(upgrade.effect),
 		"¥ " .. Formulas.formatNumber(upgrade.price),
-		-- bord bas du panneau ~6 studs au-dessus du sol : au-dessus du socle, du bouton et du
-		-- jeton qui tourne (le panneau pousse vers le haut à partir de là)
-		Vector3.new(0, 4.9, 0)
+		-- bord bas du panneau ~7 studs au-dessus du sol (le Pad est à 1,15) : au-dessus du socle,
+		-- du bouton et du jeton qui tourne ; certains panneaux sont un cran plus haut (voisins)
+		Vector3.new(0, Kit.BoardBottom - 1.15 + Structures.boardLift(upgrade.id), 0)
 	)
 	for key, value in boardRefs do
 		refs[key] = value

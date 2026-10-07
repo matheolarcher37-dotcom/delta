@@ -204,14 +204,15 @@ test("Mutations (variétés) : liste, tirage, apparence", function()
 	assert((counts["or"] or 0) > (counts.arcenciel or 0), "l'Arc-en-ciel sort plus que l'Or")
 	-- Apparence : voile sur les habits peints, particules, rien en double.
 	local entry = { id = "ninja_maruto", level = 1, stars = 1 }
-	for _, id in { "or", "sakura", "angelique", "arcenciel" } do
+	for _, id in { "or", "sakura", "angelique", "arcenciel", "diamant", "ombre", "galaxie", "flamme" } do
 		local model = CharacterBuilder.build(Formulas.describe(entry).look, { name = "Test" })
 		assert(MutationsFx.apply(model, id), "mutation non posée : " .. id)
 		local veils, particles = 0, 0
 		for _, d in model:GetDescendants() do
-			if d.Name == "MutationVoile" then
+			-- (voile / particules du repli ici, ou de CharacterBuilder.applyVariety quand il existe)
+			if d.Name == "MutationVoile" or d.Name == "VarietyTint" then
 				veils += 1
-			elseif d.Name == "MutationParticules" then
+			elseif d.Name == "MutationParticules" or d.Name == "VarietyFx" then
 				particles += 1
 			end
 		end
@@ -220,14 +221,18 @@ test("Mutations (variétés) : liste, tirage, apparence", function()
 		MutationsFx.apply(model, id)
 		local again = 0
 		for _, d in model:GetDescendants() do
-			if d.Name == "MutationVoile" then
+			if d.Name == "MutationVoile" or d.Name == "VarietyTint" then
 				again += 1
 			end
 		end
 		assert(again == veils, "mutation posée deux fois : " .. id)
 		if Mutations.get(id).look.particles then
-			assert(particles == 1, "particules absentes : " .. id)
+			assert(particles == 1, "particules absentes ou en double : " .. id)
 		end
+		-- Le visage reste net (pas de voile sur la tête) ; contour lumineux pour x3 et plus.
+		local head = model:FindFirstChild("Head")
+		assert(not (head and head:FindFirstChild("MutationVoile", true)), "voile sur le visage : " .. id)
+		assert((model:FindFirstChild("MutationContour") ~= nil) == (Mutations.get(id).multiplier >= 3), "contour lumineux incohérent : " .. id)
 		model:Destroy()
 	end
 	assert(not MutationsFx.apply(CharacterBuilder.build(Formulas.describe(entry).look, { name = "T" }), "inconnue"), "mutation inconnue posée")
@@ -443,6 +448,148 @@ test("Bases des joueurs + toutes les améliorations", function()
 	local total = countParts(plot.model)
 	print("   pièces d'une base complète : " .. total .. " (déco : " .. countParts(plot.model.Decor) .. ")")
 	assert(total < 9000, "base trop lourde : " .. total .. " pièces")
+end)
+
+-- Panneaux d'achat : sur un sol dégagé, et jamais l'un sur l'autre vus depuis l'entrée et le coffre.
+test("Base : panneaux d'achat dégagés, sans chevauchement (entrée, coffre)", function()
+	local roblox = Harness.roblox
+	local PlotService = requireModule(Server.Services.PlotService)
+	local Structures = requireModule(Server.Modules.TycoonStructures)
+	local Kit = requireModule(Server.Modules.TycoonKit)
+	local Conveyor = requireModule(Server.Modules.TycoonConveyor)
+	local plot = PlotService:GetPlots()[1]
+	local Spots = Structures.Spots
+	assert(Kit.BoardBottom >= 6.5, "panneaux trop bas (coupés par le socle)")
+	-- 1) Le bouton (socle de rayon ~3,9) ne rentre dans aucune pièce solide de la base complète.
+	local solids = {}
+	for _, folder in { plot.ownerFolder:FindFirstChild("Structures"), plot.model:FindFirstChild("Interactive") } do
+		for _, d in folder:GetDescendants() do
+			if d:IsA("BasePart") and d.CanCollide and d.Transparency < 0.9 and d.Name ~= "Pad" then
+				table.insert(solids, d)
+			end
+		end
+	end
+	local requiresOf = {}
+	for _, upgrade in Economy.Upgrades do
+		requiresOf[upgrade.id] = upgrade.requires
+	end
+	local function descends(id, root)
+		local cur = id
+		while cur do
+			if cur == root then
+				return true
+			end
+			cur = requiresOf[cur]
+		end
+		return false
+	end
+	local hits = {}
+	for _, upgrade in Economy.Upgrades do
+		local pos = Structures.padPosition(upgrade.id)
+		local center = (plot.cf * roblox.CFrame.new(pos.X, 1, pos.Z)).Position
+		for _, part in solids do
+			-- Ce qui ne peut pas exister en même temps que le bouton : sa structure et ses suites.
+			local owner = part:FindFirstAncestorOfClass("Model")
+			while owner and owner.Parent and owner.Parent.Name ~= "Structures" do
+				owner = owner.Parent:FindFirstAncestorOfClass("Model") or owner.Parent
+			end
+			local skip = owner and owner.Parent and owner.Parent.Name == "Structures" and descends(owner.Name, upgrade.id)
+			local cf = part.CFrame
+			local loc = cf:PointToObjectSpace(center)
+			local half = part.Size / 2
+			local clamped = roblox.Vector3.new(math.clamp(loc.X, -half.X, half.X), math.clamp(loc.Y, -half.Y, half.Y), math.clamp(loc.Z, -half.Z, half.Z))
+			local closest = cf:PointToWorldSpace(clamped)
+			local flat = roblox.Vector3.new(closest.X - center.X, 0, closest.Z - center.Z).Magnitude
+			local top = closest.Y - plot.cf.Position.Y
+			if not skip and flat < 3.6 and top > 1 and top < 7 then
+				table.insert(hits, upgrade.id .. " -> " .. part:GetFullName() .. string.format(" (%.1f / %.1f)", flat, top))
+			end
+		end
+	end
+	for _, line in hits do
+		print("   ! " .. line)
+	end
+	assert(#hits == 0, "boutons qui rentrent dans une pièce :\n  " .. table.concat(hits, "\n  "))
+	-- 2) Projection des panneaux (1920x1080, champ 70°) depuis des points de vue de joueur.
+	local requires = {}
+	for _, upgrade in Economy.Upgrades do
+		requires[upgrade.id] = upgrade.requires
+	end
+	local function ancestor(a, b)
+		local cur = requires[b]
+		while cur do
+			if cur == a then
+				return true
+			end
+			cur = requires[cur]
+		end
+		return false
+	end
+	local W, H = 1920, 1080
+	local f = (H / 2) / math.tan(math.rad(35))
+	local stashPos = Spots.chest + roblox.Vector3.new(0, 4.9 + Conveyor.StashCard.offsetY, 0.6)
+	local boards = {}
+	for _, upgrade in Economy.Upgrades do
+		local pos = Structures.padPosition(upgrade.id)
+		table.insert(boards, {
+			id = upgrade.id,
+			ground = pos,
+			p = pos + roblox.Vector3.new(0, Kit.BoardBottom + Structures.boardLift(upgrade.id), 0),
+			w = { 4.8, 84 },
+			h = { Kit.BoardHeight.studs, Kit.BoardHeight.pixels },
+			maxd = Kit.BoardMaxDistance,
+		})
+	end
+	local card = Conveyor.StashCard
+	table.insert(boards, { id = "COFFRE", ground = Spots.chest, p = stashPos, w = { card.studsW, card.pixelsW }, h = { card.studsH, card.pixelsH }, maxd = 110 })
+	local views = {
+		entree = { roblox.Vector3.new(0, 14, -82), roblox.Vector3.new(0, 4, -40) },
+		entree_gauche = { roblox.Vector3.new(-12, 13, -80), roblox.Vector3.new(-30, 4, -40) },
+		trois_quarts = { roblox.Vector3.new(30, 22, -66), roblox.Vector3.new(-20, 4, -20) },
+		coffre_cote = { roblox.Vector3.new(-27, 12, -31), roblox.Vector3.new(-45, 5, -46) },
+		coffre_cour = { roblox.Vector3.new(-15, 14, -30), roblox.Vector3.new(-45, 5, -48) },
+		coffre_face = { roblox.Vector3.new(-47, 12, -30), roblox.Vector3.new(-47, 5, -55) },
+		apparition = { roblox.Vector3.new(0, 12, -68), roblox.Vector3.new(-20, 4, -40) },
+	}
+	local problems = {}
+	for name, view in views do
+		local eye, target = view[1], view[2]
+		local fw = (target - eye).Unit
+		local right = fw:Cross(roblox.Vector3.new(0, 1, 0)).Unit
+		local up = right:Cross(fw)
+		local rects = {}
+		for _, b in boards do
+			local d = b.p - eye
+			local z = d:Dot(fw)
+			if z > 2 and d.Magnitude <= b.maxd then
+				local sx, sy = W / 2 + d:Dot(right) * f / z, H / 2 - d:Dot(up) * f / z
+				local w, h = b.w[1] * f / z + b.w[2], b.h[1] * f / z + b.h[2]
+				if sx + w / 2 > 0 and sx - w / 2 < W and sy > 0 and sy - h < H then
+					table.insert(rects, { b = b, x0 = sx - w / 2, x1 = sx + w / 2, y0 = sy - h, y1 = sy })
+				end
+			end
+		end
+		for i = 1, #rects do
+			for j = i + 1, #rects do
+				local a, c = rects[i], rects[j]
+				-- Voisins (moins de 22 studs) qui peuvent être affichés EN MÊME TEMPS.
+				local near = roblox.Vector3.new(a.b.ground.X - c.b.ground.X, 0, a.b.ground.Z - c.b.ground.Z).Magnitude < 22
+				local together = a.b.id == "COFFRE" or c.b.id == "COFFRE" or (a.b.ground ~= c.b.ground and not ancestor(a.b.id, c.b.id) and not ancestor(c.b.id, a.b.id))
+				if near and together then
+					local ox = math.max(0, math.min(a.x1, c.x1) - math.max(a.x0, c.x0))
+					local oy = math.max(0, math.min(a.y1, c.y1) - math.max(a.y0, c.y0))
+					local area = math.min((a.x1 - a.x0) * (a.y1 - a.y0), (c.x1 - c.x0) * (c.y1 - c.y0))
+					if ox * oy > 0.04 * area then
+						table.insert(problems, string.format("%s : %s / %s (%d %%)", name, a.b.id, c.b.id, math.floor(ox * oy / area * 100)))
+					end
+				end
+			end
+		end
+	end
+	for _, line in problems do
+		print("   ! " .. line)
+	end
+	assert(#problems == 0, "panneaux qui se recouvrent :\n  " .. table.concat(problems, "\n  "))
 end)
 
 Harness.finish()

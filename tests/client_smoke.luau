@@ -398,6 +398,30 @@ test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement
 	assert(panel.Visible == false, "commandes affichées loin de la machine")
 	RollPanel.forceNear(true)
 	assert(panel.Visible == true, "commandes cachées à la machine")
+	-- À la machine, les panneaux d'achat éloignés (cour, stands) se cachent, puis reviennent.
+	local plot = services.PlotService:GetPlot(alice)
+	local farBoards, hiddenFar = 0, 0
+	local machineCF = RollPanel.machineCFrame()
+	for _, d in plot.ownerFolder.Pads:GetDescendants() do
+		if d.Name == "PriceGui" then
+			local localPos = machineCF:PointToObjectSpace(d.Parent.CFrame.Position)
+			local far = localPos.Magnitude > RollPanel.DeclutterRadius or localPos.Z > 4
+			if far then
+				farBoards += 1
+				if d.Enabled == false then
+					hiddenFar += 1
+				end
+			end
+		end
+	end
+	assert(farBoards > 0 and hiddenFar == farBoards, "panneaux éloignés encore visibles à la machine : " .. hiddenFar .. "/" .. farBoards)
+	RollPanel.forceNear(false)
+	for _, d in plot.ownerFolder.Pads:GetDescendants() do
+		if d.Name == "PriceGui" then
+			assert(d.Enabled, "panneau d'achat resté caché loin de la machine")
+		end
+	end
+	RollPanel.forceNear(true)
 	local r = RollPanel.refs()
 	assert(r.multi[2].tag.Visible and r.multi[3].tag.Visible, "prix Robux des passes x2 / x3 absents")
 	assert(r.multi[2].price.Text:find("R%$"), "prix du passe x2 : " .. r.multi[2].price.Text)
@@ -530,8 +554,14 @@ test("Boucle de la base vue par le client : rouler, collecter, poser une unité"
 	assert(data.DisplayPins["2"] == false, "case non libérée")
 	assert(services.CharacterService:GetDisplayed(alice)[2] == nil, "la case libérée a été reremplie")
 	-- Le menu ne se reconstruit pas à chaque synchro si rien n'a changé.
+	-- (on attend d'abord la synchro groupée de la libération : 0,25 s côté serveur ; l'XP passive
+	-- des unités exposées est suspendue le temps du contrôle : un niveau gagné change VRAIMENT
+	-- les cartes, et la grille doit alors être reconstruite)
+	local addXP = services.CharacterService.AddXP
+	services.CharacterService.AddXP = function() end
+	task.wait(0.5)
 	Remotes.event("OpenMenu"):FireClient(alice, "PlaceUnit", { slot = 2 })
-	task.wait(0.2)
+	task.wait(0.4)
 	local firstGrid = nil
 	for _, d in root:GetDescendants() do
 		if d.Name == "Card" and d:IsA("TextButton") then
@@ -545,6 +575,7 @@ test("Boucle de la base vue par le client : rouler, collecter, poser une unité"
 	local okAlive, gridParent = pcall(function()
 		return firstGrid.Parent
 	end)
+	services.CharacterService.AddXP = addXP
 	assert(okAlive and gridParent ~= nil, "la grille a été reconstruite sans changement")
 	Menus.close("PlaceUnit")
 	assert(services.PlotService:PlaceUnit(alice, 2, "auto"), "remplissage auto refusé")

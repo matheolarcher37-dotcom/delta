@@ -143,7 +143,7 @@ end
 
 local PANEL_W, PANEL_H = 660, 146
 -- Au-dessus des boutons de voyage rapide et de la barre de conseils (bas du HUD).
-local PANEL_BOTTOM = 128
+local PANEL_BOTTOM = 142 -- au moins 12 px au-dessus de la barre de navigation du bas
 
 local function multiButton(parent: Instance, n: number, x: number)
 	local holder = new("Frame", {
@@ -505,12 +505,49 @@ local function refresh()
 	refs.pull.Visible = near and #queue > 0
 end
 
+-- À la machine, les panneaux d'achat éloignés (stands...) ou situés derrière l'estrade (cour) se
+-- cachent pour ne pas se dessiner derrière le perso tiré ; ils reviennent dès qu'on s'éloigne.
+RollPanel.DeclutterRadius = 20
+local hiddenBoards: { [BillboardGui]: boolean } = {}
+local function declutterBoards(active: boolean)
+	for gui in hiddenBoards do
+		if gui.Parent then
+			gui.Enabled = true
+		end
+	end
+	table.clear(hiddenBoards)
+	local cf = active and RollPanel.machineCFrame()
+	if not cf then
+		return
+	end
+	local world = workspace:FindFirstChild("World")
+	local plots = world and world:FindFirstChild("Plots")
+	local plot = plots and plots:FindFirstChild("Plot" .. tostring(player:GetAttribute("PlotIndex")))
+	local owner = plot and plot:FindFirstChild("Owner")
+	local pads = owner and owner:FindFirstChild("Pads")
+	if not pads then
+		return
+	end
+	for _, d in pads:GetDescendants() do
+		if d:IsA("BillboardGui") and d.Name == "PriceGui" and d.Enabled then
+			local adornee = d.Adornee or d.Parent
+			-- loin de la machine, ou DERRIÈRE l'estrade (côté cour : il se dessinerait derrière le perso tiré)
+			local localPos = adornee and adornee:IsA("BasePart") and cf:PointToObjectSpace(adornee.CFrame.Position)
+			if localPos and (localPos.Magnitude > RollPanel.DeclutterRadius or localPos.Z > 4) then
+				d.Enabled = false
+				hiddenBoards[d] = true
+			end
+		end
+	end
+end
+
 -- Affiche / cache les commandes selon la position du joueur.
 local function setNear(value: boolean)
 	if value == near then
 		return
 	end
 	near = value
+	pcall(declutterBoards, value)
 	refs.panel.Visible = value
 	if value then
 		refs.scale.Scale = 0.85
@@ -560,6 +597,7 @@ function RollPanel.init(gui: ScreenGui, hudRoot: Frame?)
 			tick += 1
 			if near and tick % 4 == 0 then
 				refresh()
+				pcall(declutterBoards, true) -- (nouveaux boutons après un achat)
 			end
 			task.wait(0.25)
 		end

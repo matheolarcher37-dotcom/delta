@@ -21,6 +21,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Characters = require(Shared.Config.Characters)
 local Economy = require(Shared.Config.Economy)
 local Mutations = require(Shared.Config.Mutations)
+local Formulas = require(Shared.Modules.Formulas)
 local Universes = require(Shared.Config.Universes)
 
 local Theme = require(script.Parent.Theme)
@@ -139,18 +140,14 @@ local function save()
 	end)
 end
 
--- Raretés proposées : toutes celles de la machine qui existent vraiment chez les persos.
-local function rarityList(): { string }
-	local present = {}
-	for _, def in Characters.List do
-		present[def.rarity] = true
-	end
+-- Raretés proposées : toutes celles de la machine (comme sur la capture). Une rareté
+-- facultative sans aucun perso dans l'univers actuel est affichée grisée.
+local function rarityList(): { { id: string, empty: boolean } }
+	local universe = State.universe()
+	local pools = Formulas.rollPools(universe and universe.id)
 	local list = {}
 	for _, id in Economy.RollOrder do
-		local info = Economy.RollRarities[id]
-		if not info.optional or present[id] then
-			table.insert(list, id)
-		end
+		table.insert(list, { id = id, empty = not Formulas.rollRarityAvailable(id, pools) })
 	end
 	return list
 end
@@ -219,7 +216,7 @@ local function setFlat(button: TextButton, value: boolean, onText: string?, offT
 end
 
 -- Ligne d'une liste (rareté ou mutation) : nom coloré à gauche, Activé / Désactivé à droite.
-local function listRow(parent: Instance, order: number, name: string, color: Color3, rainbow: boolean?, get: () -> boolean, set: (boolean) -> ())
+local function listRow(parent: Instance, order: number, name: string, color: Color3, rainbow: boolean?, get: () -> boolean, set: (boolean) -> (), note: string?)
 	local row = new("Frame", {
 		Name = "Row_" .. name,
 		Size = UDim2.new(1, -16, 0, 60),
@@ -262,6 +259,25 @@ local function listRow(parent: Instance, order: number, name: string, color: Col
 		save()
 	end)
 	setFlat(toggle, get())
+	if note then
+		-- Ligne grisée (ex. aucun perso de cette rareté dans l'univers actuel) : le réglage reste
+		-- modifiable (il servira dans un autre univers), mais la ligne est atténuée.
+		row.BackgroundTransparency = 0.45
+		label.TextTransparency = 0.45
+		label.Size = UDim2.new(1, -170, 0, 26)
+		label.Position = UDim2.fromOffset(24, 6)
+		text(row, note, {
+			Name = "Note",
+			Size = UDim2.new(1, -170, 0, 18),
+			Position = UDim2.fromOffset(24, 34),
+			TextColor3 = rgb(170, 170, 178),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			FontFace = Theme.Faces.Bold,
+			StrokeThickness = 1,
+			ZIndex = 4,
+		})
+		toggle.BackgroundTransparency = 0.35
+	end
 	return row, toggle
 end
 
@@ -371,7 +387,7 @@ local function buildTitle(panel: Frame)
 	local tab = new("Frame", {
 		Name = "TitleTab",
 		Position = UDim2.fromOffset(-24, -26),
-		Size = UDim2.fromOffset(480, 74),
+		Size = UDim2.fromOffset(560, 74),
 		BackgroundColor3 = WHITE,
 		BorderSizePixel = 0,
 		ZIndex = 6,
@@ -395,7 +411,7 @@ local function buildTitle(panel: Frame)
 	local under = new("Frame", {
 		Name = "TitleUnder",
 		Position = UDim2.fromOffset(-12, 40),
-		Size = UDim2.fromOffset(480, 26),
+		Size = UDim2.fromOffset(560, 26),
 		BackgroundColor3 = rgb(120, 50, 230),
 		BorderSizePixel = 0,
 		ZIndex = 5,
@@ -409,14 +425,14 @@ local function buildTitle(panel: Frame)
 	})
 	text(tab, "Roulement automatique", {
 		Name = "Title",
-		Position = UDim2.fromOffset(50, 16),
-		Size = UDim2.new(1, -96, 0, 34),
+		Position = UDim2.fromOffset(52, 15),
+		Size = UDim2.new(1, -110, 0, 40),
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextWrapped = false,
+		TextWrapped = false, -- une seule ligne (la boîte est assez large pour le titre entier)
 		FontFace = Theme.Faces.Heavy,
 		ZIndex = 7,
 		StrokeThickness = 2.5,
-		MaxSize = 30,
+		MaxSize = 32,
 	})
 end
 
@@ -675,9 +691,16 @@ local function fillAdvanced()
 	end
 	sectionTitle(scroll, "Raretés voulues", nextOrder(), rgb(255, 214, 40)).ZIndex = 12
 	local rarities = grid(scroll, nextOrder(), 36)
-	for i, id in rarityList() do
-		local info = Theme.rarity(id)
-		chip(rarities, i, info.name, info.rainbow and C.Magenta or info.color, "buyRarities", id)
+	-- (seulement les raretés qu'au moins un perso du jeu possède)
+	local present = {}
+	for _, def in Characters.List do
+		present[def.rarity] = true
+	end
+	for i, item in rarityList() do
+		if present[item.id] then
+			local info = Theme.rarity(item.id)
+			chip(rarities, i, info.name, info.rainbow and C.Magenta or info.color, "buyRarities", item.id)
+		end
 	end
 	-- Persos : l'univers actuel d'abord, puis les autres.
 	local current = State.universe()
@@ -705,18 +728,19 @@ local function fillLists()
 	local left = refs.leftList
 	Components.clear(left)
 	local order = 0
-	for _, id in rarityList() do
+	for _, item in rarityList() do
+		local id = item.id
 		order += 1
 		local info = Theme.rarity(id)
 		listRow(left, order, info.name, info.color, info.rainbow, function()
 			return settings.pauseRarities[id] == true
 		end, function(value)
 			settings.pauseRarities[id] = value
-		end)
+		end, item.empty and "aucun perso dans cet univers" or nil)
 	end
 	order += 1
 	sectionTitle(left, "Pause sur la mutation", order, rgb(225, 225, 230))
-	for _, id in Mutations.Order do
+	for _, id in Mutations.MenuOrder do
 		local m = Mutations.List[id]
 		order += 1
 		listRow(left, order, m.name, m.color, m.rainbow, function()
@@ -733,7 +757,7 @@ local function fillLists()
 	end, function(value)
 		settings.buyMutations[Mutations.None] = value or nil
 	end)
-	for i, id in Mutations.Order do
+	for i, id in Mutations.MenuOrder do
 		local m = Mutations.List[id]
 		listRow(right, i + 1, m.name, m.color, m.rainbow, function()
 			return settings.buyMutations[id] == true

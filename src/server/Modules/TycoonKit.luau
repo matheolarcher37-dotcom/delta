@@ -497,16 +497,20 @@ end
 -- Taille mixte (studs + pixels) : lisible de loin comme de près, à la télé comme sur mobile.
 -- Le panneau POUSSE VERS LE HAUT depuis `offset` (son bord bas y reste collé, quelle que soit la
 -- distance) : la BillboardGui fait deux fois la hauteur du panneau, qui en occupe la moitié haute.
--- Toujours au premier plan : jamais coupé par le sol, le socle ni les murs.
+-- Le bord bas est à ~7 studs du sol (au-dessus du socle, du jeton et du fantôme) et la carte ne
+-- s'étend que vers le HAUT : le sol et le socle ne la coupent jamais. PAS « toujours au premier
+-- plan » : les panneaux ne se dessinent pas à travers les murs ni par-dessus la machine.
 Kit.BoardHeight = { studs = 2.4, pixels = 34 } -- hauteur du panneau (studs + pixels)
+Kit.BoardBottom = 7 -- hauteur du bord bas du panneau au-dessus du sol (studs)
+Kit.BoardMaxDistance = 75
 function Kit.priceBoard(adornee: BasePart, title: string, effectLine: string, priceText: string, offset: Vector3): (BillboardGui, { [string]: Instance })
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "PriceGui"
 	gui.Size = UDim2.new(4.8, 84, Kit.BoardHeight.studs * 2, Kit.BoardHeight.pixels * 2)
 	gui.StudsOffsetWorldSpace = offset
-	gui.AlwaysOnTop = true
+	gui.AlwaysOnTop = false
 	gui.LightInfluence = 0
-	gui.MaxDistance = 120
+	gui.MaxDistance = Kit.BoardMaxDistance
 	gui.Adornee = adornee
 	gui.Parent = adornee
 

@@ -1,10 +1,15 @@
 -- Apparence des MUTATIONS sur un modèle de perso déjà construit (serveur ou aperçu).
 --
---   • voile coloré sur les habits peints (un cadre semi-transparent par SurfaceGui, avec un
---     reflet qui balaie pour Or / Diamant / Galaxie / Angélique / Arc-en-ciel) ;
---   • cheveux et accessoires teintés (via CharacterBuilder.applyVariety quand il existe : il
---     ajoute aussi l'auréole, les ailes ou la fleur ; sinon une teinte simple ici) ;
---   • particules légères (pétales, scintillements, fumée d'ombre...).
+-- L'apparence PRINCIPALE vient de CharacterBuilder.applyVariety (partie PERSOS) quand elle
+-- existe : voile et motifs sur la tenue, cheveux, matières, auréole, ailes, particules. Ce
+-- module ne complète que ce qu'elle n'a pas posé (jamais de double voile ni de double
+-- particules). Sans applyVariety, il pose tout lui-même (repli) :
+--   • voile coloré sur les habits peints (pas sur la tête : le visage reste lisible), avec un
+--     reflet pour Or / Diamant / Galaxie / Angélique / Arc-en-ciel et un motif sur le torse
+--     (étoiles, pétales, reflet de cristal) ;
+--   • cheveux, accessoires et pièces de la tenue teintés (matières Foil, Glass, Ice...) ;
+--   • auréole (Angélique) ; particules légères (pétales, scintillements, fumée d'ombre...).
+-- Dans les deux cas, les mutations x3 et plus reçoivent un contour lumineux (Highlight).
 -- Les effets « historiques » (éclairs, givre, flammes, cubes du Néant, paillettes d'or,
 -- arc-en-ciel) sont joués en plus côté client (Controllers/AuraController).
 --
@@ -63,7 +68,14 @@ local function veil(gui: SurfaceGui, look, alpha: number)
 	frame.BackgroundColor3 = look.rainbowTint and Color3.new(1, 1, 1) or (look.tint or Color3.new(1, 1, 1))
 	frame.BackgroundTransparency = 1 - alpha
 	frame.Active = false
-	if look.rainbowTint or look.shine then
+	if look.veil then
+		-- Voile en dégradé vertical (flammes, éclairs, givre...).
+		frame.BackgroundColor3 = Color3.new(1, 1, 1)
+		local gradient = Instance.new("UIGradient")
+		gradient.Rotation = 90
+		gradient.Color = colorSequence(look.veil)
+		gradient.Parent = frame
+	elseif look.rainbowTint or look.shine then
 		local gradient = Instance.new("UIGradient")
 		gradient.Rotation = 35
 		if look.rainbowTint then
@@ -83,23 +95,92 @@ local function veil(gui: SurfaceGui, look, alpha: number)
 	frame.Parent = gui
 end
 
--- Teinte simple des cheveux / accessoires (si CharacterBuilder.applyVariety n'existe pas).
-local function tintHair(model: Model, look)
-	if not look.hair then
-		return
+-- Petits motifs peints sur le torse (étoiles, pétales, reflet de cristal), sous forme de pastilles.
+local function motif(gui: SurfaceGui, kind: string)
+	local function dot(x: number, y: number, w: number, h: number, color: Color3, transparency: number, rotation: number?)
+		local f = Instance.new("Frame")
+		f.Name = "MutationMotif"
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Position = UDim2.fromScale(x, y)
+		f.Size = UDim2.fromScale(w, h)
+		f.BackgroundColor3 = color
+		f.BackgroundTransparency = transparency
+		f.BorderSizePixel = 0
+		f.Rotation = rotation or 0
+		f.ZIndex = 1001
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = f
+		f.Parent = gui
 	end
+	if kind == "stars" then
+		for _, st in { { 0.15, 0.2, 0.05 }, { 0.72, 0.14, 0.035 }, { 0.42, 0.42, 0.03 }, { 0.85, 0.55, 0.045 }, { 0.25, 0.7, 0.035 }, { 0.6, 0.82, 0.05 } } do
+			dot(st[1], st[2], st[3], st[3] * 0.9, Color3.new(1, 1, 1), 0.05)
+		end
+		for _, at in { { 0.32, 0.3 }, { 0.75, 0.68 } } do
+			dot(at[1], at[2], 0.12, 0.02, Color3.fromRGB(230, 220, 255), 0.1)
+			dot(at[1], at[2], 0.02, 0.12, Color3.fromRGB(230, 220, 255), 0.1)
+		end
+	elseif kind == "petals" then
+		for _, at in { { 0.18, 0.18, 30 }, { 0.7, 0.28, -20 }, { 0.4, 0.55, 60 }, { 0.82, 0.72, 15 }, { 0.22, 0.82, -40 } } do
+			dot(at[1], at[2], 0.15, 0.085, Color3.fromRGB(255, 196, 220), 0.08, at[3])
+			dot(at[1] + 0.02, at[2] - 0.005, 0.06, 0.03, Color3.fromRGB(255, 240, 246), 0.2, at[3])
+		end
+	elseif kind == "glint" then
+		dot(0.35, 0.45, 0.16, 1.4, Color3.new(1, 1, 1), 0.7, 30)
+		dot(0.6, 0.5, 0.05, 1.4, Color3.new(1, 1, 1), 0.76, 30)
+	end
+end
+
+-- Teinte des cheveux, accessoires et pièces de la tenue (si CharacterBuilder.applyVariety
+-- n'existe pas ou n'a rien teint).
+local function tintParts(model: Model, look, hairToo: boolean)
 	local custom = model:GetAttribute("CustomModel") == true
+	local body = look.body
+	local i = 0
 	for _, d in model:GetDescendants() do
-		if d:IsA("BasePart") and not BODY[d.Name] and d.Transparency < 1 and (isHair(d) or custom) and not d:FindFirstChildOfClass("SurfaceGui") then
-			d.Color = d.Color:Lerp(look.hair, look.mix or 0.5)
-			if look.material then
-				d.Material = look.material
-			end
-			if look.reflectance then
-				d.Reflectance = look.reflectance
+		if d:IsA("BasePart") and not BODY[d.Name] and d.Transparency < 0.9 and d.Name ~= "FacePlate" and not d:FindFirstChildOfClass("SurfaceGui") then
+			local hair = isHair(d) or custom
+			if hair and hairToo then
+				i += 1
+				if look.rainbowTint then
+					d.Color = Color3.fromHSV((i * 0.13) % 1, 0.55, 1)
+				elseif look.hair then
+					d.Color = d.Color:Lerp(look.hair, look.mix or 0.5)
+					if look.material then
+						d.Material = look.material
+					end
+					if look.reflectance then
+						d.Reflectance = look.reflectance
+					end
+				end
+			elseif not hair and body and d.Material ~= Enum.Material.Neon then
+				d.Color = d.Color:Lerp(body.color, body.mix or 0.4)
+				if body.material then
+					d.Material = body.material
+				end
+				if body.reflectance then
+					d.Reflectance = body.reflectance
+				end
 			end
 		end
 	end
+end
+
+-- Contour lumineux des mutations rares (x3 et plus) : se voit de loin dans la base.
+local function outline(model: Model, mutation)
+	if (mutation.multiplier or 1) < 3 or model:FindFirstChild("MutationContour") then
+		return
+	end
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "MutationContour"
+	highlight.OutlineColor = mutation.color
+	highlight.OutlineTransparency = 0.25
+	highlight.FillColor = mutation.color
+	highlight.FillTransparency = 0.88
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.Adornee = model
+	highlight.Parent = model
 end
 
 -- Auréole simple (si CharacterBuilder.applyVariety n'existe pas) : 10 perles lumineuses.
@@ -115,7 +196,7 @@ local function halo(model: Model, scale: number)
 		local bead = Instance.new("Part")
 		bead.Name = "Perle"
 		bead.Shape = Enum.PartType.Ball
-		bead.Size = Vector3.one * 0.34 * scale
+		bead.Size = Vector3.one * 0.38 * scale
 		bead.Material = Enum.Material.Neon
 		bead.Color = Color3.fromRGB(255, 226, 120)
 		bead.CanCollide = false
@@ -124,7 +205,8 @@ local function halo(model: Model, scale: number)
 		bead.CastShadow = false
 		bead.Massless = true
 		bead.Anchored = head.Anchored
-		bead.CFrame = head.CFrame * CFrame.new(math.cos(a) * 0.72 * scale, 1.1 * scale, math.sin(a) * 0.72 * scale)
+		-- au-dessus des cheveux (les mèches montent jusqu'à ~1,6 au-dessus du centre de la tête)
+		bead.CFrame = head.CFrame * CFrame.new(math.cos(a) * 0.85 * scale, 1.95 * scale, math.sin(a) * 0.85 * scale)
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = head
 		weld.Part1 = bead
@@ -174,34 +256,41 @@ function MutationsFx.apply(model: Model, id: any): boolean
 	model:SetAttribute("Mutation", mutation.id)
 	local look = mutation.look or {}
 	local scale = model:GetAttribute("BaseScale") or 1
-	-- 1) Voile sur les habits peints (le visage un peu moins, pour rester lisible).
-	local alpha = look.tintAlpha or 0
-	if alpha > 0 then
-		for _, d in model:GetDescendants() do
-			if d:IsA("SurfaceGui") then
-				local part = d.Parent
-				local onHead = part and part.Name == "Head"
-				veil(d, look, onHead and alpha * 0.55 or alpha)
-			end
-		end
-	end
-	-- 2) Cheveux / accessoires (et auréole, ailes, fleur selon la mutation).
+	-- 1) Apparence principale : CharacterBuilder.applyVariety (partie PERSOS) si elle existe.
 	local applyVariety = (CharacterBuilder :: any).applyVariety
 	local done = false
 	if type(applyVariety) == "function" then
 		local ok, result = pcall(applyVariety, model, mutation.id)
 		done = ok and result == true
 	end
-	if not done then
-		tintHair(model, look)
-		if look.halo then
-			halo(model, scale)
+	local tinted = done and model:FindFirstChild("VarietyTint", true) ~= nil
+	local hasFx = done and model:FindFirstChild("VarietyFx", true) ~= nil
+	-- 2) Repli (ou complément quand applyVariety n'a pas teint la tenue) : voile sur les habits
+	--    peints SAUF la tête (le visage reste net), motif sur le torse, pièces de la tenue.
+	if not tinted then
+		local alpha = look.tintAlpha or 0
+		local torso = model:FindFirstChild("Torso")
+		for _, d in model:GetDescendants() do
+			if d:IsA("SurfaceGui") and d.Parent and d.Parent.Name ~= "Head" and d.Name ~= "Face" then
+				if alpha > 0 then
+					veil(d, look, alpha)
+				end
+				if look.motif and d.Parent == torso and (d.Face == Enum.NormalId.Front or d.Face == Enum.NormalId.Back) and not d:FindFirstChild("MutationMotif") then
+					motif(d, look.motif)
+				end
+			end
 		end
+		tintParts(model, look, not done)
 	end
-	-- 3) Particules légères.
-	if look.particles then
+	if not done and look.halo then
+		halo(model, scale)
+	end
+	-- 3) Particules légères (si applyVariety n'en a pas mis).
+	if look.particles and not hasFx then
 		particles(model, look.particles, scale)
 	end
+	-- 4) Contour lumineux des mutations x3 et plus.
+	outline(model, mutation)
 	return true
 end
 

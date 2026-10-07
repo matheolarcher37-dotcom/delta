@@ -215,7 +215,13 @@ function RollReveal.show(payload)
 	local atMachine = okNear and near == true
 	strip.AnchorPoint = atMachine and Vector2.new(1, 0) or Vector2.new(0.5, 0)
 	strip.Position = atMachine and UDim2.new(1, -16, 0, 150) or UDim2.new(0.5, 0, 0, 232)
-	stripScale.Scale = atMachine and 0.75 or 1
+	stripScale.Scale = atMachine and 0.7 or 1
+	-- (à la machine, cartes et bandeau collés au bord droit : loin de l'annonce géante centrée)
+	local stripAlign = atMachine and Enum.HorizontalAlignment.Right or Enum.HorizontalAlignment.Center
+	local stripLayout = strip:FindFirstChildOfClass("UIListLayout")
+	if stripLayout then
+		stripLayout.HorizontalAlignment = stripAlign
+	end
 	local best = nil
 	for _, result in payload.results do
 		if not best or rarityOrder(result.rarity) > rarityOrder(best.rarity) then
@@ -238,6 +244,7 @@ function RollReveal.show(payload)
 			FontFace = Theme.Faces.Title,
 			LayoutOrder = 2, -- sous les cartes (l'annonce géante occupe le haut)
 			StrokeThickness = 3,
+			TextXAlignment = atMachine and Enum.TextXAlignment.Right or Enum.TextXAlignment.Center,
 			Parent = strip,
 		})
 		Theme.gradient(bestMutation.gradient, 90).Parent = banner
@@ -249,7 +256,7 @@ function RollReveal.show(payload)
 		LayoutOrder = 1,
 		Parent = strip,
 	})
-	local layout = Theme.list(Enum.FillDirection.Horizontal, 14, Enum.HorizontalAlignment.Center)
+	local layout = Theme.list(Enum.FillDirection.Horizontal, 14, stripAlign)
 	layout.Parent = cards
 	for i, result in payload.results do
 		local holder, card = buildCard(cards, result, i)
