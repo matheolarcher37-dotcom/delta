@@ -1385,6 +1385,11 @@ local function jacketFront(S, look, c)
 	ink(S, 0.92, 0.56, 0.76, 0.6, top)
 	ink(S, 0.86, 0.7, 0.7, 0.69, top, 0.021)
 	ink(S, 0.44, 0.75, 0.62, 0.72, top, 0.02)
+	-- Bas de la veste froissé (plis encrés serrés au-dessus de l'ourlet)
+	ink(S, 0.06, 0.8, 0.2, 0.77, top, 0.018)
+	ink(S, 0.27, 0.82, 0.4, 0.78, top, 0.018)
+	ink(S, 0.62, 0.79, 0.74, 0.82, top, 0.018)
+	ink(S, 0.8, 0.77, 0.94, 0.8, top, 0.018)
 	-- Empiècement bleu nuit (épaules + haut de la poitrine), bord inférieur en deux lobes
 	S:rect(0.5, 0.28, 1, 0.28, yoke, { gradient = { shade(yoke, 0.25), yoke, lighten(yoke, 0.08) }, z = 3 })
 	for _, x in { 0.25, 0.75 } do
@@ -1501,6 +1506,9 @@ local function ninjaPants(S, look, c, side: string, isLeft: boolean, inner: stri
 		end
 		ink(S, 0.5 - d * 0.1, 0.42, 0.5 + d * 0.15, 0.38, bottom)
 		ink(S, 0.5 - d * 0.25, 0.58, 0.5 - d * 0.05, 0.62, bottom)
+		-- Plis de la cuisse
+		ink(S, 0.5 + d * 0.05, 0.2, 0.5 + d * 0.3, 0.24, bottom, 0.018)
+		ink(S, 0.5 - d * 0.3, 0.5, 0.5 - d * 0.1, 0.47, bottom, 0.018)
 		S:box(ix - d * 0.0, 0.5, 0.03, 2, inkOf(bottom), { transparency = 0.2, z = 4 })
 	else
 		jagShade(S, "r", 0.34, 0.0, 0.78, bottom, 3)

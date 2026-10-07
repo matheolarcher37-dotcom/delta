@@ -734,6 +734,13 @@ HAIR.spiky = function(ctx, c, look)
 		-- Sans bandeau : frange en pointes sur le front
 		fringe(ctx, c, { -0.38, -0.13, 0.13, 0.38 }, { 0.42, 0.5, 0.46, 0.4 }, 0.34, { alt = tip or shine, y = 0.56, spread = 0.7 })
 	end
+	if look.earLocks then
+		-- Deux mèches par côté qui descendent sous le bandeau, devant les oreilles
+		for _, side in { -1, 1 } do
+			ctx.lock("Head", c, Vector3.new(side * 0.58, base - 0.36, -0.24), Vector3.new(side * 0.14, -1, -0.08), 0.42, 0.26, { thickness = 0.1, facing = Vector3.new(side, 0, -0.4) })
+			ctx.lock("Head", under, Vector3.new(side * 0.61, base - 0.34, -0.04), Vector3.new(side * 0.2, -1, 0), 0.5, 0.28, { thickness = 0.1, facing = Vector3.new(side, 0, 0) })
+		end
+	end
 end
 
 HAIR.short = function(ctx, c, look)
