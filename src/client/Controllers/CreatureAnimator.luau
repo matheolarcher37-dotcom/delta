@@ -206,7 +206,7 @@ local function update(st, dt: number, t: number)
 	end
 
 	-- Queues : vagues décalées d'une queue à l'autre et le long de chaque queue.
-	local energy = 1 + move * 0.7 + roar * 1.3 + hit * 0.8
+	local energy = 1 + move * 0.7 + roar * 0.9 + hit * 0.8
 	for i, chain in st.tails do
 		local offset = i * 0.83 + st.seed
 		for k, entry in chain do
