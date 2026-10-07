@@ -793,6 +793,39 @@ HAIR.wild = function(ctx, c, look)
 	ctx.spike("Head", c, Vector3.new(0, 0.5, 0.55), Vector3.new(0, -0.1, 1), 0.66 * L, 0.5, { tip = tip })
 end
 
+HAIR.mane = function(ctx, c, look)
+	-- Grande crinière hérissée qui tombe dans le dos jusqu'aux reins (ermite) : front dégagé,
+	-- couronne de pointes, deux longues mèches qui encadrent le visage, trois rangées de pointes
+	-- de plus en plus longues dans le dos.
+	local under, shine = hairTones(c, look)
+	local L = look.hairLength or 1
+	cap(ctx, c, { color2 = under, backLength = 1.25, napeLift = 0.1 })
+	scales(ctx, c, shine, under, 0.5, 0.4, { front = false })
+	fringe(ctx, c, { -0.36, 0.36 }, { 0.34, 0.34 }, 0.32, { alt = shine, y = 0.6, spread = 1.4, out = 0.3 })
+	ctx.burst("Head", Vector3.new(0, 0.62, 0.08), Vector3.new(0.6, 0.34, 0.62), c, {
+		{ 0, 15, 0.7, 0.5, shine, 0.8 },
+		{ 225, 40, 0.75, 0.52, nil, 0.7 },
+		{ 315, 40, 0.75, 0.52, shine, 0.7 },
+		{ 180, 55, 0.7, 0.5, nil, 0.5 },
+		{ 0, 55, 0.7, 0.5, nil, 0.5 },
+		{ 135, 50, 0.8, 0.52, under, 0.5 },
+		{ 45, 50, 0.8, 0.52, under, 0.5 },
+		{ 90, 45, 0.85, 0.54, nil, 0.5 },
+	}, { sink = 0.78, lift = 0.5 })
+	for _, side in { -1, 1 } do
+		ctx.lock("Head", c, Vector3.new(side * 0.58, 0.42, -0.28), Vector3.new(side * 0.12, -1, -0.12), 1.05, 0.4, { thickness = 0.14, facing = Vector3.new(side, 0, -0.4) })
+		ctx.lock("Head", shine, Vector3.new(side * 0.6, 0.3, -0.18), Vector3.new(side * 0.2, -1, -0.05), 0.75, 0.22, { thickness = 0.08, facing = Vector3.new(side, 0, -0.4) })
+		ctx.spike("Head", under, Vector3.new(side * 0.6, 0.2, 0.15), Vector3.new(side * 0.5, -1, 0.3), 0.9 * L, 0.5, { cross = false })
+	end
+	for row = 0, 2 do
+		for i, x in { -0.42, -0.14, 0.14, 0.42 } do
+			local tone = (i + row) % 3 == 0 and shine or ((i + row) % 3 == 1 and c or under)
+			local from = Vector3.new(x * (1 - row * 0.12), 0.32 - row * 0.28, 0.5 + row * 0.08)
+			ctx.spike("Head", tone, from, Vector3.new(x * 0.45, -1, 0.4 - row * 0.12), (1.1 + row * 0.6) * L, 0.62 - row * 0.04, { cross = false })
+		end
+	end
+end
+
 HAIR.tall_spiky = function(ctx, c, look)
 	HAIR.wild(ctx, c, look)
 	-- Très longue crinière jusqu'aux jambes.
@@ -885,7 +918,10 @@ HAIR.long = function(ctx, c, look)
 			curl = Vector3.new(side * 0.12, 0, 0.02),
 		})
 	end
-	if look.forehead then
+	if look.bangs == "blunt" then
+		-- Frange droite coupée au-dessus des sourcils (princesse) : mèches courtes et serrées
+		sleekFringe(ctx, c, { -0.4, -0.2, 0, 0.2, 0.4 }, { 0.2, 0.24, 0.22, 0.24, 0.2 }, 0.27, { y = 0.66, spread = 0.2, out = 0.02 })
+	elseif look.forehead then
 		-- Front dégagé, raie au milieu : mèches qui partent vers les tempes
 		sleekFringe(ctx, c, { -0.3, -0.12, 0.12, 0.3 }, { 0.4, 0.3, 0.3, 0.4 }, 0.26, { y = 0.62, spread = 2.2, out = 0.06, flick = 0.8 })
 	else
@@ -1839,6 +1875,229 @@ ACC.haori_sage = function(ctx, look)
 	end)
 end
 
+-- Haori du pilier de l'eau : moitié droite unie bordeaux, moitié gauche à motif d'écaille de
+-- tortue (hexagones verts, jaunes et orangés cerclés de sombre).
+local function tortoise(S, cols: number, rows: number)
+	local ink = Color3.fromRGB(30, 34, 30)
+	local tones = { Color3.fromRGB(70, 140, 80), Color3.fromRGB(226, 190, 70), Color3.fromRGB(200, 120, 50), Color3.fromRGB(110, 170, 90) }
+	S:rect(0.5, 0.5, 1, 1, ink, { z = 1 })
+	if S.lite then
+		-- Aperçu en pièces : simple damier de deux tons (budget)
+		for r = 0, 2 do
+			for col = 0, 1 do
+				S:rect((col + 0.5) / 2, (r + 0.5) / 3, 0.46, 0.3, tones[(r + col) % 2 + 1], { z = 2 })
+			end
+		end
+		return
+	end
+	-- Hexagones à sommets plats (côté `a` en studs) : chacun = trois rectangles a x a*sqrt(3)
+	-- tournés de 0, 60 et 120 degrés ; on laisse un liseré sombre entre les écailles.
+	local a = S.w / (cols * 1.5)
+	local inner = a * 0.86
+	local dy = math.sqrt(3) * a
+	for col = 0, cols do
+		for r = (col % 2 == 1) and -1 or 0, math.ceil(S.h / dy) - 1 do
+			local x = (col * 1.5 * a) / S.w
+			local y = (r * dy + (col % 2) * dy / 2 + dy / 2) / S.h
+			local tone = tones[(col * 2 + r) % #tones + 1]
+			for k = 0, 2 do
+				S:box(x, y, inner, inner * math.sqrt(3), tone, { rotation = k * 60, z = 2 })
+			end
+		end
+	end
+	local _ = rows
+end
+
+local function haoriSides(ctx, look, color: Color3, left: (any, string) -> (), right: (any, string) -> ())
+	-- Variante de haoriBase : motif différent pour chaque moitié (dos coupé en deux).
+	local length = 2.7
+	local y = HAORI_TOP - length / 2
+	local mode = ctx.paint == "parts" and "parts" or nil
+	for _, side in { -1, 1 } do
+		local paint = side < 0 and left or right
+		local backHalf = ctx.add("Torso", "HaoriBack", Vector3.new(1.07, length, 0.1), CFrame.new(side * 0.535, y, 0.56), color)
+		Painter.panel(backHalf, Enum.NormalId.Back, mode, color, function(S)
+			paint(S, "back")
+		end, { folds = false, edges = false })
+		local front = ctx.add("Torso", "HaoriFront", Vector3.new(0.62, length, 0.1), CFrame.new(side * 0.76, y, -0.56), color)
+		Painter.panel(front, Enum.NormalId.Front, mode, color, function(S)
+			paint(S, "front")
+		end, { folds = false, edges = false })
+		ctx.add("Torso", "HaoriSide", Vector3.new(0.1, length, 1.22), CFrame.new(side * 1.07, y, 0), color)
+		local limb = side < 0 and "Left Arm" or "Right Arm"
+		local sleeve = ctx.add(limb, "HaoriSleeve", Vector3.new(1.22, 1.3, 1.22), CFrame.new(0, 0.38, 0), color)
+		local outer = side < 0 and Enum.NormalId.Left or Enum.NormalId.Right
+		for _, face in { Enum.NormalId.Front, Enum.NormalId.Back, outer } do
+			Painter.panel(sleeve, face, mode, color, function(S)
+				paint(S, face == Enum.NormalId.Back and "sleeveBack" or "sleeve")
+			end, { folds = false, edges = false })
+		end
+	end
+	local _ = look
+end
+
+ACC.haori_giyu = function(ctx, look)
+	local maroon = look.accColor or Color3.fromRGB(128, 34, 40)
+	local plain = function(S, kind)
+		Painter.fold(S, 0.3, 0.2, 0.4, 0.8, maroon, { w = 0.1, z = 4 })
+		local _ = kind
+	end
+	local shell = function(S, kind)
+		if kind == "sleeveBack" then
+			return plain(S, kind)
+		end
+		tortoise(S, 2, 0)
+	end
+	-- Moitié droite (côté +X du perso) unie, moitié gauche en écaille
+	haoriSides(ctx, look, maroon, shell, plain)
+end
+
+-- Haori du pilier de l'insecte : blanc qui vire au vert d'eau puis au violet vers le bas, avec des
+-- nervures noires d'ailes de papillon.
+ACC.haori_butterfly = function(ctx, look)
+	local white = Color3.fromRGB(246, 246, 250)
+	local teal = look.accColor or Color3.fromRGB(80, 200, 180)
+	local violet = Color3.fromRGB(150, 90, 200)
+	haoriBase(ctx, look, white, function(S, kind)
+		S:rect(0.5, 0.75, 1, 0.5, teal, { gradient = { white, teal, violet }, gradientRotation = 90, transparency = 0, z = 2 })
+		if S.lite then
+			return
+		end
+		local n = kind == "back" and 4 or (kind == "sleeve" and 2 or 1)
+		local ink = Color3.fromRGB(30, 30, 40)
+		for i = 0, n - 1 do
+			local x = (i + 0.5) / n
+			S:line(x, 0.45, x - 0.35 / n, 0.98, 0.02, ink, { z = 3 })
+			S:line(x, 0.45, x + 0.35 / n, 0.98, 0.02, ink, { z = 3 })
+			S:line(x, 0.5, x, 0.98, 0.015, ink, { z = 3 })
+			S:oval(x - 0.22 / n, 0.85, 0.12, 0.12, white, { transparency = 0.2, z = 3 })
+			S:oval(x + 0.22 / n, 0.85, 0.12, 0.12, white, { transparency = 0.2, z = 3 })
+		end
+		S:rect(0.5, 0.985, 1, S:dy(0.06), ink, { z = 4 })
+	end)
+end
+
+-- Haori rouge de l'ermite aux crapauds : gros cercles jaunes devant et dans le dos.
+ACC.haori_jiriya = function(ctx, look)
+	local red = look.accColor or Color3.fromRGB(196, 42, 40)
+	local yellow = Color3.fromRGB(246, 206, 60)
+	haoriBase(ctx, look, red, function(S, kind)
+		if kind == "sleeve" then
+			S:rect(0.5, 0.96, 1, 0.08, darken(red, 0.4), { z = 2 })
+			return
+		end
+		local d = kind == "back" and 0.42 or 0.5
+		S:oval(0.5, 0.42, d * S.w, d * S.w, yellow, { stroke = darken(yellow, 0.5), strokeThickness = 1.4, z = 3 })
+		if kind == "back" then
+			S:oval(0.5, 0.42, d * S.w * 0.7, d * S.w * 0.7, red, { transparency = 1, stroke = darken(yellow, 0.4), strokeThickness = 1, z = 4 })
+		end
+		S:rect(0.5, 0.97, 1, 0.06, darken(red, 0.4), { z = 2 })
+	end)
+end
+
+-- Grand rouleau porté dans le dos (sangle en travers de la poitrine).
+ACC.scroll_back = function(ctx, look)
+	local paper = Color3.fromRGB(226, 208, 168)
+	local cap = look.scrollCap or Color3.fromRGB(130, 40, 36)
+	local at = CFrame.new(0.15, -0.1, 0.98) * CFrame.Angles(0, 0, -0.3)
+	ctx.vcyl("Torso", "Scroll", 2.5, 0.78, at, paper)
+	ctx.vcyl("Torso", "ScrollBand", 0.14, 0.8, at * CFrame.new(0, 0.5, 0), cap)
+	for _, y in { -1.32, 1.32 } do
+		ctx.vcyl("Torso", "ScrollCap", 0.16, 0.86, at * CFrame.new(0, y, 0), cap)
+		ctx.vcyl("Torso", "ScrollKnob", 0.14, 0.4, at * CFrame.new(0, y + (y > 0 and 0.14 or -0.14), 0), darken(cap, 0.3))
+	end
+	local strap = Color3.fromRGB(70, 50, 40)
+	ctx.add("Torso", "ScrollStrap", Vector3.new(0.18, 2.7, 0.06), CFrame.new(0, 0.05, -0.53) * CFrame.Angles(0, 0, 0.62), strap)
+end
+
+-- Bandeau à cornes de l'ermite : plaque « 油 » (huile) et deux petites cornes.
+ACC.horned_headband = function(ctx, look)
+	headbandBase(ctx, look, 0, false)
+	local y = look.headbandY or 0.4
+	local metal = look.plateColor or METAL
+	local plate = ctx.add("Head", "OilPlate", Vector3.new(0.5, 0.42, 0.06), CFrame.new(0, y + 0.02, -0.72), metal, { Material = Enum.Material.Metal, Reflectance = 0.15 })
+	local mode = ctx.paint == "parts" and "parts" or nil
+	local S = Painter.sheet(plate, Enum.NormalId.Front, mode, "Oil", 120)
+	S:rect(0.5, 0.5, 1, 1, metal, { gradient = { lighten(metal, 0.3), metal, darken(metal, 0.2) }, gradientRotation = 70, z = 1 })
+	S:rect(0.5, 0.5, 0.86, 0.82, metal, { transparency = 1, stroke = darken(metal, 0.5), strokeThickness = 1.2, z = 2 })
+	if not S.lite then
+		local label = Instance.new("TextLabel")
+		label.AnchorPoint = Vector2.new(0.5, 0.5)
+		label.Position = UDim2.fromScale(0.5, 0.52)
+		label.Size = UDim2.fromScale(0.8, 0.8)
+		label.BackgroundTransparency = 1
+		label.Text = "油"
+		label.TextScaled = true
+		label.Font = Enum.Font.GothamBlack
+		label.TextColor3 = Color3.fromRGB(40, 40, 50)
+		label.ZIndex = 5
+		label.Parent = S.g
+	end
+	for _, side in { -1, 1 } do
+		ctx.cone("Head", CFrame.new(side * 0.2, y + 0.2, -0.72) * CFrame.Angles(0, 0, -side * 0.35), 0.3, 0.13, 0.1, metal, darken(metal, 0.25), nil, "OilHorn")
+	end
+end
+
+-- Bandeau ninja noué autour du cou (plaque à la feuille sur la gorge).
+ACC.headband_neck = function(ctx, look)
+	local band = look.headbandColor or Color3.fromRGB(22, 34, 84)
+	local metal = look.plateColor or METAL
+	ctx.vcyl("Torso", "NeckBand", 0.24, 1.34, CFrame.new(0, 1.08, 0), band)
+	local plate = ctx.add("Torso", "NeckPlate", Vector3.new(0.5, 0.22, 0.05), CFrame.new(0, 1.08, -0.68), metal, { Material = Enum.Material.Metal, Reflectance = 0.15 })
+	paintPanel(ctx, plate, Enum.NormalId.Front, function(canvas)
+		Painter.rect(canvas, 0.5, 0.5, 1, 1, metal, { gradient = { lighten(metal, 0.35), metal, darken(metal, 0.18) }, gradientRotation = 70, z = 1 })
+		leafSymbol(canvas, Color3.fromRGB(60, 72, 92), false, ctx.paint == "parts" and metal or nil)
+	end)
+end
+
+-- Chapeau de cow-boy orange (pirate de feu) : bord relevé sur les côtés, ruban, deux badges
+-- (sourire et grimace), cordon qui pend sur la nuque.
+ACC.cowboy_hat = function(ctx, look)
+	local orange = look.hatColor or Color3.fromRGB(232, 128, 40)
+	local band = darken(orange, 0.45)
+	local tilt = CFrame.Angles(math.rad(10), 0, 0)
+	ctx.vcyl("Head", "HatBrim", 0.08, 2.1, CFrame.new(0, 0.6, 0.06) * tilt, orange)
+	for _, side in { -1, 1 } do
+		ctx.add("Head", "HatBrimCurl", Vector3.new(0.34, 0.08, 1.3), CFrame.new(side * 1.0, 0.7, 0.06) * tilt * CFrame.Angles(0, 0, side * 0.6), orange)
+	end
+	ctx.vcyl("Head", "HatCrown", 0.52, 1.3, CFrame.new(0, 0.88, 0.1) * tilt, orange)
+	ctx.ball("Head", "HatTop", Vector3.new(1.3, 0.32, 1.3), CFrame.new(0, 1.13, 0.13) * tilt, orange)
+	ctx.add("Head", "HatCrease", Vector3.new(0.12, 0.1, 0.9), CFrame.new(0, 1.26, 0.13) * tilt, darken(orange, 0.2))
+	ctx.vcyl("Head", "HatBand", 0.12, 1.32, CFrame.new(0, 0.7, 0.08) * tilt, band)
+	for i, e in { { -0.22, Color3.fromRGB(250, 220, 60) }, { 0.22, Color3.fromRGB(80, 150, 230) } } do
+		local at = CFrame.new(e[1], 0.93, -0.58) * tilt * CFrame.Angles(0, math.pi / 2, 0)
+		ctx.cyl("Head", "HatPin", 0.05, 0.2, at, e[2])
+		-- yeux et bouche du badge (sourire / grimace)
+		for _, dx in { -0.04, 0.04 } do
+			ctx.add("Head", "HatPinFace", Vector3.new(0.025, 0.035, 0.02), CFrame.new(e[1] + dx, 0.955, -0.615) * tilt, BLACK)
+		end
+		ctx.add("Head", "HatPinFace", Vector3.new(0.09, 0.02, 0.02), CFrame.new(e[1], i == 1 and 0.9 or 0.905, -0.615) * tilt * CFrame.Angles(0, 0, i == 1 and 0 or 0.25), BLACK)
+	end
+	ctx.strand("Head", band, Vector3.new(0, 0.5, 0.62), Vector3.new(0, -1, 0.3), 0.7, 0.05, 0.05)
+end
+
+-- Collier de grosses perles rouges.
+ACC.bead_necklace = function(ctx, look)
+	local red = look.beadColor or Color3.fromRGB(200, 30, 36)
+	for i = 0, 11 do
+		local a = (i / 12) * math.pi * 2
+		local x, z = math.sin(a) * 0.62, -math.cos(a) * 0.62
+		local y = 1.02 - (math.cos(a) > 0 and math.cos(a) * 0.22 or 0)
+		ctx.ball("Torso", "Bead", Vector3.new(0.2, 0.2, 0.2), CFrame.new(x, y, z * 0.95), red, { Reflectance = 0.1 })
+	end
+	local _ = look
+end
+
+-- Deux petites couettes hérissées sur le haut du crâne (exorciste du sang).
+ACC.twin_tufts = function(ctx, look)
+	local c = look.hairColor or BLACK
+	for _, side in { -1, 1 } do
+		ctx.ball("Head", "TuftTie", Vector3.new(0.18, 0.12, 0.18), CFrame.new(side * 0.36, 0.78, 0.15), darken(c, 0.3))
+		ctx.spike("Head", c, Vector3.new(side * 0.38, 0.82, 0.15), Vector3.new(side * 0.8, 1, 0.1), 0.5, 0.32)
+		ctx.spike("Head", c, Vector3.new(side * 0.4, 0.82, 0.2), Vector3.new(side * 1, 0.4, 0.4), 0.42, 0.28)
+	end
+end
+
 -- Katana au fourreau, détaillé comme un vrai sabre japonais :
 --   * fourreau (saya) laqué avec reflet, embout (kojiri) et embouchure (koiguchi) en métal,
 --     bouton (kurikata) et cordon (sageo) noué qui s'enroule ;
@@ -2669,7 +2928,7 @@ export type BuildOptions = {
 	paint: string?, -- "gui" (par défaut) ou "parts" (aperçus des menus)
 }
 
-local HATS = { "boar_head", "hood_full", "straw_hat", "volcano", "dome", "turban", "cap", "bandana" }
+local HATS = { "boar_head", "hood_full", "straw_hat", "volcano", "dome", "turban", "cap", "bandana", "cowboy_hat" }
 
 function CharacterBuilder.build(look, options: BuildOptions?): Model
 	local opts = options or {}
@@ -2692,7 +2951,7 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 	if not covered then
 		local builder = HAIR[look.hair or "short"] or HAIR.short
 		builder(ctx, hairColor, look)
-	elseif (has(look, "straw_hat") or has(look, "cap") or has(look, "bandana")) and look.hair ~= "none" and look.hair ~= "bald" then
+	elseif (has(look, "straw_hat") or has(look, "cap") or has(look, "bandana") or has(look, "cowboy_hat")) and look.hair ~= "none" and look.hair ~= "bald" then
 		-- Cheveux visibles sous le chapeau : nuque, mèches sur les côtés et frange en bataille.
 		local under, shine = hairTones(hairColor, look)
 		cap(ctx, under, { height = 0.7, lift = -0.06, backLength = 1.3 })

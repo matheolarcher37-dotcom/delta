@@ -781,6 +781,27 @@ local function faceMarks(T, look, skin: Color3, eyeX: number, eyeY: number)
 			end
 		end
 	end
+	if has(look, "freckles") then
+		-- Taches de rousseur sur les joues et le nez
+		local dot = Painter.shade(skin, 0.32)
+		for _, s in { -1, 1 } do
+			for i, d in { { 0.16, -0.2 }, { 0.22, -0.17 }, { 0.28, -0.21 }, { 0.2, -0.25 }, { 0.26, -0.27 } } do
+				T.oval(s * d[1], eyeY + d[2], 0.026 - (i % 2) * 0.006, 0.026 - (i % 2) * 0.006, dot, { z = 7, fine = true })
+			end
+		end
+	end
+	if has(look, "nose_line") then
+		-- Trait de sang en travers du nez (bande sombre d'une joue à l'autre)
+		local ink = look.markColor or Color3.fromRGB(70, 30, 50)
+		T.line(-0.44, eyeY - 0.12, 0.44, eyeY - 0.12, 0.05, ink, { transparency = 0.1, z = 7 })
+	end
+	if has(look, "sage_lines") then
+		-- Longues larmes rouges qui descendent des yeux (ermite)
+		local red = look.markColor or Color3.fromRGB(200, 30, 40)
+		for _, s in { -1, 1 } do
+			T.line(s * (eyeX - 0.05), eyeY - 0.1, s * (eyeX - 0.02), eyeY - 0.36, 0.03, red, { z = 7 })
+		end
+	end
 	if has(look, "tear_lines") then
 		for _, s in { -1, 1 } do
 			T.line(s * (eyeX - 0.08), eyeY - 0.1, s * (eyeX - 0.1), eyeY - 0.26, 0.018, Painter.shade(skin, 0.55), { z = 7 })
