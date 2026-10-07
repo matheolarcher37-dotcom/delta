@@ -119,16 +119,6 @@ local function B(ctx: Ctx, name: string, sx: number, sy: number, sz: number, cf:
 	return Build.deco(ctx.model, name, V3(sx, sy, sz) * ctx.u, cf, color or STONE, { Material = CARVE_MAT })
 end
 
--- Pointe en volume (pyramide de 4 coins) : base au repère `cf`, pointe vers +Y local.
-local function spike(ctx: Ctx, name: string, cf: CFrame, len: number, width: number, depth: number, color: Color3?)
-	local u = ctx.u
-	ctx.count += 4
-	for _, part in Core.pyramid(ctx.model, name, cf, width * u, depth * u, len * u, color or HAIR, CARVE_MAT) do
-		part.CanCollide = false
-		part.CanQuery = false
-	end
-end
-
 -- Mèche en volume : une « flamme » de pierre arrondie qui s'effile (trois fuseaux de plus en plus
 -- fins), comme les épis doux d'une sculpture (base au repère `cf`, vers +Y local).
 local function tuft(ctx: Ctx, name: string, cf: CFrame, len: number, width: number, depth: number)

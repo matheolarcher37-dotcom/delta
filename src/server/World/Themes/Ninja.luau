@@ -23,6 +23,7 @@ local Archi = require(script.Parent.Parent.Kit.Archi)
 local Props = require(script.Parent.Parent.Kit.Props)
 local Relief = require(script.Parent.Parent.Kit.Relief)
 local Hokage = require(script.Parent.Parent.Kit.Hokage)
+local WorldBuilder = require(script.Parent.Parent.WorldBuilder)
 local Common = require(script.Parent.Common)
 
 local Ninja = {}
@@ -590,10 +591,31 @@ function Ninja.build(decor: Instance, rng: Random, _theme)
 
 	-- 6) Sur l'île : forêt d'arbres géants en bosquets, clairières et sanctuaire.
 	local mountainCF = facing(MOUNTAIN_ANGLE, MOUNTAIN_RADIUS)
-	local shrineAt = polar(60, 470)
+	-- petit sanctuaire en forêt, sur un endroit libre (jamais sur un lieu réservé : coin du
+	-- marchand, coin des échanges, zone anti-AFK, ni sur leurs accès)
+	local shrineAt = polar(75, 562)
+	for _, candidate in { polar(75, 562), polar(45, 575), polar(135, 575), polar(160, 600), polar(20, 600) } do
+		if WorldBuilder.isFree(candidate, 16) then
+			shrineAt = candidate
+			break
+		end
+	end
 	local free = Common.islandFree({ { polar(MOUNTAIN_ANGLE, 640), 240 }, { shrineAt, 22 } })
+	free = Common.dressIsland(island, rng, {
+		wood = rgb(140, 98, 64),
+		stone = rgb(178, 170, 156),
+		rock = rgb(132, 126, 118),
+		moss = rgb(80, 124, 56),
+		flowers = { rgb(240, 140, 170), rgb(250, 230, 120), rgb(250, 250, 246) },
+		lanternGlow = rgb(255, 196, 120),
+		fence = "bambou",
+		stalls = { { rgb(184, 64, 48), "bowls" }, { rgb(62, 112, 106), "masks" }, { rgb(214, 128, 62), "fruits" } },
+		extra = function(parent, cf, r)
+			Props.trainingPost(parent, cf.Position, r)
+		end,
+	}, free)
 	Common.forest(island, rng, {
-		groves = 34,
+		groves = 31,
 		perGrove = { 5, 9 },
 		radius = { 24, 44 },
 		free = free,

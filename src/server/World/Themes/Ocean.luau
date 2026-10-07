@@ -528,6 +528,20 @@ function Ocean.build(decor: Instance, rng: Random, _theme)
 	-- 6) Île : palmeraies, hibiscus, cabanes de plage, port et navires, phare.
 	local portCenter = polar(PORT_ANGLE, 650)
 	local free = Common.islandFree({ { portCenter, 50 } })
+	free = Common.dressIsland(island, rng, {
+		wood = rgb(186, 156, 120),
+		stone = rgb(214, 204, 180),
+		rock = rgb(196, 184, 160),
+		moss = rgb(80, 140, 70),
+		flowers = { rgb(230, 40, 70), rgb(250, 140, 40), rgb(250, 220, 80) },
+		lanternGlow = rgb(255, 200, 120),
+		fence = "corde",
+		ruins = false,
+		stalls = { { rgb(40, 110, 170), "fish" }, { rgb(220, 70, 60), "fruits" } },
+		extra = function(parent, cf, r)
+			Props.barrel(parent, cf, 0.8, nil, r:NextNumber() < 0.5)
+		end,
+	}, free)
 	Common.forest(island, rng, {
 		groves = 40,
 		perGrove = { 5, 9 },

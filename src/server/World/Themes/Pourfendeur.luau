@@ -816,8 +816,18 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 	-- 7) Île : forêt de bambous, cèdres et glycines, forêt aux toiles, sanctuaires de renards.
 	local spiderAt = polar(150, 600)
 	local free = Common.islandFree({ { polar(MOUNT_ANGLE, 650), 110 }, { spiderAt, 26 } })
+	free = Common.dressIsland(island, rng, {
+		wood = rgb(110, 76, 54),
+		stone = rgb(160, 156, 150),
+		rock = rgb(120, 118, 114),
+		moss = rgb(70, 110, 60),
+		flowers = { rgb(190, 150, 230), rgb(240, 170, 200), rgb(250, 250, 246) },
+		lanternGlow = rgb(255, 180, 110),
+		fence = "bambou",
+		stalls = { { rgb(70, 60, 110), "bowls" }, { rgb(150, 60, 60), "masks" } },
+	}, free)
 	Common.forest(island, rng, {
-		groves = 35,
+		groves = 28,
 		perGrove = { 5, 8 },
 		radius = { 20, 38 },
 		free = free,

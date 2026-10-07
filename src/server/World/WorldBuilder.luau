@@ -95,22 +95,20 @@ WorldBuilder.Hills = {
 	{ 251, 534, 50, 12 },
 	{ 290, 528, 48, 11 },
 	{ 312, 520, 52, 13 },
-	{ 60, 405, 32, 6 },
-	{ 300, 405, 34, 7 },
 }
 
 -- Caps rocheux au bord de l'île : arcs { de, à } en degrés.
 WorldBuilder.CliffArcs = { { -28, 16 }, { 98, 142 }, { 204, 236 } }
 WorldBuilder.CliffRadius = 646
 
--- Étang et ruisseau.
-WorldBuilder.Pond = { center = polar(180, 482), radius = 26 }
+-- Étang et ruisseau (derrière la zone anti-AFK, qui reste dégagée : voir Layout.AfkZone).
+WorldBuilder.Pond = { center = polar(180, 545), radius = 21 }
 WorldBuilder.StreamPoints = {
-	polar(180, 506),
-	polar(181.5, 540),
-	polar(178.5, 572),
-	polar(181, 604),
-	polar(179, 640),
+	polar(180, 562),
+	polar(181.5, 578),
+	polar(179, 604),
+	polar(181, 628),
+	polar(179, 652),
 	polar(180, 690),
 }
 WorldBuilder.TrailRadius = 590
@@ -176,6 +174,34 @@ function WorldBuilder.onTrail(pos: Vector3, margin: number?): boolean
 	return math.abs(flat(pos).Magnitude - WorldBuilder.TrailRadius) < 5 + (margin or 0)
 end
 
+-- Vrai si `pos` est sur l'ACCÈS d'un lieu réservé (coin des échanges, zone anti-AFK, coins du
+-- marchand, panneaux) : un couloir qui va du lieu jusqu'à la promenade, vers le centre. Le décor
+-- n'y pose rien, pour qu'on voie et qu'on atteigne ces lieux sans obstacle.
+function WorldBuilder.onAccess(pos: Vector3, margin: number?): boolean
+	local p = flat(pos)
+	local m = margin or 0
+	for _, zone in Layout.ReservedZones do
+		local c: Vector3 = zone.center
+		local r = c.Magnitude
+		if r > Layout.WalkwayOuter then
+			local dir = c.Unit
+			local along = p:Dot(dir)
+			if along > Layout.WalkwayOuter - 6 and along < r then
+				local half = (zone.radius >= 40 and 18 or 11) + m
+				if (p - dir * along).Magnitude < half then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
+-- Vrai si `pos` est dans un lieu réservé (Layout.isReserved) ou sur son accès.
+function WorldBuilder.reserved(pos: Vector3, margin: number?): boolean
+	return Layout.isReserved(pos, margin) or WorldBuilder.onAccess(pos, margin)
+end
+
 local function nearSpecial(position: Vector3, margin: number): boolean
 	local p = flat(position)
 	for _, spot in { Layout.TradeCorner, Layout.Leaderboard, Layout.InfoBoard } do
@@ -196,6 +222,7 @@ local function isFree(position: Vector3, margin: number): boolean
 	return not Layout.nearPlot(position, margin)
 		and not Layout.onPath(position, margin + 2)
 		and not nearSpecial(position, 34 + margin)
+		and not WorldBuilder.reserved(position, margin)
 		and not WorldBuilder.nearWater(position, margin)
 		and not WorldBuilder.onTrail(position, margin * 0.5)
 		and not WorldBuilder.inCliffs(position, margin)
@@ -312,8 +339,9 @@ local function buildIsland(world: Folder)
 			Core.solRole(item, "laque")
 		end
 	end
-	local pondDir = flat(WorldBuilder.Pond.center).Unit
-	Relief.steppingStones(water, WorldBuilder.Pond.center - pondDir * 70, WorldBuilder.Pond.center - pondDir * 33, TOP_PATCH, rng)
+	-- pas japonais qui longent l'étang (sur le côté : la zone anti-AFK, devant, reste dégagée)
+	local pondSide = flat(WorldBuilder.Pond.center).Unit:Cross(UP)
+	Relief.steppingStones(water, WorldBuilder.Pond.center + pondSide * 52, WorldBuilder.Pond.center + pondSide * 30, TOP_PATCH, rng)
 
 	-- Sentier de forêt (terre battue) qui fait le tour de l'île derrière les bases.
 	local trail = Build.folder(ground, "Sentier")
@@ -536,6 +564,16 @@ local NPC_NAMES = {
 	Index = "Archiviste Yumi",
 }
 
+-- Kanji peint dans les médaillons de l'enseigne de chaque stand (à la place des émojis).
+local STALL_MOTIFS = {
+	Defi = "闘", -- combat
+	Fusion = "合", -- union
+	Traits = "魂", -- âme
+	Forge = "鍛", -- forger
+	Evolution = "進", -- progresser
+	Index = "書", -- livre
+}
+
 -- Dimensions d'un stand (repère local : -Z = vers le centre du hub).
 local STALL_W = 22
 local STALL_D = 14
@@ -699,19 +737,24 @@ local function buildStall(parent: Instance, stall)
 	for _, side in { -1, 1 } do
 		Props.paperLantern(model, (cf * CFrame.new(side * (hw + 0.5), eave - 3.4, -(hd - 0.8))).Position, rgb(255, 130, 70))
 	end
-	-- Grande enseigne au-dessus de l'avant-toit (et au dos, visible depuis l'anneau).
-	local sign = Build.part(model, "Sign", Vector3.new(16, 3.4, 0.6), cf * CFrame.new(0, eave + 3.2, -(hd + 2.2)) * CFrame.Angles(math.rad(-14), 0, 0), color)
-	Build.part(model, "SignFrame", Vector3.new(16.8, 4.2, 0.4), cf * CFrame.new(0, eave + 3.2, -(hd + 1.9)) * CFrame.Angles(math.rad(-14), 0, 0), WOOD_DARK, {
-		Material = Enum.Material.Wood,
-	})
-	Build.surfaceText(sign, Enum.NormalId.Front, stall.icon .. " " .. stall.title, rgb(255, 255, 255))
-	local backSign = Build.part(model, "BackSign", Vector3.new(14, 3, 0.4), cf * CFrame.new(0, FLOOR_TOP + 9.4, hd + 0.2), color)
-	Build.surfaceText(backSign, Enum.NormalId.Back, stall.icon .. " " .. stall.title, rgb(255, 255, 255))
-	local subtitle = Build.part(model, "Subtitle", Vector3.new(12, 1.4, 0.2), cf * CFrame.new(0, FLOOR_TOP + 6.6, hd - 1.05), rgb(255, 255, 255), {
-		Transparency = 1,
-		CanCollide = false,
-	})
-	Build.surfaceText(subtitle, Enum.NormalId.Front, stall.subtitle, color:Lerp(rgb(0, 0, 0), 0.35))
+	-- Enseigne artisanale suspendue par des chaînes à une potence de bois au-dessus de l'avant-toit
+	-- (planche vieillie, cadre, ferrures, lettres peintes, médaillons kanji), et une plus petite
+	-- accrochée au dos, visible depuis l'anneau.
+	local title = Archi.titleCase(stall.title)
+	local motif = STALL_MOTIFS[stall.id] or "店"
+	local gallows = eave + 8.6
+	for _, x in { -1, 1 } do
+		Build.part(model, "SignPost", Vector3.new(0.9, 9.6, 0.9), cf * CFrame.new(x * 8.6, eave + 3.8, -(hd - 0.8)), WOOD_DARK, { Material = Enum.Material.Wood })
+		Build.deco(model, "SignBrace", Vector3.new(0.5, 0.5, 3.4), cf * CFrame.new(x * 8.6, gallows - 1.2, -(hd + 0.4)) * CFrame.Angles(math.rad(40), 0, 0), WOOD_DARK, {
+			Material = Enum.Material.Wood,
+		})
+	end
+	Build.part(model, "SignBeam", Vector3.new(19.6, 0.9, 1.1), cf * CFrame.new(0, gallows, -(hd - 0.8)), WOOD_DARK, { Material = Enum.Material.Wood })
+	Build.deco(model, "SignBeamCap", Vector3.new(20.4, 0.35, 1.5), cf * CFrame.new(0, gallows + 0.6, -(hd - 0.8)), shade(roofColor, -0.25), { Material = Enum.Material.Slate })
+	local signCF = cf * CFrame.new(0, gallows - 3.6, -(hd - 0.8))
+	Archi.carvedSign(model, signCF, 15, 3.6, title, { motif = motif, accent = color, chains = 1.25, lantern = rgb(255, 170, 90) })
+	Archi.carvedSign(model, cf * CFrame.new(0, FLOOR_TOP + 9.4, hd + 0.35) * CFrame.Angles(0, math.pi, 0), 12, 2.6, title, { motif = motif, accent = color })
+	Archi.paint(model, cf * CFrame.new(0, FLOOR_TOP + 6.6, hd - 1.05), 12, 1.4, stall.subtitle, color:Lerp(rgb(30, 20, 15), 0.55))
 	-- Bannières, caisses et tonneaux autour du stand.
 	for _, side in { -1, 1 } do
 		Props.banner(model, (cf * CFrame.new(side * (hw + 2.4), TOP_HUB, -hd + 1)).Position, 11, color, nil, math.atan2(cf.LookVector.X, cf.LookVector.Z))
@@ -1101,7 +1144,10 @@ local function buildRing(world: Folder)
 		end
 	end
 	local signCF = CFrame.lookAt(center + Vector3.new(-radius - 7, 9, 0), Vector3.new(0, 9, 0))
-	Archi.sign(arena, signCF, 14, 3, "👹 ARÈNE DU BOSS", { bg = rgb(60, 36, 36), text = rgb(255, 130, 110), posts = 7.6, both = true })
+	Archi.carvedSign(arena, signCF, 14, 3, "Arène du boss", { motif = "鬼", accent = rgb(150, 40, 36), back = true, lantern = rgb(255, 120, 80) })
+	for _, x in { -1, 1 } do
+		Build.part(arena, "SignPost", Vector3.new(0.8, 10.6, 0.8), signCF * CFrame.new(x * 7.6, -3.8, 0.5), WOOD_DARK, { Material = Enum.Material.Wood })
+	end
 	Build.folder(zone, "Enemies")
 	return zone
 end
@@ -1163,10 +1209,29 @@ local function buildTradeCorner(world: Folder)
 	Props.cargo(corner, CFrame.new(center + Vector3.new(12, 0, 20)) * CFrame.Angles(0, 0.4, 0), propRng)
 	Props.cargo(corner, CFrame.new(center + Vector3.new(10, 0, -20)) * CFrame.Angles(0, -0.3, 0), propRng)
 
-	local signCF = CFrame.lookAt(center + Vector3.new(-33, 10, 0), center + Vector3.new(-70, 10, 0))
-	Archi.sign(corner, signCF, 20, 5, "🤝 COIN DES ÉCHANGES", { posts = 7.5, bg = rgb(110, 74, 48) })
-	Props.stoneLantern(corner, center + Vector3.new(-26, 0, 22))
-	Props.stoneLantern(corner, center + Vector3.new(-26, 0, -22))
+	-- Portique d'entrée (côté promenade) avec l'enseigne artisanale suspendue : l'entrée et le
+	-- chemin qui y mène restent dégagés (aucun arbre, lampadaire ni poteau devant).
+	local signCF = CFrame.lookAt(center + Vector3.new(-31, 12.2, 0), center + Vector3.new(-70, 12.2, 0))
+	for _, side in { -1, 1 } do
+		Build.part(corner, "GatePost", Vector3.new(1.2, 17, 1.2), signCF * CFrame.new(side * 11.5, -3.7, 0), WOOD_DARK, { Material = Enum.Material.Wood })
+		Archi.block(
+			corner,
+			"GateFoot",
+			Vector3.new(2.2, 1, 2.2),
+			CFrame.new(signCF:PointToWorldSpace(Vector3.new(side * 11.5, -12.2, 0))) * (signCF - signCF.Position),
+			STONE_DARK,
+			Enum.Material.Slate
+		)
+	end
+	Build.part(corner, "GateBeam", Vector3.new(26, 1, 1.3), signCF * CFrame.new(0, 4.4, 0), WOOD_DARK, { Material = Enum.Material.Wood })
+	Build.deco(corner, "GateCap", Vector3.new(27.5, 0.45, 2), signCF * CFrame.new(0, 5.1, 0), rgb(176, 58, 46), { Material = Enum.Material.Wood })
+	Archi.carvedSign(corner, signCF * CFrame.new(0, -0.4, 0), 18, 4, "Coin des échanges", { motif = "易", accent = rgb(176, 58, 46), chains = 1.6, back = true })
+	-- chemin pavé de la promenade jusqu'à l'entrée
+	local pathFrom = Vector3.new(Layout.WalkwayOuter - 1, 0, 0)
+	Relief.road(corner, pathFrom, Vector3.new(Layout.TradeCorner.X - 30, 0, 0), 10, TOP_PATH - 0.03, { rng = Random.new(471), role = "pave", curbRole = "bordure" })
+	-- lanternes de pierre basses, de part et d'autre du portique (pas sur le passage)
+	Props.stoneLantern(corner, center + Vector3.new(-33, 0, 17))
+	Props.stoneLantern(corner, center + Vector3.new(-33, 0, -17))
 end
 
 ------------------------------------------------------------------------

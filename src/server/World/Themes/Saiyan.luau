@@ -622,6 +622,16 @@ function Saiyan.build(decor: Instance, rng: Random, _theme)
 
 	-- 5) Île : prairies, bosquets d'arbres ronds, mesas et aiguilles.
 	local free = Common.islandFree({ { polar(TOWER_ANGLE, 650), 60 } })
+	free = Common.dressIsland(island, rng, {
+		wood = rgb(176, 130, 84),
+		stone = rgb(214, 200, 170),
+		rock = rgb(170, 150, 120),
+		moss = rgb(110, 150, 70),
+		flowers = { rgb(250, 160, 40), rgb(250, 230, 90), rgb(240, 90, 80) },
+		lanternGlow = rgb(255, 210, 120),
+		fence = "piquets",
+		stalls = { { rgb(240, 130, 40), "fruits" }, { rgb(60, 110, 200), "bowls" } },
+	}, free)
 	Common.forest(island, rng, {
 		groves = 40,
 		perGrove = { 6, 10 },

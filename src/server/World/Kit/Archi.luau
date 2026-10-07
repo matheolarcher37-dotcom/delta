@@ -466,16 +466,93 @@ export type SignOptions = {
 	hanging: boolean?, -- suspendue à une potence
 }
 
--- Enseigne avec texte. `cf` = centre du panneau, -Z local = face lisible.
+-- Police des enseignes peintes à la main (lettres calligraphiées, pas la police arrondie générique).
+Archi.SignFont = Enum.Font.Fondamento
+Archi.SignPaint = rgb(238, 224, 192)
+Archi.SignInk = rgb(40, 26, 18)
+
+-- Retire un pictogramme (émoji) en tête de texte : « 🤝 COIN » -> « COIN ». Les enseignes
+-- portent un motif peint à la place. Les kanji (sans espace après) sont gardés.
+function Archi.stripIcon(text: string): string
+	local first, rest = string.match(text, "^(%S+)%s+(.+)$")
+	if first and rest and #first <= 8 and not string.find(first, "[%w]") then
+		local ok, cp = pcall(utf8.codepoint, first, 1)
+		if ok and cp >= 0x2190 and not (cp >= 0x3000 and cp <= 0x9FFF) then
+			return rest
+		end
+	end
+	return text
+end
+
+-- Met une majuscule seulement à la première lettre (« FAIRE ÉVOLUER » -> « Faire évoluer »), pour
+-- des lettres peintes plus naturelles. Gère les capitales accentuées courantes.
+local ACCENTS = { ["É"] = "é", ["È"] = "è", ["Ê"] = "ê", ["À"] = "à", ["Â"] = "â", ["Ô"] = "ô", ["Î"] = "î", ["Ç"] = "ç", ["Û"] = "û" }
+function Archi.titleCase(text: string): string
+	local lower = string.lower(text)
+	for upper, small in ACCENTS do
+		lower = string.gsub(lower, upper, small)
+	end
+	local head = string.sub(lower, 1, 1)
+	if string.match(head, "%a") then
+		return string.upper(head) .. string.sub(lower, 2)
+	end
+	return lower
+end
+
+-- Ferrures d'angle (équerres de fer et clous) sur un panneau de `w` x `h` (face -Z de `cf`).
+local function cornerIrons(parent: Instance, cf: CFrame, w: number, h: number, z: number)
+	local iron = rgb(58, 54, 52)
+	local s = math.clamp(math.min(w, h) * 0.16, 0.45, 1.3)
+	for _, x in { -1, 1 } do
+		for _, y in { -1, 1 } do
+			local corner = cf * CFrame.new(x * (w / 2 - s / 2), y * (h / 2 - s / 2), z)
+			deco(parent, "Ferrure", Vector3.new(s, s * 0.32, 0.08), corner * CFrame.new(0, y * s * 0.34, 0), iron, Enum.Material.Metal)
+			deco(parent, "Ferrure", Vector3.new(s * 0.32, s, 0.08), corner * CFrame.new(x * s * 0.34, 0, 0), iron, Enum.Material.Metal)
+			deco(parent, "Clou", Vector3.new(s * 0.16, s * 0.16, 0.12), corner * CFrame.new(x * s * 0.3, y * s * 0.3, -0.04), shade(iron, 0.25), Enum.Material.Metal)
+		end
+	end
+end
+
+-- Texte peint sur une plaque invisible juste devant `cf` (face -Z, ou +Z si `back`).
+local function paint(parent: Instance, cf: CFrame, w: number, h: number, text: string, color: Color3, font: Enum.Font?, back: boolean?): Part
+	local plaque = Build.deco(parent, "Peinture", Vector3.new(w, h, 0.05), cf, rgb(255, 255, 255), { Transparency = 1, CastShadow = false })
+	plaque.CanQuery = false
+	Build.surfaceText(plaque, back and Enum.NormalId.Back or Enum.NormalId.Front, text, color, {
+		TextStrokeTransparency = 0.72,
+		TextStrokeColor3 = Archi.SignInk,
+		Font = font or Archi.SignFont,
+		TextTransparency = 0.04,
+	})
+	return plaque
+end
+Archi.paint = paint
+
+-- Enseigne avec texte. `cf` = centre du panneau, -Z local = face lisible. Planche de bois aux
+-- lattes visibles, cadre, ferrures d'angle et lettres peintes (police calligraphiée).
 function Archi.sign(parent: Instance, cf: CFrame, w: number, h: number, text: string, o: SignOptions?): Part
 	local opts = o or {}
 	local frame = opts.frame or C.woodDark
+	text = Archi.stripIcon(text)
 	deco(parent, "SignFrame", Vector3.new(w + 0.6, h + 0.6, 0.4), cf * CFrame.new(0, 0, 0.1), frame, Enum.Material.Wood)
-	local panel = Build.part(parent, "Sign", Vector3.new(w, h, 0.5), cf, opts.bg or rgb(54, 40, 32), { Material = Enum.Material.Wood, CanCollide = false })
+	local bg = opts.bg or rgb(54, 40, 32)
+	local panel = Build.part(parent, "Sign", Vector3.new(w, h, 0.5), cf, bg, { Material = Enum.Material.WoodPlanks, CanCollide = false })
+	-- joints des lattes (le bois n'est pas une plaque lisse)
+	local slats = math.clamp(math.floor(h / 1.1), 1, 4)
+	for k = 1, slats - 1 do
+		local y = -h / 2 + k * h / slats
+		deco(parent, "Latte", Vector3.new(w, 0.08, 0.06), cf * CFrame.new(0, y, -0.26), shade(bg, -0.3), Enum.Material.Wood)
+		if opts.both then
+			deco(parent, "Latte", Vector3.new(w, 0.08, 0.06), cf * CFrame.new(0, y, 0.26), shade(bg, -0.3), Enum.Material.Wood)
+		end
+	end
+	if w > 3 and h > 1.4 then
+		cornerIrons(parent, cf, w, h, -0.29)
+	end
 	local color = opts.text or rgb(255, 232, 170)
-	Build.surfaceText(panel, Enum.NormalId.Front, text, color, { TextStrokeTransparency = 0.6, Font = opts.font or Enum.Font.GothamBlack })
+	local font = opts.font or Archi.SignFont
+	Build.surfaceText(panel, Enum.NormalId.Front, text, color, { TextStrokeTransparency = 0.72, TextStrokeColor3 = Archi.SignInk, Font = font })
 	if opts.both then
-		Build.surfaceText(panel, Enum.NormalId.Back, text, color, { TextStrokeTransparency = 0.6, Font = opts.font or Enum.Font.GothamBlack })
+		Build.surfaceText(panel, Enum.NormalId.Back, text, color, { TextStrokeTransparency = 0.72, TextStrokeColor3 = Archi.SignInk, Font = font })
 	end
 	if opts.posts then
 		for _, x in { -1, 1 } do
@@ -496,6 +573,125 @@ function Archi.sign(parent: Instance, cf: CFrame, w: number, h: number, text: st
 		end
 	end
 	return panel
+end
+
+-- Chaîne de maillons (alternés à 90°) de `a` à `b`.
+function Archi.chain(parent: Instance, a: Vector3, b: Vector3, link: number?)
+	local size = link or 0.5
+	local delta = b - a
+	local count = math.max(1, math.floor(delta.Magnitude / (size * 0.8)))
+	local iron = rgb(62, 58, 56)
+	for i = 0, count - 1 do
+		local p = a + delta * ((i + 0.5) / count)
+		local cf = CFrame.lookAt(p, p + delta.Unit) * CFrame.Angles(0, 0, (i % 2) * math.pi / 2)
+		deco(parent, "Maillon", Vector3.new(size * 0.55, size * 0.14, size), cf, iron, Enum.Material.Metal)
+	end
+end
+
+export type CarvedSignOptions = {
+	motif: string?, -- kanji peint dans un médaillon de chaque côté du texte
+	accent: Color3?, -- couleur (sourde) du médaillon
+	wood: Color3?,
+	paint: Color3?,
+	chains: number?, -- longueur des chaînes (enseigne suspendue), sinon accrochée à plat
+	back: boolean?, -- peinte des deux côtés
+	lantern: Color3?, -- petite lanterne accrochée sous un coin
+}
+
+-- Enseigne ARTISANALE : planche de bois vieillie (lattes de tons différents, nœuds), cadre en
+-- relief avec filet clair, ferrures d'angle, lettres peintes (police calligraphiée) avec un petit
+-- médaillon peint (kanji) de chaque côté, suspendue par deux chaînes à des crochets.
+-- `cf` = centre du panneau, -Z local = face lisible. Renvoie la première latte.
+function Archi.carvedSign(parent: Instance, cf: CFrame, w: number, h: number, text: string, o: CarvedSignOptions?): Part
+	local opts = o or {}
+	local wood = opts.wood or rgb(122, 86, 58)
+	local dark = shade(wood, -0.42)
+	local rng = Random.new(#text * 31 + math.floor(w * 7))
+	text = Archi.stripIcon(text)
+	-- lattes horizontales de tons différents, légèrement décalées
+	local slats = math.clamp(math.floor(h / 1.2), 2, 4)
+	local board: Part? = nil
+	for k = 0, slats - 1 do
+		local sh = h / slats
+		local y = -h / 2 + (k + 0.5) * sh
+		local slat = Build.part(
+			parent,
+			k == 0 and "Sign" or "SignLatte",
+			Vector3.new(w + rng:NextNumber(-0.15, 0.15), sh - 0.06, 0.45),
+			cf * CFrame.new(rng:NextNumber(-0.06, 0.06), y, rng:NextNumber(-0.03, 0.03)) * CFrame.Angles(0, 0, rng:NextNumber(-0.006, 0.006)),
+			shade(wood, rng:NextNumber(-0.1, 0.06)),
+			{ Material = Enum.Material.WoodPlanks, CanCollide = false }
+		)
+		board = board or slat
+	end
+	-- nœuds du bois
+	for _ = 1, math.floor(w / 3) do
+		local knot = Core.ellipsoid(
+			parent,
+			"Noeud",
+			Vector3.new(rng:NextNumber(0.3, 0.6), rng:NextNumber(0.18, 0.3), 0.06),
+			cf * CFrame.new(rng:NextNumber(-w / 2 + 1, w / 2 - 1), rng:NextNumber(-h / 2 + 0.4, h / 2 - 0.4), -0.24),
+			dark,
+			Enum.Material.Wood
+		)
+		knot.CastShadow = false
+	end
+	-- cadre en relief (quatre baguettes) et filet clair à l'intérieur
+	local t = math.clamp(h * 0.11, 0.28, 0.6)
+	for _, y in { -1, 1 } do
+		deco(parent, "Cadre", Vector3.new(w + t * 2, t, 0.7), cf * CFrame.new(0, y * (h / 2 + t / 2), -0.05), dark, Enum.Material.Wood)
+		deco(parent, "Filet", Vector3.new(w - 0.2, 0.09, 0.08), cf * CFrame.new(0, y * (h / 2 - 0.22), -0.25), shade(wood, 0.25), Enum.Material.Wood)
+	end
+	for _, x in { -1, 1 } do
+		deco(parent, "Cadre", Vector3.new(t, h, 0.7), cf * CFrame.new(x * (w / 2 + t / 2), 0, -0.05), dark, Enum.Material.Wood)
+	end
+	cornerIrons(parent, cf, w + t * 2, h + t * 2, -0.42)
+	-- médaillons peints (kanji) et texte
+	local paintColor = opts.paint or Archi.SignPaint
+	local motifW = 0
+	if opts.motif then
+		local d = h * 0.74
+		motifW = d + 0.5
+		local accent = Core.mute(opts.accent or rgb(150, 60, 40), 0.35):Lerp(dark, 0.25)
+		for _, x in { -1, 1 } do
+			local mcf = cf * CFrame.new(x * (w / 2 - d / 2 - 0.35), 0, -0.25)
+			local ring = Build.deco(parent, "MedaillonBord", Vector3.new(0.04, d + 0.18, d + 0.18), mcf * CFrame.Angles(0, math.pi / 2, 0), paintColor, {
+				Material = Enum.Material.Wood,
+				CastShadow = false,
+			})
+			ring.Shape = Enum.PartType.Cylinder
+			local disc = Build.deco(parent, "Medaillon", Vector3.new(0.06, d, d), mcf * CFrame.new(0, 0, -0.02) * CFrame.Angles(0, math.pi / 2, 0), accent, {
+				Material = Enum.Material.Wood,
+				CastShadow = false,
+			})
+			disc.Shape = Enum.PartType.Cylinder
+			paint(parent, mcf * CFrame.new(0, 0, -0.08), d * 0.8, d * 0.8, opts.motif, paintColor, Enum.Font.Fondamento)
+		end
+	end
+	paint(parent, cf * CFrame.new(0, -h * 0.02, -0.26), w - motifW * 2 - 0.4, h * 0.78, text, paintColor)
+	if opts.back then
+		paint(parent, cf * CFrame.new(0, -h * 0.02, 0.26), w - 0.8, h * 0.78, text, paintColor, nil, true)
+	end
+	-- suspension : pitons sur la planche, chaînes jusqu'aux crochets du dessus
+	if opts.chains then
+		local rot = cf - cf.Position
+		for _, x in { -1, 1 } do
+			local eye = (cf * CFrame.new(x * (w / 2 - w * 0.12), h / 2 + t + 0.2, 0)).Position
+			local hook = eye + cf.UpVector * opts.chains
+			deco(parent, "Piton", Vector3.new(0.18, 0.5, 0.18), CFrame.new(eye) * rot, rgb(62, 58, 56), Enum.Material.Metal)
+			Archi.chain(parent, eye + cf.UpVector * 0.2, hook, 0.5)
+			deco(parent, "Crochet", Vector3.new(0.5, 0.25, 0.5), CFrame.new(hook) * rot, rgb(62, 58, 56), Enum.Material.Metal)
+		end
+	end
+	if opts.lantern then
+		local pos = (cf * CFrame.new(w / 2 + t + 0.6, -h / 2 - 0.4, 0)).Position
+		deco(parent, "LanterneAttache", Vector3.new(0.1, 1.2, 0.1), CFrame.new(pos + Vector3.new(0, 0.6, 0)), rgb(62, 58, 56), Enum.Material.Metal)
+		local glow = Core.ellipsoid(parent, "Lanterne", Vector3.new(1.1, 1.5, 1.1), CFrame.new(pos - Vector3.new(0, 0.5, 0)), opts.lantern, Enum.Material.Neon)
+		glow.Transparency = 0.15
+		deco(parent, "LanterneChapeau", Vector3.new(1.2, 0.25, 1.2), CFrame.new(pos + Vector3.new(0, 0.3, 0)), rgb(40, 32, 28), Enum.Material.Wood)
+		Core.light(glow, opts.lantern, 10, 0.9)
+	end
+	return board :: Part
 end
 
 -- Enseigne verticale japonaise (kanban) fixée au mur. `cf` = centre, -Z local vers la rue.
