@@ -615,7 +615,7 @@ function Ninja.build(decor: Instance, rng: Random, _theme)
 		end,
 	}, free)
 	Common.forest(island, rng, {
-		groves = 31,
+		groves = 34,
 		perGrove = { 5, 9 },
 		radius = { 24, 44 },
 		free = free,

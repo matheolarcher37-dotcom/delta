@@ -144,8 +144,10 @@ function Common.forest(folder: Instance, rng: Random, spec: ForestSpec): number
 			end
 			if ok then
 				table.insert(taken, p)
+				-- détail complet seulement le long de la promenade (vus de près) ; plus loin, entre les
+				-- bases et sur le pourtour de l'île, le modèle allégé (même silhouette, moins de pièces)
 				local r = Vector3.new(p.X, 0, p.Z).Magnitude
-				local detail = r < 560 and "normal" or "low"
+				local detail = r < Layout.WalkwayOuter + 60 and "normal" or "low"
 				Nature.tree(entry[1], folder, Common.ground(p), { rng = rng, height = h, palette = entry[5], detail = detail })
 				planted += 1
 				n -= 1

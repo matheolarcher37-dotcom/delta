@@ -38,7 +38,7 @@ local shade = Core.shade
 local ROCK = rgb(120, 122, 128)
 local FACE = rgb(126, 128, 134)
 local HAIR = rgb(116, 118, 125)
-local JOINT = rgb(86, 88, 95) -- joints et creux entre les blocs
+local JOINT = rgb(96, 98, 105) -- joints et creux entre les blocs
 local DEEP = rgb(62, 64, 70) -- traits gravés : bouche, symbole
 local SOCKET = rgb(98, 100, 107) -- orbites creusées
 local TONES = {
@@ -586,13 +586,24 @@ end
 -- Chevelure en épis : les mèches de devant et du dessus sont couchées sur la masse (elles la
 -- recouvrent), celles de la silhouette se dressent vers le haut et les côtés, celles du fond
 -- remplissent. `len` = longueur des épis ; `lean` penche tout d'un côté.
+local SPIKY_TOP = {
+	{ { 0, 3.2, -3.12 }, { 1.1, 3.15, -2.98 }, { 2.2, 2.8, -2.52 }, { 3.1, 2.0, -1.92 }, { 3.45, 1.15, -1.45 } },
+	{ { 0, 4.65, -2.55 }, { 1.1, 4.45, -2.42 }, { 2.25, 4.1, -2.0 }, { 3.3, 3.0, -1.42 }, { 3.75, 1.8, -1.0 } },
+	{ { 0, 5.7, -0.75 }, { 1.2, 5.45, -0.68 }, { 2.35, 5.05, -0.5 }, { 3.45, 3.8, -0.35 }, { 3.95, 2.1, -0.2 } },
+	{ { 0, 5.85, 1.4 }, { 1.25, 5.75, 1.4 }, { 2.5, 5.1, 1.4 }, { 3.65, 3.8, 1.4 }, { 4.05, 2.1, 1.4 } },
+}
+
 local function spikes(ctx: Ctx, len: number, o: { lean: number?, fall: number?, wide: number?, n: number? }?)
 	local opt = o or {}
 	local lean = opt.lean or 0
 	local wide = opt.wide or 1.5
-	cap(ctx)
-	crown(ctx, { n = 6, a0 = -1.05, a1 = 1.05, p = 0.95, len = len * 0.95, w = 2.6, back = 1.2, lean = lean * 0.7, face = 0, inset = 1.0, wave = 0.2 })
-	crown(ctx, { n = 5, a0 = -0.85, a1 = 0.85, p = 0.5, len = len, w = 2.6, back = 0.8, lean = lean * 0.8, face = 0.15, inset = 1.0, wave = 0.25 })
+	-- masse facettée de la chevelure (les arêtes alternées dessinent des mèches couchées)
+	surface(ctx, SPIKY_TOP, V3(0, 1.5, 0.8), 2.2)
+	-- mèches couchées vers l'arrière sur le devant de la masse
+	for k = -2, 2 do
+		local x = k * 0.95
+		lock(ctx, V3(x, 3.35 - math.abs(k) * 0.12, -3.2 + math.abs(k) * 0.12), V3(x * 0.12 + lean * 0.4, 1, 0.42), len * 0.75, 1.9, 0.45, V3(x * 0.2, 0.5, -1), 0.3)
+	end
 	crown(ctx, {
 		n = opt.n or 8,
 		a0 = -wide + math.min(lean, 0) * 0.5,
@@ -682,7 +693,7 @@ end
 -- Hiruzen : front dégagé et ridé, cheveux dressés en flamme, bouc effilé.
 STYLES.epis = function(ctx)
 	face(ctx, { brow = 0.07, age = true })
-	spikes(ctx, 3.4, { fall = 1.4, wide = 1.1, n = 7 })
+	spikes(ctx, 2.7, { fall = 1.0, wide = 1.25, n = 7 })
 	-- bouc : une mèche qui descend du menton
 	lock(ctx, V3(0, -3.95, -3.1), V3(0, -1, 0.15), 2.2, 1.4, 0.5, V3(0, 0, -1), 0.3)
 end
@@ -801,10 +812,10 @@ local function rockBlock(model: Model, cf: CFrame, rng: Random, px: number, py: 
 	local roll = rng:NextNumber()
 	local props = { Material = ROCK_MAT, CanCollide = false, CanQuery = false }
 	if roll < 0.66 then
-		local rot = CFrame.Angles(tilt(1, 6), tilt(1, 7), tilt(5, 25))
+		local rot = CFrame.Angles(tilt(0, 2.5), tilt(0, 3), tilt(4, 14))
 		Build.deco(model, "Bloc", V3(sx, sy, depth), where * rot, tone, { Material = ROCK_MAT })
 		-- arête du haut abattue : un coin posé sur le dessus, la pente vers le village
-		if rng:NextNumber() < 0.45 then
+		if rng:NextNumber() < 0.4 then
 			local h = sy * rng:NextNumber(0.25, 0.4)
 			local d = math.min(depth * 0.5, sy * 0.8)
 			Build.wedge(model, "Bloc", V3(sx * 0.98, h, d), where * rot * CFrame.new(0, sy / 2 + h / 2 - 0.2, -depth / 2 + d / 2), shade(tone, 0.05), props)
@@ -813,12 +824,12 @@ local function rockBlock(model: Model, cf: CFrame, rng: Random, px: number, py: 
 		-- coin : pente tournée vers le haut ou un côté (arête vive)
 		local quarter = ({ 0, math.pi / 2, -math.pi / 2 })[rng:NextInteger(1, 3)]
 		local size = quarter == 0 and V3(sx, sy, depth) or V3(sy, sx, depth)
-		Build.wedge(model, "Bloc", size, where * CFrame.Angles(0, 0, quarter + tilt(5, 20)) * CFrame.Angles(tilt(1, 5), 0, 0), tone, props)
+		Build.wedge(model, "Bloc", size, where * CFrame.Angles(0, 0, quarter + tilt(4, 14)) * CFrame.Angles(tilt(0, 3), 0, 0), tone, props)
 	else
 		local part = Instance.new("CornerWedgePart")
 		part.Name = "Bloc"
 		part.Size = V3(sx, sy, depth)
-		part.CFrame = where * CFrame.Angles(0, rng:NextInteger(0, 1) * math.pi / 2, tilt(5, 20))
+		part.CFrame = where * CFrame.Angles(0, rng:NextInteger(0, 1) * math.pi / 2, tilt(4, 14))
 		part.Color = tone
 		part.Material = ROCK_MAT
 		part.Anchored = true
@@ -833,6 +844,45 @@ local function rockBlock(model: Model, cf: CFrame, rng: Random, px: number, py: 
 	end
 end
 Hokage.rockBlock = rockBlock
+
+-- Rocher facetté (taillé en triangles) à moitié enfoncé dans la paroi : base à cinq côtés dans
+-- la roche, une couronne de facettes, un sommet. `front` = avancée du sommet (z local, négatif =
+-- devant la paroi). Renvoie le nombre de pièces.
+local function facetRock(model: Model, cf: CFrame, rng: Random, px: number, py: number, r: number, front: number, deep: number?): number
+	local tone = shade(TONES[rng:NextInteger(1, #TONES)], rng:NextNumber(-0.05, 0.02))
+	local center = V3(px, py, front + r * 1.1)
+	local a0 = rng:NextNumber(0, math.pi * 2)
+	local base, mid = {}, {}
+	for k = 0, 4 do
+		local a = a0 + k / 5 * math.pi * 2 + rng:NextNumber(-0.2, 0.2)
+		local rr = r * rng:NextNumber(0.9, 1.15)
+		base[k + 1] = V3(px + math.cos(a) * rr, py + math.sin(a) * rr * 0.8, front + r * (deep or 0.85))
+		local am = a + math.pi / 5 + rng:NextNumber(-0.15, 0.15)
+		local rm = r * rng:NextNumber(0.5, 0.68)
+		mid[k + 1] = V3(px + math.cos(am) * rm, py + math.sin(am) * rm * 0.8, front + r * rng:NextNumber(0.2, 0.35))
+	end
+	local apex = V3(px + rng:NextNumber(-0.2, 0.2) * r, py + rng:NextNumber(0, 0.25) * r, front)
+	local count = 0
+	local function tri(a: Vector3, b: Vector3, c: Vector3)
+		local n = (b - a):Cross(c - a)
+		if n.Magnitude < 1e-6 then
+			return
+		end
+		n = n.Unit
+		if n:Dot((a + b + c) / 3 - center) < 0 then
+			n = -n
+		end
+		count += triangle(model, cf * a, cf * b, cf * c, cf:VectorToWorldSpace(n), 2.5, shade(tone, rng:NextNumber(-0.03, 0.03)))
+	end
+	for k = 1, 5 do
+		local k2 = k % 5 + 1
+		tri(base[k], base[k2], mid[k])
+		tri(base[k2], mid[k2], mid[k])
+		tri(mid[k], mid[k2], apex)
+	end
+	return count
+end
+Hokage.facetRock = facetRock
 
 -- Corps du relief : un mur de roche sombre (il sert de « joint » entre les blocs), sommet
 -- herbeux, flancs en gradins de gros blocs qui reculent.
@@ -894,6 +944,7 @@ end
 local function cliffFace(model: Model, cf: CFrame, rng: Random)
 	local half = Hokage.Width / 2
 	local base = Hokage.BaseHeight
+	local facetShare = 0.7
 	local function place(px: number, py: number, sx: number, sy: number)
 		local d = nearHead(px, py, math.min(sx, sy) * 0.3)
 		if d < 1.0 or py > topAt(px) - sy * 0.3 then
@@ -901,7 +952,13 @@ local function cliffFace(model: Model, cf: CFrame, rng: Random)
 		end
 		local frame = math.clamp((1.55 - d) / 0.55, 0, 1) -- 1 contre une tête, 0 au large
 		local front = lean(py) - rng:NextNumber(6, 13) - frame * rng:NextNumber(10, 18)
-		rockBlock(model, cf, rng, px, py, sx, sy, front)
+		if rng:NextNumber() < facetShare then
+			-- rocher facetté (sa base rejoint la paroi du fond)
+			local r = math.max(sx, sy) * rng:NextNumber(0.55, 0.66)
+			facetRock(model, cf, rng, px, py, r, front - 2, math.max(0.85, (16 - front) / r))
+		else
+			rockBlock(model, cf, rng, px, py, sx, sy, front)
+		end
 	end
 	-- 1) gros blocs (26 à 40 studs) en rangées décalées
 	local rowH = 24
@@ -916,35 +973,50 @@ local function cliffFace(model: Model, cf: CFrame, rng: Random)
 		end
 	end
 	-- 2) blocs moyens et petits (12 à 22 studs) un peu plus en avant, qui cassent les rangées
-	for _ = 1, 150 do
+	facetShare = 0.25
+	for _ = 1, 50 do
 		local px = rng:NextNumber(-half + 8, half - 8)
 		local py = rng:NextNumber(base + 6, topAt(px) - 6)
 		local size = rng:NextNumber(12, 22)
 		place(px, py, size * rng:NextNumber(0.9, 1.4), size)
 	end
-	-- 3) collerette sous chaque menton : la tête sort de la roche
+	-- 3) collerette sous chaque menton : la tête sort de la roche (sous le menton, jamais devant)
 	for _, h in Hokage.Heads do
 		local u = U * (h.scale or 1)
 		for k = -2, 2 do
-			local px = h.x + k * 1.25 * u + rng:NextNumber(-2, 2)
-			local py = h.y - (5.9 - math.abs(k) * 0.4) * u + rng:NextNumber(-2, 2)
+			local px = h.x + k * 1.3 * u + rng:NextNumber(-2, 2)
+			local py = h.y - (6.9 - math.abs(k) * 0.35) * u + rng:NextNumber(-2, 2)
 			if py > base then
-				rockBlock(model, cf, rng, px, py, rng:NextNumber(18, 26), rng:NextNumber(14, 20), lean(py) - rng:NextNumber(26, 34))
+				if k % 2 == 0 then
+					facetRock(model, cf, rng, px, py, rng:NextNumber(12, 16), lean(py) - rng:NextNumber(24, 30))
+				else
+					rockBlock(model, cf, rng, px, py, rng:NextNumber(20, 28), rng:NextNumber(14, 18), lean(py) - rng:NextNumber(20, 26))
+				end
 			end
 		end
 	end
-	-- 4) deux gros rochers arrondis (rayon ≥ 20), à moitié enfoncés, dans les coins du haut
-	for _, spot in { { half - 26, 196 }, { -half + 30, 192 } } do
-		local px, py = spot[1], spot[2]
-		if nearHead(px, py, 20) > 1.0 then
-			Core.ellipsoid(
-				model,
-				"Rocher",
-				V3(rng:NextNumber(46, 56), rng:NextNumber(42, 48), 34),
-				cf * CFrame.new(px, py, lean(py) - 6) * CFrame.Angles(0, rng:NextNumber(-0.2, 0.2), rng:NextNumber(-0.5, 0.5)),
-				shade(ROCK, rng:NextNumber(-0.04, 0.03)),
-				ROCK_MAT
-			)
+	-- 3 bis) gros rochers facettés serrés contre les têtes : le cadre en creux du monument
+	local placed = 0
+	for _ = 1, 400 do
+		if placed >= 22 then
+			break
+		end
+		local px = rng:NextNumber(-half + 20, half - 20)
+		local py = rng:NextNumber(base + 20, topAt(px) - 16)
+		local r = rng:NextNumber(14, 22)
+		local d = nearHead(px, py, r * 0.6)
+		if d > 1.0 and d < 1.35 then
+			facetRock(model, cf, rng, px, py, r, lean(py) - rng:NextNumber(20, 28))
+			placed += 1
+		end
+	end
+	-- 4) gros éperons anguleux dans les coins du haut (trois blocs qui se chevauchent)
+	for _, spot in { { half - 28, 192 }, { -half + 30, 188 } } do
+		for k = 0, 2 do
+			local px, py = spot[1] + rng:NextNumber(-14, 14), spot[2] + k * 16 - 14
+			if nearHead(px, py, 16) > 1.0 and py < topAt(px) - 6 then
+				rockBlock(model, cf, rng, px, py, rng:NextNumber(30, 42), rng:NextNumber(24, 32), lean(py) - rng:NextNumber(12, 20))
+			end
 		end
 	end
 	-- 5) creux sombre derrière chaque tête : elle sort d'une niche de la roche
@@ -952,26 +1024,47 @@ local function cliffFace(model: Model, cf: CFrame, rng: Random)
 		local e = EXTENT[h.style] or EXTENT.longs
 		local u = U * (h.scale or 1)
 		local cy = h.y + (e[2] + e[3]) / 2 * u
-		Build.deco(model, "Niche", V3(e[1] * 1.9 * u, (e[2] - e[3]) * 0.92 * u, 10), cf * CFrame.new(h.x, cy, lean(h.y) + 4), shade(JOINT, -0.08), { Material = ROCK_MAT })
+		Build.deco(model, "Niche", V3(e[1] * 1.9 * u, (e[2] - e[3]) * 0.92 * u, 10), cf * CFrame.new(h.x, cy, lean(h.y) + 4), shade(JOINT, 0.02), { Material = ROCK_MAT })
 	end
 end
 
 -- Emblème de la feuille gravé sur un gros rocher arrondi (en bas à gauche vu du village, à côté de Tobirama).
 local function emblem(model: Model, cf: CFrame)
 	local em = Hokage.Emblem
-	local c = cf * CFrame.new(em.x, em.y, lean(em.y) - 14)
-	Core.ellipsoid(model, "Emblème", V3(68, 62, 44), c, ROCK, CARVE_MAT)
-	local face = c * CFrame.new(0, 0, -21)
-	local function groove(x: number, y: number, w: number, h: number, r: number)
-		Build.deco(model, "Gravure", V3(w, h, 2), face * CFrame.new(x, y, 0) * CFrame.Angles(0, 0, r), DEEP, { Material = CARVE_MAT, CastShadow = false })
+	-- médaillon taillé : un disque de pierre épais, bordé d'un anneau en relief
+	local c = cf * CFrame.new(em.x, em.y, lean(em.y) - 16)
+	local disc = Build.deco(model, "Emblème", V3(12, 64, 64), c * CFrame.Angles(0, math.pi / 2, 0), ROCK, { Material = CARVE_MAT })
+	disc.Shape = Enum.PartType.Cylinder
+	local rim = Build.deco(model, "Emblème", V3(8, 72, 72), c * CFrame.new(0, 0, 4) * CFrame.Angles(0, math.pi / 2, 0), shade(ROCK, -0.08), { Material = ROCK_MAT })
+	rim.Shape = Enum.PartType.Cylinder
+	local face = c * CFrame.new(0, 0, -6.2)
+	local function groove(a: Vector3, b: Vector3, w: number)
+		local mid = (a + b) / 2
+		local d = b - a
+		Build.deco(model, "Gravure", V3(d.Magnitude + w * 0.6, w, 1.2), face * CFrame.new(mid) * CFrame.Angles(0, 0, math.atan2(d.Y, d.X)), DEEP, {
+			Material = CARVE_MAT,
+			CastShadow = false,
+		})
 	end
-	-- spirale : anneau de 8 traits, branche intérieure et pointe de la feuille
-	for k = 0, 7 do
-		local a = k * math.pi / 4
-		groove(math.cos(a) * 12, math.sin(a) * 12, 10.5, 2.4, a + math.pi / 2)
+	-- spirale de la feuille (un tour et quart, qui s'élargit) puis la pointe de la feuille
+	local function spiral(t: number): Vector3
+		local r = 3 + t * 3.6
+		return V3(math.cos(t + 1.2) * r, math.sin(t + 1.2) * r, 0)
 	end
-	groove(-3, 2, 9, 2.2, -0.6)
-	groove(15, -14, 14, 2.4, -0.75)
+	local steps = 14
+	local last = spiral(0)
+	for k = 1, steps do
+		local p = spiral(k / steps * math.pi * 2.6)
+		groove(last, p, 2.6)
+		last = p
+	end
+	groove(last, last + V3(10, -12, 0), 2.6)
+	groove(last + V3(10, -12, 0), last + V3(-2, -6, 0), 2.6)
+	-- anneau gravé autour
+	for k = 0, 15 do
+		local a0, a1 = k / 16 * math.pi * 2, (k + 1) / 16 * math.pi * 2
+		groove(V3(math.cos(a0) * 28, math.sin(a0) * 28, 0), V3(math.cos(a1) * 28, math.sin(a1) * 28, 0), 1.6)
+	end
 end
 
 -- Socle taillé (≤ 10 % de la hauteur) et éboulis au pied.
@@ -1001,7 +1094,7 @@ local function cliffBase(model: Model, cf: CFrame, rng: Random)
 	end
 end
 
--- Végétation : arbres et buissons sur le sommet et les flancs, coulées de lierre plates.
+-- Végétation : arbres et buissons sur le sommet et les flancs.
 local function cliffGreenery(model: Model, cf: CFrame, rng: Random)
 	local half = Hokage.Width / 2
 	local function clear(x: number): boolean
@@ -1053,25 +1146,6 @@ local function cliffGreenery(model: Model, cf: CFrame, rng: Random)
 				height = rng:NextNumber(6, 10),
 				palette = "foret",
 			})
-		end
-	end
-	-- coulées de lierre plates qui pendent du sommet entre les têtes
-	for _ = 1, 8 do
-		local x = rng:NextNumber(-half + 16, half - 16)
-		local top = topAt(x)
-		if nearHead(x, top - 18) > 1.15 then
-			local len = rng:NextNumber(20, 40)
-			for k = 0, 2 do
-				local y = top - len * (k + 0.5) / 3
-				Build.deco(
-					model,
-					"Lierre",
-					V3(rng:NextNumber(9, 14) * (1 - k * 0.25), len / 3 + 3, 3),
-					cf * CFrame.new(x + rng:NextNumber(-3, 3), y, lean(y) - 22) * CFrame.Angles(rng:NextNumber(-0.1, 0.1), 0, rng:NextNumber(-0.25, 0.25)),
-					shade(MOSS, rng:NextNumber(-0.14, 0.02)),
-					{ Material = Enum.Material.LeafyGrass }
-				)
-			end
 		end
 	end
 end

@@ -827,7 +827,7 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 		stalls = { { rgb(70, 60, 110), "bowls" }, { rgb(150, 60, 60), "masks" } },
 	}, free)
 	Common.forest(island, rng, {
-		groves = 28,
+		groves = 35,
 		perGrove = { 5, 8 },
 		radius = { 20, 38 },
 		free = free,
