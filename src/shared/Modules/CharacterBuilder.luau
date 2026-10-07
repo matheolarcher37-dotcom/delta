@@ -297,7 +297,8 @@ local function newContext(model: Model, s: number, paint: string)
 		if opts.tip then
 			local tipFrame = face * CFrame.new(0, length * 0.6, 0)
 			local k = 0.44
-			ctx.cone(limbName, litFrame(tipFrame), length * 0.4 + 0.01, width * k, depth * k, opts.tip, shadeOf(opts.tip), not full and 1 or nil)
+			-- Bout coloré : demi-pyramide côté extérieur seulement (2 pièces au lieu de 4 : budget)
+			ctx.cone(limbName, tipFrame, length * 0.4 + 0.01, width * k, depth * k, opts.tip, shadeOf(opts.tip), 1)
 		end
 	end
 
@@ -605,7 +606,7 @@ HAIR.spiky = function(ctx, c, look)
 	for _, e in { { -0.4, 0.2, c }, { -0.14, -0.06, shine }, { 0.14, 0.06, c }, { 0.4, -0.2, shine } } do
 		local x = e[1]
 		local z = -math.sqrt(math.max(0, 0.4 - x * x)) + 0.1
-		ctx.spike("Head", e[3], Vector3.new(x, base - 0.02, z), Vector3.new(x * 1.1 + e[2], 1, -0.5), 0.5 * L, 0.52, { tip = tip })
+		ctx.spike("Head", e[3], Vector3.new(x, base - 0.02, z), Vector3.new(x * 1.1 + e[2], 1, -0.5), 0.5 * L, 0.52)
 	end
 	local center = Vector3.new(0, base - 0.04, -0.06)
 	crown(ctx, c, center, {
@@ -785,7 +786,15 @@ HAIR.long_bangs = function(ctx, c, look)
 	for _, side in { -1, 1 } do
 		-- Mèches de devant (deux par côté, la plus longue jusqu'au menton)
 		ctx.lock("Head", c, Vector3.new(side * 0.3, 0.64, -0.6), Vector3.new(side * 0.32, -1, -0.12), 1.08, 0.36, { facing = Vector3.new(side * 0.3, 0, 1), thickness = 0.13 })
-		ctx.lock("Head", shine, Vector3.new(side * 0.26, 0.62, -0.64), Vector3.new(side * 0.28, -1, -0.14), 0.56, 0.16, { facing = Vector3.new(side * 0.3, 0, 1), thickness = 0.06 })
+		ctx.lock(
+			"Head",
+			shine,
+			Vector3.new(side * 0.26, 0.62, -0.64),
+			Vector3.new(side * 0.28, -1, -0.14),
+			0.56,
+			0.16,
+			{ facing = Vector3.new(side * 0.3, 0, 1), thickness = 0.06 }
+		)
 		ctx.lock("Head", under, Vector3.new(side * 0.56, 0.52, -0.34), Vector3.new(side * 0.18, -1, -0.06), 1.22, 0.38, { facing = Vector3.new(side, 0, 0.35), thickness = 0.14 })
 		-- Volume sur les côtés (cache les oreilles)
 		ctx.ball("Head", "HairSide", Vector3.new(0.32, 1.25, 1.0), CFrame.new(side * 0.6, -0.02, 0.1), under)
@@ -989,7 +998,15 @@ HAIR.half_bun = function(ctx, c, look)
 	end
 	-- Front dégagé : raie au milieu, deux mèches balayées vers les tempes
 	for _, side in { -1, 1 } do
-		ctx.lock("Head", side < 0 and c or shine, Vector3.new(side * 0.08, 0.7, -0.5), Vector3.new(side, -0.42, 0.05), 0.62, 0.36, { facing = Vector3.new(0, 0.5, 1), thickness = 0.12 })
+		ctx.lock(
+			"Head",
+			side < 0 and c or shine,
+			Vector3.new(side * 0.08, 0.7, -0.5),
+			Vector3.new(side, -0.42, 0.05),
+			0.62,
+			0.36,
+			{ facing = Vector3.new(0, 0.5, 1), thickness = 0.12 }
+		)
 	end
 	-- La longue mèche qui tombe devant (côté droit du perso = gauche de l'écran)
 	ctx.lock("Head", c, Vector3.new(0.12, 0.64, -0.63), Vector3.new(0.1, -1, -0.12), 0.92, 0.24, { facing = Vector3.new(-0.1, 0, 1), thickness = 0.1 })
@@ -1072,16 +1089,26 @@ local function paintPanel(ctx, part: BasePart, face: Enum.NormalId, painter: (an
 end
 
 -- Symbole de la feuille (village caché) gravé sur la plaque frontale.
-local function leafSymbol(canvas, ink: Color3, scratched: boolean)
+local function leafSymbol(canvas, ink: Color3, scratched: boolean, metal: Color3?)
 	-- Gravure en creux (trait sombre + liseré clair dessous) : spirale à deux tours, pointe de
 	-- feuille en haut à droite, petite queue en bas à gauche.
 	local glint = Color3.fromRGB(235, 242, 250)
-	for pass = 1, 2 do
+	-- Aperçus "pièces" (metal fourni) : anneaux pleins (un contour coûte une vingtaine de pièces).
+	local lite = metal ~= nil
+	for pass = lite and 2 or 1, 2 do
 		local col = pass == 1 and glint or ink
 		local dy = pass == 1 and 0.025 or 0
 		local z = pass == 1 and 2 or 3
-		Painter.rect(canvas, 0.47, 0.57 + dy, 0.5, 0.56, col, { corner = 0.5, transparency = 1, stroke = col, strokeThickness = 2, z = z })
-		Painter.rect(canvas, 0.5, 0.6 + dy, 0.22, 0.24, col, { corner = 0.5, transparency = 1, stroke = col, strokeThickness = 2, z = z })
+		if lite and metal then
+			Painter.rect(canvas, 0.47, 0.57, 0.5, 0.56, ink, { corner = 0.5, z = 2 })
+			Painter.rect(canvas, 0.47, 0.57, 0.36, 0.42, metal, { corner = 0.5, z = 3 })
+			Painter.rect(canvas, 0.5, 0.6, 0.22, 0.24, ink, { corner = 0.5, z = 4 })
+			Painter.rect(canvas, 0.5, 0.6, 0.12, 0.14, metal, { corner = 0.5, z = 5 })
+			z = 6
+		else
+			Painter.rect(canvas, 0.47, 0.57 + dy, 0.5, 0.56, col, { corner = 0.5, transparency = 1, stroke = col, strokeThickness = 2, z = z })
+			Painter.rect(canvas, 0.5, 0.6 + dy, 0.22, 0.24, col, { corner = 0.5, transparency = 1, stroke = col, strokeThickness = 2, z = z })
+		end
 		Painter.rect(canvas, 0.53, 0.62 + dy, 0.07, 0.08, col, { corner = 0.5, z = z })
 		Painter.rect(canvas, 0.64, 0.42 + dy, 0.24, 0.06, col, { corner = 0.5, rotation = -55, z = z })
 		Painter.rect(canvas, 0.77, 0.22 + dy, 0.2, 0.18, col, { rotation = 45, z = z })
@@ -1126,10 +1153,12 @@ local function headbandBase(ctx, look, tilt: number, scratched: boolean)
 				Painter.rect(canvas, edge, 0.5, 0.06, 1, darken(metal, 0.4), { z = 2 })
 				for _, ry in { 0.24, 0.76 } do
 					Painter.rect(canvas, x, ry, 0.1, 0.1 * 0.31 / plateH, darken(metal, 0.5), { corner = 0.5, z = 3 })
-					Painter.rect(canvas, x - 0.015, ry - 0.02, 0.04, 0.04, lighten(metal, 0.6), { corner = 0.5, z = 4 })
+					if ctx.paint ~= "parts" then
+						Painter.rect(canvas, x - 0.015, ry - 0.02, 0.04, 0.04, lighten(metal, 0.6), { corner = 0.5, z = 4 })
+					end
 				end
 			else
-				leafSymbol(canvas, ink, scratched)
+				leafSymbol(canvas, ink, scratched, ctx.paint == "parts" and metal or nil)
 			end
 		end)
 	end
@@ -1668,8 +1697,9 @@ local function katana(ctx, limb: string, cf: CFrame, spec)
 	local tsukaCf = cf * CFrame.new(0, l / 2 + 0.14 + tl / 2, 0)
 	local samegawa = Color3.fromRGB(236, 232, 220)
 	local tsuka = ctx.add(limb, "Tsuka", Vector3.new(0.13, tl, 0.19), tsukaCf, samegawa)
-	local wraps = 6
-	for _, face in { Enum.NormalId.Left, Enum.NormalId.Right, Enum.NormalId.Front, Enum.NormalId.Back } do
+	local wraps = 5
+	-- (la face arrière, contre le corps, n'est pas peinte : budget de Frames)
+	for _, face in { Enum.NormalId.Left, Enum.NormalId.Right, Enum.NormalId.Front } do
 		local canvas = ctx.surface(tsuka, face, "Ito")
 		local lite = ctx.paint == "parts"
 		local side = face == Enum.NormalId.Left or face == Enum.NormalId.Right
@@ -1683,13 +1713,11 @@ local function katana(ctx, limb: string, cf: CFrame, spec)
 					fine = lite and (not side or rot < 0),
 				})
 			end
-			Painter.rect(canvas, 0.5, i / wraps, 1, 0.08 / wraps, darken(handle, 0.45), { z = 4, fine = true })
 		end
 	end
 	ctx.add(limb, "Fuchi", Vector3.new(0.15, 0.08, 0.21), cf * CFrame.new(0, l / 2 + 0.17, 0), trim, metal)
 	ctx.add(limb, "Kashira", Vector3.new(0.15, 0.09, 0.21), cf * CFrame.new(0, l / 2 + 0.14 + tl + 0.03, 0), trim, metal)
-	ctx.ball(limb, "Menuki", Vector3.new(0.05, 0.16, 0.1), tsukaCf * CFrame.new(0.07, 0, 0), trim, metal)
-	ctx.ball(limb, "Menuki", Vector3.new(0.05, 0.16, 0.1), tsukaCf * CFrame.new(-0.07, 0.05, 0), trim, metal)
+	ctx.ball(limb, "Menuki", Vector3.new(0.16, 0.16, 0.1), tsukaCf, trim, metal)
 	local _ = saya
 end
 CharacterBuilder.katana = katana

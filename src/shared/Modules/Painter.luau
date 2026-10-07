@@ -2182,7 +2182,14 @@ local function torsoBack(S, look, c)
 			spots(S, look.spots, 6, 9)
 		end
 		if look.carapace then
-			S:box(0.5, 0.25, 1.8, 0.8, look.carapace, { corner = 0.35, gradient = { lighten(look.carapace, 0.2), look.carapace }, stroke = inkOf(look.carapace), strokeThickness = 1.2, z = 2 })
+			S:box(
+				0.5,
+				0.25,
+				1.8,
+				0.8,
+				look.carapace,
+				{ corner = 0.35, gradient = { lighten(look.carapace, 0.2), look.carapace }, stroke = inkOf(look.carapace), strokeThickness = 1.2, z = 2 }
+			)
 		end
 	elseif outfit == "biosuit" then
 		biosuitPlate(S, c.accent, 0.22, 0.52)
@@ -2234,8 +2241,9 @@ function Painter.dress(limbs, look, mode: string?)
 	if torso then
 		for _, entry in SIDE_NAMES do
 			local face, name = entry[1], entry[2]
-			if mode == "parts" and (name == "left" or name == "right") then
-				continue -- faces cachées par les bras : inutiles dans les aperçus
+			if mode == "parts" and (name == "left" or name == "right" or name == "back") then
+				-- faces cachées par les bras, et dos (les aperçus des menus ne pivotent que de ±35°)
+				continue
 			end
 			local S = Painter.sheet(torso, face, mode, "Shirt" .. face.Name, 70)
 			cloth(S, top)
@@ -2289,8 +2297,8 @@ function Painter.dress(limbs, look, mode: string?)
 				elseif name == "right" then
 					side = isLeft and "in" or "out"
 				end
-				if mode == "parts" and side == "in" then
-					continue -- face collée au torse / à l'autre jambe : inutile dans les aperçus
+				if mode == "parts" and (side == "in" or side == "back") then
+					continue -- face collée au torse / à l'autre jambe, ou dos : jamais vus dans les aperçus
 				end
 				local S = Painter.sheet(part, face, mode, (isArm and "Sleeve" or "Pants") .. face.Name, 70)
 				if look.pattern == "roses" and side ~= "in" and (not isArm or c.sleeves == "long") then
