@@ -484,8 +484,8 @@ local function hairTones(c: Color3, look): (Color3, Color3)
 		-- Cheveux noirs : reflets bleutés comme dans les animés
 		under = c:Lerp(Color3.new(0, 0, 0), 0.4)
 		shine = c:Lerp(Color3.fromRGB(80, 95, 140), 0.3)
-	elseif lum > 0.82 then
-		-- Cheveux blancs / argentés : ombres bleu-gris
+	elseif lum > 0.82 and math.max(c.R, c.G, c.B) - math.min(c.R, c.G, c.B) < 0.25 then
+		-- Cheveux blancs / argentés : ombres bleu-gris (pas les blonds dorés, très lumineux aussi)
 		under = c:Lerp(Color3.fromRGB(150, 160, 195), 0.45)
 		shine = WHITE
 	else
@@ -676,7 +676,7 @@ HAIR.wild = function(ctx, c, look)
 	local tip = look.hairTip
 	local tilt = look.hairTilt or 0
 	local L = look.hairLength or 1
-	cap(ctx, c, { color2 = under, backLength = 1.35 })
+	cap(ctx, c, { color2 = under, backLength = 1.0, napeLift = 0.1 })
 	scales(ctx, c, shine, under, 0.5, 0.46 * L, { front = false, tip = tip })
 	-- Frange en pointes
 	fringe(ctx, c, { -0.36, -0.1, 0.16, 0.4 }, { 0.5, 0.44, 0.4, 0.46 }, 0.36, { alt = shine, y = 0.56, spread = 0.75, out = 0.25, tip = tip })
@@ -704,6 +704,11 @@ HAIR.wild = function(ctx, c, look)
 		ctx.spike("Head", c, Vector3.new(side * 0.55, 0.35, 0.0), Vector3.new(side, -0.2, 0.15), 0.5 * L, 0.42, { tip = tip })
 	end
 	ctx.spike("Head", under, Vector3.new(0, 0.15, 0.55), Vector3.new(0, -0.4, 1), 0.6 * L, 0.5, { tip = tip })
+	-- Pointes de la nuque (le dos de la tête ne doit pas être une boule lisse)
+	for _, side in { -1, 1 } do
+		ctx.spike("Head", side < 0 and c or under, Vector3.new(side * 0.32, 0.3, 0.48), Vector3.new(side * 0.55, -0.55, 1), 0.62 * L, 0.48, { tip = tip })
+	end
+	ctx.spike("Head", c, Vector3.new(0, 0.5, 0.55), Vector3.new(0, -0.1, 1), 0.66 * L, 0.5, { tip = tip })
 end
 
 HAIR.tall_spiky = function(ctx, c, look)
@@ -767,6 +772,31 @@ HAIR.ponytail = function(ctx, c, look)
 	ctx.ball("Head", "HairTie", Vector3.new(0.3, 0.26, 0.26), CFrame.new(0, 0.05, 0.64), darken(c, 0.45))
 	ctx.strand("Head", c, Vector3.new(0, 0.05, 0.7), Vector3.new(0, -1, 0.3), look.tailLength or 1.7, 0.42, 0.34)
 	ctx.strand("Head", under, Vector3.new(0, -0.1, 0.72), Vector3.new(0, -1, 0.2), (look.tailLength or 1.7) * 0.8, 0.3, 0.3)
+end
+
+HAIR.long_bangs = function(ctx, c, look)
+	-- Cheveux longs noirs à raie au milieu (ninja au manteau à nuages, copie des cheveux en maillage
+	-- d'"Ipachi") : longues mèches qui encadrent le visage jusqu'au menton, volume sur la nuque et
+	-- les épaules, queue de cheval basse.
+	local under, shine = hairTones(c, look)
+	cap(ctx, c, { back = false, height = 0.86 })
+	ctx.ball("Head", "HairBack", Vector3.new(1.4, 1.5, 0.66), CFrame.new(0, -0.12, 0.36), under)
+	ctx.ball("Head", "HairBack", Vector3.new(1.34, 1.3, 0.56), CFrame.new(0, -0.02, 0.46), c)
+	for _, side in { -1, 1 } do
+		-- Mèches de devant (deux par côté, la plus longue jusqu'au menton)
+		ctx.lock("Head", c, Vector3.new(side * 0.3, 0.64, -0.6), Vector3.new(side * 0.32, -1, -0.12), 1.08, 0.36, { facing = Vector3.new(side * 0.3, 0, 1), thickness = 0.13 })
+		ctx.lock("Head", shine, Vector3.new(side * 0.26, 0.62, -0.64), Vector3.new(side * 0.28, -1, -0.14), 0.56, 0.16, { facing = Vector3.new(side * 0.3, 0, 1), thickness = 0.06 })
+		ctx.lock("Head", under, Vector3.new(side * 0.56, 0.52, -0.34), Vector3.new(side * 0.18, -1, -0.06), 1.22, 0.38, { facing = Vector3.new(side, 0, 0.35), thickness = 0.14 })
+		-- Volume sur les côtés (cache les oreilles)
+		ctx.ball("Head", "HairSide", Vector3.new(0.32, 1.25, 1.0), CFrame.new(side * 0.6, -0.02, 0.1), under)
+		-- Mèches qui tombent sur les épaules
+		ctx.lock("Head", c, Vector3.new(side * 0.5, -0.1, 0.35), Vector3.new(side * 0.2, -1, 0.2), 0.8, 0.42, { facing = Vector3.new(side, 0, 0.6), thickness = 0.14 })
+	end
+	-- Petite mèche au milieu du front
+	ctx.lock("Head", c, Vector3.new(0, 0.66, -0.66), Vector3.new(0, -1, -0.12), 0.42, 0.26, { facing = Vector3.new(0, 0, 1), thickness = 0.1 })
+	-- Queue de cheval basse
+	ctx.ball("Head", "HairTie", Vector3.new(0.3, 0.24, 0.24), CFrame.new(0, -0.45, 0.66), darken(c, 0.45))
+	ctx.strand("Head", c, Vector3.new(0, -0.5, 0.72), Vector3.new(0, -1, 0.15), look.tailLength or 1.3, 0.4, 0.32)
 end
 
 HAIR.side_ponytail = function(ctx, c, look)
@@ -1409,9 +1439,22 @@ ACC.marine_coat = function(ctx, look)
 end
 
 ACC.cloak_skirt = function(ctx, look)
+	-- Pans du long manteau jusqu'aux chevilles (nuages rouges peints sur le manteau à nuages).
 	local color = look.skirtColor or look.top or Color3.fromRGB(40, 40, 50)
-	ctx.add("Torso", "Skirt", Vector3.new(2.1, 1.6, 1.1), CFrame.new(0, -1.7, 0), color)
-	ctx.add("Torso", "SkirtHem", Vector3.new(2.12, 0.12, 1.12), CFrame.new(0, -2.45, 0), darken(color, 0.3))
+	local mode = ctx.paint == "parts" and "parts" or nil
+	local skirt = ctx.add("Torso", "Skirt", Vector3.new(2.12, 1.9, 1.12), CFrame.new(0, -1.9, 0), color)
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		Painter.panel(skirt, face, mode, color, function(S)
+			if look.outfit == "cloak" then
+				Painter.cloud(S.g, face == Enum.NormalId.Front and 0.28 or 0.66, 0.45, 0.3, look.topAccent or Color3.fromRGB(210, 20, 30))
+			end
+			-- Fente du manteau (devant) + ourlet doublé de rouge
+			if face == Enum.NormalId.Front then
+				S:line(0.5, 0, 0.5, 1, 0.03, Painter.inkOf(color), { corner = 0, z = 6 })
+			end
+		end, { folds = true })
+	end
+	ctx.add("Torso", "SkirtHem", Vector3.new(2.14, 0.1, 1.14), CFrame.new(0, -2.82, 0), look.collarLining or darken(color, 0.3))
 end
 
 ACC.collar_high = function(ctx, look)

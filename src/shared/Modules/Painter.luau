@@ -2351,6 +2351,7 @@ function Painter.panel(part: BasePart, face: Enum.NormalId, mode: string?, color
 end
 
 Painter.cloth = cloth
+Painter.cloud = cloud
 Painter.fold = fold
 Painter.band = band
 Painter.shade = shade
