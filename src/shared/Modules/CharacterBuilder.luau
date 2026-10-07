@@ -857,21 +857,27 @@ HAIR.slick_up = function(ctx, c, look)
 end
 
 HAIR.mohawk = function(ctx, c, look)
-	local under, _ = hairTones(c, look)
-	-- Côtés rasés (ombre), crête de pointes au milieu
-	cap(ctx, under, { height = 0.7, backLength = 1.1, grow = -0.02 })
-	for i = 0, 4 do
-		local z = -0.45 + i * 0.24
-		ctx.spike(
-			"Head",
-			c,
-			Vector3.new(0, 0.82, z),
-			Vector3.new(0, 1, (i - 1.5) * 0.35),
-			0.62 + (i == 1 and 0.15 or 0),
-			0.42,
-			{ tip = look.hairTip, cross = false, thickness = 0.22 }
-		)
+	-- Crête iroquoise : côtés rasés (ombre courte), haute crête de pointes de l'avant à l'arrière,
+	-- étroites de face, larges de profil.
+	local under, shine = hairTones(c, look)
+	local skin = look.skin or Color3.fromRGB(255, 216, 180)
+	cap(ctx, under:Lerp(skin, 0.25), { height = 0.7, backLength = 1.1, grow = -0.02 })
+	local crest = {
+		{ -0.5, 0.62, -0.55, 0.55, shine },
+		{ -0.28, 0.82, -0.25, 0.7, c },
+		{ -0.04, 0.88, 0.0, 0.74, shine },
+		{ 0.2, 0.84, 0.3, 0.7, c },
+		{ 0.42, 0.72, 0.6, 0.62, under },
+		{ 0.6, 0.52, 0.9, 0.5, c },
+	}
+	for _, e in crest do
+		local z, y, lean, length, color = e[1], e[2], e[3], e[4], e[5]
+		local dir = Vector3.new(0, 1, lean).Unit
+		local frame = CFrame.fromMatrix(Vector3.new(0, y, z), Vector3.new(1, 0, 0), dir, Vector3.new(1, 0, 0):Cross(dir))
+		ctx.cone("Head", frame, length * (look.hairLength or 1), 0.3, 0.46, color, ctx.shadeOf(color))
 	end
+	-- Petite frange qui retombe sur le front
+	ctx.lock("Head", c, Vector3.new(0, 0.66, -0.6), Vector3.new(0.1, -1, -0.3), 0.32, 0.28, { thickness = 0.1 })
 end
 
 HAIR.flame_spiky = function(ctx, c, look)
@@ -1018,10 +1024,14 @@ HAIR.half_bun = function(ctx, c, look)
 end
 
 HAIR.topknot = function(ctx, c, look)
-	local under, _ = hairTones(c, look)
+	-- Cheveux courts tirés en chignon haut : mèches couchées tout autour (pas de casque lisse),
+	-- petite frange, chignon noué.
+	local under, shine = hairTones(c, look)
 	cap(ctx, c, { color2 = under, backLength = 1.15, height = 0.74 })
-	ctx.ball("Head", "Knot", Vector3.new(0.44, 0.4, 0.44), CFrame.new(0, 0.95, 0.2), c)
-	ctx.strand("Head", c, Vector3.new(0, 1.05, 0.25), Vector3.new(0, 1, 0.5), 0.5, 0.26)
+	scales(ctx, c, shine, under, 0.48, 0.36, { lift = 1.6 })
+	ctx.ball("Head", "Knot", Vector3.new(0.44, 0.4, 0.44), CFrame.new(0, 0.98, 0.18), c)
+	ctx.ball("Head", "KnotTie", Vector3.new(0.34, 0.1, 0.34), CFrame.new(0, 0.82, 0.16), darken(c, 0.5))
+	ctx.strand("Head", shine, Vector3.new(0, 1.08, 0.22), Vector3.new(0, 1, 0.5), 0.5, 0.24)
 end
 
 HAIR.bowl = function(ctx, c, look)
@@ -1039,14 +1049,17 @@ HAIR.bowl = function(ctx, c, look)
 end
 
 HAIR.bob = function(ctx, c, look)
-	-- Carré court (sorcière au marteau, androïde) : volume arrondi qui descend au menton.
+	-- Carré lisse (androïde, sorcière au marteau) : volume arrondi jusqu'au menton, mèches pointues
+	-- qui encadrent le visage, frange effilée.
 	local under, shine = hairTones(c, look)
-	cap(ctx, c, { back = false, height = 0.84 })
-	ctx.ball("Head", "HairBob", Vector3.new(1.46, 1.4, 1.36), CFrame.new(0, 0.05, 0.1), under)
+	cap(ctx, c, { back = false, height = 0.86 })
+	ctx.ball("Head", "HairBob", Vector3.new(1.42, 1.3, 1.1), CFrame.new(0, 0.08, 0.2), under)
 	for _, side in { -1, 1 } do
-		ctx.ball("Head", "HairBobSide", Vector3.new(0.28, 1.15, 0.95), CFrame.new(side * 0.62, -0.05, -0.05), c)
+		ctx.lock("Head", c, Vector3.new(side * 0.58, 0.5, -0.24), Vector3.new(side * 0.14, -1, -0.04), 1.05, 0.4, { facing = Vector3.new(side, 0, 0.3), thickness = 0.14 })
+		ctx.lock("Head", shine, Vector3.new(side * 0.5, 0.56, -0.42), Vector3.new(side * 0.2, -1, -0.1), 0.72, 0.24, { facing = Vector3.new(side, 0, 0.5), thickness = 0.08 })
+		ctx.lock("Head", under, Vector3.new(side * 0.5, 0.3, 0.3), Vector3.new(side * 0.2, -1, 0.15), 0.85, 0.5, { facing = Vector3.new(side, 0, 0.8), thickness = 0.14 })
 	end
-	fringe(ctx, c, { -0.32, -0.1, 0.12, 0.34 }, 0.4, 0.32, { alt = shine, y = 0.56, spread = 0.3 })
+	fringe(ctx, c, { -0.32, -0.1, 0.12, 0.34 }, { 0.42, 0.36, 0.4, 0.34 }, 0.32, { alt = shine, y = 0.58, spread = 0.35 })
 end
 
 HAIR.bald = function(ctx, c, look)
