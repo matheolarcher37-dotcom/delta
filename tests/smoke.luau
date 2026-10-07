@@ -72,6 +72,51 @@ test("Formules : puissance, évolution, fusion", function()
 	assert(stats.incubators == 2 and stats.team == 4, "upgradeStats")
 end)
 
+test("Objets d'évolution : chaque perso a son objet, stock et coins du marchand", function()
+	local EvolutionItems = requireModule(Shared.Config.EvolutionItems)
+	local Layout = requireModule(Shared.Config.Layout)
+	-- Chaque perso jouable demande un objet existant pour ★★ et ★★★, rien au-delà.
+	for id in Characters.List do
+		for stars = 1, 2 do
+			local need = EvolutionItems.requirement({ id = id, stars = stars })
+			assert(need and EvolutionItems.get(need.item) and need.amount >= 1, "objet manquant : " .. id .. " ★" .. (stars + 1))
+		end
+		assert(EvolutionItems.requirement({ id = id, stars = 3 }) == nil, "évolution au-delà de ★★★ : " .. id)
+	end
+	assert(EvolutionItems.requirement({ id = "sai_goko", stars = 1 }).item == "sai_dragon", "Goko → Boule du Dragon")
+	assert(EvolutionItems.requirement({ id = "ninja_maruto", stars = 1 }).item == "ninja_ermite", "Maruto → Parchemin d'Ermite")
+	local fusion = EvolutionItems.requirement({ id = "fusion", fusion = { a = "ninja_maruto", b = "occ_goju" }, stars = 1 })
+	assert(fusion and fusion.item == "ninja_secret", "objet d'une fusion")
+	assert(EvolutionItems.requirement({ id = "perso_inconnu", stars = 1 }) == nil, "perso inconnu")
+	-- Modèles 3D de tous les objets.
+	for _, item in EvolutionItems.List do
+		local model = EvolutionItems.build(item.id, 1)
+		assert(model.PrimaryPart and countParts(model) >= 3, "modèle d'objet vide : " .. item.id)
+		assert(item.price > 0 and EvolutionItems.Tiers[item.tier], "prix ou palier : " .. item.id)
+	end
+	-- Stock : déterministe, sans doublon, objets de base de l'univers garantis.
+	for window = 100, 140 do
+		for _, universe in Universes.List do
+			local a = EvolutionItems.stock(window, universe.id)
+			local b = EvolutionItems.stock(window, universe.id)
+			assert(#a == EvolutionItems.Merchant.Slots and #a == #b, "taille du stock")
+			local seen = {}
+			for i, entry in a do
+				assert(entry.id == b[i].id, "stock non déterministe")
+				assert(not seen[entry.id], "doublon dans le stock")
+				seen[entry.id] = true
+			end
+			assert(seen[EvolutionItems.Universe[universe.id][1]] and seen[EvolutionItems.Universe[universe.id][2]], "objets de base absents")
+		end
+		-- Le marchand change toujours de coin, et ses coins sont réservés.
+		local spots = #Layout.MerchantSpots
+		assert(EvolutionItems.spotIndex(window, spots) ~= EvolutionItems.spotIndex(window + 1, spots), "même coin deux fois de suite")
+	end
+	for _, spot in Layout.MerchantSpots do
+		assert(Layout.isReserved(spot), "coin du marchand non réservé")
+	end
+end)
+
 test("Arbre de compétences : 40-60 nœuds hexagonaux cohérents", function()
 	local SkillTree = requireModule(Shared.Config.SkillTree)
 	assert(#SkillTree.Nodes >= 40 and #SkillTree.Nodes <= 60, "nombre de nœuds : " .. #SkillTree.Nodes)

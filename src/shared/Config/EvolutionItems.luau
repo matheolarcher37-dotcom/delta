@@ -91,7 +91,7 @@ EvolutionItems.List = {
 		price = 125000,
 		signature = true,
 		desc = "La flamme du démon renard à neuf queues. Éveil ★★★ de Maruto.",
-		look = { kind = "flame", color = rgb(255, 120, 20), accent = rgb(255, 220, 90) },
+		look = { kind = "flame", color = rgb(255, 80, 10), accent = rgb(255, 160, 40) },
 	},
 	{
 		id = "ninja_oeil",
@@ -540,8 +540,8 @@ local KINDS = {}
 KINDS.dragonball = function(ctx, look)
 	ctx.cushion(rgb(150, 30, 40))
 	local center = CFrame.new(0, 1.45, 0)
-	ctx.add("Orb", Vector3.new(2.1, 2.1, 2.1), center, look.color, { Shape = BALL, Material = Enum.Material.Glass, Transparency = 0.08, Reflectance = 0.25 })
-	ctx.add("Core", Vector3.new(1.6, 1.6, 1.6), center, lighten(look.color, 0.25), { Shape = BALL, Material = NEON, Transparency = 0.55 })
+	ctx.add("Orb", Vector3.new(2.1, 2.1, 2.1), center, look.color, { Shape = BALL, Material = Enum.Material.Glass, Transparency = 0.35, Reflectance = 0.2 })
+	ctx.add("Core", Vector3.new(1.3, 1.3, 1.3), center, lighten(look.color, 0.2), { Shape = BALL, Material = NEON, Transparency = 0.7 })
 	local positions = {
 		[1] = { Vector2.new(0, 0) },
 		[2] = { Vector2.new(-0.3, 0.2), Vector2.new(0.3, -0.2) },
@@ -549,7 +549,7 @@ KINDS.dragonball = function(ctx, look)
 		[4] = { Vector2.new(0, 0.4), Vector2.new(-0.4, 0), Vector2.new(0.4, 0), Vector2.new(0, -0.4) },
 	}
 	for _, p in positions[math.clamp(look.stars or 4, 1, 4)] do
-		ctx.star("Star", 0.34, center * CFrame.new(p.X, p.Y, -0.86), look.accent)
+		ctx.star("Star", 0.4, center * CFrame.new(p.X, p.Y, -0.95), look.accent)
 	end
 	ctx.add(
 		"Shine",
@@ -627,29 +627,23 @@ end
 
 -- Bandeau des Six Yeux : bande noire nouée autour d'un support, deux pans, lueur bleue.
 KINDS.blindfold = function(ctx, look)
-	ctx.cushion(rgb(235, 235, 245))
-	local center = CFrame.new(0, 1.35, 0)
-	local segments = 14
-	for i = 0, segments - 1 do
-		local a = i * math.pi * 2 / segments
-		ctx.add("Band", Vector3.new(0.52, 0.55, 0.14), center * CFrame.new(math.cos(a) * 0.8, 0, math.sin(a) * 0.8) * CFrame.Angles(0, -a + math.pi / 2, 0), look.color, {
-			Material = Enum.Material.Fabric,
-		})
-	end
+	ctx.cushion(rgb(60, 70, 110))
+	-- Buste de porcelaine (tête blanche) qui porte le bandeau noir, la lueur des Six Yeux dessous.
+	local center = CFrame.new(0, 1.55, 0)
+	ctx.add("Head", Vector3.new(1.75, 1.75, 1.75), center, rgb(246, 244, 240), { Shape = BALL })
+	ctx.add("Hair", Vector3.new(1.85, 0.9, 1.85), center * CFrame.new(0, 0.55, 0.06), rgb(236, 240, 250), { Shape = BALL })
+	ctx.add("Band", Vector3.new(0.5, 1.84, 1.84), center * CFrame.new(0, 0.08, 0) * UP, look.color, { Shape = CYL, Material = Enum.Material.Fabric })
 	for _, side in { -1, 1 } do
 		ctx.add(
 			"Tail",
-			Vector3.new(0.3, 1.1, 0.08),
-			center * CFrame.new(side * 0.22, -0.45, 0.88) * CFrame.Angles(0.25, 0, side * 0.35),
+			Vector3.new(0.32, 1.1, 0.08),
+			center * CFrame.new(side * 0.22, -0.45, 0.95) * CFrame.Angles(0.3, 0, side * 0.35),
 			look.color,
 			{ Material = Enum.Material.Fabric }
 		)
+		ctx.star("Spark", 0.24, center * CFrame.new(side * 0.34, -0.3, -0.82), look.accent)
 	end
-	ctx.add("Knot", Vector3.new(0.4, 0.4, 0.3), center * CFrame.new(0, 0, 0.84), darken(look.color, 0.2), { Material = Enum.Material.Fabric })
-	ctx.add("Glow", Vector3.new(0.9, 0.9, 0.9), center, look.accent, { Shape = BALL, Material = NEON, Transparency = 0.35 })
-	for _, side in { -1, 1 } do
-		ctx.star("Spark", 0.22, center * CFrame.new(side * 0.32, 0.05, -0.85), look.accent)
-	end
+	ctx.add("Knot", Vector3.new(0.4, 0.4, 0.3), center * CFrame.new(0, 0.08, 0.92), darken(look.color, 0.2), { Material = Enum.Material.Fabric })
 end
 
 -- Fragment d'Infini : sphère violette en verre entre une bille bleue et une bille rouge.

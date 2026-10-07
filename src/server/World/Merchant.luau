@@ -36,6 +36,7 @@ local GOLD = rgb(240, 196, 80)
 Merchant.Color = EvolutionItems.Merchant.Color
 Merchant.DeckTop = 1.1
 Merchant.BeamHeight = 900
+local DISPLAY_SCALE = 0.75 -- taille des objets exposés sur les étagères
 
 local SIGN_FONT = Font.new("rbxasset://fonts/families/Fondamento.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
 
@@ -169,7 +170,7 @@ local function buildWagon(model: Model, cf: CFrame)
 		deco(wagon, "ShopJamb", Vector3.new(0.4, bodyH - 0.8, 0.3), front * CFrame.new(x * (L / 2 - 0.8), bodyBottom + bodyH / 2, -0.1), PAINT_TRIM, Enum.Material.Wood)
 	end
 	local shelves = {}
-	for row, y in { bodyBottom + 1.9, bodyBottom + 4.2 } do
+	for row, y in { bodyBottom + 2.5, bodyBottom + 4.6 } do
 		local shelf = part(wagon, "Shelf", Vector3.new(L - 2.2, 0.25, 1.3), front * CFrame.new(0, y, -0.55), WOOD, Enum.Material.Wood, false)
 		deco(wagon, "ShelfLip", Vector3.new(L - 2.2, 0.35, 0.1), front * CFrame.new(0, y + 0.2, -1.2), PAINT_TRIM, Enum.Material.Wood)
 		shelves[row] = shelf
@@ -284,20 +285,22 @@ local function buildFront(model: Model, cf: CFrame): BasePart
 		deco(stall, "Scallop", Vector3.new(16 / strips - 0.1, 0.9, 0.1), flapCF, color, Enum.Material.Fabric)
 		deco(stall, "ScallopTip", Vector3.new(0.7, 0.7, 0.1), flapCF * CFrame.new(0, -0.45, 0) * CFrame.Angles(0, 0, math.rad(45)), color, Enum.Material.Fabric)
 	end
-	-- Guirlande de lanternes entre les poteaux et lanternes aux poteaux.
-	Archi.lanternString(stall, (cf * CFrame.new(-7.6, frontY - 0.4, frontZ - 0.6)).Position, (cf * CFrame.new(7.6, frontY - 0.4, frontZ - 0.6)).Position, 5, {
-		rgb(255, 120, 90),
-		rgb(255, 210, 110),
-		rgb(214, 110, 255),
-	}, 1.2)
+	-- Guirlandes de lanternes le long des côtés de l'auvent (l'enseigne reste bien visible devant).
+	for _, x in { -1, 1 } do
+		Archi.lanternString(stall, (cf * CFrame.new(x * 8.1, frontY - 0.2, frontZ)).Position, (cf * CFrame.new(x * 8.1, backY - 1.2, backZ - 0.4)).Position, 3, {
+			rgb(255, 120, 90),
+			rgb(255, 210, 110),
+			rgb(214, 110, 255),
+		}, 0.9)
+	end
 	for _, x in { -1, 1 } do
 		Props.hangingLantern(stall, (cf * CFrame.new(x * 7.6, frontY - 1.6, frontZ)).Position, cf:VectorToWorldSpace(Vector3.new(x * 1.6, 0, 0)), rgb(255, 170, 80), 0.9)
 	end
 
 	-- Enseigne de bois sculptée « MARCHAND », suspendue par deux chaînes sous la poutre.
-	local signCF = cf * CFrame.new(0, frontY - 2.3, frontZ - 0.35)
+	local signCF = cf * CFrame.new(0, frontY - 1.75, frontZ - 0.35)
 	for _, x in { -3.2, 3.2 } do
-		for k = 0, 3 do
+		for k = 0, 1 do
 			deco(
 				stall,
 				"Chain",
@@ -330,7 +333,7 @@ local function buildFront(model: Model, cf: CFrame): BasePart
 		label.Size = UDim2.new(0.66, 0, 0.84, 0)
 		label.Position = UDim2.new(0.17, 0, 0.08, 0)
 	end
-	local sub = deco(stall, "SubSign", Vector3.new(6.4, 0.9, 0.25), signCF * CFrame.new(0, -1.7, 0), rgb(236, 220, 186), Enum.Material.Wood)
+	local sub = deco(stall, "SubSign", Vector3.new(6.4, 0.9, 0.25), signCF * CFrame.new(0, -1.55, 0), rgb(236, 220, 186), Enum.Material.Wood)
 	for _, x in { -2, 2 } do
 		deco(stall, "SubChain", Vector3.new(0.1, 0.5, 0.1), signCF * CFrame.new(x, -1.2, 0), rgb(70, 70, 74), Enum.Material.Metal)
 	end
@@ -384,9 +387,9 @@ local function buildBeacon(model: Model, cf: CFrame): BasePart
 	local height = Merchant.BeamHeight
 	local beamCF = crystalCF * CFrame.new(0, height / 2, 0) * CFrame.Angles(0, 0, math.rad(90))
 	local layers = {
-		{ "LightCore", 1.0, Color3.new(1, 1, 1):Lerp(color, 0.2), 0.05 },
-		{ "LightColumn", 2.8, color, 0.3 },
-		{ "LightHalo", 7, color, 0.82 },
+		{ "LightCore", 1.6, Color3.new(1, 1, 1):Lerp(color, 0.2), 0.05 },
+		{ "LightColumn", 4.4, color, 0.3 },
+		{ "LightHalo", 12, color, 0.84 },
 	}
 	for _, layer in layers do
 		local p = cyl(beacon, layer[1], Vector3.new(height, layer[2], layer[2]), beamCF, layer[3], Enum.Material.Neon)
@@ -413,8 +416,8 @@ local function buildBeacon(model: Model, cf: CFrame): BasePart
 	sparkBeam.TextureMode = Enum.TextureMode.Static
 	sparkBeam.TextureLength = 14
 	sparkBeam.TextureSpeed = -0.6
-	sparkBeam.Width0 = 6
-	sparkBeam.Width1 = 6
+	sparkBeam.Width0 = 8
+	sparkBeam.Width1 = 10
 	sparkBeam.FaceCamera = true
 	sparkBeam.Transparency = NumberSequence.new(0.15)
 	sparkBeam.Parent = core
@@ -629,10 +632,10 @@ function Merchant.setDisplay(model: Model, itemIds: { string })
 				index += 1
 				local id = itemIds[index]
 				if id then
-					local item = EvolutionItems.build(id, 0.62)
+					local item = EvolutionItems.build(id, DISPLAY_SCALE)
 					local x = (k - (count + 1) / 2) * math.min(3, (shelf.Size.X - 1.5) / math.max(1, count))
 					local cf = shelf.CFrame * CFrame.new(x, shelf.Size.Y / 2, 0)
-					item:PivotTo(cf * CFrame.new(0, 1.2 * 0.62, 0))
+					item:PivotTo(cf * CFrame.new(0, 1.2 * DISPLAY_SCALE, 0))
 					item.Parent = display
 				end
 			end

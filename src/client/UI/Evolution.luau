@@ -127,25 +127,25 @@ local function itemBox(parent: Instance, need, data, order: number)
 	local status
 	local statusColor
 	if ok then
-		status = "Tu en as " .. have .. " : c'est bon !"
+		status = "Tu en as " .. have .. " : prêt !"
 		statusColor = Color3.fromRGB(150, 255, 170)
 	elseif (merchantStock[item.id] or 0) > 0 then
-		status = "Tu en as " .. have .. " · EN VENTE chez le Marchand en ce moment !"
+		status = "Tu en as " .. have .. " · EN VENTE au Marchand !"
 		statusColor = C.Gold
 	else
-		status = "Tu en as " .. have .. " · manquant : chez le Marchand ambulant"
+		status = "Tu en as " .. have .. " · chez le Marchand"
 		statusColor = Color3.fromRGB(255, 160, 160)
 	end
 	Theme.label({
 		Name = "Status",
 		Text = status,
-		Position = UDim2.fromOffset(82, 38),
-		Size = UDim2.new(1, -96 - (ok and 0 or 120), 0, 22),
+		Position = UDim2.fromOffset(82, 42),
+		Size = UDim2.new(1, -96 - (ok and 0 or 138), 0, 26),
 		FontFace = Theme.Faces.Heavy,
 		TextColor3 = statusColor,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		StrokeThickness = 1.5,
-		MaxSize = 17,
+		MaxSize = 19,
 		Parent = box,
 	})
 	if not ok then

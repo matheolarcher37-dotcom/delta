@@ -255,7 +255,7 @@ local function renderGrid()
 				subtitle = "¥ " .. Formulas.formatNumber(item.price),
 				subtitleColor = coins >= item.price and C.Gold or Color3.fromRGB(255, 110, 110),
 				color = tier.color,
-				size = UDim2.fromOffset(146, 186),
+				size = UDim2.fromOffset(136, 186),
 				badge = entry.remaining > 0 and ("× " .. entry.remaining) or nil,
 				layoutOrder = index,
 				selected = entry.id == selectedId,
@@ -269,8 +269,8 @@ local function renderGrid()
 			local face = card:FindFirstChild("Face")
 			local tagsHolder = new("Frame", {
 				Name = "Tags",
-				Position = UDim2.fromOffset(6, 6),
-				Size = UDim2.new(1, -60, 0, 50),
+				Position = UDim2.fromOffset(6, 34),
+				Size = UDim2.new(1, -12, 0, 24),
 				BackgroundTransparency = 1,
 				ZIndex = 6,
 				Parent = face,
@@ -548,7 +548,7 @@ function Shop.init(gui: ScreenGui)
 		BackgroundTransparency = 1,
 		Parent = content,
 	})
-	refs.grid = Components.cardGrid(left, Vector2.new(146, 186), { Name = "Grid", Size = UDim2.fromScale(1, 1) }, 12)
+	refs.grid = Components.cardGrid(left, Vector2.new(136, 186), { Name = "Grid", Size = UDim2.fromScale(1, 1) }, 12)
 	refs.detail = new("Frame", {
 		Name = "DetailHolder",
 		Position = UDim2.new(0.56, 8, 0, 50),
