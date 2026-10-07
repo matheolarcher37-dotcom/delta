@@ -305,7 +305,7 @@ local function buildFrontLeg(ctx, sx: number)
 	ctx.bone(side .. "UpperArm", "Torso", side .. "Shoulder", upper, CFrame.new(shoulder))
 	ctx.spike(side .. "UpperArm", "ElbowTuft", C.shade, elbow + Vector3.new(sx * 0.2, 0.1, 0.15), Vector3.new(sx * 0.6, 0.15, 0.8), 0.6, 0.42, 0.14, Vector3.new(sx, 0, 0))
 	ctx.spike(side .. "UpperArm", "ShoulderTuft", C.main, shoulder + Vector3.new(sx * 0.35, 0.15, 0.25), Vector3.new(sx * 0.45, 0.55, 0.7), 0.6, 0.45, 0.14, Vector3.new(sx, 0, 0))
-	local fore = ctx.limb(nil, side .. "Forearm", elbow, wrist, 0.92, 0.88, C.main, 0.45)
+	local fore = ctx.limb(nil, side .. "Forearm", elbow, wrist, 0.84, 0.82, C.main, 0.45)
 	ctx.ball(side .. "Forearm", "ForearmMuscle", Vector3.new(0.95, 1.0, 0.95), CFrame.new(elbow:Lerp(wrist, 0.3) + Vector3.new(sx * 0.05, 0.05, 0)), C.main)
 	ctx.bone(side .. "Forearm", side .. "UpperArm", side .. "Elbow", fore, CFrame.new(elbow))
 	-- Grosse patte aux longs doigts griffus.
@@ -342,40 +342,43 @@ local function buildHindLeg(ctx, sx: number)
 end
 
 -- Une queue : chaîne de segments (os) qui part de la croupe, épaisse au milieu, effilée au bout.
-local TAIL_WIDTH = { 0.5, 0.8, 1.0, 1.0, 0.86, 0.58 }
+-- Les segments se chevauchent largement pour que la queue paraisse d'un seul tenant.
+local TAIL_WIDTH = { 0.55, 0.84, 1.0, 0.98, 0.8, 0.52 }
 local function buildTail(ctx, index: number, count: number)
 	local C = FOX
 	local u = (index - 1) / (count - 1) * 2 - 1 -- -1 (gauche) .. 1 (droite)
-	local fan = u * math.rad(108) -- 0 = vers le haut
-	local base = Vector3.new(math.sin(fan) * 0.35, 2.5 + math.cos(fan) * 0.15, 2.15)
+	local fan = u * math.rad(118) -- 0 = vers le haut
+	local base = Vector3.new(math.sin(fan) * 0.55, 2.5 + math.cos(fan) * 0.15, 2.15)
 	local dir = Vector3.new(math.sin(fan), math.cos(fan) + 0.25, 0.4 + 0.15 * math.cos(fan)).Unit
 	local tangent = Vector3.new(math.cos(fan), -math.sin(fan), 0)
 	-- Repère : Y le long de la queue, X dans le plan de l'éventail.
 	local back = tangent:Cross(dir).Unit
 	local frame = CFrame.fromMatrix(base, dir:Cross(back).Unit, dir, back)
-	local length = 7.8 - math.abs(u) * 0.6
+	local length = 8.6 - math.abs(u) * 0.5
 	local seg = length / #TAIL_WIDTH
-	local wmax = 1.85
+	local wmax = 1.95
 	-- Courbe en S : le milieu s'écarte vers l'extérieur, la pointe revient vers le haut.
 	local curl = u >= 0 and 1 or -1
 	local parentName = "Hips"
 	for k, w in TAIL_WIDTH do
 		local width = w * wmax
 		local name = "Tail" .. index .. "_" .. k
-		local color = C.main
-		local part = ctx.ball(nil, name, Vector3.new(width, seg * 2.4, width * 0.6), frame * CFrame.new(0, seg * 0.5, 0), color)
+		local part = ctx.ball(nil, name, Vector3.new(width, seg * 2.9, width * 0.6), frame * CFrame.new(0, seg * 0.5, 0), C.main)
 		ctx.bone(name, parentName, name, part, frame)
-		-- Ombre orange brûlé sur le dessous de chaque segment (volume des queues).
-		if k >= 2 and k <= 5 then
-			ctx.ball(name, "TailShade", Vector3.new(width * 0.9, seg * 2.2, width * 0.48), frame * CFrame.new(0, seg * 0.5, width * 0.12), C.shade)
+		-- Ombre orange brûlé sur le dessous (volume des queues), en bande continue.
+		if k >= 2 and k <= 4 then
+			ctx.ball(name, "TailShade", Vector3.new(width * 0.86, seg * 3.0, width * 0.5), frame * CFrame.new(0, seg * 0.6, width * 0.1), C.shade)
 		end
 		parentName = name
-		local bendZ = (k <= 2 and -0.4 or 0.5) * curl * (0.45 + 0.55 * math.abs(u))
+		local bendZ = (k <= 2 and -0.36 or 0.36) * curl * (0.45 + 0.55 * math.abs(u))
 		local bendX = (k <= 2 and 0.12 or -0.16)
 		frame = frame * CFrame.new(0, seg, 0) * CFrame.Angles(bendX, 0, bendZ)
 	end
-	-- Pointe effilée en flamme (lame tournée vers l'avant de l'éventail).
-	ctx.blade(parentName, "TailTip", C.main, frame * CFrame.new(0, -seg * 0.25, 0), seg * 1.9, TAIL_WIDTH[#TAIL_WIDTH] * wmax * 0.92, 0.32)
+	-- Pointe effilée en flamme : fuseau qui prolonge la queue, terminé par une fine lame courbée.
+	local tipWidth = TAIL_WIDTH[#TAIL_WIDTH] * wmax
+	ctx.ball(parentName, "TailTip", Vector3.new(tipWidth * 0.72, seg * 2.4, tipWidth * 0.45), frame * CFrame.new(0, seg * 0.2, 0), C.main)
+	local point = frame * CFrame.new(0, seg * 0.95, 0) * CFrame.Angles(0, 0, 0.35 * curl)
+	ctx.blade(parentName, "TailPoint", C.main, point, seg * 0.95, tipWidth * 0.42, 0.18)
 end
 
 local function buildKurama(ctx)
