@@ -14,6 +14,7 @@ local EVENTS = {
 	"TradeState", -- état de l'échange en cours (ou nil)
 	"OpenMenu", -- (nomDuMenu, argument?) ouvre un menu côté client (prompts de proximité)
 	"RollResult", -- { results = { {id, stars, rarity, price, dps, ...} }, pity = {...}, x10In = n } (machine ROULER)
+	"Robux_Granted", -- (type "pass" | "product", clé, détails) achat Robux validé (célébration côté client)
 
 	-- Client -> Serveur
 	"SetTarget", -- (ennemi) cible prioritaire de l'équipe
@@ -40,6 +41,7 @@ local FUNCTIONS = {
 	"CollectRolled", -- (clé du perso dans RolledQueue) -> ok, message (acheter un perso tiré)
 	"SetAutoRoll", -- (bool) -> ok, message
 	"PlaceUnit", -- (emplacement, uid | nil) -> ok, message (« Remplacer l'unité » d'une case de la base)
+	"Robux_Buy", -- ("pass" | "product", clé de Config/Robux) -> ok, message (ouvre l'achat Roblox)
 }
 
 local Remotes = {}

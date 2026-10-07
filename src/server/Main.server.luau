@@ -12,6 +12,7 @@ WorldBuilder.build()
 local ORDER = {
 	"AvatarService",
 	"DataService",
+	"MonetizationService", -- boutique Robux (passes, produits, boosts) : tôt, pour ProcessReceipt
 	"PlotService",
 	"CharacterService",
 	"TeamService",

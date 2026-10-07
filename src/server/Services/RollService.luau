@@ -22,6 +22,7 @@ local Auras = require(Shared.Config.Auras)
 local Traits = require(Shared.Config.Traits)
 local SkillTree = require(Shared.Config.SkillTree)
 local Universes = require(Shared.Config.Universes)
+local Robux = require(Shared.Config.Robux)
 local Formulas = require(Shared.Modules.Formulas)
 local CharacterFactory = require(Shared.Modules.CharacterFactory)
 local Remotes = require(Shared.Modules.Remotes)
@@ -345,7 +346,7 @@ function RollService:Roll(player: Player, auto: boolean?)
 	if isX10 then
 		data.X10Counter = 0
 	end
-	local luck = stats.luck * (isX10 and Economy.Roll.X10Luck or 1)
+	local luck = stats.luck * (isX10 and Economy.Roll.X10Luck or 1) * Robux.luckMultiplier(player) -- x2 Chance, boost, VIP
 	local universe = self.services.UniverseService and self.services.UniverseService:GetCurrent() or Universes.List[1]
 	local results = {}
 	for _ = 1, count do
