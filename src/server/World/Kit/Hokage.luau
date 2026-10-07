@@ -207,7 +207,7 @@ local function face(ctx: Ctx, o: FaceOptions)
 		E(ctx, "Machoire", 2.4 * jaw, 5.0, 4.4, at(ctx, s * 1.4 * jaw, -2.6, -0.9, 0, 0, -s * (soft and 0.36 or 0.3)))
 		E(ctx, "Pommette", 1.6, 1.2, 1.3, at(ctx, s * 1.85 * jaw, -0.8, -2.85, 0, s * 0.3, 0))
 	end
-	E(ctx, "Menton", soft and 1.9 or 2.3, 1.7, 2.0, at(ctx, 0, -4.3, -2.85))
+	E(ctx, "Menton", soft and 2.0 or 2.4, 1.4, 1.5, at(ctx, 0, -4.25, -2.95))
 	-- arcades : un bourrelet qui fait de l'ombre sur les yeux, et la racine du nez
 	E(ctx, "Arcades", 5.6, 1.15, 1.6, at(ctx, 0, 0.95, -3.3))
 	E(ctx, "RacineNez", 1.2, 1.2, 1.0, at(ctx, 0, 0.4, -3.7))
@@ -238,9 +238,9 @@ local function face(ctx: Ctx, o: FaceOptions)
 			E(ctx, "Narine", 0.28, 0.16, 0.2, at(ctx, s * 0.3, -1.98, -4.08), DEEP)
 		end
 		-- bouche : lèvres fines, fente sombre, petit creux sous la lèvre
-		E(ctx, "LevreHaut", soft and 1.6 or 1.8, 0.4, 0.55, at(ctx, 0, -2.55, -3.78))
-		B(ctx, "Bouche", soft and 1.45 or 1.65, 0.11, 0.3, at(ctx, 0, -2.76, -3.93), DEEP)
-		E(ctx, "LevreBas", soft and 1.3 or 1.45, 0.42, 0.55, at(ctx, 0, -2.98, -3.72))
+		E(ctx, "LevreHaut", soft and 1.6 or 1.8, 0.36, 0.42, at(ctx, 0, -2.56, -3.72))
+		B(ctx, "Bouche", soft and 1.35 or 1.5, 0.08, 0.2, at(ctx, 0, -2.75, -3.8), shade(STONE, -0.42))
+		E(ctx, "LevreBas", soft and 1.3 or 1.4, 0.38, 0.42, at(ctx, 0, -2.95, -3.68))
 		E(ctx, "Creux", 1.0, 0.3, 0.3, at(ctx, 0, -3.42, -3.78), shade(STONE, -0.1))
 		if o.age then
 			for _, s in { -1, 1 } do
@@ -256,7 +256,7 @@ local function face(ctx: Ctx, o: FaceOptions)
 		end
 	end
 	-- cou et épaules qui sortent de la roche (les blocs autour les cachent en partie)
-	E(ctx, "Cou", 3.8, 4.6, 3.8, at(ctx, 0, -5.1, 0.6))
+	E(ctx, "Cou", 3.4, 4.0, 3.4, at(ctx, 0, -5.0, 1.0))
 end
 
 ------------------------------------------------------------------------
@@ -746,7 +746,7 @@ function Hokage.mountain(parent: Instance, cf: CFrame, rng: Random): Model
 		headModel.Name = h.name
 		headModel.Parent = heads
 		-- la tête avance devant la paroi et penche un peu vers le village (regard vers le bas)
-		local headCF = cf * CFrame.new(h.x, h.y, lean(h.y) - 0.8 * U) * CFrame.Angles(-0.08, 0, 0)
+		local headCF = cf * CFrame.new(h.x, h.y, lean(h.y) - 0.35 * U) * CFrame.Angles(-0.14, 0, 0)
 		local count = Hokage.head(headModel, headCF, h.style)
 		headModel:SetAttribute("Pieces", count)
 		total += count
