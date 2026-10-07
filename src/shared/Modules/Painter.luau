@@ -998,6 +998,8 @@ end
 local SLEEVES = {
 	tank = "skin",
 	shirtless = "skin",
+	creature = "skin",
+	biosuit = "skin",
 	openvest = "skin",
 	egyptian = "skin",
 	qipao = "short",
@@ -1052,6 +1054,7 @@ local function palette(look)
 		pants = look.pants or "long",
 		footwear = look.footwear or "shoes",
 		haori = haoriOf(look), -- veste ouverte portée par-dessus (cache le dos et le haut des bras)
+		carapace = look.carapace,
 	}
 end
 Painter.palette = palette
@@ -2029,6 +2032,68 @@ OUTFITS.biosuit = function(S, look, c)
 	local _ = look
 end
 
+-- Taches sombres (carapace de la créature parfaite...).
+local function spots(S, color: Color3, n: number, seed: number)
+	for i = 0, n - 1 do
+		local v = math.sin(seed * 91.7 + i * 47.3) * 43758.5453
+		local r = v - math.floor(v)
+		local x = 0.15 + ((i * 0.37 + r * 0.3) % 0.7)
+		local y = (i + 0.5) / n
+		local d = 0.12 + r * 0.1
+		S:oval(x, y, d, d * 0.85, color, { z = 3 })
+	end
+end
+Painter.spots = spots
+
+-- Corps de créature (monstres, fléaux) : peau nue musclée, veines, carapace, taches, gueule
+-- dentée sur le ventre (look.carapace, look.veins, look.spots, look.maw).
+OUTFITS.creature = function(S, look, c)
+	local body = c.top
+	torsoEdges(S, body)
+	-- Pectoraux et abdominaux
+	for _, x in { 0.32, 0.68 } do
+		S:oval(x, 0.24, 0.66, 0.44, lighten(body, 0.14), { transparency = 0.25, z = 1, fine = true })
+	end
+	S:line(0.16, 0.4, 0.47, 0.45, 0.05, celShadow(body), { fade = { 0.8, 0 }, gradientRotation = 0, z = 2 })
+	S:line(0.84, 0.4, 0.53, 0.45, 0.05, celShadow(body), { fade = { 0.8, 0 }, gradientRotation = 0, z = 2 })
+	S:line(0.5, 0.46, 0.5, 0.92, 0.035, celShadow(body), { z = 2 })
+	for i = 0, 2 do
+		local y = 0.56 + i * 0.12
+		S:line(0.36, y, 0.48, y + 0.01, 0.03, celShadow(body), { z = 2 })
+		S:line(0.64, y, 0.52, y + 0.01, 0.03, celShadow(body), { z = 2 })
+	end
+	if look.carapace then
+		local plate = look.carapace
+		S:box(0.5, 0.2, 1.7, 0.6, plate, { corner = 0.35, gradient = { lighten(plate, 0.25), plate, darken(plate, 0.2) }, stroke = inkOf(plate), strokeThickness = 1.3, z = 4 })
+		for _, x in { 0.12, 0.88 } do
+			S:box(x, 0.62, 0.34, 1.0, plate, { corner = 0.4, gradient = { lighten(plate, 0.2), plate }, stroke = inkOf(plate), strokeThickness = 1.2, z = 4 })
+		end
+	end
+	if look.veins then
+		local v = look.veins
+		S:line(0.2, 0.1, 0.32, 0.36, 0.025, v, { z = 3, fine = true })
+		S:line(0.32, 0.36, 0.26, 0.6, 0.02, v, { z = 3, fine = true })
+		S:line(0.8, 0.12, 0.7, 0.34, 0.025, v, { z = 3 })
+		S:line(0.7, 0.34, 0.78, 0.55, 0.02, v, { z = 3, fine = true })
+	end
+	if look.spots then
+		spots(S, look.spots, 6, 3)
+	end
+	if look.maw then
+		-- Gueule béante sur le ventre : bord charnu, rangées de crocs, langue
+		local lip = darken(body, 0.35)
+		S:oval(0.5, 0.62, 1.3, 0.62, Color3.fromRGB(70, 10, 24), { stroke = lip, strokeThickness = 2.4, z = 5 })
+		S:oval(0.5, 0.72, 0.6, 0.22, Color3.fromRGB(200, 60, 90), { z = 6 })
+		for i = 0, 5 do
+			local x = 0.24 + i * 0.104
+			S:box(x, 0.53, 0.13, 0.13, Color3.fromRGB(240, 236, 220), { rotation = 45, z = 7 })
+			if i < 5 then
+				S:box(x + 0.052, 0.71, 0.11, 0.11, Color3.fromRGB(230, 226, 210), { rotation = 45, z = 7 })
+			end
+		end
+	end
+end
+
 -- Motif de roses (costume de l'amiral magma) : fleurs sombres à spirale + feuilles.
 local function roses(S, color: Color3, n: number, seed: number)
 	local dark = darken(color, 0.45)
@@ -2108,6 +2173,17 @@ local function torsoBack(S, look, c)
 		S:oval(0.5, 0.0, 0.46, 0.12, shade(c.top, 0.12), { stroke = inkOf(c.top), strokeThickness = 1.2, z = 2 })
 	elseif outfit == "shirtless" then
 		S:line(0.5, 0.15, 0.5, 0.85, 0.03, shade(c.skin, 0.3), { transparency = 0.4, z = 2 })
+	elseif outfit == "creature" then
+		-- Colonne vertébrale en crête + omoplates
+		for i = 0, 4 do
+			S:oval(0.5, 0.14 + i * 0.17, 0.18, 0.12, c.carapace or shade(c.top, 0.25), { stroke = inkOf(c.top), strokeThickness = 1, z = 3 })
+		end
+		if look.spots then
+			spots(S, look.spots, 6, 9)
+		end
+		if look.carapace then
+			S:box(0.5, 0.25, 1.8, 0.8, look.carapace, { corner = 0.35, gradient = { lighten(look.carapace, 0.2), look.carapace }, stroke = inkOf(look.carapace), strokeThickness = 1.2, z = 2 })
+		end
 	elseif outfit == "biosuit" then
 		biosuitPlate(S, c.accent, 0.22, 0.52)
 		S:line(0.5, 0.45, 0.5, 0.9, 0.03, shade(c.top, 0.3), { z = 3 })
@@ -2224,6 +2300,14 @@ function Painter.dress(limbs, look, mode: string?)
 					paintArm(S, look, c, side, isLeft)
 				else
 					paintLeg(S, look, c, side, isLeft)
+				end
+				if look.spots and side ~= "in" then
+					spots(S, look.spots, 3, (isArm and 5 or 13) + (isLeft and 2 or 0) + #side)
+				end
+				if look.limbPlates and side ~= "in" then
+					-- Plaques de carapace sur le haut des bras / des cuisses
+					local col = look.limbPlates
+					S:box(0.5, 0.25, 1.0, 0.8, col, { corner = 0.35, gradient = { lighten(col, 0.25), col, darken(col, 0.2) }, stroke = inkOf(col), strokeThickness = 1.2, z = 8 })
 				end
 				if look.bodyTattoo then
 					-- Anneaux tatoués : avant-bras / poignets, mollets et chevilles

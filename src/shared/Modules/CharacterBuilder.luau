@@ -1230,10 +1230,24 @@ ACC.dome = function(ctx, look)
 end
 
 ACC.volcano = function(ctx, look)
-	local rock = look.accColor or Color3.fromRGB(80, 60, 50)
-	ctx.vcyl("Head", "Volcano1", 0.45, 1.25, CFrame.new(0, 0.7, 0), rock)
-	ctx.vcyl("Head", "Volcano2", 0.4, 0.9, CFrame.new(0, 1.1, 0), rock)
-	ctx.vcyl("Head", "Lava", 0.08, 0.62, CFrame.new(0, 1.32, 0), Color3.fromRGB(255, 120, 20), { Material = Enum.Material.Neon })
+	-- Tête-volcan : cône à trois étages qui prolonge le crâne, cratère, lave et fumée.
+	local rock = look.volcanoColor or look.skin or Color3.fromRGB(80, 60, 50)
+	ctx.vcyl("Head", "Volcano1", 0.4, 1.3, CFrame.new(0, 0.62, 0.02), rock)
+	ctx.vcyl("Head", "Volcano2", 0.36, 1.06, CFrame.new(0, 0.96, 0.02), darken(rock, 0.06))
+	ctx.vcyl("Head", "Volcano3", 0.3, 0.82, CFrame.new(0, 1.26, 0.02), darken(rock, 0.12))
+	ctx.vcyl("Head", "Crater", 0.06, 0.66, CFrame.new(0, 1.42, 0.02), darken(rock, 0.5))
+	local lava = ctx.vcyl("Head", "Lava", 0.07, 0.5, CFrame.new(0, 1.44, 0.02), Color3.fromRGB(255, 120, 20), { Material = Enum.Material.Neon })
+	ctx.ball("Head", "LavaDrip", Vector3.new(0.12, 0.3, 0.1), CFrame.new(0.22, 1.3, -0.3), Color3.fromRGB(255, 120, 20), { Material = Enum.Material.Neon })
+	local smoke = Instance.new("ParticleEmitter")
+	smoke.Name = "VolcanoSmoke"
+	smoke.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	smoke.Color = ColorSequence.new(Color3.fromRGB(80, 70, 70))
+	smoke.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4 * ctx.s), NumberSequenceKeypoint.new(1, 1.2 * ctx.s) })
+	smoke.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 1) })
+	smoke.Lifetime = NumberRange.new(1, 2)
+	smoke.Rate = 5
+	smoke.Speed = NumberRange.new(1 * ctx.s, 2 * ctx.s)
+	smoke.Parent = lava
 end
 
 ACC.antennae = function(ctx, look)
@@ -1949,6 +1963,45 @@ ACC.compass_sigil = function(ctx, look)
 		ctx.add("HumanoidRootPart", "Sigil", Vector3.new(2 * R + 0.5, 0.04, 0.07), CFrame.new(0, y, 0) * CFrame.Angles(0, a, 0), color, props)
 	end
 	local _ = look
+end
+
+-- Crâne bulbeux veiné (petit guerrier-plante) : cerveau en dôme allongé, nervures, arcades.
+ACC.saiba_head = function(ctx, look)
+	local skin = look.skin or Color3.fromRGB(90, 170, 70)
+	local vein = look.veins or darken(skin, 0.35)
+	ctx.ball("Head", "Cranium", Vector3.new(1.34, 1.0, 1.6), CFrame.new(0, 0.52, 0.16), skin)
+	for _, x in { -0.32, 0, 0.32 } do
+		ctx.ball("Head", "CraniumVein", Vector3.new(0.1, 0.16, 1.5), CFrame.new(x, 0.98 - math.abs(x) * 0.5, 0.16) * CFrame.Angles(0, 0, x * 0.9), vein)
+	end
+	for _, side in { -1, 1 } do
+		ctx.ball("Head", "BrowRidge", Vector3.new(0.5, 0.14, 0.2), CFrame.new(side * 0.26, 0.24, -0.56) * CFrame.Angles(0, 0, side * 0.3), darken(skin, 0.12))
+	end
+end
+
+-- Crête et ailes de la créature parfaite miniature (carapace verte tachetée).
+ACC.cell_crest = function(ctx, look)
+	local plate = look.carapace or Color3.fromRGB(70, 150, 90)
+	local spot = look.spots or Color3.fromRGB(25, 35, 25)
+	ctx.ball("Head", "CrestCap", Vector3.new(1.32, 0.7, 1.4), CFrame.new(0, 0.58, 0.08), plate)
+	for _, side in { -1, 1 } do
+		ctx.spike("Head", plate, Vector3.new(side * 0.42, 0.72, 0.15), Vector3.new(side * 0.55, 0.9, 0.55), 0.8, 0.44)
+		ctx.ball("Head", "CrestSpot", Vector3.new(0.14, 0.1, 0.14), CFrame.new(side * 0.25, 0.9, -0.2), spot)
+	end
+	-- Ailes (élytres) dans le dos
+	for _, side in { -1, 1 } do
+		local frame = CFrame.new(side * 0.42, 0.7, 0.58) * CFrame.Angles(0, 0, side * 0.25) * CFrame.Angles(math.pi, 0, 0)
+		ctx.blade("Torso", darken(plate, 0.15), frame, 2.2, 0.8, 0.08, "Wing")
+	end
+end
+
+-- Griffes blanches au bout des mains (créatures).
+ACC.claws = function(ctx, look)
+	local claw = look.clawColor or Color3.fromRGB(240, 236, 224)
+	for _, side in { "Left Arm", "Right Arm" } do
+		for i = -1, 1 do
+			ctx.spike(side, claw, Vector3.new(i * 0.28, -0.95, -0.35), Vector3.new(i * 0.2, -1, -0.5), 0.3, 0.14)
+		end
+	end
 end
 
 -- Effets communs des boss (look.boss = { rim, light, aura, paintLight }) :
