@@ -102,7 +102,7 @@ Hokage.lean = lean
 
 ------------------------------------------------------------------------
 -- Outils de sculpture (repère d'une tête : origine entre les yeux, -Z = vers l'avant,
--- +X = à gauche du visage vu de face)
+-- +X = un côté du visage, en unités de sculpture)
 ------------------------------------------------------------------------
 
 type Ctx = { model: Model, cf: CFrame, u: number, count: number }
@@ -112,221 +112,439 @@ local function at(ctx: Ctx, x: number, y: number, z: number, rx: number?, ry: nu
 	return ctx.cf * CFrame.new(x * u, y * u, z * u) * CFrame.Angles(rx or 0, ry or 0, rz or 0)
 end
 
--- Grand volume arrondi (crâne, visage, cou) en unités de sculpture.
+-- Volume arrondi CACHÉ (crâne, calotte sous les mèches) : jamais sur une surface visible du visage.
 local function E(ctx: Ctx, name: string, sx: number, sy: number, sz: number, cf: CFrame, color: Color3?): Part
 	ctx.count += 1
-	return Core.ellipsoid(ctx.model, name, V3(sx, sy, sz) * ctx.u, cf, color or FACE, CARVE_MAT)
-end
-
--- Bloc taillé en unités de sculpture.
-local function B(ctx: Ctx, name: string, sx: number, sy: number, sz: number, cf: CFrame, color: Color3?): Part
-	ctx.count += 1
-	local part = Build.deco(ctx.model, name, V3(sx, sy, sz) * ctx.u, cf, color or FACE, { Material = CARVE_MAT })
-	part.CastShadow = math.min(sx, sy) * ctx.u > 1.5
+	local part = Core.ellipsoid(ctx.model, name, V3(sx, sy, sz) * ctx.u, cf, color or FACE, CARVE_MAT)
+	part.CanCollide = false
+	part.CanQuery = false
 	return part
 end
 
--- Coin (WedgePart) en unités : dessous plat, dos vertical (+Z), pente vers l'avant et le haut.
--- Dans le repère de la tête, c'est exactement la forme d'une arcade ou d'un nez : le dos contre
--- le visage, le dessous dans l'ombre, la pente qui prend la lumière.
+-- Pan taillé (bloc) en unités de sculpture : les visages sont faits de plans nets, comme une
+-- sculpture dégrossie au ciseau ; ce sont les ombres entre les plans qui dessinent les traits.
+local function B(ctx: Ctx, name: string, sx: number, sy: number, sz: number, cf: CFrame, color: Color3?): Part
+	ctx.count += 1
+	local part = Build.deco(ctx.model, name, V3(sx, sy, sz) * ctx.u, cf, color or FACE, { Material = CARVE_MAT })
+	part.CastShadow = math.min(sx, sy, sz) * ctx.u > 1.2
+	return part
+end
+
+-- Coin (WedgePart) en unités : dessous plat, dos vertical (+Z), pente vers l'avant et le haut
+-- (la forme d'un nez vu de profil : arête qui prend la lumière, dessous dans l'ombre).
 local function W(ctx: Ctx, name: string, sx: number, sy: number, sz: number, cf: CFrame, color: Color3?): WedgePart
 	ctx.count += 1
 	return Build.wedge(ctx.model, name, V3(sx, sy, sz) * ctx.u, cf, color or FACE, { Material = CARVE_MAT, CanCollide = false, CanQuery = false })
 end
 
--- Mèche : une pointe à quatre facettes (pyramide de coins) qui part de `root` (enfoncée dans la
--- calotte) dans la direction `dir`, longue de `len`, large de `w` (vue de face) et épaisse de `d`.
-local function spike(ctx: Ctx, root: Vector3, dir: Vector3, len: number, w: number, d: number, color: Color3?)
-	local up = dir.Unit
-	local ref = V3(0, 0, 1)
-	local depth = ref - up * up:Dot(ref)
-	if depth.Magnitude < 1e-3 then
-		depth = V3(0, 1, 0) - up * up.Y
+-- MÈCHE plate et effilée : deux coins dos à dos forment un triangle isocèle (base large de `w`
+-- enfoncée à la racine `root`, pointe fine au bout), épais de `t`. Les deux moitiés reculent un peu
+-- de part et d'autre de l'arête centrale (`crest`, en radians) : la lumière dessine la mèche.
+-- `out` = direction du côté visible de la mèche (vers le village pour les épis vus de face,
+-- vers l'extérieur du crâne pour une mèche plaquée).
+local function lock(ctx: Ctx, root: Vector3, dir: Vector3, len: number, w: number, t: number, out: Vector3?, crest: number?)
+	local a = dir.Unit
+	local o = out or V3(0, 0, -1)
+	local n = o - a * a:Dot(o)
+	if n.Magnitude < 1e-3 then
+		n = V3(0, 1, 0) - a * a.Y
 	end
-	depth = depth.Unit
-	local right = up:Cross(depth)
+	n = n.Unit
+	local side = a:Cross(n)
+	local c, s = math.cos(crest or 0.3), math.sin(crest or 0.3)
 	local u = ctx.u
-	local frame = ctx.cf * CFrame.fromMatrix(root * u, right, up, depth)
-	for _, part in Core.pyramid(ctx.model, "Meche", frame, w * u, d * u, len * u, color or HAIR, CARVE_MAT) do
-		part.CanCollide = false
-		part.CanQuery = false
+	for _, k in { 1, -1 } do
+		local sd = side * (k * c) - n * s
+		local x = sd:Cross(a)
+		local center = root + a * (len / 2) + sd * (w / 4)
+		ctx.count += 1
+		Build.wedge(ctx.model, "Meche", V3(t, len, w / 2) * u, ctx.cf * CFrame.fromMatrix(center * u, x, a, -sd), HAIR, {
+			Material = CARVE_MAT,
+			CanCollide = false,
+			CanQuery = false,
+		})
 	end
-	ctx.count += 4
 end
 
--- Couronne de mèches en éventail : `n` pointes de l'angle `a0` à `a1` (0 = vers le haut, positif =
--- vers la gauche du visage vu de face), racines sur une ellipse centrée en (0, y, z), pointes vers
--- l'extérieur et un peu vers l'arrière (`back`). `lean` penche toute la coiffure d'un côté.
+-- Frange qui retombe PAR-DESSUS le bandeau : mèches accrochées au bord haut de la bande.
+local function bandBangs(ctx: Ctx, n: number, spread: number, bandY: number, low: number, shift: number?)
+	for k = 0, n - 1 do
+		local f = n > 1 and k / (n - 1) * 2 - 1 or 0
+		local x = f * spread
+		local root = V3(x * 0.9, bandY + 0.75 - math.abs(f) * 0.15, -3.86 + math.abs(f) * 0.25)
+		local tip = V3(x * 1.05 + (shift or 0), low + math.abs(f) * 0.7, -3.98 + math.abs(f) * 0.3)
+		local d = tip - root
+		lock(ctx, root, d, d.Magnitude, 1.7, 0.4, V3(0, 0.25, -1), 0.3)
+	end
+end
+
+-- Calotte des cheveux : une masse lisse un peu plus grande que le crâne. Les mèches sont
+-- enracinées DANS sa surface et la suivent : on lit une chevelure sculptée dans la masse, pas
+-- une auréole de pointes.
+local CAP_C = V3(0, 3.3, 1.0)
+local CAP_R = V3(3.55, 2.6, 4.05)
+
+-- Point de la calotte dans la direction (a = angle vu de face, 0 = en haut ; p = avancée vers le
+-- visage, 0 = sur la silhouette) et normale à la surface en ce point.
+local function capPoint(a: number, p: number, inset: number?): (Vector3, Vector3)
+	local d = V3(math.sin(a) * math.cos(p), math.cos(a) * math.cos(p), -math.sin(p))
+	local pos = CAP_C + d * CAP_R * (inset or 0.93)
+	return pos, V3(d.X / CAP_R.X, d.Y / CAP_R.Y, d.Z / CAP_R.Z).Unit
+end
+
+local function cap(ctx: Ctx)
+	E(ctx, "Calotte", CAP_R.X * 2, CAP_R.Y * 2, CAP_R.Z * 2, at(ctx, CAP_C.X, CAP_C.Y, CAP_C.Z), HAIR)
+end
+
+-- Rang d'épis : `n` mèches de l'angle `a0` à `a1` (0 = vers le haut), racines dans la calotte à
+-- l'avancée `p`, pointes vers l'extérieur et vers l'arrière (`back`), à moitié plaquées sur la
+-- surface (`face` = 0 : couchées sur la calotte ; 1 : tournées vers le village).
+-- `lean` penche toute la coiffure d'un côté ; `fall` raccourcit les mèches des côtés.
 type CrownSpec = {
 	n: number,
 	a0: number,
 	a1: number,
-	y: number,
-	z: number,
-	rx: number,
-	ry: number,
+	p: number?,
 	len: number,
-	fall: number?, -- raccourcissement des mèches vers les côtés
 	w: number,
-	d: number,
+	t: number?,
 	back: number?,
 	lean: number?,
-	wave: number?, -- irrégularité des longueurs
+	fall: number?,
+	wave: number?,
+	face: number?,
+	inset: number?, -- 1 : racine posée sur la surface (mèche couchée) ; < 1 : enfoncée
+	tilt: number?, -- < 1 : les épis des côtés se redressent vers le haut
 }
 
 local function crown(ctx: Ctx, o: CrownSpec)
 	for k = 0, o.n - 1 do
-		local t = o.n > 1 and k / (o.n - 1) or 0.5
-		local a = o.a0 + (o.a1 - o.a0) * t
-		local root = V3(math.sin(a) * o.rx, o.y + math.cos(a) * o.ry, o.z)
-		local da = a + (o.lean or 0)
+		local f = o.n > 1 and k / (o.n - 1) or 0.5
+		local a = o.a0 + (o.a1 - o.a0) * f
+		local root, normal = capPoint(a, o.p or 0.45, o.inset)
+		local da = a * (o.tilt or 1) + (o.lean or 0)
 		local len = o.len - math.abs(math.sin(a)) * (o.fall or 0) + (o.wave and math.sin(k * 2.3 + 0.7) * o.wave or 0)
-		spike(ctx, root, V3(math.sin(da), math.cos(da), o.back or 0.3), len, o.w, o.d)
+		local out = normal + V3(0, 0, -(o.face or 0.8))
+		lock(ctx, root, V3(math.sin(da), math.cos(da), o.back or 0.35), len, o.w, o.t or 0.42, out)
 	end
 end
 
--- Frange : `n` mèches plates qui partent sous la calotte et retombent sur le front, réparties de
--- -spread à +spread ; `shift` les penche toutes d'un côté, `low` = hauteur des pointes.
-local function bangs(ctx: Ctx, n: number, spread: number, low: number, w: number, shift: number?)
+-- Frange : `n` mèches plates qui partent de la lisière et retombent sur le front, réparties de
+-- -spread à +spread ; `low` = hauteur des pointes, `shift` les penche toutes d'un côté.
+local function bangs(ctx: Ctx, n: number, spread: number, low: number, w: number, shift: number?, tipZ: number?)
 	for k = 0, n - 1 do
-		local t = n > 1 and k / (n - 1) * 2 - 1 or 0
-		local x = t * spread
-		local root = V3(x * 0.8, 4.3 - math.abs(t) * 0.5, -1.9 + math.abs(t) * 0.5)
-		local tip = V3(x * 1.08 + (shift or 0), low + math.abs(t) * 0.6, -3.45 + math.abs(t) * 0.55)
+		local f = n > 1 and k / (n - 1) * 2 - 1 or 0
+		local x = f * spread
+		local root = V3(x * 0.75, 3.85 - math.abs(f) * 0.4, -3.0 + math.abs(f) * 0.5)
+		local tip = V3(x * 1.1 + (shift or 0), low + math.abs(f) * 0.8, (tipZ or -3.6) + math.abs(f) * 0.45)
 		local d = tip - root
-		spike(ctx, root, d, d.Magnitude, w, 0.9)
+		lock(ctx, root, d, d.Magnitude, w, 0.36, V3(x * 0.15, 0.45, -1), 0.35)
 	end
 end
 
--- Calotte des cheveux (à peine plus grande que le crâne). `part` > 0 la sépare en deux moitiés
--- inclinées : la raie au milieu se creuse d'elle-même.
-local function cap(ctx: Ctx, sx: number?, sy: number?, part: number?)
-	if part and part > 0 then
-		for _, s in { -1, 1 } do
-			E(ctx, "Cheveux", (sx or 7.0) * 0.56, sy or 5.0, 7.6, at(ctx, s * 1.55, 3.2, 1.3, 0, 0, s * part), HAIR)
-		end
-	else
-		E(ctx, "Cheveux", sx or 7.0, sy or 5.0, 7.6, at(ctx, 0, 3.6, 2.0), HAIR)
-	end
+-- Hauteur de la face avant du front (z) à la hauteur `y` : le front recule en montant.
+local FRONT_Z, FRONT_Y, FRONT_TILT = -3.25, 2.05, 0.14
+local function foreheadZ(y: number): number
+	return FRONT_Z + (y - FRONT_Y) * math.sin(FRONT_TILT)
 end
 
--- Bandeau frontal : bande en cinq pans qui épouse le tour de la tête et plaque de métal plate
--- (0,6 stud) collée au front, gravée du symbole de la feuille. `roll` incline le bandeau.
-local RING_X, RING_C = 3.25, 0.15
-local function ringAt(phi: number, rz: number): (Vector3, CFrame)
-	local pos = V3(math.sin(phi) * RING_X, 0, RING_C - math.cos(phi) * rz)
-	local normal = V3(math.sin(phi) / RING_X, 0, -math.cos(phi) / rz).Unit
-	return pos, CFrame.lookAt(Vector3.zero, normal)
-end
-
--- Avancée du visage (z de la surface au milieu) à la hauteur `y` : suit l'ovale du visage.
-local function faceFront(y: number): number
-	local dy = math.clamp((y + 0.5) / 4, -0.95, 0.95)
-	return -0.8 - 2.6 * math.sqrt(1 - dy * dy)
-end
-
-local function headband(ctx: Ctx, y: number, roll: number?)
+-- Bandeau frontal : bande plate qui fait le tour du front (trois pans) et plaque de métal plate
+-- (0,6 stud d'épaisseur) collée dessus, gravée de la spirale de la feuille. `roll` incline le
+-- bandeau (Kakashi), `h` = hauteur de la bande, `z` force la profondeur (bandeau sur un œil).
+local function headband(ctx: Ctx, y: number, roll: number?, h: number?, zForce: number?)
 	local u = ctx.u
-	local rz = RING_C - faceFront(y) + 0.05
+	local bh = h or 1.0
+	local zc = zForce or (foreheadZ(y) - 0.27)
 	local band = at(ctx, 0, y, 0, 0, 0, roll or 0)
-	for _, phi in { -1.25, -0.62, 0, 0.62, 1.25 } do
-		local pos, rot = ringAt(phi, rz)
-		ctx.count += 1
-		Build.deco(ctx.model, "Bandeau", V3(2.1, 1.0, 0.5) * u, band * CFrame.new(pos * u) * rot, HAIR, { Material = CARVE_MAT })
+	ctx.count += 3
+	Build.deco(ctx.model, "Bandeau", V3(5.0, bh, 0.5) * u, band * CFrame.new(0, 0, zc * u) * CFrame.Angles(zForce and 0 or FRONT_TILT, 0, 0), HAIR, {
+		Material = CARVE_MAT,
+	})
+	for _, s in { -1, 1 } do
+		Build.deco(
+			ctx.model,
+			"Bandeau",
+			V3(2.4, bh * 0.95, 0.55) * u,
+			band * CFrame.new(s * 3.05 * u, 0, (zc + 0.85) * u) * CFrame.Angles(0, -s * 0.8, 0),
+			HAIR,
+			{ Material = CARVE_MAT }
+		)
 	end
-	local plate = band * CFrame.new(0, 0, (RING_C - rz - 0.25) * u - 0.3)
+	local plate = band * CFrame.new(0, 0, (zc - 0.25) * u - 0.3) * CFrame.Angles(zForce and 0 or FRONT_TILT, 0, 0)
 	ctx.count += 1
-	Build.deco(ctx.model, "Plaque", V3(2.6 * u, 1.15 * u, 0.6), plate, shade(FACE, 0.06), { Material = CARVE_MAT })
+	Build.deco(ctx.model, "Plaque", V3(2.5 * u, bh * 1.1 * u, 0.6), plate, shade(FACE, 0.07), { Material = CARVE_MAT })
+	-- spirale de la feuille gravée : six traits qui s'enroulent et la pointe
 	local g = plate * CFrame.new(0, 0, -0.32)
-	local function groove(x: number, yy: number, w: number, h: number, r: number)
+	local r = math.min(0.42, bh * 0.4) * u
+	for k = 0, 5 do
+		local ang = k * 1.05
+		local rr = r * (1 - k * 0.12)
 		ctx.count += 1
-		Build.deco(ctx.model, "Gravure", V3(w * u, h * u, 0.12), g * CFrame.new(x * u, yy * u, 0) * CFrame.Angles(0, 0, r), DEEP, { Material = CARVE_MAT, CastShadow = false })
+		Build.deco(
+			ctx.model,
+			"Gravure",
+			V3(rr * 0.95, 0.07 * u, 0.12),
+			g * CFrame.new(math.cos(ang) * rr * 0.8, math.sin(ang) * rr * 0.8, 0) * CFrame.Angles(0, 0, ang + math.pi / 2),
+			DEEP,
+			{ Material = CARVE_MAT, CastShadow = false }
+		)
 	end
-	-- spirale stylisée de la feuille : un anneau de quatre traits et la pointe
-	groove(0, 0.27, 0.5, 0.08, 0)
-	groove(0, -0.27, 0.5, 0.08, 0)
-	groove(-0.27, 0, 0.08, 0.5, 0)
-	groove(0.27, 0.03, 0.08, 0.42, 0)
-	groove(0.47, -0.18, 0.4, 0.08, -0.7)
+	ctx.count += 1
+	Build.deco(ctx.model, "Gravure", V3(r * 0.9, 0.07 * u, 0.12), g * CFrame.new(r * 0.95, -r * 0.7, 0) * CFrame.Angles(0, 0, -0.7), DEEP, {
+		Material = CARVE_MAT,
+		CastShadow = false,
+	})
 end
 
 ------------------------------------------------------------------------
--- Visage commun (volumes nets, expression calme)
+-- Visage commun : une SURFACE TAILLÉE en facettes (maillage de triangles, deux coins par
+-- triangle), comme une sculpture dégrossie au ciseau. Expression calme.
 ------------------------------------------------------------------------
+
+-- Triangle plein posé avec deux coins (WedgePart), la technique classique pour une surface
+-- quelconque. Points en coordonnées monde ; `n` = normale extérieure ; l'épaisseur part vers
+-- l'intérieur. Renvoie le nombre de pièces posées.
+local function triangle(model: Instance, a: Vector3, b: Vector3, c: Vector3, n: Vector3, thick: number, color: Color3): number
+	local off = -n * (thick / 2)
+	a, b, c = a + off, b + off, c + off
+	local ab, ac, bc = b - a, c - a, c - b
+	local abd, acd, bcd = ab:Dot(ab), ac:Dot(ac), bc:Dot(bc)
+	if abd > acd and abd > bcd then
+		c, a = a, c
+	elseif acd > bcd and acd > abd then
+		a, b = b, a
+	end
+	ab, ac, bc = b - a, c - a, c - b
+	local right = ac:Cross(ab)
+	if right.Magnitude < 1e-6 then
+		return 0
+	end
+	right = right.Unit
+	local up = bc:Cross(right).Unit
+	local back = bc.Unit
+	local height = math.abs(ab:Dot(up))
+	local props = { Material = CARVE_MAT, CanCollide = false, CanQuery = false }
+	local count = 0
+	local w1, w2 = math.abs(ab:Dot(back)), math.abs(ac:Dot(back))
+	if w1 > 0.02 and height > 0.02 then
+		Build.wedge(model, "Facette", V3(thick, height, w1), CFrame.fromMatrix((a + b) / 2, right, up, back), color, props)
+		count += 1
+	end
+	if w2 > 0.02 and height > 0.02 then
+		Build.wedge(model, "Facette", V3(thick, height, w2), CFrame.fromMatrix((a + c) / 2, -right, up, -back), color, props)
+		count += 1
+	end
+	return count
+end
+Hokage.triangle = triangle
+
+-- Sommets d'une moitié du visage (x ≥ 0, en unités ; les sommets « c_ » sont sur l'axe).
+local FACE_VERTS: { [string]: { number } } = {
+	c_top = { 0, 3.3, -2.9 }, -- lisière des cheveux
+	c_fh = { 0, 2.0, -3.3 }, -- front
+	c_gl = { 0, 0.8, -3.4 }, -- glabelle
+	c_br = { 0, 0.15, -3.3 }, -- racine du nez
+	c_tip = { 0, -1.45, -4.15 }, -- bout du nez
+	c_sn = { 0, -1.95, -3.5 }, -- sous le nez
+	c_m = { 0, -2.78, -3.28 }, -- bouche (trait)
+	c_ll = { 0, -3.05, -3.4 }, -- lèvre du bas
+	c_mc = { 0, -3.35, -3.25 }, -- creux du menton
+	c_ch = { 0, -3.85, -3.45 }, -- menton
+	c_cb = { 0, -4.4, -3.0 }, -- dessous du menton
+	c_uc = { 0, -4.7, -1.6 }, -- vers le cou
+	r_hl = { 2.8, 2.6, -1.8 }, -- lisière à la tempe
+	r_fh = { 1.6, 2.0, -3.15 }, -- côté du front
+	r_tp = { 3.0, 1.3, -1.9 }, -- tempe
+	r_bi = { 0.55, 0.9, -3.42 }, -- sourcil, côté nez
+	r_bm = { 1.35, 1.05, -3.4 }, -- sourcil, milieu
+	r_bo = { 2.35, 0.75, -2.95 }, -- sourcil, bout
+	r_ei = { 0.6, 0.15, -3.02 }, -- coin de l'œil, côté nez
+	r_et = { 1.3, 0.42, -2.9 }, -- haut de l'orbite
+	r_eo = { 2.05, 0.15, -2.78 }, -- coin de l'œil, dehors
+	r_eb = { 1.3, -0.08, -3.0 }, -- bas de l'œil
+	r_ue = { 1.25, -0.55, -3.2 }, -- sous l'œil
+	r_cb = { 2.2, -0.55, -3.0 }, -- pommette
+	r_cs = { 2.95, -0.35, -2.1 }, -- côté de la joue
+	r_ns = { 0.42, -0.35, -3.3 }, -- flanc du nez
+	r_nw = { 0.6, -1.65, -3.5 }, -- aile du nez
+	r_nb = { 0.3, -1.98, -3.5 }, -- narine
+	r_ck = { 1.5, -1.55, -3.15 }, -- joue
+	r_nl = { 0.95, -2.15, -3.3 }, -- pli du nez
+	r_mc = { 0.9, -2.78, -3.1 }, -- coin de la bouche
+	r_jm = { 2.35, -2.2, -2.5 }, -- mâchoire
+	r_ja = { 2.75, -2.9, -1.3 }, -- angle de la mâchoire
+	r_jl = { 1.9, -3.55, -2.55 }, -- bas de la mâchoire
+	r_cs2 = { 0.95, -3.7, -3.2 }, -- côté du menton
+	r_cbs = { 0.9, -4.3, -2.85 }, -- dessous du menton, côté
+	r_uj = { 1.8, -4.05, -1.6 }, -- sous la mâchoire
+}
+
+-- Facettes d'une moitié (55 triangles ; l'autre moitié est le miroir).
+local FACE_TRIS: { { string } } = {
+	-- front
+	{ "c_top", "r_hl", "r_fh" },
+	{ "c_top", "r_fh", "c_fh" },
+	{ "r_hl", "r_tp", "r_fh" },
+	{ "c_fh", "r_fh", "r_bi" },
+	{ "c_fh", "r_bi", "c_gl" },
+	{ "r_fh", "r_bm", "r_bi" },
+	{ "r_fh", "r_tp", "r_bm" },
+	{ "r_tp", "r_bo", "r_bm" },
+	-- dessous de l'arcade (dans l'ombre) et orbite
+	{ "c_gl", "r_bi", "r_ei" },
+	{ "c_gl", "r_ei", "c_br" },
+	{ "r_bi", "r_bm", "r_et" },
+	{ "r_bi", "r_et", "r_ei" },
+	{ "r_bm", "r_bo", "r_et" },
+	{ "r_bo", "r_eo", "r_et" },
+	{ "r_ei", "r_et", "r_eo" },
+	{ "r_ei", "r_eo", "r_eb" },
+	-- tempe
+	{ "r_tp", "r_cs", "r_bo" },
+	{ "r_bo", "r_cs", "r_eo" },
+	-- sous l'œil et pommette
+	{ "r_ei", "r_eb", "r_ue" },
+	{ "r_eb", "r_eo", "r_cb" },
+	{ "r_eb", "r_cb", "r_ue" },
+	{ "r_eo", "r_cs", "r_cb" },
+	-- nez
+	{ "c_br", "r_ei", "r_ns" },
+	{ "c_br", "r_ns", "c_tip" },
+	{ "r_ns", "r_nw", "c_tip" },
+	{ "r_nw", "r_nb", "c_tip" },
+	{ "r_nb", "c_sn", "c_tip" },
+	{ "r_ei", "r_ue", "r_ns" },
+	{ "r_ns", "r_ue", "r_nw" },
+	{ "r_ue", "r_ck", "r_nw" },
+	-- joue
+	{ "r_ue", "r_cb", "r_ck" },
+	{ "r_cb", "r_jm", "r_ck" },
+	{ "r_cb", "r_cs", "r_jm" },
+	{ "r_cs", "r_ja", "r_jm" },
+	-- lèvres
+	{ "r_nw", "r_ck", "r_nl" },
+	{ "r_nw", "r_nl", "r_nb" },
+	{ "r_nb", "r_nl", "r_mc" },
+	{ "r_nb", "r_mc", "c_sn" },
+	{ "c_sn", "r_mc", "c_m" },
+	{ "c_m", "r_mc", "c_ll" },
+	{ "r_mc", "r_cs2", "c_ll" },
+	{ "c_ll", "r_cs2", "c_mc" },
+	{ "c_mc", "r_cs2", "c_ch" },
+	-- joue vers la mâchoire
+	{ "r_nl", "r_ck", "r_jm" },
+	{ "r_nl", "r_jm", "r_mc" },
+	{ "r_mc", "r_jm", "r_jl" },
+	{ "r_mc", "r_jl", "r_cs2" },
+	{ "r_jm", "r_ja", "r_jl" },
+	-- menton et dessous
+	{ "r_cs2", "r_cbs", "c_ch" },
+	{ "c_ch", "r_cbs", "c_cb" },
+	{ "r_cs2", "r_jl", "r_cbs" },
+	{ "r_jl", "r_uj", "r_cbs" },
+	{ "r_jl", "r_ja", "r_uj" },
+	{ "c_cb", "r_cbs", "c_uc" },
+	{ "r_cbs", "r_uj", "c_uc" },
+}
+Hokage.FaceTriangles = #FACE_TRIS * 2
 
 type FaceOptions = {
 	jaw: number?, -- largeur de la mâchoire
-	brow: number?, -- inclinaison de l'arcade (calme ≈ 0, sévère ≈ 0.12)
+	brow: number?, -- bout du sourcil plus bas (calme > 0) ou plus haut (sévère < 0)
 	soft: boolean?, -- traits plus fins (visage féminin, jeune)
 	mask: boolean?, -- masque de tissu sur le bas du visage
 	hideEye: number?, -- œil caché par le bandeau (-1 ou 1)
 	ears: boolean?,
-	age: boolean?, -- rides du front
+	age: boolean?, -- rides du front et plis du nez
 }
 
-local function face(ctx: Ctx, o: FaceOptions)
+-- Position d'un sommet (côté `s`), ajustée selon le visage.
+local function faceVertex(name: string, s: number, o: FaceOptions): Vector3
+	local p = FACE_VERTS[name]
+	local x, y, z = p[1], p[2], p[3]
 	local jw = o.jaw or 1
-	local brow = o.brow or 0.04
-	local soft = o.soft == true
-	-- crâne et ovale du visage (un seul grand volume lisse qui s'affine vers le menton), coins de
-	-- la mâchoire et menton à peine marqués
-	E(ctx, "Crane", 6.6, 7.0, 7.2, at(ctx, 0, 1.6, 1.4))
-	E(ctx, "Visage", 5.6 * jw, 8.0, 5.2, at(ctx, 0, -0.5, -0.8))
-	E(ctx, "BasVisage", 3.8 * jw, 3.6, 4.4, at(ctx, 0, -2.6, -0.95))
-	E(ctx, "Menton", (soft and 1.8 or 2.3) * jw, 1.3, 0.8, at(ctx, 0, -4.0, -2.2))
-	-- arcade : un bourrelet continu au-dessus des yeux, qui met les orbites dans l'ombre
-	E(ctx, "Arcade", 5.0, 1.2, 1.1, at(ctx, 0, 0.98, -2.72))
-	for _, s in { -1, 1 } do
-		W(ctx, "Sourcil", 1.9, 0.42, 0.5, at(ctx, s * 1.25, 0.86, -3.36, 0, s * 0.28, s * brow))
+	if y < -1.8 and x > 0 then
+		x *= jw -- mâchoire plus large ou plus fine
 	end
-	-- orbites creusées (un peu plus sombres) ; l'œil caché par un bandeau n'en a pas
-	for _, s in { -1, 1 } do
-		if o.hideEye ~= s then
-			E(ctx, "Orbite", 1.6, 0.66, 0.4, at(ctx, s * 1.3, 0.3, -2.9, 0, s * 0.28, 0), SOCKET)
-		end
+	if name == "r_bo" then
+		y -= o.brow or 0.04
 	end
-	-- nez triangulaire (deux coins biseautés) : étroit à la racine, large à la base, l'arête prend
-	-- la lumière et le dessous reste dans l'ombre
-	local function nose(w: number, h: number, d: number, y: number, z: number)
-		local u = ctx.u
-		for _, s in { -1, 1 } do
-			local part = Instance.new("CornerWedgePart")
-			part.Name = "Nez"
-			part.Size = (s > 0 and V3(w / 2, h, d) or V3(d, h, w / 2)) * u
-			part.CFrame = at(ctx, s * w / 4, y, z) * CFrame.Angles(0, s > 0 and math.pi or -math.pi / 2, 0)
-			part.Color = FACE
-			part.Material = CARVE_MAT
-			part.Anchored = true
-			part.CanCollide = false
-			part.CanQuery = false
-			part.CanTouch = false
-			part.Parent = ctx.model
-			ctx.count += 1
+	if o.soft then
+		-- nez plus fin, menton plus petit et plus rond, mâchoire plus douce
+		if name == "c_tip" then
+			z += 0.2
+		elseif name == "r_nw" or name == "r_nb" then
+			x *= 0.85
+		elseif name == "c_ch" or name == "c_cb" then
+			z += 0.1
+		elseif name == "r_cs2" or name == "r_cbs" then
+			x *= 0.8
+		elseif name == "r_jl" then
+			x *= 0.92
 		end
 	end
 	if o.mask then
-		-- masque : le bas du visage est lisse, le nez se devine sous le tissu
-		E(ctx, "Masque", 4.9 * jw, 4.6, 5.0, at(ctx, 0, -2.3, -0.75))
-		nose(1.1, 1.8, 0.7, -0.7, -3.42)
-		B(ctx, "BordMasque", 4.4, 0.14, 0.3, at(ctx, 0, -0.32, -3.15), shade(FACE, -0.08))
+		-- sous le masque, le bas du visage est une surface lisse : la bouche disparaît, le nez s'aplatit
+		if name == "c_tip" then
+			z += 0.3
+		elseif name == "c_sn" or name == "c_m" or name == "c_ll" or name == "c_mc" then
+			z = -3.42 + (y + 1.95) * 0.03
+		elseif name == "r_nb" or name == "r_nl" or name == "r_mc" then
+			z = -3.3
+		end
+	end
+	return V3(x * s, y, z)
+end
+
+local FACE_CENTER = V3(0, -0.5, 0.6)
+
+local function face(ctx: Ctx, o: FaceOptions)
+	local u = ctx.u
+	local thick = 1.6
+	-- masse intérieure (sombre) et côtés de la tête : elle bouche l'arrière du masque facetté
+	E(ctx, "Crane", 6.2, 6.8, 7.0, at(ctx, 0, 1.6, 0.9))
+	B(ctx, "Noyau", 5.2, 6.4, 4.0, at(ctx, 0, -1.0, 0.4), shade(FACE, -0.1))
+	for _, s in { -1, 1 } do
+		B(ctx, "Cote", 0.6, 4.6, 3.0, at(ctx, s * 2.75, -0.9, -0.2, 0, -s * 0.15, 0))
+	end
+	-- surface du visage
+	for _, s in { -1, 1 } do
+		for _, t in FACE_TRIS do
+			local la, lb, lc = faceVertex(t[1], s, o), faceVertex(t[2], s, o), faceVertex(t[3], s, o)
+			local n = (lb - la):Cross(lc - la)
+			if n.Magnitude > 1e-6 then
+				n = n.Unit
+				if n:Dot((la + lb + lc) / 3 - FACE_CENTER) < 0 then
+					n = -n
+				end
+				local wa, wb, wc = ctx.cf * (la * u), ctx.cf * (lb * u), ctx.cf * (lc * u)
+				ctx.count += triangle(ctx.model, wa, wb, wc, ctx.cf:VectorToWorldSpace(n), thick, FACE)
+			end
+		end
+	end
+	-- globes des yeux lisses (sans paupière), la bouche en trait fin
+	for _, s in { -1, 1 } do
+		if o.hideEye ~= s then
+			E(ctx, "Oeil", o.soft and 0.95 or 1.05, 0.34, 0.16, at(ctx, s * 1.3, 0.16, -2.97, 0, -s * 0.2, 0))
+		end
+	end
+	if o.mask then
+		B(ctx, "Ourlet", 3.6, 0.12, 0.25, at(ctx, 0, -0.62, -3.35), shade(FACE, -0.12))
 	else
-		nose(soft and 0.95 or 1.1, 2.1, 0.85, -0.75, -3.45)
-		-- bouche : un trait fin en creux, la lèvre du bas qui accroche la lumière
-		B(ctx, "Bouche", soft and 1.2 or 1.45, 0.12, 0.2, at(ctx, 0, -2.62, -3.14), DEEP)
-		E(ctx, "Levre", soft and 0.95 or 1.15, 0.34, 0.36, at(ctx, 0, -2.9, -3.06))
+		B(ctx, "Trait", o.soft and 1.5 or 1.7, 0.09, 0.2, at(ctx, 0, -2.78, -3.22), DEEP)
 	end
 	if o.age then
-		for _, y in { 2.3, 2.75 } do
-			B(ctx, "Ride", 2.0, 0.08, 0.12, at(ctx, 0, y, -3.28), shade(FACE, -0.12))
+		for _, y in { 2.45, 2.85 } do
+			B(ctx, "Ride", 2.4, 0.08, 0.14, at(ctx, 0, y, -3.12 - (2.85 - y) * 0.2, 0.3, 0, 0), shade(FACE, -0.16))
 		end
 	end
 	if o.ears ~= false then
 		for _, s in { -1, 1 } do
-			B(ctx, "Oreille", 0.6, 1.9, 1.2, at(ctx, s * 3.05, -0.2, 0.5, 0, -s * 0.3, 0))
+			B(ctx, "Oreille", 0.55, 1.9, 1.2, at(ctx, s * 3.1, -0.2, -0.6, 0, -s * 0.35, 0))
 		end
 	end
-	-- cou qui sort de la roche (les blocs autour le cachent en partie)
-	E(ctx, "Cou", 3.8, 4.4, 3.8, at(ctx, 0, -5.0, 1.0))
+	-- cou (dans l'ombre) qui sort de la roche ; les blocs autour le cachent en partie
+	B(ctx, "Cou", 3.0, 3.2, 3.0, at(ctx, 0, -5.4, 0.6), shade(FACE, -0.12))
 end
 
 ------------------------------------------------------------------------
@@ -335,107 +553,198 @@ end
 
 local STYLES: { [string]: (Ctx) -> () } = {}
 
--- Cheveux longs et lisses : calotte séparée par la raie, pans de frange plats qui suivent le
--- front, grands rideaux plats de chaque côté du visage jusqu'aux épaules.
-local function longHair(ctx: Ctx, length: number, open: number)
-	cap(ctx, 7.4, 5.4)
-	B(ctx, "Raie", 0.14, 1.4, 0.3, at(ctx, 0, 5.0, -1.0, -0.75, 0, 0), JOINT)
+-- Surface facettée symétrique : `rows` = rangées de sommets (moitié x ≥ 0, en unités), reliées
+-- deux à deux par des triangles ; `center` sert à orienter l'épaisseur vers l'intérieur.
+local function surface(ctx: Ctx, rows: { { { number } } }, center: Vector3, thick: number, color: Color3?)
+	local u = ctx.u
 	for _, s in { -1, 1 } do
-		-- deux mèches plates qui partent de la raie et descendent vers la tempe
-		spike(ctx, V3(s * 0.5, 4.9, -1.2), V3(s * (2.6 + open), -3.0, -1.5), 4.4, 2.4, 1.0)
-		spike(ctx, V3(s * 1.7, 5.0, 0.0), V3(s * (1.8 + open), -3.4, -1.2), 4.6, 2.4, 1.0)
-		-- grande masse lisse de cheveux le long de la joue, jusqu'aux épaules, et ses pointes
-		local x = s * (3.15 + open * 0.4)
-		E(ctx, "Chevelure", 2.8, length + 2.4, 5.0, at(ctx, x, 5.4 - (length + 2.4) / 2, 0.8, 0, 0, s * 0.1), HAIR)
-		E(ctx, "Chevelure", 1.6, length, 2.4, at(ctx, x - s * 0.15, 4.4 - length / 2, -1.2, 0, s * 0.2, s * 0.06), HAIR)
-		for k = -1, 1 do
-			spike(ctx, V3(x + s * k * 0.3, 3.4 - length * 0.82, 0.6 + k * 1.1), V3(s * 0.12, -1, 0), length * 0.28, 1.5, 1.6)
+		local function P(p: { number }): Vector3
+			return V3(p[1] * s, p[2], p[3])
 		end
+		local function tri(a: Vector3, b: Vector3, c: Vector3)
+			local n = (b - a):Cross(c - a)
+			if n.Magnitude < 1e-6 then
+				return
+			end
+			n = n.Unit
+			if n:Dot((a + b + c) / 3 - center) < 0 then
+				n = -n
+			end
+			ctx.count += triangle(ctx.model, ctx.cf * (a * u), ctx.cf * (b * u), ctx.cf * (c * u), ctx.cf:VectorToWorldSpace(n), thick, color or HAIR)
+		end
+		for i = 1, #rows - 1 do
+			local r0, r1 = rows[i], rows[i + 1]
+			for j = 1, #r0 - 1 do
+				local a, b, c, d = P(r0[j]), P(r0[j + 1]), P(r1[j]), P(r1[j + 1])
+				tri(a, b, d)
+				tri(a, d, c)
+			end
+		end
+	end
+end
+
+-- Chevelure en épis : les mèches de devant et du dessus sont couchées sur la masse (elles la
+-- recouvrent), celles de la silhouette se dressent vers le haut et les côtés, celles du fond
+-- remplissent. `len` = longueur des épis ; `lean` penche tout d'un côté.
+local function spikes(ctx: Ctx, len: number, o: { lean: number?, fall: number?, wide: number?, n: number? }?)
+	local opt = o or {}
+	local lean = opt.lean or 0
+	local wide = opt.wide or 1.5
+	cap(ctx)
+	crown(ctx, { n = 6, a0 = -1.05, a1 = 1.05, p = 0.95, len = len * 0.95, w = 2.6, back = 1.2, lean = lean * 0.7, face = 0, inset = 1.0, wave = 0.2 })
+	crown(ctx, { n = 5, a0 = -0.85, a1 = 0.85, p = 0.5, len = len, w = 2.6, back = 0.8, lean = lean * 0.8, face = 0.15, inset = 1.0, wave = 0.25 })
+	crown(ctx, {
+		n = opt.n or 8,
+		a0 = -wide + math.min(lean, 0) * 0.5,
+		a1 = wide + math.max(lean, 0) * 0.5,
+		p = 0.18,
+		len = len,
+		fall = opt.fall or 0.4,
+		w = 2.4,
+		back = 0.4,
+		lean = lean,
+		tilt = 0.78,
+		face = 0.8,
+		wave = 0.3,
+	})
+	crown(ctx, { n = 6, a0 = -wide * 0.8, a1 = wide * 0.8, p = -0.3, len = len * 1.1, w = 2.5, back = 0.5, lean = lean, tilt = 0.75, face = 1.0, wave = 0.3 })
+end
+
+-- Cheveux longs et lisses : une coiffe facettée (raie au milieu creusée en V, mèches en
+-- côtes de la raie vers les côtés), puis de grands rideaux facettés de chaque côté du visage,
+-- jusqu'aux épaules, aux pointes inégales.
+local LONG_TOP = {
+	{ { 0, 3.05, -3.08 }, { 0.4, 3.12, -3.05 }, { 1.1, 3.05, -2.9 }, { 2.2, 2.65, -2.45 }, { 3.15, 1.6, -1.75 }, { 3.5, 0.5, -1.4 } },
+	{ { 0, 4.3, -2.5 }, { 0.4, 4.58, -2.45 }, { 1.1, 4.5, -2.3 }, { 2.2, 4.0, -1.95 }, { 3.35, 2.75, -1.35 }, { 3.8, 1.3, -0.95 } },
+	{ { 0, 5.38, -0.75 }, { 0.4, 5.7, -0.72 }, { 1.1, 5.6, -0.62 }, { 2.3, 5.0, -0.5 }, { 3.5, 3.6, -0.35 }, { 4.0, 1.7, -0.2 } },
+	{ { 0, 5.8, 1.4 }, { 0.4, 5.85, 1.4 }, { 1.2, 5.75, 1.4 }, { 2.5, 5.1, 1.4 }, { 3.7, 3.6, 1.4 }, { 4.1, 1.7, 1.4 } },
+}
+
+local function longHair(ctx: Ctx, length: number, open: number)
+	surface(ctx, LONG_TOP, V3(0, 1.5, 0.8), 2.2)
+	-- sillons gravés entre les mèches, de la raie vers les côtés (sur les arêtes des facettes)
+	local u = ctx.u
+	for _, s in { -1, 1 } do
+		for _, t in { 0.5, 1.45 } do
+			local i = math.floor(t) + 1
+			local f = t - math.floor(t)
+			local r0, r1 = LONG_TOP[i], LONG_TOP[i + 1]
+			local function pt(j: number): Vector3
+				local a, b = r0[j], r1[j]
+				return V3((a[1] + (b[1] - a[1]) * f) * s, a[2] + (b[2] - a[2]) * f, a[3] + (b[3] - a[3]) * f)
+			end
+			for j = 2, #r0 - 1 do
+				local a, b = pt(j), pt(j + 1)
+				local mid = (a + b) / 2
+				local outward = (mid - V3(0, 1.5, 0.8)).Unit
+				local p = mid + outward * 0.06
+				local d = b - a
+				ctx.count += 1
+				Build.deco(
+					ctx.model,
+					"Sillon",
+					V3(0.12 * u, 0.1 * u, d.Magnitude * u),
+					ctx.cf * CFrame.lookAt(p * u, (p + d) * u, outward),
+					JOINT,
+					{ Material = CARVE_MAT, CastShadow = false }
+				)
+			end
+		end
+	end
+	-- rideaux : colonnes de l'avant vers l'arrière, rangées du haut vers le bas
+	local o = open
+	local y2 = -2.3
+	local y3 = 4.6 - length
+	local curtain = {
+		{ LONG_TOP[1][6], LONG_TOP[2][6], LONG_TOP[3][6], LONG_TOP[4][6] },
+		{ { 3.35 + o * 0.5, y2, -1.6 }, { 3.85 + o * 0.5, y2, -0.75 }, { 4.1 + o * 0.5, y2, 0.15 }, { 4.15 + o * 0.5, y2, 1.4 } },
+		{ { 3.4 + o, y3, -1.55 }, { 3.95 + o, y3 + 1.1, -0.8 }, { 4.2 + o, y3 - 0.5, 0.1 }, { 4.25 + o, y3 + 0.7, 1.4 } },
+	}
+	-- les rideaux sont des surfaces à part (la normale « extérieure » part sur le côté)
+	for _, s in { 1 } do
+		local _ = s
+		surface(ctx, curtain, V3(0, -1, 0.4), 3.0)
+	end
+	-- deux mèches fines devant les oreilles, qui encadrent le visage, et les pointes des rideaux
+	for _, s in { -1, 1 } do
+		lock(ctx, V3(s * 3.3, 1.4, -1.65), V3(s * 0.05, -1, -0.05), length * 0.62, 1.4, 0.4, V3(s * 0.5, 0, -1), 0.2)
+		lock(ctx, V3(s * (3.45 + o), y3 + 0.4, -1.5), V3(s * 0.06, -1, 0), 1.6, 1.3, 0.5, V3(s * 0.6, 0, -1), 0.2)
+		lock(ctx, V3(s * (4.15 + o), y3 + 0.2, 0.1), V3(s * 0.08, -1, 0), 1.8, 1.6, 0.5, V3(s, 0, -0.4), 0.2)
 	end
 end
 
 -- Hashirama : longs cheveux raides séparés au milieu, jusqu'aux épaules.
 STYLES.longs = function(ctx)
-	face(ctx, { jaw = 1.02 })
-	longHair(ctx, 8.4, 0.05)
+	face(ctx, { jaw = 1.03, ears = false })
+	longHair(ctx, 10.4, 0.05)
 end
 
--- Hiruzen : grands épis dressés en flamme, front ridé, bouc effilé.
+-- Hiruzen : front dégagé et ridé, cheveux dressés en flamme, bouc effilé.
 STYLES.epis = function(ctx)
-	face(ctx, { brow = 0.06, age = true })
-	cap(ctx, 7.0, 4.6)
-	crown(ctx, { n = 7, a0 = -1.2, a1 = 1.2, y = 3.0, z = 1.2, rx = 3.0, ry = 2.2, len = 4.6, fall = 2.2, w = 2.4, d = 2.6, back = 0.45, wave = 0.5 })
-	crown(ctx, { n = 5, a0 = -0.8, a1 = 0.8, y = 2.4, z = -1.4, rx = 2.6, ry = 1.2, len = 2.6, fall = 0.6, w = 2.2, d = 1.4, back = 0.7, wave = 0.3 })
-	-- bouc : une pointe qui descend du menton, et une fine moustache
-	spike(ctx, V3(0, -4.0, -2.6), V3(0, -1, 0.15), 2.4, 1.4, 1.0)
-	for _, s in { -1, 1 } do
-		B(ctx, "Moustache", 1.1, 0.22, 0.3, at(ctx, s * 0.55, -2.42, -3.32, 0, -s * 0.2, -s * 0.15), HAIR)
-	end
+	face(ctx, { brow = 0.07, age = true })
+	spikes(ctx, 3.4, { fall = 1.4, wide = 1.1, n = 7 })
+	-- bouc : une mèche qui descend du menton
+	lock(ctx, V3(0, -3.95, -3.1), V3(0, -1, 0.15), 2.2, 1.4, 0.5, V3(0, 0, -1), 0.3)
 end
 
--- Tsunade : cheveux lisses, frange séparée au milieu, longs rideaux, losange plat sur le front.
+-- Tsunade : cheveux lisses séparés au milieu, longs rideaux, losange plat sur le front.
 STYLES.raie = function(ctx)
 	face(ctx, { soft = true, jaw = 0.92, ears = false })
-	longHair(ctx, 7.6, 0.25)
-	B(ctx, "Losange", 0.42, 0.42, 0.12, at(ctx, 0, 2.15, -3.3, 0, 0, math.rad(45)), DEEP)
+	longHair(ctx, 9.4, 0.25)
+	for _, s in { -1, 1 } do
+		lock(ctx, V3(s * 0.35, 3.25, -3.12), V3(s, -0.55, 0.05), 2.4, 1.7, 0.4, V3(0, 0.4, -1), 0.25)
+	end
+	B(ctx, "Losange", 0.42, 0.42, 0.12, at(ctx, 0, 1.75, foreheadZ(1.75) - 0.02, FRONT_TILT, 0, math.rad(45)), DEEP)
 end
 
--- Naruto : couronne d'épis au-dessus du bandeau, frange en pointes qui retombe dessus, mèches le
--- long des joues, marques des joues à peine gravées.
+-- Naruto : épis en bataille au-dessus du bandeau, frange en pointes qui retombe dessus, mèches le
+-- long des joues.
 STYLES.bandeau = function(ctx)
 	face(ctx, { jaw = 0.98 })
-	cap(ctx)
-	crown(ctx, { n = 7, a0 = -1.35, a1 = 1.35, y = 3.0, z = 1.0, rx = 3.1, ry = 2.3, len = 3.5, fall = 0.6, w = 2.5, d = 2.4, back = 0.45, wave = 0.3 })
-	bangs(ctx, 5, 2.1, 2.2, 1.7)
+	spikes(ctx, 3.0, { wide = 1.6, n = 9 })
+	bandBangs(ctx, 5, 2.0, 2.35, 1.35)
 	for _, s in { -1, 1 } do
-		spike(ctx, V3(s * 3.0, 2.6, -1.0), V3(s * 0.05, -1, -0.1), 3.2, 1.3, 1.0)
-		for k = 0, 2 do
-			B(ctx, "Marque", 0.85, 0.07, 0.1, at(ctx, s * 1.95, -1.45 - k * 0.3, -3.05, 0, s * 0.45, -s * (k - 1) * 0.12), shade(FACE, -0.08))
-		end
+		lock(ctx, V3(s * 2.95, 2.9, -1.3), V3(s * 0.12, -1, -0.15), 3.2, 1.6, 0.42, V3(s * 0.5, 0, -1))
 	end
 	headband(ctx, 2.35)
 end
 
 -- Tobirama : cheveux courts hérissés, bandeau à plaque et protège-oreilles plats.
 STYLES.plaque = function(ctx)
-	face(ctx, { brow = 0.1, jaw = 1.05, ears = false })
-	cap(ctx)
-	crown(ctx, { n = 7, a0 = -1.3, a1 = 1.3, y = 3.0, z = 1.0, rx = 3.0, ry = 2.3, len = 2.6, fall = 0.3, w = 2.4, d = 2.3, back = 0.45, wave = 0.3 })
-	bangs(ctx, 4, 1.7, 3.3, 1.6)
+	face(ctx, { brow = -0.05, jaw = 1.05, ears = false })
+	spikes(ctx, 2.2, { wide = 1.5 })
+	bandBangs(ctx, 4, 1.7, 2.4, 1.9)
 	headband(ctx, 2.4)
 	for _, s in { -1, 1 } do
-		B(ctx, "Garde", 0.5, 2.8, 2.6, at(ctx, s * 3.3, 0.8, 0.3, 0, -s * 0.15, 0), HAIR)
+		B(ctx, "Garde", 0.5, 2.8, 2.4, at(ctx, s * 3.3, 0.4, 0.2, 0, -s * 0.15, 0), HAIR)
 	end
 end
 
--- Minato : crinière de grandes pointes, longue frange en pointes sur le front, longues mèches qui
--- encadrent le visage jusqu'à la mâchoire.
+-- Minato : crinière de grandes pointes, longue frange en pointes, longues mèches qui encadrent le
+-- visage jusqu'à la mâchoire.
 STYLES.meches = function(ctx)
 	face(ctx, { jaw = 0.98 })
-	cap(ctx)
-	crown(ctx, { n = 7, a0 = -1.55, a1 = 1.55, y = 2.9, z = 1.0, rx = 3.2, ry = 2.4, len = 3.9, fall = -0.2, w = 2.6, d = 2.4, back = 0.45, wave = 0.4 })
-	bangs(ctx, 5, 2.2, 1.4, 1.7)
+	spikes(ctx, 3.3, { fall = -0.4, wide = 1.7, n = 9 })
+	bangs(ctx, 5, 2.2, 1.35, 1.7)
 	for _, s in { -1, 1 } do
-		spike(ctx, V3(s * 2.85, 3.0, -1.4), V3(s * 0.12, -1, -0.12), 5.4, 1.5, 1.0)
+		lock(ctx, V3(s * 2.9, 3.1, -1.5), V3(s * 0.12, -1, -0.2), 5.4, 1.7, 0.42, V3(s * 0.5, 0, -1))
 	end
 end
 
 -- Kakashi : grands épis penchés d'un côté, bandeau incliné sur un œil, masque.
 STYLES.penche = function(ctx)
 	face(ctx, { mask = true, hideEye = -1 })
-	cap(ctx)
-	crown(ctx, { n = 6, a0 = -1.0, a1 = 1.2, y = 3.0, z = 1.0, rx = 3.0, ry = 2.3, len = 4.5, fall = 0.8, w = 2.6, d = 2.5, back = 0.45, lean = -0.55, wave = 0.3 })
-	bangs(ctx, 4, 1.8, 2.6, 1.7, -0.7)
-	headband(ctx, 1.75, 0.3)
+	spikes(ctx, 3.8, { lean = -0.6, fall = 0.9, wide = 1.3 })
+	bangs(ctx, 3, 1.6, 2.7, 1.8, -0.7)
+	headband(ctx, 1.3, 0.42, 1.2, -3.72)
 end
 
 -- Boruto : épis plus courts, une longue mèche qui tombe sur le côté, bandeau sur le front.
 STYLES.jeune = function(ctx)
 	face(ctx, { soft = true, jaw = 0.95 })
-	cap(ctx)
-	crown(ctx, { n = 6, a0 = -1.3, a1 = 1.3, y = 3.0, z = 1.0, rx = 3.0, ry = 2.3, len = 3.0, fall = 0.4, w = 2.5, d = 2.3, back = 0.45, wave = 0.3 })
-	bangs(ctx, 4, 1.8, 2.4, 1.6)
-	spike(ctx, V3(1.0, 4.2, -2.0), V3(0.35, -1, -0.35), 4.2, 1.5, 0.9)
+	spikes(ctx, 2.6, { wide = 1.5 })
+	bandBangs(ctx, 4, 1.8, 2.35, 1.5)
+	lock(ctx, V3(1.2, 3.9, -2.3), V3(0.35, -1, -0.3), 4.4, 1.6, 0.4, V3(0.3, 0.2, -1))
 	headband(ctx, 2.35)
 end
 
