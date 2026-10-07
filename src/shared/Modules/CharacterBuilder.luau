@@ -2381,13 +2381,15 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 end
 
 ------------------------------------------------------------------------
--- Variétés (mutations) : la rareté de BASE du perso ne change pas, la variété se voit en plus.
--- Uniquement des changements de pièces (teinte et matière des cheveux, auréole, ailes, fleur) :
--- les particules des mutations restent gérées par les effets côté client (Config/Auras).
+-- Variétés (mutations) : la rareté de BASE du perso ne change pas, la variété se voit en plus,
+-- sur TOUT le perso : cheveux (teinte, matière), tenue (voile coloré peint par-dessus les
+-- SurfaceGui : doré, glacé, étoilé, pétales...), matière des pièces de la tenue (Foil, Glass...),
+-- particules propres à la variété, et pièces en plus (auréole, ailes, fleur).
 ------------------------------------------------------------------------
 
 local VARIETY_ALIASES = {
 	dore = "gold",
+	["doré"] = "gold",
 	["or"] = "gold",
 	golden = "gold",
 	diamant = "diamond",
@@ -2407,24 +2409,199 @@ local VARIETY_ALIASES = {
 	["néant"] = "void",
 }
 
+local rgb = Color3.fromRGB
+local SPARK = "rbxasset://textures/particles/sparkles_main.dds"
+local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
+
+-- hair/mix : teinte des cheveux ; tint = voile de la tenue (couleurs du dégradé, transparences,
+-- rotation) ; body = teinte/matière des pièces de la tenue ; fx = particules ; motif = "stars" |
+-- "petals" | "glint" peint sur le torse.
 local VARIETIES = {
-	gold = { hair = Color3.fromRGB(255, 196, 56), mix = 0.75, material = Enum.Material.Metal, reflectance = 0.25 },
-	diamond = { hair = Color3.fromRGB(196, 242, 255), mix = 0.8, material = Enum.Material.Glass, reflectance = 0.35, transparency = 0.08 },
-	sakura = { hair = Color3.fromRGB(255, 168, 204), mix = 0.6, flower = true },
-	angelic = { hair = Color3.fromRGB(255, 248, 226), mix = 0.82, halo = true, wings = true },
-	shadow = { hair = Color3.fromRGB(36, 20, 56), mix = 0.7 },
-	galaxy = { hair = Color3.fromRGB(46, 34, 120), mix = 0.7, material = Enum.Material.Neon, neonHalf = true },
-	rainbow = { rainbow = true },
-	frost = { hair = Color3.fromRGB(170, 230, 255), mix = 0.45, material = Enum.Material.Ice },
-	fire = { hair = Color3.fromRGB(255, 120, 40), mix = 0.4 },
-	lightning = { hair = Color3.fromRGB(255, 236, 90), mix = 0.35 },
-	void = { hair = Color3.fromRGB(120, 50, 200), mix = 0.45 },
+	gold = {
+		hair = rgb(255, 196, 56),
+		mix = 0.75,
+		material = Enum.Material.Metal,
+		reflectance = 0.25,
+		tint = { { rgb(255, 240, 160), rgb(255, 196, 60), rgb(190, 130, 25) }, { 0.32, 0.28, 0.24 }, 90 },
+		body = { color = rgb(255, 190, 50), mix = 0.55, material = Enum.Material.Foil, reflectance = 0.18 },
+		motif = "glint",
+		fx = { texture = SPARK, colors = { rgb(255, 230, 120), rgb(255, 170, 30) }, size = 0.32, rate = 10, light = rgb(255, 210, 110) },
+	},
+	diamond = {
+		hair = rgb(196, 242, 255),
+		mix = 0.8,
+		material = Enum.Material.Glass,
+		reflectance = 0.35,
+		transparency = 0.08,
+		tint = { { rgb(205, 245, 255), rgb(90, 190, 255), rgb(205, 245, 255) }, { 0.3, 0.4, 0.3 }, 45 },
+		body = { color = rgb(170, 230, 255), mix = 0.5, material = Enum.Material.Glass, reflectance = 0.3 },
+		motif = "glint",
+		fx = { texture = SPARK, colors = { rgb(255, 255, 255), rgb(150, 230, 255) }, size = 0.28, rate = 9, light = rgb(170, 230, 255) },
+	},
+	sakura = {
+		hair = rgb(255, 168, 204),
+		mix = 0.6,
+		flower = true,
+		tint = { { rgb(255, 214, 230), rgb(255, 160, 200), rgb(255, 214, 230) }, { 0.55, 0.5, 0.45 }, 90 },
+		body = { color = rgb(255, 170, 205), mix = 0.35 },
+		motif = "petals",
+		fx = { texture = SPARK, colors = { rgb(255, 200, 222), rgb(255, 140, 190) }, size = 0.34, rate = 7, fall = true },
+	},
+	angelic = {
+		hair = rgb(255, 248, 226),
+		mix = 0.82,
+		halo = true,
+		wings = true,
+		tint = { { rgb(255, 255, 250), rgb(255, 248, 220), rgb(255, 226, 150) }, { 0.45, 0.5, 0.45 }, 90 },
+		body = { color = rgb(255, 252, 240), mix = 0.45 },
+		fx = { texture = SPARK, colors = { rgb(255, 250, 220), rgb(255, 220, 130) }, size = 0.3, rate = 8, light = rgb(255, 240, 190) },
+	},
+	shadow = {
+		hair = rgb(36, 20, 56),
+		mix = 0.7,
+		tint = { { rgb(120, 50, 210), rgb(14, 10, 22), rgb(14, 10, 22), rgb(120, 50, 210) }, { 0.3, 0.22, 0.22, 0.3 }, 0 },
+		body = { color = rgb(24, 16, 36), mix = 0.65 },
+		fx = { texture = SMOKE, colors = { rgb(60, 30, 100), rgb(10, 6, 18) }, size = 0.9, rate = 6, smoke = true },
+	},
+	galaxy = {
+		hair = rgb(46, 34, 120),
+		mix = 0.7,
+		material = Enum.Material.Neon,
+		neonHalf = true,
+		tint = { { rgb(30, 14, 70), rgb(100, 40, 170), rgb(20, 10, 55) }, { 0.28, 0.3, 0.28 }, 60 },
+		body = { color = rgb(40, 24, 100), mix = 0.6 },
+		motif = "stars",
+		fx = { texture = SPARK, colors = { rgb(255, 255, 255), rgb(190, 150, 255) }, size = 0.22, rate = 10, light = rgb(150, 100, 255) },
+	},
+	rainbow = {
+		rainbow = true,
+		tint = {
+			{ rgb(255, 90, 90), rgb(255, 210, 80), rgb(110, 230, 120), rgb(90, 170, 255), rgb(200, 110, 255) },
+			{ 0.5, 0.5, 0.5, 0.5, 0.5 },
+			45,
+		},
+		fx = { texture = SPARK, colors = { rgb(255, 90, 90), rgb(255, 230, 80), rgb(90, 200, 255), rgb(210, 110, 255) }, size = 0.3, rate = 10 },
+	},
+	frost = { hair = rgb(170, 230, 255), mix = 0.45, material = Enum.Material.Ice },
+	fire = { hair = rgb(255, 120, 40), mix = 0.4 },
+	lightning = { hair = rgb(255, 236, 90), mix = 0.35 },
+	void = { hair = rgb(120, 50, 200), mix = 0.45 },
 }
 CharacterBuilder.Varieties = VARIETIES
 
 local function isHair(part: BasePart): boolean
 	local n = part.Name
 	return string.sub(n, 1, 4) == "Hair" or n == "Bun" or n == "BunShine" or n == "Knot" or n == "Cranium"
+end
+
+local LIMBS = { Head = true, HumanoidRootPart = true }
+
+local function sequence(colors: { Color3 }): ColorSequence
+	local keys = {}
+	for i, c in colors do
+		table.insert(keys, ColorSequenceKeypoint.new((i - 1) / math.max(1, #colors - 1), c))
+	end
+	if #keys == 1 then
+		table.insert(keys, ColorSequenceKeypoint.new(1, colors[1]))
+	end
+	return ColorSequence.new(keys)
+end
+
+local function numbers(values: { number }): NumberSequence
+	local keys = {}
+	for i, v in values do
+		table.insert(keys, NumberSequenceKeypoint.new((i - 1) / math.max(1, #values - 1), v))
+	end
+	if #keys == 1 then
+		table.insert(keys, NumberSequenceKeypoint.new(1, values[1]))
+	end
+	return NumberSequence.new(keys)
+end
+
+-- Voile coloré par-dessus une face peinte (+ motif sur le torse).
+local function tintGui(gui: SurfaceGui, spec, motif: string?)
+	local veil = Instance.new("Frame")
+	veil.Name = "VarietyTint"
+	veil.Size = UDim2.fromScale(1, 1)
+	veil.BackgroundColor3 = Color3.new(1, 1, 1)
+	veil.BorderSizePixel = 0
+	veil.ZIndex = 60
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = sequence(spec.tint[1])
+	gradient.Transparency = numbers(spec.tint[2])
+	gradient.Rotation = spec.tint[3] or 90
+	gradient.Parent = veil
+	veil.Parent = gui
+	if not motif then
+		return
+	end
+	local function dot(x: number, y: number, w: number, h: number, color: Color3, transparency: number, rotation: number?)
+		local f = Instance.new("Frame")
+		f.Name = "VarietyMotif"
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Position = UDim2.fromScale(x, y)
+		f.Size = UDim2.fromScale(w, h)
+		f.BackgroundColor3 = color
+		f.BackgroundTransparency = transparency
+		f.BorderSizePixel = 0
+		f.Rotation = rotation or 0
+		f.ZIndex = 61
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = f
+		f.Parent = gui
+	end
+	if motif == "stars" then
+		-- Ciel étoilé : points blancs de tailles variées, deux étoiles en croix
+		local stars = { { 0.15, 0.2, 0.05 }, { 0.72, 0.14, 0.035 }, { 0.42, 0.42, 0.03 }, { 0.85, 0.55, 0.045 }, { 0.25, 0.7, 0.035 }, { 0.6, 0.82, 0.05 }, { 0.5, 0.12, 0.025 } }
+		for _, st in stars do
+			dot(st[1], st[2], st[3], st[3] * 0.9, Color3.new(1, 1, 1), 0.05)
+		end
+		for _, p in { { 0.32, 0.3 }, { 0.75, 0.68 } } do
+			dot(p[1], p[2], 0.11, 0.018, Color3.fromRGB(230, 220, 255), 0.1)
+			dot(p[1], p[2], 0.018, 0.11, Color3.fromRGB(230, 220, 255), 0.1)
+		end
+	elseif motif == "petals" then
+		-- Pétales de cerisier qui tombent
+		local petals = { { 0.18, 0.18, 30 }, { 0.7, 0.28, -20 }, { 0.4, 0.55, 60 }, { 0.82, 0.72, 15 }, { 0.22, 0.82, -40 } }
+		for _, p in petals do
+			dot(p[1], p[2], 0.14, 0.08, Color3.fromRGB(255, 196, 220), 0.1, p[3])
+			dot(p[1] + 0.02, p[2] - 0.005, 0.06, 0.03, Color3.fromRGB(255, 240, 246), 0.2, p[3])
+		end
+	elseif motif == "glint" then
+		-- Reflet en diagonale (métal poli / cristal)
+		dot(0.35, 0.45, 0.16, 1.4, Color3.new(1, 1, 1), 0.72, 30)
+		dot(0.6, 0.5, 0.05, 1.4, Color3.new(1, 1, 1), 0.78, 30)
+	end
+end
+
+-- Particules propres à la variété (dans le monde, autour du torse).
+local function varietyFx(torso: BasePart, fx, s: number)
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "VarietyFx"
+	emitter.Texture = fx.texture
+	emitter.Color = sequence(fx.colors)
+	emitter.LightEmission = fx.smoke and 0 or 1
+	emitter.LightInfluence = fx.smoke and 0.5 or 0
+	emitter.Size = numbers(fx.smoke and { fx.size * s, fx.size * 2.2 * s } or { fx.size * s, fx.size * 0.6 * s, 0 })
+	emitter.Transparency = numbers(fx.smoke and { 0.55, 1 } or { 0.1, 0.3, 1 })
+	emitter.Lifetime = NumberRange.new(fx.fall and 1.6 or 0.8, fx.fall and 2.4 or 1.5)
+	emitter.Rate = fx.rate
+	emitter.Speed = NumberRange.new(0.4 * s, 1.2 * s)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Rotation = NumberRange.new(0, 360)
+	emitter.RotSpeed = NumberRange.new(-90, 90)
+	emitter.Acceleration = Vector3.new(0, (fx.fall and -1.2 or 0.8) * s, 0)
+	emitter.Parent = torso
+	if fx.light then
+		local light = Instance.new("PointLight")
+		light.Name = "VarietyGlow"
+		light.Color = fx.light
+		light.Range = 7 * s
+		light.Brightness = 0.8
+		light.Shadows = false
+		light.Parent = torso
+	end
 end
 
 -- Applique une variété à un perso déjà construit (marche aussi sur les modèles perso R6).
@@ -2446,7 +2623,9 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 	model:SetAttribute("Variety", key)
 	local s = model:GetAttribute("BaseScale") or 1
 	local head = model:FindFirstChild("Head") :: BasePart?
+	local torso = model:FindFirstChild("Torso") :: BasePart?
 	local i = 0
+	local guis = {}
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") and isHair(d) then
 			i += 1
@@ -2464,23 +2643,58 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 					d.Transparency = spec.transparency
 				end
 			end
+		elseif d:IsA("BasePart") and spec.tint then
+			-- Tenue : pièces des vêtements et accessoires (pas la tête : le visage garde sa peau ;
+			-- pas les effets lumineux ni les pièces invisibles)
+			local body = spec.body
+			local isPaint = d.Name == "Paint"
+			if not LIMBS[d.Name] and d.Name ~= "FacePlate" and d.Transparency < 0.9 and d.Material ~= Enum.Material.Neon then
+				local parentIsHead = false
+				local weld = d:FindFirstChildOfClass("Weld")
+				if weld and weld.Part0 == head and isPaint then
+					parentIsHead = true
+				end
+				if not parentIsHead then
+					if spec.rainbow then
+						i += 1
+						d.Color = d.Color:Lerp(Color3.fromHSV((i * 0.11) % 1, 0.6, 1), 0.35)
+					elseif body then
+						d.Color = d.Color:Lerp(body.color, body.mix)
+						if body.material and not isPaint then
+							d.Material = body.material
+						end
+						if body.reflectance and not isPaint then
+							d.Reflectance = body.reflectance
+						end
+					end
+				end
+			end
+		elseif d:IsA("SurfaceGui") and spec.tint and d.Name ~= "Face" then
+			table.insert(guis, d)
 		end
+	end
+	for _, gui in guis do
+		local onTorso = gui.Parent == torso and (gui.Face == Enum.NormalId.Front or gui.Face == Enum.NormalId.Back)
+		tintGui(gui, spec, onTorso and spec.motif or nil)
+	end
+	if spec.fx and torso then
+		varietyFx(torso, spec.fx, s)
 	end
 	if not head then
 		return true
 	end
-	local function attach(name: string, size: Vector3, offset: CFrame, color: Color3, props)
+	local function attach(base: BasePart, name: string, size: Vector3, offset: CFrame, color: Color3, props)
 		local part = Instance.new("Part")
 		part.Name = name
 		part.Size = size * s
-		part.CFrame = head.CFrame * CFrame.new(offset.Position * s) * offset.Rotation
+		part.CFrame = base.CFrame * CFrame.new(offset.Position * s) * offset.Rotation
 		part.Color = color
 		part.Material = Enum.Material.SmoothPlastic
 		part.CanCollide = false
 		part.CanTouch = false
 		part.CanQuery = false
 		part.Massless = true
-		part.Anchored = false
+		part.Anchored = base.Anchored
 		part.CastShadow = false
 		for k, v in props or {} do
 			if k == "sphere" then
@@ -2492,57 +2706,48 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 			end
 		end
 		local weld = Instance.new("Weld")
-		weld.Part0 = head
+		weld.Part0 = base
 		weld.Part1 = part
-		weld.C0 = head.CFrame:Inverse() * part.CFrame
+		weld.C0 = base.CFrame:Inverse() * part.CFrame
 		weld.Parent = part
 		part.Parent = model
 		return part
 	end
 	if spec.halo then
 		-- Auréole dorée lumineuse au-dessus de la tête
-		local halo = attach("VarietyHalo", Vector3.new(0.08, 1.3, 1.3), CFrame.new(0, 1.35, 0.1) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(255, 226, 120), {
+		local halo = attach(head, "VarietyHalo", Vector3.new(0.1, 1.4, 1.4), CFrame.new(0, 1.4, 0.05) * CFrame.Angles(0, 0, math.pi / 2), rgb(255, 226, 120), {
 			Material = Enum.Material.Neon,
 			Shape = Enum.PartType.Cylinder,
 		})
-		attach("VarietyHaloHole", Vector3.new(0.1, 0.95, 0.95), CFrame.new(0, 1.35, 0.1) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(255, 250, 230), {
+		attach(head, "VarietyHaloHole", Vector3.new(0.12, 1.02, 1.02), CFrame.new(0, 1.4, 0.05) * CFrame.Angles(0, 0, math.pi / 2), rgb(255, 250, 230), {
 			Shape = Enum.PartType.Cylinder,
 			Transparency = 0.6,
 		})
 		local light = Instance.new("PointLight")
-		light.Color = Color3.fromRGB(255, 236, 170)
+		light.Color = rgb(255, 236, 170)
 		light.Range = 8 * s
 		light.Brightness = 1
 		light.Shadows = false
 		light.Parent = halo
 	end
-	if spec.wings then
-		-- Petites ailes blanches dans le dos (plumes en éventail)
-		local torso = model:FindFirstChild("Torso") :: BasePart?
-		if torso then
-			for _, side in { -1, 1 } do
-				for k = 0, 2 do
-					local part = Instance.new("Part")
-					part.Name = "VarietyWing"
-					part.Size = Vector3.new(0.12, 1.5 - k * 0.3, 0.5) * s
-					part.Color = Color3.fromRGB(255, 255, 250):Lerp(Color3.fromRGB(230, 236, 255), k * 0.3)
-					part.Material = Enum.Material.SmoothPlastic
-					part.CanCollide = false
-					part.CanTouch = false
-					part.CanQuery = false
-					part.Massless = true
-					part.CastShadow = false
-					part.CFrame = torso.CFrame * CFrame.new(side * (0.5 + k * 0.32) * s, (0.55 - k * 0.12) * s, 0.75 * s) * CFrame.Angles(0, 0, side * (0.7 + k * 0.35))
-					local mesh = Instance.new("SpecialMesh")
-					mesh.MeshType = Enum.MeshType.Sphere
-					mesh.Parent = part
-					local weld = Instance.new("Weld")
-					weld.Part0 = torso
-					weld.Part1 = part
-					weld.C0 = torso.CFrame:Inverse() * part.CFrame
-					weld.Parent = part
-					part.Parent = model
-				end
+	if spec.wings and torso then
+		-- Grandes ailes blanches dans le dos : elles dépassent largement des épaules, on les voit
+		-- de face. Une arête (os de l'aile) + quatre rémiges en éventail par côté.
+		for _, side in { -1, 1 } do
+			local shoulder = CFrame.new(side * 0.45, 0.55, 0.62)
+			attach(torso, "VarietyWing", Vector3.new(0.34, 2.3, 0.2), shoulder * CFrame.Angles(0, 0, -side * 1.05) * CFrame.new(0, 1.05, 0), rgb(255, 255, 252), {
+				sphere = true,
+			})
+			local boneDir = Vector3.new(side * 0.87, 0.5, 0)
+			for k = 0, 3 do
+				-- Rémiges : les plus longues au bout de l'aile, pendantes vers le bas et l'extérieur
+				local len = 2.3 - k * 0.38
+				local pos = shoulder.Position + boneDir * (2.05 - k * 0.5) + Vector3.new(0, 0, 0.05 + k * 0.03)
+				local tilt = side * (0.42 - k * 0.12)
+				local color = rgb(255, 255, 255):Lerp(rgb(214, 226, 255), k * 0.22)
+				attach(torso, "VarietyWing", Vector3.new(0.62, len, 0.12), CFrame.new(pos) * CFrame.Angles(0, 0, tilt) * CFrame.new(0, -len * 0.45, 0), color, {
+					sphere = true,
+				})
 			end
 		end
 	end
@@ -2551,11 +2756,11 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 		local center = CFrame.new(0.45, 0.62, -0.35) * CFrame.Angles(0, -0.6, 0)
 		for k = 0, 4 do
 			local a = k / 5 * math.pi * 2
-			attach("VarietyPetal", Vector3.new(0.2, 0.2, 0.06), center * CFrame.new(math.cos(a) * 0.12, math.sin(a) * 0.12, 0), Color3.fromRGB(255, 186, 214), {
+			attach(head, "VarietyPetal", Vector3.new(0.2, 0.2, 0.06), center * CFrame.new(math.cos(a) * 0.12, math.sin(a) * 0.12, 0), rgb(255, 186, 214), {
 				sphere = true,
 			})
 		end
-		attach("VarietyFlowerCore", Vector3.new(0.1, 0.1, 0.1), center * CFrame.new(0, 0, -0.03), Color3.fromRGB(255, 230, 120), { sphere = true })
+		attach(head, "VarietyFlowerCore", Vector3.new(0.1, 0.1, 0.1), center * CFrame.new(0, 0, -0.03), rgb(255, 230, 120), { sphere = true })
 	end
 	return true
 end
