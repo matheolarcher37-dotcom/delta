@@ -28,7 +28,7 @@ local rgb = Color3.fromRGB
 local shade = Core.shade
 
 local FLOOR_TOP = 0.9
-local ZONE_RADIUS = 32
+local ZONE_RADIUS = 36
 local STONE = rgb(150, 144, 136)
 local STONE_DARK = rgb(108, 102, 96)
 local WOOD_DARK = rgb(84, 58, 40)
@@ -43,17 +43,17 @@ AfkZone.StationColors = { rgb(214, 64, 52), rgb(56, 120, 214), rgb(236, 170, 40)
 
 -- Angle (degrés, repère local) et distance au centre de chaque poste.
 local STATION_ANGLES = { -42, 0, 42 }
-local STATION_RADIUS = 15
+local STATION_RADIUS = 17
 
 -- Planche peinte : cadre de bois, panneau, lettres peintes (police à caractère).
 local function plank(parent: Instance, cf: CFrame, w: number, h: number, text: string, opts: { [string]: any }?)
 	local o = opts or {}
-	Build.deco(parent, "PlankFrame", Vector3.new(w + 0.7, h + 0.7, 0.45), cf * CFrame.new(0, 0, 0.12), o.frame or WOOD_DARK, { Material = Enum.Material.Wood })
+	Build.deco(parent, "PlankFrame", Vector3.new(w + 0.7, h + 0.7, 0.36), cf, o.frame or WOOD_DARK, { Material = Enum.Material.Wood })
 	local panel = Build.deco(parent, "Plank", Vector3.new(w, h, 0.5), cf, o.bg or rgb(92, 62, 40), { Material = Enum.Material.WoodPlanks })
 	-- ferrures aux coins
 	for _, x in { -1, 1 } do
 		for _, y in { -1, 1 } do
-			Build.deco(parent, "PlankBolt", Vector3.new(0.35, 0.35, 0.2), cf * CFrame.new(x * (w / 2 - 0.35), y * (h / 2 - 0.35), -0.3), METAL, {
+			Build.deco(parent, "PlankBolt", Vector3.new(0.35, 0.35, 0.2), cf * CFrame.new(x * (w / 2 - 0.35), y * (h / 2 - 0.35), -0.28), METAL, {
 				Material = Enum.Material.Metal,
 			})
 		end
@@ -163,13 +163,23 @@ local function buildStation(parent: Instance, index: number, base: CFrame)
 
 	-- Tapis numéroté (bord blanc) sur le plancher.
 	Build.deco(station, "MatEdge", Vector3.new(9.4, 0.12, 9.4), base * CFrame.new(0, 0.06, 0), CREAM, { Material = Enum.Material.Fabric })
-	local mat = Build.deco(station, "Mat", Vector3.new(8.6, 0.16, 8.6), base * CFrame.new(0, 0.1, 0), color, { Material = Enum.Material.Fabric })
+	local mat = Build.deco(station, "Mat", Vector3.new(8.6, 0.16, 8.6), base * CFrame.new(0, 0.1, 0) * CFrame.Angles(0, math.pi, 0), color, { Material = Enum.Material.Fabric })
 	Build.surfaceText(mat, Enum.NormalId.Top, tostring(index), shade(color, 0.35), {
 		Font = Enum.Font.Bangers,
 		TextStrokeTransparency = 1,
 		TextTransparency = 0.25,
 	})
 
+	-- Marque au sol devant le sac : « place-toi ici » (cercle blanc + flèche)
+	local spot = base * CFrame.new(0, 0.12, -5.8)
+	Build.deco(station, "StandRing", Vector3.new(0.05, 3.2, 3.2), spot * CFrame.Angles(0, 0, math.rad(90)), CREAM, {
+		Material = Enum.Material.SmoothPlastic,
+		Shape = Enum.PartType.Cylinder,
+	})
+	Build.deco(station, "StandDot", Vector3.new(0.06, 2.5, 2.5), spot * CFrame.new(0, 0.01, 0) * CFrame.Angles(0, 0, math.rad(90)), shade(color, -0.25), {
+		Material = Enum.Material.SmoothPlastic,
+		Shape = Enum.PartType.Cylinder,
+	})
 	-- Potence : deux poteaux, poutre, jambes de force, pieds en pierre.
 	local postX = 3.6
 	local beamY = 11.2
@@ -281,6 +291,32 @@ function AfkZone.build(world: Instance): Model
 	Build.disc(zone, "Floor", 0.25, ZONE_RADIUS * 2 - 6, center + Vector3.new(0, FLOOR_TOP - 0.2, 0), PLANK, { Material = Enum.Material.WoodPlanks })
 	Build.disc(zone, "FloorRing", 0.27, 30, center + Vector3.new(0, FLOOR_TOP - 0.2, 0), shade(PLANK, -0.18), { Material = Enum.Material.WoodPlanks })
 	Build.disc(zone, "FloorHeart", 0.29, 26, center + Vector3.new(0, FLOOR_TOP - 0.2, 0), PLANK, { Material = Enum.Material.WoodPlanks })
+	-- Emblème peint au centre (cible rouge et blanche)
+	for k, info in ipairs({ { 15, rgb(170, 44, 36) }, { 12.6, CREAM }, { 9.6, rgb(170, 44, 36) }, { 6.6, CREAM }, { 3.4, rgb(170, 44, 36) } }) do
+		Build.disc(zone, "Emblem", 0.05, info[1], center + Vector3.new(0, 1.0 + k * 0.012, 0), info[2], { Material = Enum.Material.SmoothPlastic }).CastShadow = false
+	end
+	-- Chemin pavé depuis la promenade jusqu'à l'entrée (pour venir à pied)
+	local inward = (Vector3.zero - Vector3.new(center.X, 0, center.Z)).Unit
+	local startR = center.Magnitude - ZONE_RADIUS - 4
+	local endR = Layout.WalkwayOuter - 2
+	local pathLength = startR - endR
+	if pathLength > 4 then
+		local mid = center.Unit * ((startR + endR) / 2)
+		local pathCF = CFrame.lookAt(mid, mid + inward)
+		Build.part(zone, "Path", Vector3.new(10, 0.3, pathLength), pathCF + Vector3.new(0, 0.1, 0), rgb(176, 168, 156), { Material = Enum.Material.Cobblestone }).CastShadow = false
+		for _, side in { -1, 1 } do
+			Build.part(zone, "PathEdge", Vector3.new(0.8, 0.45, pathLength), pathCF * CFrame.new(side * 5.4, 0.12, 0), STONE_DARK, { Material = Enum.Material.Slate }).CastShadow = false
+		end
+		-- Panneau au bord de la promenade
+		local signBase = (pathCF * CFrame.new(7.5, 0, pathLength / 2 - 2)).Position
+		local signFace = CFrame.lookAt(signBase, signBase + inward)
+		Build.part(zone, "SignPole", Vector3.new(0.6, 7, 0.6), signFace * CFrame.new(0, 3.5, 0), WOOD_DARK, { Material = Enum.Material.Wood })
+		plank(zone, signFace * CFrame.new(0, 6.2, -0.4), 6, 1.6, "ZONE ANTI-AFK", { both = true, bg = rgb(70, 46, 30) })
+		plank(zone, signFace * CFrame.new(0, 4.6, -0.4), 5, 1, "punching-balls", { both = true, bg = rgb(60, 40, 28), font = Enum.Font.Fantasy, text = rgb(255, 214, 150) })
+		for _, side in { -1, 1 } do
+			Props.lamppost(zone, (pathCF * CFrame.new(side * 7, 0, -pathLength / 2 + 3)).Position, "bois", rgb(255, 190, 110))
+		end
+	end
 	-- Marches d'entrée (côté hub)
 	for k = 0, 1 do
 		Build.part(zone, "Step", Vector3.new(16, 0.45, 2.2), cf * CFrame.new(0, 0.22 + k * 0.33, -(ZONE_RADIUS + 3.4 - k * 1.6)), STONE, { Material = Enum.Material.Slate })
@@ -323,7 +359,7 @@ function AfkZone.build(world: Instance): Model
 	-- Tableaux : paliers (gauche) et mode d'emploi (droite), tournés vers le centre
 	local function board(name: string, angle: number, title: string, lines: string)
 		local a = math.rad(angle)
-		local pos = (floorCF * CFrame.new(math.sin(a) * 25, 0, math.cos(a) * 25)).Position
+		local pos = (floorCF * CFrame.new(math.sin(a) * 29, 0, math.cos(a) * 29)).Position
 		local face = CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z))
 		local model = Build.model(zone, name)
 		for _, x in { -1, 1 } do
@@ -375,18 +411,18 @@ function AfkZone.build(world: Instance): Model
 	local deco = Build.folder(zone, "Deco")
 	for _, angle in { -150, 150 } do
 		local a = math.rad(angle)
-		local pos = (floorCF * CFrame.new(math.sin(a) * 26, 0, math.cos(a) * 26)).Position
+		local pos = (floorCF * CFrame.new(math.sin(a) * 30, 0, math.cos(a) * 30)).Position
 		local face = CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z))
 		Props.bench(deco, face * CFrame.Angles(0, math.pi, 0))
 	end
 	local plantRng = Random.new(1802)
-	for _, angle in { -70, 70, -125, 125 } do
+	for _, angle in { -70, 70 } do
 		local a = math.rad(angle)
-		Props.pottedPlant(deco, (floorCF * CFrame.new(math.sin(a) * 28, 0, math.cos(a) * 28)).Position, plantRng)
+		Props.pottedPlant(deco, (floorCF * CFrame.new(math.sin(a) * 32, 0, math.cos(a) * 32)).Position, plantRng)
 	end
 	for _, angle in { -20, 20 } do
 		local a = math.rad(angle)
-		local pos = (floorCF * CFrame.new(math.sin(a) * 27.5, 0, math.cos(a) * 27.5)).Position
+		local pos = (floorCF * CFrame.new(math.sin(a) * 31.5, 0, math.cos(a) * 31.5)).Position
 		Build.part(deco, "LanternPole", Vector3.new(0.6, 9, 0.6), CFrame.new(pos + Vector3.new(0, 4.5, 0)), WOOD_DARK, { Material = Enum.Material.Wood })
 		Props.hangingLantern(deco, pos + Vector3.new(0, 8.6, 0), (Vector3.new(center.X, pos.Y, center.Z) - pos).Unit * 2, rgb(255, 170, 90), 1)
 	end

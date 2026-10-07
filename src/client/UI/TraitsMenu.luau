@@ -42,7 +42,7 @@ local ACCENT = Color3.fromRGB(50, 200, 240)
 local GEM = QuestsConfig.Gems.Color
 local GOLD = Color3.fromRGB(255, 206, 64)
 
-local PAGE_SIZE = 9
+local PAGE_SIZE = 6
 local AUTO_TARGETS = { 3, 4, 5 } -- rangs d'arrêt de la relance auto
 
 local gui: ScreenGui
@@ -70,6 +70,15 @@ local function tierColor(tier: number?): Color3
 	return tier and Traits.TierColors[tier] or C.Edge
 end
 
+local ACCENTS = { ["é"] = "É", ["è"] = "È", ["ê"] = "Ê", ["à"] = "À", ["ç"] = "Ç", ["ô"] = "Ô", ["î"] = "Î", ["û"] = "Û" }
+local function upper(text: string): string
+	local out = string.upper(text)
+	for lower, up in ACCENTS do
+		out = string.gsub(out, lower, up)
+	end
+	return out
+end
+
 local function stars(tier: number): string
 	return string.rep("★", tier) .. string.rep("☆", 5 - tier)
 end
@@ -81,25 +90,25 @@ local function traitStats(trait): { string }
 		return list
 	end
 	if trait.power then
-		table.insert(list, "+" .. math.floor(trait.power * 100) .. " % puissance")
+		table.insert(list, "+" .. math.floor(trait.power * 100) .. " % ATQ")
 	end
 	if trait.speed then
-		table.insert(list, "-" .. math.floor(trait.speed * 100) .. " % délai d'attaque")
+		table.insert(list, "+" .. math.floor(trait.speed * 100) .. " % vitesse")
 	end
 	if trait.hp then
 		table.insert(list, "+" .. math.floor(trait.hp * 100) .. " % PV")
 	end
 	if trait.crit then
-		table.insert(list, "+" .. math.floor(trait.crit * 100) .. " % critique")
+		table.insert(list, "+" .. math.floor(trait.crit * 100) .. " % crit.")
 	end
 	if trait.coins then
-		table.insert(list, "+" .. math.floor(trait.coins * 100) .. " % pièces")
+		table.insert(list, "+" .. math.floor(trait.coins * 100) .. " % ¥")
 	end
 	if trait.xp then
 		table.insert(list, "+" .. math.floor(trait.xp * 100) .. " % XP")
 	end
 	if trait.lifesteal then
-		table.insert(list, math.floor(trait.lifesteal * 100) .. " % vol de vie")
+		table.insert(list, math.floor(trait.lifesteal * 100) .. " % vol vie")
 	end
 	return list
 end
@@ -118,7 +127,7 @@ local function paintTraitCard(trait)
 	refs.traitStroke.Color = trait and tierColor(trait.tier) or C.Edge
 	refs.traitGradient.Color = Theme.sequence({ Theme.light(color, 0.1), Theme.dark(color, 0.45), Theme.dark(color, 0.75) })
 	refs.traitName.Text = trait and trait.name or "AUCUN TRAIT"
-	refs.traitTier.Text = trait and (stars(trait.tier) .. "  " .. string.upper(Traits.TierNames[trait.tier] or "")) or "RELANCE POUR OBTENIR UN BONUS"
+	refs.traitTier.Text = trait and (stars(trait.tier) .. "  " .. upper(Traits.TierNames[trait.tier] or "")) or "RELANCE POUR OBTENIR UN BONUS"
 	refs.traitTier.TextColor3 = trait and tierColor(trait.tier) or C.TextDim
 	refs.traitDesc.Text = trait and trait.description or "Chaque trait donne un bonus permanent à l'unité."
 	Components.clear(refs.traitChips)
@@ -502,17 +511,19 @@ function TraitsMenu.kneelPose(model: Model): { [BasePart]: { CFrame } }
 	local function about(p: Vector3, angle: number): CFrame
 		return CFrame.new(p) * CFrame.fromAxisAngle(right, angle) * CFrame.new(-p)
 	end
-	local legAngle = math.rad(62)
-	local drop = 2 - 2 * math.cos(legAngle)
+	-- À genoux (seiza) : les jambes repliées à plat derrière, le torse incliné vers l'avant, la tête
+	-- baissée, les bras tendus vers le sol devant les genoux.
+	local legAngle = math.rad(90)
+	local drop = 1.5
 	local hipCenter = tcf:PointToWorldSpace(Vector3.new(0, -1, 0))
 	local limbMove = {
-		["Left Leg"] = about(pivot("Left Leg", Vector3.new(-0.5, -1, 0)), legAngle),
+		["Left Leg"] = about(pivot("Left Leg", Vector3.new(-0.5, -1, 0)), -legAngle),
 		["Right Leg"] = about(pivot("Right Leg", Vector3.new(0.5, -1, 0)), -legAngle),
 		["Right Arm"] = about(pivot("Right Arm", Vector3.new(1, 0.5, 0)), math.rad(58)),
-		["Left Arm"] = about(pivot("Left Arm", Vector3.new(-1, 0.5, 0)), math.rad(18)),
-		Head = about(pivot("Head", Vector3.new(0, 1, 0)), math.rad(-24)),
+		["Left Arm"] = about(pivot("Left Arm", Vector3.new(-1, 0.5, 0)), math.rad(50)),
+		Head = about(pivot("Head", Vector3.new(0, 1, 0)), math.rad(-18)),
 	}
-	local bow = about(hipCenter, math.rad(-16))
+	local bow = about(hipCenter, math.rad(-30))
 	local down = CFrame.new(0, -drop, 0)
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") then
@@ -561,8 +572,11 @@ local function buildCrown(parent: Instance): Model
 		p.Parent = crown
 		return p
 	end
-	local ring = part("Ring", Vector3.new(0.45, 1.7, 1.7), CFrame.Angles(0, 0, math.rad(90)), GOLD, Enum.PartType.Cylinder)
-	crown.PrimaryPart = ring
+	-- pivot droit (sans rotation) : l'anneau est un cylindre couché qu'on ne doit pas redresser
+	local base = part("Base", Vector3.new(0.2, 0.2, 0.2), CFrame.new(), GOLD)
+	base.Transparency = 1
+	crown.PrimaryPart = base
+	part("Ring", Vector3.new(0.45, 1.7, 1.7), CFrame.Angles(0, 0, math.rad(90)), GOLD, Enum.PartType.Cylinder)
 	for i = 0, 4 do
 		local a = i / 5 * math.pi * 2
 		local pos = Vector3.new(math.cos(a) * 0.72, 0.5, math.sin(a) * 0.72)
@@ -712,8 +726,8 @@ function TraitsMenu.playMonarch(entry, desc, duration: number?)
 	local keys = {
 		{ 0, Vector3.new(0, 2.2, -32), Vector3.new(0, 3, 0) },
 		{ 2.2, Vector3.new(0, 3.4, -20), Vector3.new(0, 3.6, 0) },
-		{ 3.9, Vector3.new(7, 6.2, -12), Vector3.new(0, 5.4, 0) },
-		{ total, Vector3.new(2.6, 5.4, -8.2), Vector3.new(0, 5.2, 0) },
+		{ 3.9, Vector3.new(11, 6.5, -10), Vector3.new(0, 4, -3) },
+		{ total, Vector3.new(0, 8.6, -25), Vector3.new(0, 3.6, 0) },
 	}
 	local start = os.clock()
 	local function step()
@@ -794,7 +808,7 @@ function TraitsMenu.playAscension(entry, desc, trait, duration: number?)
 	Theme.tween(stageScale, 0.6, { Scale = 1 }, Enum.EasingStyle.Back)
 	letterbox(root, 20)
 	SoundService:PlayLocalSound(rareSound)
-	bigTitle(root, string.upper(trait and trait.name or "TRAIT"), color, string.upper(Traits.TierNames[trait and trait.tier or 4] or "") .. " · " .. (desc and desc.name or ""), 25, 0.17)
+	bigTitle(root, upper(trait and trait.name or "TRAIT"), color, upper(Traits.TierNames[trait and trait.tier or 4] or "") .. " · " .. (desc and desc.name or ""), 25, 0.17)
 	return root
 end
 
@@ -951,7 +965,7 @@ local function chancesLadder(parent: Instance)
 		Theme.stroke(isCurrent and WHITE or Theme.dark(color, 0.3), isCurrent and 3 or 2).Parent = col
 		Theme.gradient({ Theme.dark(color, 0.45), Color3.fromRGB(18, 18, 26) }, 90).Parent = col
 		Theme.label({
-			Text = string.upper(Traits.TierNames[tier] or ""),
+			Text = upper(Traits.TierNames[tier] or ""),
 			Size = UDim2.new(1, -10, 0, 18),
 			Position = UDim2.fromOffset(5, 5),
 			FontFace = Theme.Faces.Title,

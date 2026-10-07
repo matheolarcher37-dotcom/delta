@@ -33,6 +33,16 @@ local GEM = QuestsConfig.Gems.Color
 local READY = Color3.fromRGB(70, 214, 96)
 local fmt = QuestsConfig.formatNumber
 
+-- string.upper ne gère pas les lettres accentuées (UTF-8) : « Planète » → « PLANÈTE ».
+local ACCENTS = { ["é"] = "É", ["è"] = "È", ["ê"] = "Ê", ["ë"] = "Ë", ["à"] = "À", ["â"] = "Â", ["ç"] = "Ç", ["î"] = "Î", ["ï"] = "Ï", ["ô"] = "Ô", ["ù"] = "Ù", ["û"] = "Û" }
+local function upper(text: string): string
+	local out = string.upper(text)
+	for lower, up in ACCENTS do
+		out = string.gsub(out, lower, up)
+	end
+	return out
+end
+
 local TABS = {
 	{ id = "daily", text = "Du jour", icon = "calendar" },
 	{ id = "univers", text = "Univers", icon = "pin" },
@@ -155,13 +165,13 @@ local function rewardChips(parent: Instance, reward, height: number, align: Enum
 	end
 	if coins > 0 then
 		local text = fmt(coins)
-		chip(1, height + 16 + #text * math.floor(height * 0.42), function(frame)
+		chip(1, height + 14 + #text * math.floor(height * 0.56), function(frame)
 			Components.coinIcon(frame, math.floor(height * 0.78), UDim2.new(0, height * 0.5, 0.5, 0))
 		end, text, C.Gold)
 	end
 	if reward and (reward.gems or 0) > 0 then
 		local text = tostring(reward.gems)
-		chip(2, height + 18 + #text * math.floor(height * 0.42), function(frame)
+		chip(2, height + 16 + #text * math.floor(height * 0.56), function(frame)
 			Components.gem(frame, GEM, math.floor(height * 0.46), UDim2.new(0, height * 0.52, 0.5, 0))
 		end, text, Color3.fromRGB(150, 236, 255))
 	end
@@ -306,9 +316,19 @@ local function dailyCard(parent: Instance, data, dailyId: string, order: number)
 		Size = UDim2.new(1, -28, 0, 24),
 		Position = UDim2.fromOffset(14, 88),
 	})
-	local rewards = rewardChips(card, daily.reward, 30)
-	rewards.Size = UDim2.new(0.5, 0, 0, 30)
-	rewards.Position = UDim2.new(0, 14, 1, -46)
+	Theme.label({
+		Text = "RÉCOMPENSE",
+		Size = UDim2.new(0.5, 0, 0, 16),
+		Position = UDim2.new(0, 16, 1, -68),
+		FontFace = Theme.Faces.Heavy,
+		TextColor3 = C.TextDim,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		StrokeThickness = 1,
+		Parent = card,
+	})
+	local rewards = rewardChips(card, daily.reward, 32)
+	rewards.Size = UDim2.new(0.55, 0, 0, 32)
+	rewards.Position = UDim2.new(0, 14, 1, -48)
 	claimButton(card, claimed and "done" or ready and "ready" or "progress", function()
 		invokeClaim(dailyId)
 	end, {
@@ -525,11 +545,11 @@ local function questRow(parent: Instance, data, quest, order: number)
 		Theme.stroke(C.Stroke, 1.5).Parent = pip
 	end
 	progress(row, value, goal, ready and READY or quest.color, {
-		Size = UDim2.new(0.25, 0, 0, 24),
+		Size = UDim2.new(0.34, 0, 0, 24),
 		Position = UDim2.new(0.42, 4, 0, 16),
 	})
 	local rewards = rewardChips(row, finished and {} or tier.reward, 30)
-	rewards.Size = UDim2.new(0.25, 0, 0, 30)
+	rewards.Size = UDim2.new(0.34, 0, 0, 30)
 	rewards.Position = UDim2.new(0.42, 4, 0, 46)
 	if finished then
 		Theme.label({
@@ -738,7 +758,7 @@ local function renderList(body: Frame, data, category: string)
 				end
 			end
 			if #list > 0 then
-				groupHeader(scroll, string.upper(universe.name), universe.color, nextOrder(), universe.id == current.id and "UNIVERS ACTUEL" or nil)
+				groupHeader(scroll, upper(universe.name), universe.color, nextOrder(), universe.id == current.id and "UNIVERS ACTUEL" or nil)
 				for _, quest in sorted(list) do
 					questRow(scroll, data, quest, nextOrder())
 				end
@@ -1183,13 +1203,13 @@ local function punchTierPop(gems: number, hits: number?)
 	local pop = new("Frame", {
 		Name = "PunchPop",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.42),
+		Position = UDim2.fromScale(0.58, 0.4),
 		Size = UDim2.fromOffset(420, 120),
 		BackgroundTransparency = 1,
 		Parent = trackerRoot,
 	})
 	local scale = new("UIScale", { Scale = 0.3, Parent = pop })
-	Components.gem(pop, GEM, 70, UDim2.fromOffset(60, 60))
+	Components.gem(pop, GEM, 54, UDim2.fromOffset(56, 60))
 	Theme.label({
 		Text = "+" .. gems .. " GEMMES DE TRAIT",
 		Size = UDim2.new(1, -120, 0, 50),
