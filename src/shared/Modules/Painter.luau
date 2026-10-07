@@ -840,9 +840,26 @@ local function faceMarks(T, look, skin: Color3, eyeX: number, eyeY: number)
 	end
 	if has(look, "forehead_mark") then
 		local red = Color3.fromRGB(205, 35, 30)
-		T.oval(-0.18, eyeY + 0.3, 0.17, 0.1, red, { rotation = -15, z = 7 })
-		T.line(-0.22, eyeY + 0.32, -0.26, eyeY + 0.4, 0.035, red, { z = 7 })
-		T.line(-0.14, eyeY + 0.33, -0.12, eyeY + 0.41, 0.03, red, { z = 7 })
+		if look.markLarge then
+			-- Marque du pourfendeur pleinement éveillée : grande flamme rouge sur le front et la tempe
+			T.oval(-0.2, eyeY + 0.3, 0.3, 0.16, red, { rotation = -18, z = 7 })
+			for i, e in { { -0.32, 0.42, -0.4 }, { -0.2, 0.46, -0.24 }, { -0.08, 0.43, -0.06 }, { -0.38, 0.3, -0.5 } } do
+				T.line(e[1] + 0.03, eyeY + 0.32, e[1] + e[3] * 0.1, eyeY + e[2], 0.05 - i * 0.004, red, { z = 7 })
+			end
+			T.oval(-0.36, eyeY + 0.16, 0.1, 0.07, Color3.fromRGB(225, 60, 40), { rotation = 25, z = 7 })
+		else
+			T.oval(-0.18, eyeY + 0.3, 0.17, 0.1, red, { rotation = -15, z = 7 })
+			T.line(-0.22, eyeY + 0.32, -0.26, eyeY + 0.4, 0.035, red, { z = 7 })
+			T.line(-0.14, eyeY + 0.33, -0.12, eyeY + 0.41, 0.03, red, { z = 7 })
+		end
+	end
+	if has(look, "brow_ridge") then
+		-- Arcade sourcilière marquée, sans sourcils (Super Saiyan 3)
+		local ridge = Painter.shade(skin, 0.42)
+		for _, s in { -1, 1 } do
+			T.line(s * (eyeX - 0.14), eyeY + 0.16, s * (eyeX + 0.16), eyeY + 0.2, 0.022, ridge, { z = 7 })
+			T.line(s * 0.04, eyeY + 0.14, s * (eyeX - 0.14), eyeY + 0.16, 0.03, ridge, { z = 7 })
+		end
 	end
 	if has(look, "dots") then
 		for row = 0, 1 do

@@ -122,6 +122,13 @@ local function newContext(model: Model, s: number, paint: string)
 		part.CanQuery = false
 		part.Massless = true
 		part.Anchored = false
+		if ctx.style then
+			-- Style imposé à toutes les pièces créées (effets : Neon, transparence...)
+			local target: any = part
+			for key, value in ctx.style do
+				target[key] = value
+			end
+		end
 		part.Parent = model
 		local limb = ctx.limbs[limbName]
 		if limb then
@@ -795,6 +802,38 @@ HAIR.tall_spiky = function(ctx, c, look)
 	ctx.strand("Head", c, Vector3.new(0, 0.4, 0.55), Vector3.new(0, -1, 0.35), 2.4, 1.0)
 end
 
+HAIR.ssj3 = function(ctx, c, look)
+	-- Super Saiyan 3 : front dégagé, grosses pointes dressées, mèche de frange, et l'immense
+	-- crinière qui descend jusqu'au bas du dos en couches de mèches (visible de face derrière les
+	-- épaules), deux tons + reflets.
+	local under, shine = hairTones(c, look)
+	cap(ctx, c, { color2 = under, backLength = 1.2, height = 0.8 })
+	scales(ctx, c, shine, under, 0.52, 0.42, { front = false })
+	ctx.burst("Head", Vector3.new(0, 0.6, 0.1), Vector3.new(0.6, 0.34, 0.6), c, {
+		{ 270, 30, 0.8, 0.58, shine, 0.9 },
+		{ 225, 40, 0.85, 0.58, nil, 0.7 },
+		{ 315, 40, 0.85, 0.58, shine, 0.7 },
+		{ 180, 55, 0.8, 0.56, under, 0.5 },
+		{ 0, 55, 0.8, 0.56, under, 0.5 },
+		{ 90, 20, 0.7, 0.56, nil, 0.6 },
+	}, { sink = 0.75, lift = 0.5 })
+	-- Mèche de frange qui tombe entre les yeux
+	ctx.spike("Head", c, Vector3.new(0.05, 0.62, -0.5), Vector3.new(0.1, -1, -0.35), 0.62, 0.32, { cross = false, thickness = 0.12 })
+	-- Crinière : couche du fond (large) puis couche de dessus, pointes vers le bas
+	for i, x in { -0.62, -0.31, 0, 0.31, 0.62 } do
+		local len = 3.1 - math.abs(x) * 0.9
+		ctx.spike("Head", i % 2 == 0 and under or c, Vector3.new(x * 0.9, 0.15, 0.56), Vector3.new(x * 0.55, -1, 0.32), len, 0.82, { depth = 0.5 })
+	end
+	for i, x in { -0.4, 0, 0.4 } do
+		ctx.spike("Head", i == 2 and shine or c, Vector3.new(x, 0.45, 0.62), Vector3.new(x * 0.4, -1, 0.42), 2.3, 0.7, { cross = false, thickness = 0.2 })
+	end
+	-- Côtés : mèches qui tombent derrière les épaules (on les voit de face)
+	for _, side in { -1, 1 } do
+		ctx.spike("Head", c, Vector3.new(side * 0.55, 0.25, 0.2), Vector3.new(side * 0.75, -1, 0.35), 2.2, 0.7, { depth = 0.44 })
+		ctx.spike("Head", shine, Vector3.new(side * 0.5, 0.5, -0.05), Vector3.new(side * 0.9, -0.6, 0.2), 0.9, 0.5, { cross = false, thickness = 0.14 })
+	end
+end
+
 HAIR.spiky_back = function(ctx, c, look)
 	-- Mèches qui encadrent le visage + pointes dressées vers l'arrière (ninja vengeur)
 	local under, shine = hairTones(c, look)
@@ -1204,6 +1243,7 @@ local PAINTED = {
 	"dots",
 	"facepaint",
 	"stitches_forehead",
+	"brow_ridge",
 	"glasses",
 	"cyclops",
 	"wristbands",
@@ -2325,48 +2365,115 @@ local function sparkles(part: BasePart, color: Color3, s: number, rate: number?)
 	return emitter
 end
 
--- Mille Oiseaux : boule d'éclairs bleus crépitante dans la main gauche.
+-- Boule d'énergie tenue DANS la main (soudée à l'attache de la main, CFrame (0, -1.1, 0) du
+-- bras) : cœur blanc, sphère Neon, enveloppe translucide plus grande, lumière.
+local function handOrb(ctx, arm: string, name: string, color: Color3, size: number, core: Color3?)
+	local at = CFrame.new(0, -1.1, 0)
+	local orb = ctx.ball(arm, name, Vector3.new(size, size, size), at, color, { Material = Enum.Material.Neon, Transparency = 0.15, CastShadow = false })
+	ctx.ball(arm, name .. "Core", Vector3.new(size * 0.55, size * 0.55, size * 0.55), at, core or WHITE, { Material = Enum.Material.Neon, CastShadow = false })
+	ctx.ball(arm, name .. "Shell", Vector3.new(size * 1.55, size * 1.55, size * 1.55), at, color, { Material = Enum.Material.Neon, Transparency = 0.72, CastShadow = false })
+	glowLight(orb, color, 9 * ctx.s, 2)
+	return orb
+end
+
+-- Mille Oiseaux : boule d'éclairs bleus crépitante tenue dans la main gauche.
 ACC.chidori = function(ctx, look)
 	local color = look.energyColor or Color3.fromRGB(120, 200, 255)
-	local core = ctx.ball("Left Arm", "Chidori", Vector3.new(0.75, 0.75, 0.75), CFrame.new(0, -1.15, -0.1), color, { Material = Enum.Material.Neon, Transparency = 0.15 })
-	ctx.ball("Left Arm", "ChidoriCore", Vector3.new(0.4, 0.4, 0.4), CFrame.new(0, -1.15, -0.1), WHITE, { Material = Enum.Material.Neon })
-	for i = 0, 4 do
-		local a = i * 1.26
-		local dir = Vector3.new(math.cos(a), -0.3 + (i % 2) * 0.6, math.sin(a))
-		ctx.spike("Left Arm", color, Vector3.new(0, -1.15, -0.1) + dir * 0.2, dir, 0.55, 0.12, { cross = true })
+	local core = handOrb(ctx, "Left Arm", "Chidori", color, 0.8)
+	-- Éclairs qui jaillissent de la boule (fines pointes Neon)
+	ctx.style = { Material = Enum.Material.Neon, CastShadow = false }
+	for i = 0, 5 do
+		local a = i * 1.05
+		local dir = Vector3.new(math.cos(a), -0.4 + (i % 2) * 0.8, math.sin(a))
+		ctx.spike("Left Arm", i % 2 == 0 and color or WHITE, Vector3.new(0, -1.1, 0) + dir.Unit * 0.3, dir, 0.6, 0.1, { cross = false, thickness = 0.04 })
 	end
-	glowLight(core, color, 10 * ctx.s, 2)
+	ctx.style = nil
 	sparkles(core, color, ctx.s, 24)
 end
 
--- Poings chargés d'énergie (les deux mains).
+-- Poings chargés d'énergie : une boule d'énergie dans chaque main.
 ACC.energy_fists = function(ctx, look)
 	local color = look.energyColor or Color3.fromRGB(80, 120, 255)
 	for _, side in { "Left Arm", "Right Arm" } do
-		local orb = ctx.ball(side, "EnergyFist", Vector3.new(1.18, 0.62, 1.18), CFrame.new(0, -0.72, 0), color, { Material = Enum.Material.Neon, Transparency = 0.45 })
+		local orb = handOrb(ctx, side, "EnergyFist", color, 0.78, lighten(color, 0.7))
 		if side == "Right Arm" then
-			glowLight(orb, color, 8 * ctx.s, 1.6)
 			sparkles(orb, color, ctx.s, 12)
 		end
 	end
 end
 
--- Orbe violet (technique du vide) qui flotte au-dessus de la main droite.
+-- Orbe violet (technique du vide) tenu dans la main droite, anneau d'énergie autour.
 ACC.hollow_purple = function(ctx, look)
 	local color = look.energyColor or Color3.fromRGB(170, 70, 255)
-	local orb = ctx.ball("Right Arm", "HollowPurple", Vector3.new(1.1, 1.1, 1.1), CFrame.new(0.15, -1.55, -0.55), color, { Material = Enum.Material.Neon, Transparency = 0.1 })
-	ctx.ball("Right Arm", "HollowPurpleCore", Vector3.new(0.55, 0.55, 0.55), CFrame.new(0.15, -1.55, -0.55), Color3.fromRGB(240, 220, 255), { Material = Enum.Material.Neon })
-	ctx.vcyl(
-		"Right Arm",
-		"HollowPurpleRing",
-		0.05,
-		1.5,
-		CFrame.new(0.15, -1.55, -0.55) * CFrame.Angles(0.4, 0, 0.3),
-		lighten(color, 0.3),
-		{ Material = Enum.Material.Neon, Transparency = 0.4 }
-	)
-	glowLight(orb, color, 12 * ctx.s, 2)
+	local orb = handOrb(ctx, "Right Arm", "HollowPurple", color, 1.0, Color3.fromRGB(245, 225, 255))
+	-- Deux demi-orbes (rouge et bleu) qui fusionnent
+	ctx.ball("Right Arm", "HollowRed", Vector3.new(0.32, 0.32, 0.32), CFrame.new(0.5, -0.95, -0.1), Color3.fromRGB(255, 70, 90), { Material = Enum.Material.Neon, CastShadow = false })
+	ctx.ball("Right Arm", "HollowBlue", Vector3.new(0.32, 0.32, 0.32), CFrame.new(-0.5, -1.25, 0.1), Color3.fromRGB(80, 150, 255), { Material = Enum.Material.Neon, CastShadow = false })
 	sparkles(orb, color, ctx.s, 16)
+end
+
+-- Super Saiyan 3 : flammes d'aura dorées autour du corps (lames Neon translucides), lumière et
+-- étincelles : le perso est cerné d'un liseré doré lumineux.
+ACC.ssj_aura = function(ctx, look)
+	local gold = look.auraColor or Color3.fromRGB(255, 214, 80)
+	ctx.style = { Material = Enum.Material.Neon, Transparency = 0.62, CastShadow = false }
+	local flames = {
+		{ -1.9, -1.2, 0.4, 2.6, -0.25 },
+		{ 1.9, -1.2, 0.4, 2.6, 0.25 },
+		{ -1.6, 0.6, 0.5, 2.0, -0.4 },
+		{ 1.6, 0.6, 0.5, 2.0, 0.4 },
+		{ -0.8, 1.4, 0.7, 1.8, -0.15 },
+		{ 0.8, 1.4, 0.7, 1.8, 0.15 },
+		{ 0, -2.2, 0.6, 1.2, 0 },
+	}
+	for _, f in flames do
+		ctx.blade("Torso", gold, CFrame.new(f[1], f[2], f[3]) * CFrame.Angles(0, 0, -f[5]), f[4], 0.9, 0.06, "AuraFlame")
+	end
+	ctx.style = nil
+	local light = glowLight(ctx.limbs.Torso, gold, 12 * ctx.s, 1.6)
+	light.Name = "SuperSaiyanGlow"
+	sparkles(ctx.limbs.Torso, gold, ctx.s, 14)
+end
+
+-- Danse du dieu du feu : sabre noir dégainé dans la main droite, embrasé (flammes Neon
+-- orange et jaunes le long de la lame), et flammes qui s'enroulent autour du bras.
+ACC.sun_flames = function(ctx, look)
+	local fire = look.energyColor or Color3.fromRGB(255, 120, 30)
+	local hot = Color3.fromRGB(255, 220, 90)
+	local arm = "Right Arm"
+	-- Sabre tenu pointe vers l'avant
+	local grip = CFrame.new(0, -1.05, -0.05) * CFrame.Angles(math.rad(-58), 0, 0)
+	ctx.add(arm, "FireTsuka", Vector3.new(0.13, 0.7, 0.18), grip * CFrame.new(0, 0.1, 0), Color3.fromRGB(30, 30, 34))
+	ctx.cyl(arm, "FireTsuba", 0.06, 0.42, grip * CFrame.new(0, 0.48, 0) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(40, 38, 42), { Material = Enum.Material.Metal })
+	local bladeCf = grip * CFrame.new(0, 0.5 + 1.25, 0)
+	ctx.add(arm, "FireBlade", Vector3.new(0.05, 2.5, 0.18), bladeCf, Color3.fromRGB(26, 24, 30), { Material = Enum.Material.Metal, Reflectance = 0.25 })
+	ctx.add(arm, "FireEdge", Vector3.new(0.055, 2.5, 0.04), bladeCf * CFrame.new(0, 0, -0.1), hot, { Material = Enum.Material.Neon })
+	ctx.style = { Material = Enum.Material.Neon, Transparency = 0.15, CastShadow = false }
+	-- Flammes le long de la lame (lames triangulaires inclinées vers l'arrière)
+	for i = 0, 4 do
+		local t = -1.0 + i * 0.5
+		ctx.blade(arm, i % 2 == 0 and fire or hot, bladeCf * CFrame.new(0, t, 0.05) * CFrame.Angles(math.rad(-55), 0, 0), 0.75 - i * 0.06, 0.32, 0.05, "SunFlame")
+	end
+	-- Flammes autour de l'avant-bras
+	for i = 0, 3 do
+		local a = i * (math.pi / 2) + 0.4
+		local from = Vector3.new(math.cos(a) * 0.52, -0.55 + (i % 2) * 0.25, math.sin(a) * 0.52)
+		ctx.blade(arm, i % 2 == 0 and hot or fire, CFrame.new(from) * CFrame.Angles(0, -a, 0) * CFrame.Angles(0, 0, math.cos(a) * 0.3), 0.8, 0.34, 0.05, "SunFlame")
+	end
+	ctx.style = nil
+	local core = ctx.ball(arm, "SunFlameCore", Vector3.new(0.4, 0.4, 0.4), CFrame.new(0, -1.05, -0.3), hot, { Material = Enum.Material.Neon, Transparency = 0.3, CastShadow = false })
+	glowLight(core, fire, 9 * ctx.s, 1.8)
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "SunFlames"
+	emitter.Texture = "rbxasset://textures/particles/fire_main.dds"
+	emitter.Color = ColorSequence.new(hot, fire)
+	emitter.LightEmission = 1
+	emitter.LightInfluence = 0
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6 * ctx.s), NumberSequenceKeypoint.new(1, 0) })
+	emitter.Lifetime = NumberRange.new(0.3, 0.6)
+	emitter.Rate = 20
+	emitter.Speed = NumberRange.new(1 * ctx.s, 2 * ctx.s)
+	emitter.Parent = core
 end
 
 -- Petites lunettes de soleil rondes (remplacent le bandeau : on devine les Six Yeux).
@@ -2394,34 +2501,6 @@ ACC.steam = function(ctx, look)
 	emitter.Speed = NumberRange.new(1 * ctx.s, 2 * ctx.s)
 	emitter.SpreadAngle = Vector2.new(60, 60)
 	emitter.Parent = ctx.limbs.Torso
-end
-
--- Danse du dieu du feu : flammes qui s'enroulent autour du bras droit.
-ACC.sun_flames = function(ctx, look)
-	local fire = look.energyColor or Color3.fromRGB(255, 120, 30)
-	local hot = Color3.fromRGB(255, 220, 90)
-	local first
-	for i = 0, 4 do
-		local a = i * 1.4
-		local y = -0.9 + i * 0.32
-		local dir = Vector3.new(math.cos(a) * 0.6, 1, math.sin(a) * 0.6)
-		local from = Vector3.new(math.cos(a) * 0.5, y, math.sin(a) * 0.5)
-		ctx.spike("Right Arm", i % 2 == 0 and fire or hot, from, dir, 0.7, 0.3, { cross = true })
-		local _ = first
-	end
-	local core = ctx.ball("Right Arm", "SunFlameCore", Vector3.new(0.5, 0.5, 0.5), CFrame.new(0, -1.1, -0.2), hot, { Material = Enum.Material.Neon, Transparency = 0.2 })
-	glowLight(core, fire, 9 * ctx.s, 1.8)
-	local emitter = Instance.new("ParticleEmitter")
-	emitter.Name = "SunFlames"
-	emitter.Texture = "rbxasset://textures/particles/fire_main.dds"
-	emitter.Color = ColorSequence.new(hot, fire)
-	emitter.LightEmission = 1
-	emitter.LightInfluence = 0
-	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6 * ctx.s), NumberSequenceKeypoint.new(1, 0) })
-	emitter.Lifetime = NumberRange.new(0.3, 0.6)
-	emitter.Rate = 20
-	emitter.Speed = NumberRange.new(1 * ctx.s, 2 * ctx.s)
-	emitter.Parent = core
 end
 
 -- Effets communs des boss (look.boss = { rim, light, aura, paintLight }) :

@@ -701,7 +701,15 @@ Characters.List = {
 		attack = { kind = "beam", color = rgb(70, 170, 255), name = "Vague Déferlante" },
 		evolve = {
 			[2] = { hairColor = rgb(255, 220, 60), eyes = rgb(60, 200, 160) },
-			[3] = { hair = "tall_spiky", hairColor = rgb(255, 225, 70), eyes = rgb(60, 200, 160) },
+			-- ★★★ : Super Saiyan 3 (crinière jusqu'au bas du dos, sans sourcils, aura dorée)
+			[3] = {
+				hair = "ssj3",
+				hairColor = rgb(255, 216, 58),
+				eyes = rgb(60, 200, 160),
+				browStyle = "none",
+				mouthStyle = "teeth",
+				accessories = { "tail", "wristbands", "brow_ridge", "ssj_aura" },
+			},
 		},
 		fusion = { prefix = "Saiyen", suffix = "Légendaire" },
 	},
@@ -1059,7 +1067,7 @@ Characters.List = {
 			-- ★★ : marque du pourfendeur sur le front
 			[2] = { accessories = { "haori_checker", "earrings", "forehead_mark", "sword_hip" } },
 			-- ★★★ : danse du dieu du feu (flammes autour du bras)
-			[3] = { accessories = { "haori_checker", "earrings", "forehead_mark", "sword_hip", "sun_flames" } },
+			[3] = { accessories = { "haori_checker", "earrings", "forehead_mark", "sun_flames" }, markLarge = true, mouthStyle = "shout" },
 		},
 		fusion = { prefix = "Pourfendeur", suffix = "de l'Eau" },
 	},
