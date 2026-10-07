@@ -1421,12 +1421,19 @@ ACC.earrings_gold = function(ctx, look)
 end
 
 ACC.cap = function(ctx, look)
-	-- Casquette de marine
+	-- Casquette de marine : calotte cylindrique à bords nets, dessus légèrement bombé, bandeau
+	-- bleu marine et visière en biseau (épaisse à la base, fine au bord).
 	local color = look.accColor or WHITE
-	ctx.ball("Head", "CapDome", Vector3.new(1.42, 0.86, 1.44), CFrame.new(0, 0.58, 0.02), color)
-	ctx.vcyl("Head", "Cap", 0.3, 1.42, CFrame.new(0, 0.42, 0.02), color)
-	ctx.vcyl("Head", "CapBand", 0.1, 1.44, CFrame.new(0, 0.31, 0.02), look.capBand or Color3.fromRGB(40, 60, 140))
-	ctx.add("Head", "Brim", Vector3.new(1.1, 0.07, 0.56), CFrame.new(0, 0.3, -0.84) * CFrame.Angles(math.rad(-8), 0, 0), look.capBrim or Color3.fromRGB(30, 34, 60))
+	local band = look.capBand or Color3.fromRGB(40, 60, 140)
+	local brim = look.capBrim or Color3.fromRGB(30, 34, 60)
+	ctx.vcyl("Head", "Cap", 0.5, 1.44, CFrame.new(0, 0.6, 0.02), color)
+	ctx.vcyl("Head", "CapTopRim", 0.05, 1.47, CFrame.new(0, 0.85, 0.02), darken(color, 0.06))
+	ctx.ball("Head", "CapDome", Vector3.new(1.44, 0.26, 1.44), CFrame.new(0, 0.86, 0.02), color)
+	ctx.vcyl("Head", "CapBand", 0.14, 1.475, CFrame.new(0, 0.42, 0.02), band)
+	ctx.vcyl("Head", "CapBandLine", 0.03, 1.48, CFrame.new(0, 0.5, 0.02), darken(band, 0.35))
+	-- Visière : coin (pente vers l'avant) + bord inférieur sombre
+	ctx.wedge("Head", "Brim", Vector3.new(1.12, 0.13, 0.5), CFrame.new(0, 0.38, -0.92) * CFrame.Angles(math.rad(-6), 0, 0), brim)
+	ctx.add("Head", "BrimUnder", Vector3.new(1.1, 0.03, 0.48), CFrame.new(0, 0.31, -0.92) * CFrame.Angles(math.rad(-6), 0, 0), darken(brim, 0.45))
 end
 
 ACC.bandana = function(ctx, look)
@@ -2146,14 +2153,30 @@ end
 
 -- Armure organique de l'empereur du froid : dôme du crâne, épaules violettes brillantes.
 ACC.freezo_gems = function(ctx, look)
+	-- Forme finale : crâne lisse un peu allongé vers l'arrière, dôme violet brillant qui épouse le
+	-- crâne (pointe sur le front), pommettes et trous d'oreilles, épaulières biseautées.
 	local gem = look.gemColor or look.topAccent or Color3.fromRGB(140, 60, 190)
-	local shine = { Reflectance = 0.18 }
-	ctx.ball("Head", "GemDome", Vector3.new(1.2, 0.66, 1.24), CFrame.new(0, 0.48, 0.1), gem, shine)
-	ctx.ball("Head", "GemDomeShine", Vector3.new(0.34, 0.12, 0.24), CFrame.new(-0.2, 0.74, -0.24) * CFrame.Angles(0.5, 0, 0.2), lighten(gem, 0.6))
-	for _, side in { "Left Arm", "Right Arm" } do
-		local x = side == "Left Arm" and -0.05 or 0.05
-		ctx.ball(side, "GemShoulder", Vector3.new(1.06, 0.56, 1.06), CFrame.new(x, 0.92, 0), gem, shine)
-		ctx.ball(side, "GemShoulderShine", Vector3.new(0.3, 0.12, 0.26), CFrame.new(x - 0.1, 1.14, -0.22) * CFrame.Angles(0.4, 0, 0), lighten(gem, 0.6))
+	local skin = look.skin or WHITE
+	local shine = { Reflectance = 0.18, Material = Enum.Material.SmoothPlastic }
+	ctx.ball("Head", "Skull", Vector3.new(1.2, 1.0, 1.34), CFrame.new(0, 0.22, 0.1), skin)
+	ctx.ball("Head", "GemDome", Vector3.new(1.24, 0.66, 1.4), CFrame.new(0, 0.46, 0.12), gem, shine)
+	-- Pointe du dôme sur le front
+	ctx.blade("Head", gem, CFrame.new(0, 0.46, -0.58) * CFrame.Angles(math.rad(-14), 0, math.pi), 0.22, 0.34, 0.08, "GemDomePeak")
+	ctx.ball("Head", "GemDomeShine", Vector3.new(0.36, 0.1, 0.24), CFrame.new(-0.22, 0.72, -0.24) * CFrame.Angles(0.5, 0, 0.2), lighten(gem, 0.6))
+	for _, side in { -1, 1 } do
+		ctx.ball("Head", "EarHole", Vector3.new(0.04, 0.13, 0.1), CFrame.new(side * 0.6, 0.02, 0.08), darken(gem, 0.45))
+	end
+	-- Épaulières : plateau central + 4 biseaux (coins) qui descendent, reflet
+	for _, limb in { "Left Arm", "Right Arm" } do
+		local x = limb == "Left Arm" and -0.06 or 0.06
+		local top = CFrame.new(x, 1.12, 0)
+		ctx.add(limb, "GemShoulder", Vector3.new(0.64, 0.24, 0.64), top, gem, shine)
+		for k = 0, 3 do
+			local yaw = k * math.pi / 2
+			local cf = top * CFrame.Angles(0, yaw, 0) * CFrame.new(0, -0.04, -0.46)
+			ctx.wedge(limb, "GemShoulderBevel", Vector3.new(0.64, 0.32, 0.28), cf, darken(gem, k % 2 == 0 and 0 or 0.12))
+		end
+		ctx.ball(limb, "GemShoulderShine", Vector3.new(0.3, 0.06, 0.22), top * CFrame.new(-0.08, 0.13, -0.12), lighten(gem, 0.6))
 	end
 end
 
@@ -2174,19 +2197,25 @@ end
 
 -- Poing de magma (amiral) : poing en lave incandescente, roche sombre, fumée et braises.
 ACC.magma_fist = function(ctx, look)
+	-- Poing de magma (amiral) : l'avant-bras et le poing sont recouverts de lave incandescente
+	-- (enveloppe Neon soudée à la main), croûtes de roche, gouttes, halo, fumée et braises.
 	local lava = Color3.fromRGB(255, 104, 18)
 	local core = Color3.fromRGB(255, 196, 80)
 	local rock = Color3.fromRGB(70, 26, 16)
 	local arm = "Right Arm"
 	local s = ctx.s
-	local fist = ctx.ball(arm, "MagmaFist", Vector3.new(1.32, 1.05, 1.32), CFrame.new(0, -0.72, 0), lava, { Material = Enum.Material.Neon })
-	ctx.ball(arm, "MagmaCore", Vector3.new(0.9, 0.7, 0.9), CFrame.new(0, -0.82, -0.32), core, { Material = Enum.Material.Neon })
-	for i, e in { { -0.42, -0.35, -0.3, 0.5 }, { 0.4, -0.5, 0.25, 0.46 }, { -0.3, -1.05, 0.35, 0.42 }, { 0.38, -1.0, -0.35, 0.4 }, { 0.0, -0.1, 0.45, 0.44 } } do
-		ctx.ball(arm, "MagmaRock", Vector3.new(e[4], e[4] * 0.8, e[4]), CFrame.new(e[1], e[2], e[3]) * CFrame.Angles(i, i * 0.7, 0), rock, { Material = Enum.Material.CrackedLava })
+	-- Coulée sur l'avant-bras (part du coude) puis le poing lui-même, à l'attache de la main
+	ctx.ball(arm, "MagmaSleeve", Vector3.new(1.14, 1.1, 1.14), CFrame.new(0, -0.45, 0), lava, { Material = Enum.Material.Neon })
+	local fist = ctx.ball(arm, "MagmaFist", Vector3.new(1.24, 1.0, 1.24), CFrame.new(0, -1.0, 0), lava, { Material = Enum.Material.Neon })
+	ctx.ball(arm, "MagmaCore", Vector3.new(0.8, 0.6, 0.5), CFrame.new(0, -1.02, -0.42), core, { Material = Enum.Material.Neon })
+	ctx.ball(arm, "MagmaGlow", Vector3.new(1.7, 1.5, 1.7), CFrame.new(0, -0.95, 0), Color3.fromRGB(255, 140, 40), { Material = Enum.Material.Neon, Transparency = 0.72, CastShadow = false })
+	for i, e in { { -0.5, -0.5, -0.2, 0.42 }, { 0.5, -0.65, 0.2, 0.4 }, { -0.38, -1.25, 0.3, 0.38 }, { 0.42, -1.2, -0.3, 0.36 }, { 0.0, -0.3, 0.52, 0.4 } } do
+		ctx.ball(arm, "MagmaRock", Vector3.new(e[4], e[4] * 0.7, e[4]), CFrame.new(e[1], e[2], e[3]) * CFrame.Angles(i, i * 0.7, 0), rock, { Material = Enum.Material.Basalt })
 	end
-	-- Gouttes qui tombent
-	ctx.ball(arm, "MagmaDrip", Vector3.new(0.2, 0.34, 0.2), CFrame.new(0.15, -1.38, -0.1), lava, { Material = Enum.Material.Neon })
-	ctx.ball(arm, "MagmaDrip", Vector3.new(0.14, 0.24, 0.14), CFrame.new(-0.2, -1.32, 0.2), lava, { Material = Enum.Material.Neon })
+	-- Gouttes qui tombent du poing
+	ctx.ball(arm, "MagmaDrip", Vector3.new(0.2, 0.36, 0.2), CFrame.new(0.15, -1.62, -0.1), lava, { Material = Enum.Material.Neon })
+	ctx.ball(arm, "MagmaDrip", Vector3.new(0.13, 0.26, 0.13), CFrame.new(-0.22, -1.58, 0.2), lava, { Material = Enum.Material.Neon })
+	ctx.ball(arm, "MagmaDrip", Vector3.new(0.1, 0.18, 0.1), CFrame.new(0.05, -1.9, 0.05), core, { Material = Enum.Material.Neon })
 	local light = Instance.new("PointLight")
 	light.Name = "MagmaLight"
 	light.Color = Color3.fromRGB(255, 130, 50)
@@ -2223,10 +2252,16 @@ end
 -- Manteau de la justice (amiral) porté sur les épaules : col relevé, manches vides,
 -- « 正義 » (justice) dans le dos.
 ACC.justice_coat = function(ctx, look)
+	-- Manteau de la justice porté sur les épaules (amiral) : dos avec « 正義 », épaulettes à
+	-- franges dorées, pans qui tombent jusqu'aux genoux en s'évasant, bord doré peint, col relevé.
 	local white = look.coatColor or Color3.fromRGB(246, 246, 248)
+	local shadeW = Color3.fromRGB(222, 224, 232)
+	local gold = Color3.fromRGB(222, 176, 60)
 	local mode = ctx.paint == "parts" and "parts" or nil
-	local back = ctx.add("Torso", "Coat", Vector3.new(2.5, 3.5, 0.12), CFrame.new(0, -0.6, 0.66) * CFrame.Angles(0.08, 0, 0), white)
-	Painter.panel(back, Enum.NormalId.Back, mode, white, nil, { folds = true })
+	local back = ctx.add("Torso", "Coat", Vector3.new(2.6, 3.6, 0.12), CFrame.new(0, -0.65, 0.68) * CFrame.Angles(0.08, 0, 0), white)
+	Painter.panel(back, Enum.NormalId.Back, mode, white, function(S)
+		S:rect(0.5, 0.985, 1, S:dy(0.1), gold, { z = 3 })
+	end, { folds = true })
 	if mode ~= "parts" then
 		local gui = back:FindFirstChildOfClass("SurfaceGui")
 		if gui then
@@ -2244,26 +2279,51 @@ ACC.justice_coat = function(ctx, look)
 			label.Parent = gui
 		end
 	end
-	ctx.add("Torso", "CoatCollar", Vector3.new(2.2, 0.55, 0.14), CFrame.new(0, 1.12, 0.58) * CFrame.Angles(-0.25, 0, 0), white)
+	-- Col relevé (deux pans inclinés derrière la nuque)
 	for _, side in { -1, 1 } do
-		ctx.add("Torso", "CoatShoulder", Vector3.new(1.32, 0.28, 1.32), CFrame.new(side * 1.52, 1.06, 0.05), white)
-		local sleeve = ctx.add("Torso", "CoatSleeve", Vector3.new(0.14, 2.7, 1.1), CFrame.new(side * 2.12, -0.4, 0.18), white)
-		Painter.panel(sleeve, side < 0 and Enum.NormalId.Left or Enum.NormalId.Right, mode, white, nil, { folds = true })
-		ctx.add("Torso", "CoatCuff", Vector3.new(0.16, 0.2, 1.12), CFrame.new(side * 2.12, -1.65, 0.18), Color3.fromRGB(215, 215, 222))
+		ctx.add("Torso", "CoatCollar", Vector3.new(1.0, 0.62, 0.12), CFrame.new(side * 0.55, 1.22, 0.5) * CFrame.Angles(-0.3, side * 0.35, 0), white)
 	end
+	local tassels = {}
+	for _, side in { -1, 1 } do
+		-- Épaulette : plateau blanc, liseré doré, franges dorées qui pendent sur le bras
+		ctx.add("Torso", "CoatShoulder", Vector3.new(1.3, 0.2, 1.24), CFrame.new(side * 1.52, 1.1, 0.04), white)
+		ctx.add("Torso", "Epaulette", Vector3.new(0.98, 0.1, 0.98), CFrame.new(side * 1.56, 1.24, 0.02), gold, { Material = Enum.Material.Metal, Reflectance = 0.15 })
+		ctx.ball("Torso", "EpauletteKnob", Vector3.new(0.26, 0.16, 0.26), CFrame.new(side * 1.2, 1.3, -0.02), gold, { Material = Enum.Material.Metal })
+		for i = -2, 2 do
+			table.insert(tassels, ctx.cyl("Torso", "EpauletteFringe", 0.34, 0.1, CFrame.new(side * 2.3, 0.98, i * 0.2) * CFrame.Angles(0, 0, math.pi / 2), gold, { Material = Enum.Material.Metal }))
+		end
+		-- Manche vide sur le côté (profil du manteau)
+		local sleeve = ctx.add("Torso", "CoatSleeve", Vector3.new(0.14, 3.0, 1.12), CFrame.new(side * 2.16, -0.5, 0.2), white)
+		Painter.panel(sleeve, side < 0 and Enum.NormalId.Left or Enum.NormalId.Right, mode, white, nil, { folds = true })
+		-- Pan avant qui tombe de l'épaule aux genoux en s'évasant, bord doré peint. Côté gauche il
+		-- couvre le bras (porté sur les épaules) ; côté droit il s'ouvre pour laisser le poing de magma.
+		local open = side > 0 and has(look, "magma_fist")
+		local w = open and 0.5 or 1.3
+		local x0 = open and side * 2.18 or side * 1.58
+		local h = 3.55
+		local cf = CFrame.new(x0, 1.12, -0.6) * CFrame.Angles(0, 0, side * 0.07) * CFrame.new(0, -h / 2, 0)
+		local pan = ctx.add("Torso", "CoatPan", Vector3.new(w, h, 0.12), cf, white)
+		Painter.panel(pan, Enum.NormalId.Front, mode, white, function(S)
+			local edge = side > 0 and 1 - S:dx(0.07) or S:dx(0.07)
+			S:rect(edge, 0.5, S:dx(0.14), 1, gold, { gradient = { Color3.fromRGB(255, 220, 110), gold }, z = 3 })
+			S:rect(0.5, 1 - S:dy(0.05), 1, S:dy(0.1), gold, { z = 3 })
+		end, { folds = not open })
+	end
+	local _ = tassels
 end
 
 -- Insigne de la casquette de marine (mouette blanche sur fond bleu).
 ACC.cap_badge = function(ctx, look)
+	-- Insigne de la casquette : médaillon doré, fond bleu et mouette blanche peinte en relief.
 	local band = look.capBand or Color3.fromRGB(40, 60, 140)
-	local at = CFrame.new(0, 0.6, -0.72) * CFrame.Angles(math.rad(-14), 0, 0)
-	ctx.cyl("Head", "CapBadge", 0.05, 0.34, at * CFrame.Angles(0, math.pi / 2, 0), band)
-	-- Mouette : deux ailes en "V" aplati
+	local at = CFrame.new(0, 0.66, -0.735)
+	ctx.cyl("Head", "CapBadgeRim", 0.04, 0.42, at * CFrame.Angles(0, math.pi / 2, 0), GOLD, { Material = Enum.Material.Metal, Reflectance = 0.2 })
+	ctx.cyl("Head", "CapBadge", 0.05, 0.34, at * CFrame.new(0, 0, -0.012) * CFrame.Angles(0, math.pi / 2, 0), band)
+	-- Mouette : deux ailes en « M » aplati
 	for _, side in { -1, 1 } do
-		ctx.add("Head", "CapBadgeGull", Vector3.new(0.15, 0.04, 0.04), at * CFrame.new(side * 0.065, 0.01, -0.03) * CFrame.Angles(0, 0, side * 0.35), WHITE)
+		ctx.add("Head", "CapBadgeGull", Vector3.new(0.13, 0.035, 0.03), at * CFrame.new(side * 0.06, 0.012, -0.045) * CFrame.Angles(0, 0, side * 0.42), WHITE)
+		ctx.add("Head", "CapBadgeGull", Vector3.new(0.08, 0.03, 0.03), at * CFrame.new(side * 0.13, 0.03, -0.045) * CFrame.Angles(0, 0, -side * 0.5), WHITE)
 	end
-	-- Visière bien visible (bleu marine, plus large)
-	ctx.add("Head", "CapBrimEdge", Vector3.new(1.1, 0.06, 0.12), CFrame.new(0, 0.29, -1.06) * CFrame.Angles(math.rad(-8), 0, 0), darken(band, 0.3))
 end
 
 -- Ceinture de corde nouée (bleu marine) + deux pans.
