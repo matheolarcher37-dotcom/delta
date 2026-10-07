@@ -445,7 +445,52 @@ end
 
 -- Inclinaison des paupières et des sourcils (studs de dénivelé, positif = air sévère).
 local LID_TILT = { angry = 0.035, fierce = 0.012, happy = -0.012, calm = 0, smirk = 0.006, sad = -0.03 }
-local BROW_TILT = { angry = 0.07, fierce = 0.035, happy = -0.03, calm = -0.01, smirk = 0.01, sad = -0.05 }
+
+------------------------------------------------------------------------
+-- Gabarits de visage : chaque perso choisit ses yeux, sa bouche et ses sourcils
+-- (look.eyeStyle, look.mouthStyle, look.browStyle). Sans choix explicite, le gabarit
+-- vient du caractère (look.face). Dimensions en studs pour une tête d'échelle 1.
+------------------------------------------------------------------------
+
+-- Yeux :
+--   w, h      : taille du blanc ; iris (largeur relative), irisH (hauteur relative)
+--   cut       : paupière supérieure qui couvre cette fraction du haut de l'œil (au centre)
+--   drop      : dénivelé de cette paupière (positif = coin intérieur plus bas : regard sévère)
+--   wing      : trait de cils prolongé vers l'extérieur ; lashes : nombre de cils (persos féminins)
+--   crease    : pli de paupière au-dessus (yeux mi-clos) ; shine3 : troisième reflet (yeux ronds)
+local EYE_STYLES = {
+	-- Grands yeux ronds et pétillants (Maruto, Loffy, Nezoko)
+	round = { w = 0.27, h = 0.25, iris = 0.64, irisH = 0.92, corner = 0.5, shine3 = true, arc = 0.03 },
+	-- Yeux francs de héros de shonen (Goko, Tanjiru)
+	bold = { w = 0.27, h = 0.2, iris = 0.6, irisH = 0.95, corner = 0.45, arc = 0.015 },
+	-- Plissés et menaçants (Sasuki, Itochi, boss)
+	sharp = { w = 0.3, h = 0.16, iris = 0.5, irisH = 0.98, corner = 0.35, cut = 0.34, drop = 0.075, wing = true },
+	-- Froids, étroits (Megumo, Zoru)
+	narrow = { w = 0.3, h = 0.15, iris = 0.48, irisH = 1, corner = 0.4, cut = 0.28, drop = 0.03, wing = true },
+	-- Mi-clos, blasés (Kakashu, Shikamaro)
+	sleepy = { w = 0.27, h = 0.2, iris = 0.56, irisH = 0.95, corner = 0.45, cut = 0.5, drop = -0.012, crease = true },
+	-- Féminins avec cils (Sakoura, Nomi)
+	feminine = { w = 0.27, h = 0.235, iris = 0.62, irisH = 0.94, corner = 0.5, lashes = 3, shine3 = true, arc = 0.03 },
+	-- Doux (persos calmes)
+	soft = { w = 0.26, h = 0.2, iris = 0.6, irisH = 0.94, corner = 0.48, arc = 0.02 },
+	-- Écarquillés, petit iris (fous, apeurés : Zenitso, démons)
+	wide = { w = 0.28, h = 0.24, iris = 0.36, irisH = 0.5, corner = 0.5, lowerFull = true },
+}
+local MOOD_EYES = { angry = "sharp", smirk = "narrow", happy = "round", fierce = "bold", calm = "soft", sad = "soft" }
+
+-- Sourcils : th (épaisseur), half (demi-longueur), arch (bosse au milieu), tilt (pente, + = froncé)
+local BROW_STYLES = {
+	bold = { th = 0.042, half = 0.125, arch = 0.012, tilt = 0.03 },
+	frown = { th = 0.052, half = 0.13, arch = -0.008, tilt = 0.1 },
+	thick = { th = 0.085, half = 0.15, arch = 0.005, tilt = 0.04 },
+	arched = { th = 0.022, half = 0.12, arch = 0.035, tilt = -0.025 },
+	flat = { th = 0.034, half = 0.115, arch = 0.004, tilt = 0 },
+	raised = { th = 0.03, half = 0.115, arch = 0.018, tilt = -0.05, lift = 0.035 },
+	short = { th = 0.05, half = 0.075, arch = 0, tilt = 0.035 },
+	thin = { th = 0.026, half = 0.12, arch = 0.012, tilt = 0.035 },
+}
+local MOOD_BROWS = { angry = "frown", fierce = "bold", happy = "bold", calm = "flat", smirk = "bold", sad = "raised" }
+local MOOD_MOUTHS = { angry = "frown", fierce = "smile", happy = "smile", calm = "line", smirk = "smirk", sad = "sad" }
 
 local EYE_WHITE = Color3.fromRGB(236, 241, 247)
 
@@ -470,31 +515,50 @@ local function faceTools(S, centerY: number)
 	function T.line(x0: number, y0: number, x1: number, y1: number, th: number, color: Color3, o: RectOptions?)
 		return S:line(X(x0), Y(y0), X(x1), Y(y1), th, color, o)
 	end
+	-- Courbe douce en 3 segments (de (x0,y0) à (x1,y1), bosse `bulge` au milieu)
+	function T.curve(x0: number, y0: number, x1: number, y1: number, bulge: number, th: number, color: Color3, o: RectOptions?)
+		local mx, my = (x0 + x1) / 2, (y0 + y1) / 2 + bulge
+		local ax, ay = (x0 + mx) / 2, (y0 + my) / 2 + bulge * 0.35
+		local bx, by = (mx + x1) / 2, (my + y1) / 2 + bulge * 0.35
+		T.line(x0, y0, ax, ay, th, color, o)
+		T.line(ax, ay, bx, by, th, color, o)
+		T.line(bx, by, x1, y1, th, color, o)
+	end
 	return T
 end
 
+local function eyeStyleOf(look)
+	local name = look.eyeStyle or ((look.blush or look.lashes) and "feminine") or MOOD_EYES[look.face or "calm"] or "bold"
+	return EYE_STYLES[name] or EYE_STYLES.bold
+end
+Painter.EyeStyles = EYE_STYLES
+
 -- Un œil. `s` = 1 pour l'œil de droite (vu de face), -1 pour celui de gauche.
 local function eye(T, look, cx: number, cy: number, s: number, k: number)
+	local st = eyeStyleOf(look)
 	local iris = look.eyes or Color3.fromRGB(80, 55, 40)
-	local face = look.face or "calm"
 	local lash = look.lashColor or INK
-	-- Forme selon le caractère : yeux plissés (air sévère), ronds et grands (persos féminins)
-	local defaultH = (face == "angry" or face == "smirk") and 0.155 or ((look.blush or look.lashes) and 0.21 or 0.19)
-	local W, H = (look.eyeWidth or 0.26) * k, (look.eyeHeight or defaultH) * k
-	local tilt = (LID_TILT[face] or 0) * k
+	local skin = look.skin or DEFAULT_SKIN
+	local W, H = (look.eyeWidth or st.w) * k, (look.eyeHeight or st.h) * k
+	if look.eyeStyle == nil and look.eyeHeight == nil and (look.face == "angry" or look.face == "smirk") and not st.cut then
+		H *= 0.82
+	end
 	if look.eyeShadow then
 		-- Pigments autour des yeux (mode Ermite...)
 		T.oval(cx + s * 0.02, cy + 0.01, W * 1.5, H * 1.75, look.eyeShadow, { fade = { 0.1, 0.35, 0.8 }, gradientRotation = 90, z = 1 })
 	end
 	-- Blanc de l'œil (ombre de la paupière en haut)
 	local white = look.scleraColor or EYE_WHITE
-	T.box(cx, cy - 0.005, W, H, white, { corner = 0.45, gradient = { Painter.shade(white, 0.22), white, white }, z = 2 })
+	T.box(cx, cy - 0.005, W, H, white, { corner = st.corner, gradient = { Painter.shade(white, 0.25), white, white }, z = 2 })
 	-- Iris : sombre sous la paupière, clair en bas, cerclé
-	local IW, IH = W * 0.58, H * 0.96
-	local ix, iy = cx + s * W * 0.03, cy - H * 0.04
+	local IW, IH = W * st.iris, H * st.irisH
+	local ix, iy = cx + s * W * 0.04, cy - H * (st.lowerFull and 0 or 0.03)
+	if st.cut then
+		iy += H * 0.04
+	end
 	T.oval(ix, iy, IW, IH, iris, {
-		gradient = { darken(iris, 0.62), darken(iris, 0.12), lighten(iris, 0.38) },
-		stroke = not T.lite and darken(iris, 0.75) or nil,
+		gradient = { darken(iris, 0.65), darken(iris, 0.1), lighten(iris, 0.42) },
+		stroke = not T.lite and darken(iris, 0.78) or nil,
 		strokeThickness = 1,
 		z = 3,
 	})
@@ -518,52 +582,106 @@ local function eye(T, look, cx: number, cy: number, s: number, k: number)
 			T.oval(ix + math.cos(a) * IW * 0.31, iy + math.sin(a) * IH * 0.31, IW * 0.2, IW * 0.2, pupil, { z = 5 })
 		end
 	elseif look.pupil ~= "none" then
-		T.oval(ix, iy + H * 0.04, IW * 0.46, IH * 0.48, pupil, { z = 4 })
+		T.oval(ix, iy + H * 0.03, IW * (st.cut and 0.4 or 0.46), IH * 0.48, pupil, { z = 4 })
 	end
-	-- Reflets
+	-- Reflets (gros reflet en haut, petit en bas ; un troisième pour les yeux ronds)
 	if look.pupil ~= "none" or look.eyeGlow then
-		T.oval(ix - s * IW * 0.0 + IW * 0.2, iy + IH * 0.22, IW * 0.36, IW * 0.36, WHITE, { z = 6 })
+		local up = st.cut and IH * 0.05 or IH * 0.22
+		T.oval(ix + IW * 0.2, iy + up, IW * 0.38, IW * 0.38, WHITE, { z = 6 })
 		T.oval(ix - IW * 0.22, iy - IH * 0.24, IW * 0.18, IW * 0.18, WHITE, { transparency = 0.15, z = 6 })
+		if st.shine3 and not T.lite then
+			T.oval(ix - IW * 0.05, iy + IH * 0.3, IW * 0.12, IW * 0.12, WHITE, { transparency = 0.3, z = 6, fine = true })
+		end
 	end
-	-- Trait de cils supérieur : épais, en arc, avec un petit crochet au coin extérieur
-	local top = cy + H * 0.44
-	local innerX, outerX = cx - s * W * 0.52, cx + s * W * 0.56
-	local innerY, outerY = top - tilt - H * 0.08, top + tilt * 0.5
-	local midX = cx + s * W * 0.06
 	local th = (look.lashThickness or 0.05) * k
-	T.line(innerX, innerY, midX, top + 0.012 * k, th * 0.8, lash, { z = 7 })
-	T.line(midX, top + 0.012 * k, outerX, outerY, th, lash, { z = 7 })
-	T.line(outerX, outerY, outerX + s * 0.035 * k, outerY - H * 0.3, th * 0.75, lash, { z = 7 })
-	-- Ombre de la paupière sur le haut de l'œil (sous le trait)
-	T.box(cx, top - H * 0.1, W * 0.96, H * 0.2, darken(iris, 0.75), { corner = 0.4, transparency = 0.7, z = 6, fine = true })
-	if look.blush or look.lashes then
-		-- Cils longs (persos féminins)
-		T.line(outerX, outerY, outerX + s * 0.06 * k, outerY + 0.045 * k, 0.026 * k, lash, { z = 7 })
-		T.line(outerX - s * 0.03 * k, outerY + 0.005, outerX + s * 0.02 * k, outerY + 0.06 * k, 0.02 * k, lash, { z = 7 })
+	local innerX, outerX = cx - s * W * 0.52, cx + s * W * 0.56
+	if st.cut then
+		-- Paupière lourde : un pan de peau incliné recouvre le haut de l'œil, le trait de cils
+		-- suit son bord (regard plissé, menaçant ou blasé).
+		local drop = (look.lidDrop or st.drop) * k
+		local a = s * math.atan2(drop, W)
+		local ca, sa = math.cos(a), math.sin(a)
+		local mx, my = cx, cy - 0.005 + H / 2 - st.cut * H
+		local hb = H * 1.2
+		T.box(mx - sa * hb / 2, my + ca * hb / 2, W * 1.4, hb, skin, { rotation = -math.deg(a), z = 6.5 })
+		local ox, oy = mx + s * ca * W * 0.6, my + s * sa * W * 0.6
+		local nx, ny = mx - s * ca * W * 0.55, my - s * sa * W * 0.55
+		T.line(nx, ny, ox, oy, th * 1.1, lash, { z = 7 })
+		-- Ombre de la paupière juste sous le trait
+		T.line(nx, ny - 0.02 * k, ox, oy - 0.02 * k, H * 0.18, darken(iris, 0.75), { transparency = 0.65, z = 6, fine = true, corner = 0.3 })
+		if st.wing then
+			T.line(ox, oy, ox + s * 0.05 * k, oy + 0.012 * k, th * 0.75, lash, { z = 7 })
+		end
+		if st.crease then
+			T.line(nx, ny + 0.055 * k, ox, oy + 0.05 * k, th * 0.35, Painter.shade(skin, 0.45), { transparency = 0.2, z = 7, fine = T.lite })
+		end
+	else
+		-- Trait de cils supérieur : épais, en arc, avec un petit crochet au coin extérieur
+		local tilt = (LID_TILT[look.face or "calm"] or 0) * k
+		local top = cy + H * 0.44
+		local innerY, outerY = top - tilt - H * 0.08, top + tilt * 0.5
+		local midX = cx + s * W * 0.06
+		local midY = top + (st.arc or 0.012) * k
+		T.line(innerX, innerY, midX, midY, th * 0.8, lash, { z = 7 })
+		T.line(midX, midY, outerX, outerY, th, lash, { z = 7 })
+		T.line(outerX, outerY, outerX + s * 0.035 * k, outerY - H * 0.3, th * 0.75, lash, { z = 7 })
+		-- Ombre de la paupière sur le haut de l'œil (sous le trait)
+		T.box(cx, top - H * 0.1, W * 0.96, H * 0.2, darken(iris, 0.75), { corner = 0.4, transparency = 0.7, z = 6, fine = true })
+		if st.lashes then
+			-- Cils longs (persos féminins) : trois cils qui s'envolent au coin extérieur
+			for i = 0, st.lashes - 1 do
+				local bx = outerX - s * i * 0.035 * k
+				local by = outerY + (i == 0 and 0 or 0.01 * k)
+				T.line(bx, by, bx + s * (0.07 - i * 0.012) * k, by + (0.03 + i * 0.022) * k, (0.024 - i * 0.003) * k, lash, { z = 7 })
+			end
+		end
 	end
-	-- Trait inférieur (moitié extérieure)
-	T.line(cx - s * W * 0.1, cy - H * 0.5, cx + s * W * 0.5, cy - H * 0.36, 0.016 * k, lash, { transparency = 0.25, z = 7, fine = T.lite })
+	-- Trait inférieur (moitié extérieure, ou tout le tour pour les yeux écarquillés)
+	if st.lowerFull then
+		T.line(cx - s * W * 0.45, cy - H * 0.46, cx + s * W * 0.45, cy - H * 0.46, 0.016 * k, lash, { transparency = 0.2, z = 7, fine = T.lite })
+	else
+		T.line(cx - s * W * 0.1, cy - H * 0.5, cx + s * W * 0.5, cy - H * 0.36, 0.016 * k, lash, { transparency = 0.25, z = 7, fine = T.lite })
+	end
+	if st.lashes and not T.lite then
+		T.line(cx + s * W * 0.42, cy - H * 0.4, cx + s * W * 0.56, cy - H * 0.5, 0.012 * k, lash, { z = 7, fine = true })
+	end
 end
 
 local function brows(T, look, skin: Color3, eyeX: number, eyeY: number, k: number)
 	local face = look.face or "calm"
+	local name = look.browStyle or (look.bigBrows and "thick") or (look.browThin and "thin") or ((look.blush or look.lashes) and "arched") or MOOD_BROWS[face] or "bold"
+	if name == "none" then
+		return
+	end
+	local st = BROW_STYLES[name] or BROW_STYLES.bold
 	local color = look.browColor or Painter.shade(look.hairColor or INK, 0.35)
 	if look.hair == "bald" or look.hair == "none" then
 		color = darken(skin, 0.45)
 	end
-	local thick = (look.bigBrows and 0.08 or (look.browThin and 0.024 or 0.036)) * k
-	local half = (look.bigBrows and 0.15 or 0.12) * k
-	local by = eyeY + (look.browY or 0.155) * k
+	local thick = st.th * k
+	local half = st.half * k
+	local by = eyeY + ((look.browY or 0.155) + (st.lift or 0)) * k
 	for _, s in { -1, 1 } do
-		local tilt = BROW_TILT[face] or 0
-		if face == "smirk" and s > 0 then
-			tilt = -0.03
-			by += 0.015
+		local tilt = (look.browTilt or st.tilt) * k
+		local lift = 0
+		if face == "smirk" and s > 0 and look.browStyle == nil then
+			-- Sourcil relevé d'un côté (air narquois)
+			tilt = -0.03 * k
+			lift = 0.015
 		end
 		local cx = s * eyeX
+		local ix, iy = cx - s * half, by - tilt / 2 + lift
+		local ox, oy = cx + s * half * 1.08, by + tilt / 2 + lift
+		local mx, my = (ix + ox) / 2, (iy + oy) / 2 + st.arch * k
 		-- Sourcil effilé : épais côté intérieur, fin vers l'extérieur
-		T.line(cx - s * half, by - tilt / 2, cx + s * half, by + tilt / 2 + 0.01, thick, color, { z = 8 })
-		T.line(cx + s * half * 0.2, by + tilt * 0.1 + 0.005, cx + s * half * 1.15, by + tilt / 2 - 0.005, thick * 0.6, color, { z = 8, fine = T.lite })
+		T.line(ix, iy, mx, my, thick, color, { z = 8 })
+		T.line(mx, my, ox, oy, thick * 0.62, color, { z = 8 })
+		if name == "thick" then
+			T.line(ix, iy - thick * 0.25, ox, oy - thick * 0.2, thick * 0.8, color, { z = 8 })
+		elseif name == "frown" and not T.lite then
+			-- Ride du froncement entre les sourcils
+			T.line(s * 0.035, by - 0.01, s * 0.05, by - 0.07, 0.012 * k, Painter.shade(skin, 0.45), { transparency = 0.25, z = 7, fine = true })
+		end
 	end
 end
 
@@ -571,45 +689,81 @@ local TEETH = Color3.fromRGB(232, 236, 242)
 
 local function mouth(T, look, skin: Color3, y: number)
 	local face = look.face or "calm"
+	local style = look.mouthStyle or MOOD_MOUTHS[face] or "line"
 	local lip = Painter.shade(skin, 0.4)
-	local w = look.mouthWidth or (face == "fierce" and 0.3 or 0.2)
+	local w = look.mouthWidth or 0.18
 	if look.blush and not look.mouthWidth then
-		w *= 0.75
+		w *= 0.8
 	end
-	if face == "fierce" then
-		-- Sourire confiant, dents serrées (comme la référence "Kid Naruto")
-		T.box(0, y, w, 0.075, TEETH, { corner = 0.4, stroke = INK, strokeThickness = 1.6, gradient = { WHITE, TEETH, Color3.fromRGB(190, 200, 215) }, z = 2 })
+	local th = 0.018
+	if style == "toothy" then
+		-- Petite bouche en trait, sourire en coin avec une dent visible (comme Kid Naruto)
+		T.curve(-w * 0.5, y + 0.012, w * 0.45, y + 0.004, -0.018, th, INK, { z = 3 })
+		T.line(w * 0.45, y + 0.004, w * 0.6, y + 0.04, 0.015, INK, { z = 3 })
+		T.box(w * 0.28, y - 0.012, 0.045, 0.036, TEETH, { corner = 0.25, stroke = not T.lite and INK or nil, strokeThickness = 1, z = 2 })
+		T.box(0, y - 0.03, w * 0.35, 0.012, lip, { corner = 0.5, transparency = 0.5, z = 2, fine = true })
+	elseif style == "grin" or style == "wide_grin" then
+		-- Grand sourire ouvert en "D" (rangée de dents en haut, langue)
+		local ww = style == "wide_grin" and w * 1.6 or w * 1.15
+		local hh = style == "wide_grin" and 0.15 or 0.12
+		T.oval(0, y - 0.01, ww, hh, MOUTH, { stroke = not T.lite and INK or nil, strokeThickness = 1.3, z = 2 })
+		T.box(0, y + hh * 0.42, ww * 1.15, hh * 0.5, skin, { z = 3 })
+		T.box(0, y + 0.01, ww * 0.8, hh * 0.24, TEETH, { corner = 0.3, z = 4 })
+		T.oval(0, y - hh * 0.32, ww * 0.45, hh * 0.32, TONGUE, { z = 4 })
+		T.curve(-ww * 0.56, y + 0.026, ww * 0.56, y + 0.026, -0.008, th, INK, { z = 5 })
+		T.line(ww * 0.56, y + 0.026, ww * 0.62, y + 0.05, 0.014, INK, { z = 5 })
+		T.line(-ww * 0.56, y + 0.026, -ww * 0.62, y + 0.05, 0.014, INK, { z = 5 })
+	elseif style == "teeth" then
+		-- Dents serrées (effort, rage contenue)
+		T.box(0, y, w, 0.062, TEETH, { corner = 0.4, stroke = INK, strokeThickness = 1.5, gradient = { WHITE, TEETH, Color3.fromRGB(190, 200, 215) }, z = 2 })
 		T.line(-w * 0.45, y + 0.002, w * 0.45, y + 0.002, 0.008, Color3.fromRGB(150, 160, 178), { corner = 0, z = 3 })
-		local n = 7
-		for i = 1, n - 1 do
-			local x = -w / 2 + w * i / n
-			T.line(x, y + 0.03, x, y - 0.03, 0.007, Color3.fromRGB(160, 168, 185), { corner = 0, z = 3, fine = true })
+		for i = 1, 4 do
+			local x = -w / 2 + w * i / 5
+			T.line(x, y + 0.026, x, y - 0.026, 0.007, Color3.fromRGB(160, 168, 185), { corner = 0, z = 3, fine = true })
 		end
-		-- Coin relevé (sourire en coin)
-		T.line(w * 0.5, y + 0.01, w * 0.5 + 0.045, y + 0.05, 0.016, INK, { z = 4 })
-		T.line(-w * 0.5, y + 0.005, -w * 0.5 - 0.03, y + 0.025, 0.014, INK, { z = 4 })
-	elseif face == "happy" then
-		-- Grand sourire ouvert en "D"
-		T.oval(0, y, w * 1.05, 0.13, MOUTH, { stroke = INK, strokeThickness = 1.3, z = 2 })
-		T.box(0, y + 0.045, w * 1.2, 0.05, skin, { z = 3 })
-		T.box(0, y + 0.012, w * 0.82, 0.024, TEETH, { corner = 0.3, z = 4 })
-		T.oval(0, y - 0.035, w * 0.48, 0.04, TONGUE, { z = 4 })
-		T.line(-w * 0.55, y + 0.02, w * 0.55, y + 0.02, 0.016, INK, { z = 5 })
-	elseif face == "angry" then
-		-- Bouche crispée, coins tombants, dents serrées
-		T.box(0, y, w * 0.8, 0.045, TEETH, { corner = 0.3, stroke = INK, strokeThickness = 1.4, z = 2 })
-		T.line(-w * 0.4, y + 0.005, -w * 0.58, y - 0.03, 0.016, INK, { z = 3 })
-		T.line(w * 0.4, y + 0.005, w * 0.58, y - 0.03, 0.016, INK, { z = 3 })
-	elseif face == "smirk" then
-		T.line(-w * 0.45, y - 0.005, w * 0.35, y + 0.005, 0.018, INK, { z = 2 })
-		T.line(w * 0.35, y + 0.005, w * 0.55, y + 0.04, 0.016, INK, { z = 2 })
+	elseif style == "snarl" or style == "fang" then
+		-- Rictus ouvert de démon : dents et crocs
+		local ww = w * 1.25
+		T.box(0, y, ww, 0.075, MOUTH, { corner = 0.35, stroke = not T.lite and INK or nil, strokeThickness = 1.4, z = 2 })
+		T.box(0, y + 0.022, ww * 0.92, 0.025, TEETH, { corner = 0.2, z = 3 })
+		T.box(0, y - 0.024, ww * 0.8, 0.018, TEETH, { corner = 0.2, z = 3 })
+		for _, sx in { -1, 1 } do
+			T.line(sx * ww * 0.3, y + 0.03, sx * ww * 0.27, y - 0.02, 0.026, TEETH, { corner = 0.1, z = 4 })
+		end
+		T.line(ww * 0.5, y + 0.01, ww * 0.62, y + 0.05, 0.016, INK, { z = 4 })
+		T.line(-ww * 0.5, y + 0.01, -ww * 0.62, y + 0.05, 0.016, INK, { z = 4 })
+	elseif style == "smile" then
+		-- Sourire fermé, confiant
+		T.curve(-w * 0.45, y + 0.02, w * 0.45, y + 0.02, -0.03, th, INK, { z = 2 })
+		T.box(0, y - 0.035, w * 0.3, 0.012, lip, { corner = 0.5, transparency = 0.45, z = 2, fine = true })
+	elseif style == "smirk" then
+		-- Sourire en coin, asymétrique
+		T.line(-w * 0.42, y - 0.004, w * 0.25, y + 0.002, th, INK, { z = 2 })
+		T.line(w * 0.25, y + 0.002, w * 0.5, y + 0.045, 0.016, INK, { z = 2 })
+		T.line(w * 0.5, y + 0.045, w * 0.55, y + 0.03, 0.01, INK, { z = 2, fine = true })
 		T.box(w * 0.05, y - 0.03, w * 0.3, 0.012, lip, { corner = 0.5, transparency = 0.4, z = 2, fine = true })
-	elseif face == "sad" then
+	elseif style == "frown" then
+		-- Bouche fermée, coins tombants
+		T.curve(-w * 0.42, y - 0.022, w * 0.42, y - 0.022, 0.022, th, INK, { z = 2 })
+		T.box(0, y - 0.04, w * 0.28, 0.012, lip, { corner = 0.5, transparency = 0.45, z = 2, fine = true })
+	elseif style == "shout" then
+		-- Bouche grande ouverte (cri)
+		T.oval(0, y - 0.02, w * 0.9, 0.14, MOUTH, { stroke = not T.lite and INK or nil, strokeThickness = 1.4, z = 2 })
+		T.box(0, y + 0.035, w * 0.6, 0.022, TEETH, { corner = 0.3, z = 3 })
+		T.oval(0, y - 0.06, w * 0.45, 0.04, TONGUE, { z = 3 })
+	elseif style == "o" then
+		T.oval(0, y - 0.005, 0.075, 0.07, MOUTH, { stroke = not T.lite and INK or nil, strokeThickness = 1.2, z = 2 })
+	elseif style == "sad" then
 		T.line(-w * 0.35, y - 0.015, 0, y + 0.005, 0.016, INK, { z = 2 })
 		T.line(0, y + 0.005, w * 0.35, y - 0.015, 0.016, INK, { z = 2 })
-	else
-		T.line(-w * 0.35, y, w * 0.35, y, 0.018, INK, { z = 2 })
-		T.box(0, y - 0.028, w * 0.3, 0.012, lip, { corner = 0.5, transparency = 0.45, z = 2, fine = true })
+	elseif style == "pout" then
+		-- Petite bouche (persos féminins) : court trait et lèvre inférieure
+		T.curve(-w * 0.28, y + 0.008, w * 0.28, y + 0.008, -0.01, 0.016, INK, { z = 2 })
+		T.box(0, y - 0.02, w * 0.26, 0.016, Color3.fromRGB(235, 140, 150), { corner = 0.5, transparency = 0.35, z = 2 })
+	elseif style ~= "none" then
+		-- Petit trait
+		T.line(-w * 0.32, y, w * 0.32, y, th, INK, { z = 2 })
+		T.box(0, y - 0.028, w * 0.26, 0.012, lip, { corner = 0.5, transparency = 0.45, z = 2, fine = true })
 	end
 end
 
