@@ -22,7 +22,7 @@ local GOLD = rgb(214, 170, 72)
 LeaderboardBoards.List = {
 	{ id = "Robux", name = "Classement_Robux", title = "LES PLUS GÉNÉREUX", sub = "Robux dépensés dans le jeu", color = rgb(40, 170, 110), crest = "R$" },
 	{ id = "Coins", name = "Classement_Pieces", title = "LES PLUS RICHES", sub = "Pièces (¥)", color = rgb(200, 150, 40), crest = "¥" },
-	{ id = "Power", name = "Classement_Perso", title = "LE PERSO LE PLUS FORT", sub = "Puissance de la meilleure unité", color = rgb(190, 60, 60), crest = "⚔" },
+	{ id = "Power", name = "Classement_Perso", title = "LE PERSO LE PLUS FORT", sub = "Puissance de la meilleure unité", color = rgb(190, 60, 60), crest = "#1" },
 }
 
 LeaderboardBoards.Rows = 10
@@ -181,12 +181,12 @@ end
 function LeaderboardBoards.build(parent: Instance, center: Vector3): { Model }
 	local flat = Vector3.new(center.X, 0, center.Z)
 	local toHub = (-flat).Unit
-	local right = toHub:Cross(UP).Unit
+	local right = UP:Cross(toHub).Unit -- vers la droite de celui qui regarde les tableaux
 	local models = {}
 	local spots = {
-		{ offset = -25, forward = 5, turn = -24 },
+		{ offset = -25, forward = 5, turn = 24 },
 		{ offset = 0, forward = 0, turn = 0 },
-		{ offset = 25, forward = 5, turn = 24 },
+		{ offset = 25, forward = 5, turn = -24 },
 	}
 	for i, info in LeaderboardBoards.List do
 		local spot = spots[i]

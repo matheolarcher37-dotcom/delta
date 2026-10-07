@@ -756,7 +756,7 @@ function HUD.init(gui: ScreenGui)
 			local restock = state:GetAttribute("ShopRestockAt")
 			refs.shopChip.Visible = restock ~= nil
 			if restock then
-				refs.shopLabel.Text = "Boutique : " .. Formulas.formatTime(restock - now)
+				refs.shopLabel.Text = "Reliques : " .. Formulas.formatTime(restock - now)
 			end
 			refs.objective.Text = objectiveText(State.data)
 			updateTeamHealth()
