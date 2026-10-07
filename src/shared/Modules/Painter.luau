@@ -475,6 +475,8 @@ local EYE_STYLES = {
 	soft = { w = 0.26, h = 0.2, iris = 0.6, irisH = 0.94, corner = 0.48, arc = 0.02 },
 	-- Écarquillés, petit iris (fous, apeurés : Zenitso, démons)
 	wide = { w = 0.28, h = 0.24, iris = 0.36, irisH = 0.5, corner = 0.5, lowerFull = true },
+	-- Étroits à paupières lourdes, regard qui toise (moine maudit, manipulateurs)
+	heavy = { w = 0.31, h = 0.17, iris = 0.5, irisH = 1, corner = 0.4, cut = 0.52, drop = 0.035, wing = true, crease = true },
 }
 local MOOD_EYES = { angry = "sharp", smirk = "narrow", happy = "round", fierce = "bold", calm = "soft", sad = "soft" }
 
@@ -865,9 +867,16 @@ local function faceMarks(T, look, skin: Color3, eyeX: number, eyeY: number)
 		end
 	end
 	if has(look, "stitches_forehead") then
-		T.line(-0.45, eyeY + 0.33, 0.45, eyeY + 0.33, 0.016, INK, { z = 8 })
-		for i = -3, 3 do
-			T.line(i * 0.12, eyeY + 0.3, i * 0.12, eyeY + 0.36, 0.012, INK, { z = 8 })
+		-- Cicatrice qui fait tout le tour du front : peau boursouflée rosée, fil sombre, points croisés
+		local y = eyeY + 0.33
+		T.box(0, y, 1.0, 0.07, Color3.fromRGB(214, 150, 150), { transparency = 0.45, fade = { 0.8, 0.2, 0.2, 0.8 }, gradientRotation = 0, z = 7 })
+		T.line(-0.5, y, 0.5, y, 0.02, Color3.fromRGB(60, 34, 50), { z = 8 })
+		for i = -4, 4 do
+			local x = i * 0.11
+			T.line(x - 0.018, y + 0.04, x + 0.018, y - 0.04, 0.014, INK, { z = 9 })
+			if not T.lite then
+				T.line(x + 0.018, y + 0.04, x - 0.018, y - 0.04, 0.01, Color3.fromRGB(80, 50, 70), { z = 9, fine = true })
+			end
 		end
 	end
 	if has(look, "glasses") then

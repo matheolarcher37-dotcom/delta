@@ -604,12 +604,20 @@ local function sleekFringe(ctx, color: Color3, xs: { number }, length: any, widt
 	for i, x in xs do
 		local z = -math.sqrt(math.max(0, 0.68 * 0.68 - x * x)) - 0.03
 		local dir = Vector3.new(x * (opts.spread or 0.5) + x * (opts.flick or 0), -1, -(opts.out or 0.1))
-		ctx.sleek("Head", (opts.alt and i % 2 == 0) and opts.alt or color, Vector3.new(x, opts.y or 0.58, z), dir, (type(length) == "table" and length[i]) or length, width * 0.85, {
-			segments = 1,
-			facing = Vector3.new(x * 0.7, 0, -1),
-			thickness = opts.thickness or 0.11,
-			taper = 0.3,
-		})
+		ctx.sleek(
+			"Head",
+			(opts.alt and i % 2 == 0) and opts.alt or color,
+			Vector3.new(x, opts.y or 0.58, z),
+			dir,
+			(type(length) == "table" and length[i]) or length,
+			width * 0.85,
+			{
+				segments = 1,
+				facing = Vector3.new(x * 0.7, 0, -1),
+				thickness = opts.thickness or 0.11,
+				taper = 0.3,
+			}
+		)
 	end
 end
 
@@ -1074,37 +1082,55 @@ HAIR.bun = function(ctx, c, look)
 end
 
 HAIR.half_bun = function(ctx, c, look)
-	-- Demi-chignon du moine maudit : cheveux tirés en chignon haut sur l'arrière du crâne, le reste
-	-- lâché jusqu'aux épaules, mèches qui encadrent le visage et LA longue mèche sur le front.
+	-- Demi-chignon du moine maudit : cheveux tirés en un vrai chignon rond haut sur l'arrière du
+	-- crâne, le reste lâché jusqu'aux épaules en mèches souples, mèches couchées en pointes sur le
+	-- dessus, et LA longue mèche qui tombe sur le front.
 	local under, shine = hairTones(c, look)
 	cap(ctx, c, { back = false, height = 0.8, lift = 0.06 })
-	ctx.ball("Head", "HairBack", Vector3.new(1.36, 1.7, 0.62), CFrame.new(0, -0.22, 0.4), under)
-	ctx.ball("Head", "HairBack", Vector3.new(1.3, 1.55, 0.5), CFrame.new(0, -0.15, 0.5), c)
-	for _, side in { -1, 1 } do
-		-- Côtés qui couvrent les oreilles et tombent sur les épaules
-		ctx.ball("Head", "HairSide", Vector3.new(0.3, 1.4, 0.95), CFrame.new(side * 0.6, -0.12, 0.12), under)
-		ctx.lock("Head", c, Vector3.new(side * 0.6, 0.46, -0.22), Vector3.new(side * 0.1, -1, -0.04), 1.15, 0.34, { facing = Vector3.new(side, 0, 0.3), thickness = 0.13 })
-		ctx.lock("Head", shine, Vector3.new(side * 0.56, 0.5, -0.36), Vector3.new(side * 0.18, -1, -0.08), 0.62, 0.2, { facing = Vector3.new(side, 0, 0.4), thickness = 0.08 })
+	ctx.ball("Head", "HairBack", Vector3.new(1.36, 1.5, 0.6), CFrame.new(0, -0.15, 0.4), under)
+	-- Dessus : mèches couchées vers l'arrière (pointes en CornerWedge), deux tons
+	for i, x in { -0.42, -0.14, 0.14, 0.42 } do
+		ctx.spike("Head", i % 2 == 0 and c or c:Lerp(shine, 0.35), Vector3.new(x, 0.6, -0.44), Vector3.new(x * 0.3, -0.08, 1), 0.7, 0.42, { cross = false, thickness = 0.12 })
 	end
-	-- Front dégagé : raie au milieu, deux mèches balayées vers les tempes
-	for _, side in { -1, 1 } do
-		ctx.lock(
-			"Head",
-			side < 0 and c or shine,
-			Vector3.new(side * 0.08, 0.7, -0.5),
-			Vector3.new(side, -0.42, 0.05),
-			0.62,
-			0.36,
-			{ facing = Vector3.new(0, 0.5, 1), thickness = 0.12 }
-		)
+	-- Nuque : mèches souples qui tombent sur les épaules
+	for _, x in { -0.45, -0.15, 0.15, 0.45 } do
+		ctx.sleek("Head", x < 0 and c or c:Lerp(under, 0.3), Vector3.new(x, 0.1, 0.6), Vector3.new(x * 0.3, -1, 0.15), 1.3, 0.42, {
+			segments = 2,
+			facing = Vector3.new(x, 0, 1),
+			thickness = 0.16,
+			curl = Vector3.new(x * 0.2, 0, 0.05),
+		})
 	end
-	-- La longue mèche qui tombe devant (côté droit du perso = gauche de l'écran)
-	ctx.lock("Head", c, Vector3.new(0.12, 0.64, -0.63), Vector3.new(0.1, -1, -0.12), 0.92, 0.24, { facing = Vector3.new(-0.1, 0, 1), thickness = 0.1 })
-	ctx.lock("Head", shine, Vector3.new(0.1, 0.6, -0.66), Vector3.new(0.06, -1, -0.12), 0.5, 0.12, { facing = Vector3.new(-0.1, 0, 1), thickness = 0.06 })
-	-- Chignon haut + attache
-	ctx.ball("Head", "Bun", Vector3.new(0.62, 0.56, 0.6), CFrame.new(0, 0.86, 0.46), c)
-	ctx.ball("Head", "BunShine", Vector3.new(0.3, 0.14, 0.2), CFrame.new(-0.1, 1.04, 0.3) * CFrame.Angles(0.4, 0, 0.2), shine)
-	ctx.ball("Head", "BunTie", Vector3.new(0.46, 0.12, 0.46), CFrame.new(0, 0.68, 0.42) * CFrame.Angles(-0.5, 0, 0), darken(c, 0.5))
+	for _, side in { -1, 1 } do
+		-- Côtés qui couvrent les oreilles, puis mèches souples qui encadrent le visage
+		ctx.ball("Head", "HairSide", Vector3.new(0.28, 1.25, 0.9), CFrame.new(side * 0.6, -0.05, 0.12), under)
+		ctx.sleek("Head", c, Vector3.new(side * 0.6, 0.48, -0.24), Vector3.new(side * 0.12, -1, -0.04), 1.35, 0.34, {
+			facing = Vector3.new(side, 0, -0.3),
+			curl = Vector3.new(side * 0.12, 0, 0),
+			shine = shine,
+		})
+		ctx.sleek("Head", under:Lerp(c, 0.5), Vector3.new(side * 0.6, 0.36, 0.18), Vector3.new(side * 0.2, -1, 0.1), 1.4, 0.4, {
+			segments = 2,
+			facing = Vector3.new(side, 0, 0.4),
+			curl = Vector3.new(side * 0.12, 0, 0.04),
+		})
+	end
+	-- Front dégagé : raie au milieu, deux mèches balayées vers les tempes (pointes couchées)
+	for _, side in { -1, 1 } do
+		ctx.spike("Head", side < 0 and c or c:Lerp(shine, 0.4), Vector3.new(side * 0.06, 0.64, -0.54), Vector3.new(side, -0.7, 0.2), 0.5, 0.34, { cross = false, thickness = 0.11 })
+	end
+	-- La longue mèche qui tombe devant (côté droit du perso = gauche de l'écran), souple, en S
+	ctx.sleek("Head", c, Vector3.new(0.1, 0.66, -0.64), Vector3.new(0.12, -1, -0.12), 1.05, 0.22, {
+		facing = Vector3.new(0, 0, -1),
+		thickness = 0.09,
+		curl = Vector3.new(-0.18, 0, 0),
+		shine = shine,
+	})
+	-- Vrai chignon rond + reflet + attache
+	ctx.ball("Head", "Bun", Vector3.new(0.7, 0.66, 0.68), CFrame.new(0, 0.88, 0.44), c)
+	ctx.ball("Head", "Bun", Vector3.new(0.56, 0.5, 0.54), CFrame.new(0.06, 0.98, 0.52), under:Lerp(c, 0.5))
+	ctx.ball("Head", "BunShine", Vector3.new(0.34, 0.14, 0.22), CFrame.new(-0.12, 1.1, 0.26) * CFrame.Angles(0.5, 0, 0.25), shine)
+	ctx.ball("Head", "BunTie", Vector3.new(0.5, 0.13, 0.5), CFrame.new(0, 0.66, 0.42) * CFrame.Angles(-0.5, 0, 0), darken(c, 0.5))
 end
 
 HAIR.topknot = function(ctx, c, look)
@@ -1932,50 +1958,139 @@ local function chain(ctx, limb: string, points: { Vector3 }, widths: { number },
 	end
 end
 
--- Kesa (étole de moine en patchwork) en travers du torse, de l'épaule gauche à la hanche droite,
--- avec son anneau de bronze (Kenjakou).
-ACC.kesa = function(ctx, look)
-	local gold = look.kesaColor or Color3.fromRGB(176, 128, 62)
-	local seamColor = darken(gold, 0.55)
-	local cf = CFrame.Angles(0, 0, 0.74)
-	local band = ctx.add("Torso", "Kesa", Vector3.new(0.66, 2.8, 1.12), cf, gold)
-	local mode = ctx.paint == "parts" and "parts" or nil
-	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
-		local S = Painter.sheet(band, face, mode, "Kesa" .. face.Name, 60)
-		Painter.cloth(S, gold)
-		local rows = 7
-		for r = 0, rows - 1 do
-			for col = 0, 1 do
-				local tone = ((r + col) % 2 == 0) and lighten(gold, 0.08) or darken(gold, 0.1)
-				S:rect(0.27 + col * 0.46, (r + 0.5) / rows, 0.4, 0.8 / rows, tone, { gradient = { lighten(tone, 0.1), tone, darken(tone, 0.12) }, z = 1 })
-			end
-			S:rect(0.5, r / rows, 1, S:dy(0.05), seamColor, { z = 3 })
-		end
-		S:rect(0.5, 0.5, S:dx(0.05), 1, seamColor, { z = 3 })
-		-- Bordure (en) tout autour
-		S:rect(S:dx(0.04), 0.5, S:dx(0.08), 1, darken(gold, 0.35), { z = 4 })
-		S:rect(1 - S:dx(0.04), 0.5, S:dx(0.08), 1, darken(gold, 0.35), { z = 4 })
-		Painter.fold(S, 0.1, 0.62, 0.9, 0.66, gold, { w = 0.1, z = 5 })
+-- Kesa (étole de moine en patchwork) en travers du torse, de l'épaule gauche à la hanche droite
+-- (Kenjakou) : vrais carreaux de tissus différents (ocre, brun, olive...) de tailles inégales,
+-- coutures en pointillés, bord clair tout autour, et l'anneau de métal doré en relief (avec une
+-- lueur violette discrète).
+local KESA_TONES = {
+	Color3.fromRGB(196, 146, 62), -- ocre
+	Color3.fromRGB(126, 82, 46), -- brun
+	Color3.fromRGB(122, 120, 60), -- olive
+	Color3.fromRGB(214, 174, 96), -- ocre clair
+	Color3.fromRGB(150, 92, 58), -- brun rouge
+	Color3.fromRGB(98, 96, 52), -- olive sombre
+}
+local function dotted(S, x0: number, y0: number, x1: number, y1: number, color: Color3, n: number, z: number)
+	for i = 0, n - 1 do
+		local t0, t1 = (i + 0.2) / n, (i + 0.65) / n
+		S:line(x0 + (x1 - x0) * t0, y0 + (y1 - y0) * t0, x0 + (x1 - x0) * t1, y0 + (y1 - y0) * t1, 0.02, color, { z = z, fine = true })
 	end
-	-- Anneau (kan) sur la poitrine
-	local ring = cf * CFrame.new(0, 0.62, -0.6) * CFrame.Angles(0, math.pi / 2, 0)
-	ctx.cyl("Torso", "KesaRing", 0.06, 0.4, ring, Color3.fromRGB(196, 160, 90), { Material = Enum.Material.Metal, Reflectance = 0.2 })
-	ctx.cyl("Torso", "KesaRingHole", 0.07, 0.22, ring, darken(gold, 0.6))
+end
+ACC.kesa = function(ctx, look)
+	local base = look.kesaColor or KESA_TONES[1]
+	local trim = look.kesaTrim or Color3.fromRGB(232, 206, 140)
+	local thread = Color3.fromRGB(246, 226, 170)
+	local cf = CFrame.Angles(0, 0, 0.74)
+	local band = ctx.add("Torso", "Kesa", Vector3.new(0.96, 2.9, 1.1), cf, base, { Material = Enum.Material.Fabric })
+	local mode = ctx.paint == "parts" and "parts" or nil
+	-- Carreaux : rangées de hauteurs inégales, 2 ou 3 colonnes décalées (motif fixe, pas aléatoire)
+	local rows = { { 0.11, { 0.55, 0.45 } }, { 0.16, { 0.3, 0.7 } }, { 0.12, { 0.62, 0.38 } }, { 0.15, { 0.4, 0.6 } }, { 0.1, { 0.5, 0.5 } }, { 0.17, { 0.68, 0.32 } }, { 0.19, { 0.36, 0.64 } } }
+	for fi, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local S = Painter.sheet(band, face, mode, "Kesa" .. face.Name, 60)
+		Painter.cloth(S, base)
+		local front = fi == 1 and not S.lite
+		local y, k = 0, fi
+		local x0, x1 = S:dx(0.07), 1 - S:dx(0.07)
+		for r, row in rows do
+			local h = row[1]
+			local x = x0
+			for c, wfrac in row[2] do
+				local w = (x1 - x0) * wfrac
+				k = k % #KESA_TONES + 1 + ((r + c) % 2)
+				local tone = KESA_TONES[(k - 1) % #KESA_TONES + 1]
+				S:rect(x + w / 2, y + h / 2, w, h, tone, { gradient = { lighten(tone, 0.12), tone, darken(tone, 0.16) }, gradientRotation = 60 + r * 15, z = 1 })
+				-- Petit pli d'étoffe dans le carreau
+				if front and h > 0.14 then
+					Painter.fold(S, x + w * 0.2, y + h * 0.3, x + w * 0.75, y + h * 0.55, tone, { w = 0.05, z = 2 })
+				end
+				-- Couture verticale entre deux carreaux
+				if c < #row[2] then
+					S:rect(x + w, y + h / 2, S:dx(0.035), h, darken(tone, 0.45), { z = 3 })
+					if front then
+						dotted(S, x + w + S:dx(0.035), y + 0.01, x + w + S:dx(0.035), y + h - 0.01, thread, 3, 4)
+					end
+				end
+				x += w
+			end
+			y += h
+			-- Couture horizontale (ombre + pointillés)
+			if r < #rows then
+				S:rect(0.5, y, 1, S:dy(0.035), darken(base, 0.5), { z = 3 })
+				if front then
+					dotted(S, x0, y + S:dy(0.03), x1, y + S:dy(0.03), thread, 5, 4)
+				end
+			end
+		end
+		-- Bord clair des deux côtés (galon) avec son trait d'ombre
+		for _, side in { 0, 1 } do
+			local bx = side == 0 and S:dx(0.035) or 1 - S:dx(0.035)
+			S:rect(bx, 0.5, S:dx(0.07), 1, trim, { gradient = { lighten(trim, 0.15), trim, darken(trim, 0.2) }, gradientRotation = 0, z = 5 })
+			S:rect(side == 0 and S:dx(0.075) or 1 - S:dx(0.075), 0.5, S:dx(0.014), 1, darken(trim, 0.6), { z = 6 })
+		end
+	end
+	-- Galons en relief sur la tranche (lisibles de loin, même de nuit)
+	for _, side in { -1, 1 } do
+		ctx.add("Torso", "KesaTrim", Vector3.new(0.06, 2.92, 1.13), cf * CFrame.new(side * 0.47, 0, 0), trim, { Material = Enum.Material.Fabric })
+	end
+	-- Anneau (kan) doré en relief sur la poitrine + lueur violette au centre
+	local ring = cf * CFrame.new(0, 0.6, -0.6) * CFrame.Angles(0, math.pi / 2, 0)
+	local gold = Color3.fromRGB(214, 172, 82)
+	ctx.cyl("Torso", "KesaRing", 0.12, 0.5, ring, gold, { Material = Enum.Material.Metal, Reflectance = 0.25 })
+	ctx.cyl("Torso", "KesaRingHole", 0.13, 0.3, ring, Color3.fromRGB(40, 26, 48))
+	ctx.cyl("Torso", "KesaRingGlow", 0.14, 0.2, ring, look.glowColor or Color3.fromRGB(170, 90, 255), { Material = Enum.Material.Neon, Transparency = 0.25 })
+	-- Attache de l'anneau (petite boucle de cordon)
+	ctx.ball("Torso", "KesaRingTie", Vector3.new(0.16, 0.22, 0.14), cf * CFrame.new(0, 0.94, -0.6), darken(gold, 0.35))
 end
 
--- Larges manches de kimono qui pendent sous les bras (robe de moine).
+-- Larges manches de kimono : manche droite jusqu'au poignet, qui s'évase en bas (coins en Wedge
+-- devant, derrière et sur le côté), ourlet sombre, et le fond de la manche qui pend dans le dos.
 ACC.wide_sleeves = function(ctx, look)
 	local color = look.sleeveColor or look.top or Color3.fromRGB(40, 38, 46)
+	local hem = darken(color, 0.35)
+	local flare = lighten(color, 0.04)
 	local mode = ctx.paint == "parts" and "parts" or nil
 	for _, side in { "Left Arm", "Right Arm" } do
-		local sleeve = ctx.add(side, "KimonoSleeve", Vector3.new(1.2, 1.5, 1.5), CFrame.new(0, -0.08, 0.14), color)
-		local outer = side == "Left Arm" and Enum.NormalId.Left or Enum.NormalId.Right
+		local sx = side == "Left Arm" and -1 or 1
+		local sleeve = ctx.add(side, "KimonoSleeve", Vector3.new(1.2, 1.5, 1.4), CFrame.new(0, 0.2, 0.06), color)
+		local outer = sx < 0 and Enum.NormalId.Left or Enum.NormalId.Right
 		for _, face in { Enum.NormalId.Front, Enum.NormalId.Back, outer } do
 			local S = Painter.panel(sleeve, face, mode, color, nil, { folds = face ~= Enum.NormalId.Back })
-			Painter.band(S, 0.95, 0.07, darken(color, 0.25), 7)
+			if face ~= Enum.NormalId.Back and not S.lite then
+				Painter.fold(S, 0.45, 0.05, 0.38, 0.9, color, { w = 0.1, z = 6 })
+			end
 		end
+		-- Évasement : trois coins (pente vers l'extérieur, plus large en bas)
+		local y = -0.38
+		local h = 0.6
+		local t = 0.32
+		ctx.wedge(side, "KimonoFlare", Vector3.new(1.2, h, t), CFrame.new(0, y, 0.06 - 0.7 - t / 2), flare)
+		ctx.wedge(side, "KimonoFlare", Vector3.new(1.2, h, t), CFrame.new(0, y, 0.06 + 0.7 + t / 2) * CFrame.Angles(0, math.pi, 0), flare)
+		ctx.wedge(side, "KimonoFlare", Vector3.new(1.4, h, t), CFrame.new(sx * (0.6 + t / 2), y, 0.06) * CFrame.Angles(0, -sx * math.pi / 2, 0), flare)
+		-- Ourlet sombre au bas de l'évasement
+		ctx.add(side, "KimonoHem", Vector3.new(1.2 + t, 0.08, 1.4 + 2 * t), CFrame.new(sx * t / 2, y - h / 2 + 0.04, 0.06), hem)
 		-- Fond de la manche qui pend dans le dos
-		ctx.ball(side, "KimonoSleeveBag", Vector3.new(1.1, 0.7, 0.9), CFrame.new(0, -0.7, 0.45), darken(color, 0.08))
+		ctx.ball(side, "KimonoSleeveBag", Vector3.new(1.1, 0.8, 0.9), CFrame.new(0, -0.55, 0.62), darken(color, 0.1))
+	end
+end
+
+-- Couture qui fait le tour du front (Kenjakou) : fil sombre en relief, points de suture saillants
+-- sur le devant, et une fine lueur violette dans la couture.
+ACC.stitch_crown = function(ctx, look)
+	local y = (look.eyeY or 0.03) + 0.33
+	local glow = look.glowColor or Color3.fromRGB(170, 90, 255)
+	ctx.vcyl("Head", "StitchGlow", 0.022, 1.312, CFrame.new(0, y, 0), glow, { Material = Enum.Material.Neon, Transparency = 0.35, CastShadow = false })
+	ctx.vcyl("Head", "StitchLine", 0.012, 1.318, CFrame.new(0, y, 0), Color3.fromRGB(46, 30, 44), { CastShadow = false })
+	for i = -4, 4 do
+		local a = math.rad(i * 15)
+		local r = 0.664
+		ctx.add(
+			"Head",
+			"StitchPoint",
+			Vector3.new(0.026, 0.1, 0.03),
+			CFrame.new(-math.sin(a) * r, y, -math.cos(a) * r) * CFrame.Angles(0, a, math.rad(i % 2 == 0 and 12 or -12)),
+			Color3.fromRGB(40, 26, 38),
+			{ CastShadow = false }
+		)
 	end
 end
 
