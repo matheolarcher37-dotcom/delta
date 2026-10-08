@@ -37,12 +37,14 @@ local rgb = Color3.fromRGB
 local V3 = Vector3.new
 local shade = Core.shade
 
--- Palette : une seule famille gris ardoise (± 8) pour la falaise et les têtes.
+-- Palette : une seule famille gris ardoise pour la falaise et les têtes. Les têtes sont un peu
+-- plus claires (+6 %) que le cadre de rochers ; les creux (paroi du fond, niches derrière les
+-- têtes) sont nettement plus sombres : ce sont eux qui détachent les visages, vus de loin.
 local ROCK = rgb(120, 122, 128)
-local FACE = rgb(126, 128, 134)
-local HAIR = rgb(116, 118, 125)
-local JOINT = rgb(96, 98, 105) -- joints et creux entre les blocs
-local DEEP = rgb(62, 64, 70) -- traits gravés : bouche, symbole
+local FACE = rgb(134, 136, 142)
+local HAIR = rgb(126, 128, 135)
+local JOINT = rgb(70, 72, 78) -- couche de recul : paroi du fond, joints, niches
+local DEEP = rgb(56, 58, 64) -- traits gravés : bouche, iris, moustaches, symbole
 local TONES = {
 	rgb(120, 122, 128),
 	rgb(113, 115, 121),
@@ -61,9 +63,11 @@ local CARVE_MAT = Enum.Material.Slate
 
 -- Dimensions du relief (studs). `cf` = pied du relief au centre, -Z local vers le village.
 Hokage.Width = 560
-Hokage.Height = 240
+Hokage.Height = 256 -- sommet du dôme (au centre) ; les côtés descendent à ≈ 200
 Hokage.Depth = 150
-Hokage.BaseHeight = 22 -- socle taillé (≤ 10 % de la hauteur)
+Hokage.BaseHeight = 14 -- pied de pierres émoussées (≤ 10 % de la hauteur)
+Hokage.Shoulder = 64 -- épaules arrondies au-delà de la largeur (pied évasé)
+Hokage.Reach = Hokage.Width / 2 + Hokage.Shoulder
 
 -- Unité de sculpture : une tête mesure ≈ 10 unités du menton au sommet du crâne (≈ 100 studs),
 -- soit ≈ 45 % de la hauteur du relief par rang, comme sur le monument.
@@ -73,10 +77,10 @@ Hokage.Unit = U
 -- Les 8 chefs : position (x, y = hauteur des yeux) sur le relief, coiffure, échelle.
 -- (x local positif = à gauche vu depuis le village : Hashirama est à gauche, Naruto à droite.)
 Hokage.Heads = {
-	{ name = "Hashirama", x = 172, y = 170, style = "longs" },
+	{ name = "Hashirama", x = 172, y = 162, style = "longs" },
 	{ name = "Hiruzen", x = 58, y = 178, style = "epis" },
 	{ name = "Tsunade", x = -58, y = 172, style = "raie" },
-	{ name = "Naruto", x = -172, y = 166, style = "bandeau" },
+	{ name = "Naruto", x = -172, y = 158, style = "bandeau" },
 	{ name = "Tobirama", x = 115, y = 90, style = "plaque" },
 	{ name = "Minato", x = 0, y = 88, style = "meches" },
 	{ name = "Kakashi", x = -115, y = 90, style = "penche" },
@@ -206,17 +210,30 @@ type CrownSpec = {
 	face: number?,
 	inset: number?, -- 1 : racine posée sur la surface (mèche couchée) ; < 1 : enfoncée
 	tilt: number?, -- < 1 : les épis des côtés se redressent vers le haut
+	bend: number?, -- courbure latérale progressive : les épis des côtés se couchent de plus en plus
+	jit: number?, -- irrégularité (angles, longueurs ±30 %, largeurs, racines)
+	salt: number?, -- graine de l'irrégularité (une par couche)
 }
 
+-- Petit hachage déterministe dans [-1, 1] : une même tête est toujours sculptée pareil.
+local function jitter(k: number, salt: number): number
+	return ((math.sin(k * 12.9898 + salt * 78.233) * 43758.5453) % 1) * 2 - 1
+end
+
 local function crown(ctx: Ctx, o: CrownSpec)
+	local step = o.n > 1 and (o.a1 - o.a0) / (o.n - 1) or 0
+	local jit = o.jit or 0
+	local salt = o.salt or 1
 	for k = 0, o.n - 1 do
 		local f = o.n > 1 and k / (o.n - 1) or 0.5
-		local a = o.a0 + (o.a1 - o.a0) * f
-		local root, normal = capPoint(a, o.p or 0.45, o.inset)
-		local da = a * (o.tilt or 1) + (o.lean or 0)
+		local j1, j2, j3 = jitter(k, salt), jitter(k, salt + 0.37), jitter(k, salt + 0.71)
+		local a = o.a0 + (o.a1 - o.a0) * f + j1 * step * 0.4 * jit
+		local root, normal = capPoint(a, (o.p or 0.45) + j3 * 0.1 * jit, o.inset)
+		local da = a * (o.tilt or 1) + (o.lean or 0) + (o.bend or 0) * a * math.abs(a)
 		local len = o.len - math.abs(math.sin(a)) * (o.fall or 0) + (o.wave and math.sin(k * 2.3 + 0.7) * o.wave or 0)
+		len *= 1 + j2 * 0.3 * jit
 		local out = normal + V3(0, 0, -(o.face or 0.8))
-		lock(ctx, root, V3(math.sin(da), math.cos(da), o.back or 0.35), len, o.w, o.t or 0.42, out)
+		lock(ctx, root, V3(math.sin(da), math.cos(da), (o.back or 0.35) + j3 * 0.15 * jit), len, o.w * (1 + j3 * 0.15 * jit), o.t or 0.42, out, 0.42)
 	end
 end
 
@@ -247,19 +264,26 @@ local function headband(ctx: Ctx, y: number, roll: number?, h: number?, zForce: 
 	local bh = h or 1.0
 	local zc = zForce or (foreheadZ(y) - 0.27)
 	local band = at(ctx, 0, y, 0, 0, 0, roll or 0)
-	ctx.count += 3
-	Build.deco(ctx.model, "Bandeau", V3(5.0, bh, 0.5) * u, band * CFrame.new(0, 0, zc * u) * CFrame.Angles(zForce and 0 or FRONT_TILT, 0, 0), HAIR, {
-		Material = CARVE_MAT,
-	})
-	for _, s in { -1, 1 } do
-		Build.deco(
-			ctx.model,
-			"Bandeau",
-			V3(2.4, bh * 0.95, 0.55) * u,
-			band * CFrame.new(s * 3.05 * u, 0, (zc + 0.85) * u) * CFrame.Angles(0, -s * 0.8, 0),
-			HAIR,
-			{ Material = CARVE_MAT }
-		)
+	local pitch = zForce and 0 or FRONT_TILT
+	-- la bande ÉPOUSE le front (cinq pans qui tournent autour du crâne), mince et plaquée : elle
+	-- ne déborde pas comme un bord de chapeau
+	local panels = {
+		{ 0, 0, 0, 2.5 }, -- x, avancée en arrière, angle, largeur
+		{ 1.85, 0.47, 0.58, 1.6 },
+		{ 2.88, 1.62, 1.12, 1.7 },
+	}
+	for _, pn in panels do
+		for _, s in (pn[1] == 0 and { 1 } or { -1, 1 }) do
+			ctx.count += 1
+			Build.deco(
+				ctx.model,
+				"Bandeau",
+				V3(pn[4], bh, 0.42) * u,
+				band * CFrame.new(s * pn[1] * u, 0, (zc + pn[2]) * u) * CFrame.Angles(pitch, -s * pn[3], 0),
+				HAIR,
+				{ Material = CARVE_MAT }
+			)
+		end
 	end
 	local plate = band * CFrame.new(0, 0, (zc - 0.25) * u - 0.3) * CFrame.Angles(zForce and 0 or FRONT_TILT, 0, 0)
 	ctx.count += 1
@@ -442,11 +466,19 @@ Hokage.FaceTriangles = #FACE_TRIS * 2
 type FaceOptions = {
 	jaw: number?, -- largeur de la mâchoire
 	brow: number?, -- bout du sourcil plus bas (calme > 0) ou plus haut (sévère < 0)
+	frown: number?, -- sourcils froncés (0 = calme, 1 = très froncés, < 0 = doux, relevés)
+	long: number?, -- longueur du visage sous les yeux (1 = normal, ±10 %)
+	cheek: number?, -- largeur des pommettes
 	soft: boolean?, -- traits plus fins (visage féminin, jeune)
 	mask: boolean?, -- masque de tissu sur le bas du visage
 	hideEye: number?, -- œil caché par le bandeau (-1 ou 1)
+	lid: number?, -- paupière supérieure plus basse (regard las : Kakashi)
+	gaze: number?, -- regard tourné d'un côté (iris décalés)
+	mouth: string?, -- "calme" (trait droit), "severe" (coins tombants), "sourire" (coins relevés)
+	whiskers: boolean?, -- trois moustaches gravées par joue (Naruto, Boruto : deux)
+	whiskerCount: number?,
 	ears: boolean?,
-	age: boolean?, -- rides du front et plis du nez
+	age: boolean?, -- rides du front, plis des joues et poches sous les yeux
 }
 
 -- Position d'un sommet (côté `s`), ajustée selon le visage.
@@ -457,8 +489,24 @@ local function faceVertex(name: string, s: number, o: FaceOptions): Vector3
 	if y < -1.8 and x > 0 then
 		x *= jw -- mâchoire plus large ou plus fine
 	end
+	if y < 0 then
+		y *= o.long or 1 -- visage plus long ou plus court sous les yeux
+	end
+	if name == "r_cb" or name == "r_cs" or name == "r_jm" then
+		x *= o.cheek or 1
+	end
 	if name == "r_bo" then
 		y -= o.brow or 0.04
+	end
+	local frown = o.frown or 0
+	if name == "r_bi" then
+		-- sourcil froncé : la tête du sourcil descend et avance vers la racine du nez
+		y -= frown * 0.24
+		z -= frown * 0.06
+	elseif name == "r_bm" then
+		y -= frown * 0.05
+	elseif name == "r_bo" then
+		y += frown * 0.1
 	end
 	if o.soft then
 		-- nez plus fin, menton plus petit et plus rond, mâchoire plus douce
@@ -489,6 +537,72 @@ end
 
 local FACE_CENTER = V3(0, -0.5, 0.6)
 
+-- Facettes de l'orbite (le creux autour de l'œil) : plus sombres, l'œil s'y détache.
+local ORBIT = { r_ei = true, r_et = true, r_eo = true, r_eb = true }
+
+-- Trait gravé (sombre) entre deux points du visage (unités), posé sur la surface.
+local function groove(ctx: Ctx, a: Vector3, b: Vector3, w: number, color: Color3?, name: string?)
+	local u = ctx.u
+	local d = b - a
+	ctx.count += 1
+	Build.deco(
+		ctx.model,
+		name or "Gravure",
+		V3(w * u, w * 1.4 * u, d.Magnitude * u + w * 0.5 * u),
+		ctx.cf * CFrame.lookAt((a + b) / 2 * u, (a + b) / 2 * u + d.Unit, V3(0, 0, -1)),
+		color or DEEP,
+		{ Material = CARVE_MAT, CastShadow = false }
+	)
+end
+
+-- Œil OUVERT taillé en amande : globe bombé dans l'orbite sombre, paupière supérieure en coin
+-- qui le couvre en partie (ombre), iris gravé, pli de la paupière. `s` = côté.
+local function openEye(ctx: Ctx, s: number, o: FaceOptions)
+	local u = ctx.u
+	local lid = o.lid or 0
+	local soft = o.soft and 0.92 or 1
+	local cx, cy = s * 1.32, 0.15
+	-- globe : un ovale aplati qui sort de l'orbite ; son contour sur les facettes dessine l'amande
+	ctx.count += 1
+	local ball = Core.ellipsoid(ctx.model, "Oeil", V3(1.42 * soft, 0.62, 0.9) * u, at(ctx, cx, cy, -2.74, 0, -s * 0.18, s * 0.06), shade(FACE, 0.05), CARVE_MAT)
+	ball.CanCollide = false
+	ball.CanQuery = false
+	-- iris gravé : un disque en creux (plus sombre que la pierre) et la pupille percée au centre ;
+	-- le regard part un peu vers le bas, vers le village
+	local gx = (o.gaze or 0) * 0.12
+	local irisAt = at(ctx, cx + gx - s * 0.02, cy - 0.02 - lid * 0.06, -3.16, 0, math.pi / 2 - s * 0.18, 0)
+	ctx.count += 2
+	Build.deco(ctx.model, "Iris", V3(0.06 * u, 0.44 * u, 0.44 * u), irisAt, shade(FACE, -0.3), {
+		Material = CARVE_MAT,
+		CastShadow = false,
+		Shape = Enum.PartType.Cylinder,
+	})
+	Build.deco(ctx.model, "Iris", V3(0.08 * u, 0.15 * u, 0.15 * u), irisAt, DEEP, {
+		Material = CARVE_MAT,
+		CastShadow = false,
+		Shape = Enum.PartType.Cylinder,
+	})
+	-- paupière supérieure : deux pans en coin qui suivent l'arc de l'œil et avancent au-dessus du globe
+	for _, k in { -1, 1 } do
+		local lx = cx + k * s * 0.36 * soft
+		local ly = cy + 0.25 - lid * 0.16 - (k * s > 0 and 0.05 or 0)
+		ctx.count += 1
+		Build.wedge(
+			ctx.model,
+			"Paupiere",
+			V3(0.8 * soft * u, (0.2 + lid * 0.12) * u, 0.42 * u),
+			at(ctx, lx, ly, -3.07, 0, -s * 0.18, -k * s * 0.2) * CFrame.Angles(0, math.pi, 0),
+			shade(FACE, 0.02),
+			{ Material = CARVE_MAT, CanCollide = false, CanQuery = false }
+		)
+	end
+	-- pli de la paupière (trait sombre au-dessus de l'œil) et dessous de l'œil
+	groove(ctx, V3(cx - s * 0.62 * soft, cy + 0.36, -3.05), V3(cx + s * 0.62 * soft, cy + 0.38, -2.93), 0.07, shade(FACE, -0.32), "Pli")
+	if o.age then
+		groove(ctx, V3(cx - s * 0.5, cy - 0.42, -3.1), V3(cx + s * 0.55, cy - 0.38, -2.98), 0.07, shade(FACE, -0.25), "Ride")
+	end
+end
+
 local function face(ctx: Ctx, o: FaceOptions)
 	local u = ctx.u
 	local thick = 1.6
@@ -498,7 +612,8 @@ local function face(ctx: Ctx, o: FaceOptions)
 	for _, s in { -1, 1 } do
 		B(ctx, "Cote", 0.6, 4.6, 3.0, at(ctx, s * 2.75, -0.9, -0.2, 0, -s * 0.15, 0))
 	end
-	-- surface du visage
+	-- surface du visage (l'orbite plus sombre : l'œil s'y détache)
+	local socket = shade(FACE, -0.16)
 	for _, s in { -1, 1 } do
 		for _, t in FACE_TRIS do
 			local la, lb, lc = faceVertex(t[1], s, o), faceVertex(t[2], s, o), faceVertex(t[3], s, o)
@@ -509,29 +624,68 @@ local function face(ctx: Ctx, o: FaceOptions)
 					n = -n
 				end
 				local wa, wb, wc = ctx.cf * (la * u), ctx.cf * (lb * u), ctx.cf * (lc * u)
-				ctx.count += triangle(ctx.model, wa, wb, wc, ctx.cf:VectorToWorldSpace(n), thick, FACE)
+				local dark = ORBIT[t[1]] and ORBIT[t[2]] and ORBIT[t[3]] and o.hideEye ~= s
+				ctx.count += triangle(ctx.model, wa, wb, wc, ctx.cf:VectorToWorldSpace(n), thick, dark and socket or FACE)
 			end
 		end
 	end
-	-- yeux clos gravés : un trait fin en arc (deux segments) au fond de l'orbite, sans relief ;
-	-- la bouche est aussi un trait fin
-	local lid = shade(FACE, -0.3)
+	-- sourcils : arête taillée en coin au-dessus de chaque œil ; froncés (tête du sourcil basse),
+	-- calmes ou doux (relevés) selon le personnage
+	local frown = o.frown or 0
 	for _, s in { -1, 1 } do
 		if o.hideEye ~= s then
-			local w = o.soft and 0.5 or 0.56
-			for _, k in { -1, 1 } do
-				B(ctx, "Oeil", w, 0.08, 0.12, at(ctx, s * 1.3 + k * w * 0.46, 0.1, -3.0, 0, -s * 0.2, -k * 0.1), lid)
-			end
+			local tilt = 0.08 + frown * 0.3
+			ctx.count += 1
+			Build.wedge(
+				ctx.model,
+				"Sourcil",
+				V3((o.soft and 1.5 or 1.75) * u, (0.3 + math.max(frown, 0) * 0.08) * u, 0.5 * u),
+				at(ctx, s * 1.36, 0.8 - frown * 0.08, -3.3 + frown * 0.04, 0, -s * 0.2, s * tilt) * CFrame.Angles(0, math.pi, 0),
+				FACE,
+				{ Material = CARVE_MAT, CanCollide = false, CanQuery = false }
+			)
 		end
 	end
+	-- yeux ouverts en amande (l'œil caché par le bandeau n'en a pas)
+	for _, s in { -1, 1 } do
+		if o.hideEye ~= s then
+			openEye(ctx, s, o)
+		end
+	end
+	if frown > 0.3 then
+		-- plis entre les sourcils (regard sévère)
+		for _, s in { -1, 1 } do
+			groove(ctx, V3(s * 0.2, 0.55, -3.42), V3(s * 0.3, 1.1, -3.38), 0.07, shade(FACE, -0.3), "Pli")
+		end
+	end
+	-- bouche : un trait taillé, droit (calme), aux coins tombants (sévère) ou relevés (sourire)
+	local ly = -2.78 * (o.long or 1)
 	if o.mask then
 		B(ctx, "Ourlet", 3.6, 0.12, 0.25, at(ctx, 0, -0.62, -3.35), shade(FACE, -0.12))
 	else
-		B(ctx, "Trait", o.soft and 1.5 or 1.7, 0.09, 0.2, at(ctx, 0, -2.78, -3.22), DEEP)
+		local w = o.soft and 0.72 or 0.82
+		local corner = o.mouth == "severe" and -0.16 or (o.mouth == "sourire" and 0.2 or -0.03)
+		for _, s in { -1, 1 } do
+			groove(ctx, V3(0, ly, -3.3), V3(s * w, ly + corner, -3.14), 0.12, DEEP, "Trait")
+		end
+	end
+	-- moustaches gravées sur les joues (trois traits, du nez vers l'oreille)
+	if o.whiskers then
+		local n = o.whiskerCount or 3
+		for _, s in { -1, 1 } do
+			for k = 1, n do
+				local y = (-0.95 - (k - 1) * 0.34) * (o.long or 1)
+				groove(ctx, V3(s * 1.45, y + 0.04, -3.2), V3(s * 2.45, y - 0.06 + (k - 2) * 0.08, -2.85), 0.13, DEEP, "Moustache")
+			end
+		end
 	end
 	if o.age then
 		for _, y in { 2.45, 2.85 } do
 			B(ctx, "Ride", 2.4, 0.08, 0.14, at(ctx, 0, y, -3.12 - (2.85 - y) * 0.2, 0.3, 0, 0), shade(FACE, -0.16))
+		end
+		-- plis des joues, du nez vers les coins de la bouche
+		for _, s in { -1, 1 } do
+			groove(ctx, V3(s * 0.72, -1.7 * (o.long or 1), -3.42), V3(s * 1.12, ly - 0.15, -3.18), 0.08, shade(FACE, -0.28), "Ride")
 		end
 	end
 	if o.ears ~= false then
@@ -584,37 +738,53 @@ end
 -- remplissent. `len` = longueur des épis ; `lean` penche tout d'un côté.
 local SPIKY_TOP = {
 	{ { 0, 3.2, -3.12 }, { 1.1, 3.15, -2.98 }, { 2.2, 2.8, -2.52 }, { 3.1, 2.0, -1.92 }, { 3.45, 1.15, -1.45 } },
-	{ { 0, 4.65, -2.55 }, { 1.1, 4.45, -2.42 }, { 2.25, 4.1, -2.0 }, { 3.3, 3.0, -1.42 }, { 3.75, 1.8, -1.0 } },
-	{ { 0, 5.7, -0.75 }, { 1.2, 5.45, -0.68 }, { 2.35, 5.05, -0.5 }, { 3.45, 3.8, -0.35 }, { 3.95, 2.1, -0.2 } },
-	{ { 0, 5.85, 1.4 }, { 1.25, 5.75, 1.4 }, { 2.5, 5.1, 1.4 }, { 3.65, 3.8, 1.4 }, { 4.05, 2.1, 1.4 } },
+	{ { 0, 4.75, -2.6 }, { 1.15, 4.55, -2.46 }, { 2.35, 4.15, -2.02 }, { 3.4, 3.05, -1.42 }, { 3.85, 1.8, -1.0 } },
+	{ { 0, 5.9, -0.75 }, { 1.25, 5.65, -0.68 }, { 2.45, 5.2, -0.5 }, { 3.6, 3.9, -0.35 }, { 4.1, 2.1, -0.2 } },
 }
 
-local function spikes(ctx: Ctx, len: number, o: { lean: number?, fall: number?, wide: number?, n: number? }?)
+-- Chevelure en épis SCULPTÉE EN VOLUME : une calotte facettée bombée (le crâne a du volume),
+-- des mèches couchées sur le devant, puis trois couches d'épis épais (≥ 1,6 de large, ≥ 0,9
+-- d'épaisseur) décalées en profondeur, courbées vers les côtés, aux longueurs et angles
+-- irréguliers (± 30 %) : on lit une chevelure taillée dans la masse, pas une couronne.
+local function spikes(ctx: Ctx, len: number, o: { lean: number?, fall: number?, wide: number?, n: number?, bend: number? }?)
 	local opt = o or {}
 	local lean = opt.lean or 0
 	local wide = opt.wide or 1.5
-	-- masse facettée de la chevelure (les arêtes alternées dessinent des mèches couchées)
+	local n = opt.n or 8
+	local bend = opt.bend or 0.18
 	surface(ctx, SPIKY_TOP, V3(0, 1.5, 0.8), 2.2)
-	-- mèches couchées vers l'arrière sur le devant de la masse
+	-- mèches épaisses couchées vers l'arrière sur le devant de la masse
 	for k = -2, 2 do
 		local x = k * 0.95
-		lock(ctx, V3(x, 3.35 - math.abs(k) * 0.12, -3.2 + math.abs(k) * 0.12), V3(x * 0.12 + lean * 0.4, 1, 0.42), len * 0.75, 1.9, 0.45, V3(x * 0.2, 0.5, -1), 0.3)
+		local j = jitter(k, 5.1)
+		lock(
+			ctx,
+			V3(x, 3.4 - math.abs(k) * 0.12, -3.15 + math.abs(k) * 0.12),
+			V3(x * 0.16 + lean * 0.4 + j * 0.12, 1, 0.42),
+			len * (0.7 + j * 0.15),
+			2.1,
+			0.9,
+			V3(x * 0.2, 0.5, -1),
+			0.42
+		)
 	end
-	crown(ctx, {
-		n = opt.n or 8,
-		a0 = -wide + math.min(lean, 0) * 0.5,
-		a1 = wide + math.max(lean, 0) * 0.5,
-		p = 0.18,
-		len = len,
-		fall = opt.fall or 0.4,
-		w = 2.4,
-		back = 0.4,
-		lean = lean,
-		tilt = 0.78,
-		face = 0.8,
-		wave = 0.3,
-	})
-	crown(ctx, { n = 6, a0 = -wide * 0.8, a1 = wide * 0.8, p = -0.3, len = len * 1.1, w = 2.5, back = 0.5, lean = lean, tilt = 0.75, face = 1.0, wave = 0.3 })
+	local a0, a1 = -wide + math.min(lean, 0) * 0.5, wide + math.max(lean, 0) * 0.5
+	local common = { lean = lean, tilt = 0.8, bend = bend, jit = 1, t = 0.95, fall = opt.fall or 0.4 }
+	local function layer(spec: { [string]: any })
+		for key, value in common do
+			if spec[key] == nil then
+				spec[key] = value
+			end
+		end
+		crown(ctx, spec :: any)
+	end
+	-- couche de devant : épis plus courts, tournés vers le village
+	layer({ n = math.max(n - 2, 4), a0 = a0 * 0.8, a1 = a1 * 0.8, p = 0.32, len = len * 0.78, w = 2.2, back = 0.25, face = 1.0, salt = 1.3 })
+	-- couche du milieu : la silhouette
+	layer({ n = n, a0 = a0, a1 = a1, p = 0.02, len = len, w = 2.5, back = 0.4, face = 0.85, salt = 2.9 })
+	-- couche du fond, décalée d'un demi-pas : remplit entre les épis
+	local half = (a1 - a0) / math.max(n - 1, 1) * 0.5
+	layer({ n = math.max(n - 1, 3), a0 = a0 + half, a1 = a1 - half, p = -0.42, len = len * 1.12, w = 2.7, back = 0.55, face = 1.1, salt = 4.7 })
 end
 
 -- Cheveux longs et lisses : une coiffe facettée (raie au milieu creusée en V, mèches en
@@ -628,7 +798,8 @@ local LONG_TOP = {
 }
 
 local function longHair(ctx: Ctx, length: number, open: number)
-	surface(ctx, LONG_TOP, V3(0, 1.5, 0.8), 2.2)
+	-- la rangée du fond (dessus du crâne, jamais vue d'en bas) est laissée au crâne caché
+	surface(ctx, { LONG_TOP[1], LONG_TOP[2], LONG_TOP[3] }, V3(0, 1.5, 0.8), 2.2)
 	-- sillons gravés entre les mèches, de la raie vers les côtés (sur les arêtes des facettes)
 	local u = ctx.u
 	for _, s in { -1, 1 } do
@@ -652,7 +823,7 @@ local function longHair(ctx: Ctx, length: number, open: number)
 					"Sillon",
 					V3(0.12 * u, 0.1 * u, d.Magnitude * u),
 					ctx.cf * CFrame.lookAt(p * u, (p + d) * u, outward),
-					JOINT,
+					shade(HAIR, -0.22),
 					{ Material = CARVE_MAT, CastShadow = false }
 				)
 			end
@@ -680,78 +851,85 @@ local function longHair(ctx: Ctx, length: number, open: number)
 	end
 end
 
--- Hashirama : longs cheveux raides séparés au milieu, jusqu'aux épaules.
+-- Hashirama : longs cheveux raides séparés au milieu, jusqu'aux épaules ; regard calme et ouvert.
 STYLES.longs = function(ctx)
-	face(ctx, { jaw = 1.03, ears = false })
+	face(ctx, { jaw = 1.03, long = 1.06, cheek = 1.0, frown = 0.15, mouth = "calme", ears = false })
 	longHair(ctx, 10.4, 0.05)
 end
 
--- Hiruzen : front dégagé et ridé, cheveux dressés en flamme, bouc effilé.
+-- Hiruzen : visage long et ridé, sourcils froncés, cheveux dressés en flamme, long bouc pointu.
 STYLES.epis = function(ctx)
-	face(ctx, { brow = 0.07, age = true })
-	spikes(ctx, 2.7, { fall = 1.0, wide = 1.25, n = 7 })
-	-- bouc : une mèche qui descend du menton
-	lock(ctx, V3(0, -3.95, -3.1), V3(0, -1, 0.15), 2.2, 1.4, 0.5, V3(0, 0, -1), 0.3)
+	face(ctx, { brow = 0.07, age = true, frown = 0.8, long = 1.1, cheek = 1.08, mouth = "severe", jaw = 0.96 })
+	spikes(ctx, 2.8, { fall = 1.0, wide = 1.25, n = 7, bend = 0.12 })
+	-- bouc : une longue mèche épaisse qui descend du menton et avance un peu (bien visible de face)
+	lock(ctx, V3(0, -4.1, -3.15), V3(0, -1, -0.32), 4.2, 2.0, 0.9, V3(0, 0.1, -1), 0.45)
+	lock(ctx, V3(0, -4.0, -2.9), V3(0, -1, 0.05), 3.0, 1.5, 0.7, V3(0, 0.1, -1), 0.4)
+	-- petite moustache de chaque côté de la bouche
+	for _, s in { -1, 1 } do
+		lock(ctx, V3(s * 0.45, -2.25 * 1.1, -3.5), V3(s * 0.5, -1, -0.05), 1.5, 0.8, 0.4, V3(0, 0, -1), 0.3)
+	end
 end
 
--- Tsunade : cheveux lisses séparés au milieu, longs rideaux, losange plat sur le front.
+-- Tsunade : cheveux lisses séparés au milieu, longs rideaux, losange sur le front, regard sévère.
 STYLES.raie = function(ctx)
-	face(ctx, { soft = true, jaw = 0.92, ears = false })
+	face(ctx, { soft = true, jaw = 0.92, long = 0.97, cheek = 0.94, frown = 0.55, mouth = "severe", ears = false })
 	longHair(ctx, 9.4, 0.25)
 	for _, s in { -1, 1 } do
-		lock(ctx, V3(s * 0.35, 3.25, -3.12), V3(s, -0.55, 0.05), 2.4, 1.7, 0.4, V3(0, 0.4, -1), 0.25)
+		lock(ctx, V3(s * 0.35, 3.25, -3.12), V3(s, -0.55, 0.05), 2.4, 1.7, 0.5, V3(0, 0.4, -1), 0.3)
 	end
-	B(ctx, "Losange", 0.42, 0.42, 0.12, at(ctx, 0, 1.75, foreheadZ(1.75) - 0.02, FRONT_TILT, 0, math.rad(45)), DEEP)
+	B(ctx, "Losange", 0.5, 0.5, 0.14, at(ctx, 0, 1.75, foreheadZ(1.75) - 0.02, FRONT_TILT, 0, math.rad(45)), DEEP)
 end
 
--- Naruto : épis en bataille au-dessus du bandeau, frange en pointes qui retombe dessus, mèches le
--- long des joues.
+-- Naruto : visage rond et court, petit sourire, trois moustaches gravées par joue, épis en
+-- bataille au-dessus du bandeau, frange en pointes qui retombe dessus.
 STYLES.bandeau = function(ctx)
-	face(ctx, { jaw = 0.98 })
-	spikes(ctx, 3.0, { wide = 1.6, n = 9 })
+	face(ctx, { jaw = 0.98, long = 0.94, cheek = 1.04, frown = -0.2, mouth = "sourire", whiskers = true })
+	spikes(ctx, 3.0, { wide = 1.6, n = 9, bend = 0.22 })
 	bandBangs(ctx, 5, 2.0, 2.35, 1.35)
 	for _, s in { -1, 1 } do
-		lock(ctx, V3(s * 2.95, 2.9, -1.3), V3(s * 0.12, -1, -0.15), 3.2, 1.6, 0.42, V3(s * 0.5, 0, -1))
+		lock(ctx, V3(s * 2.95, 2.9, -1.3), V3(s * 0.12, -1, -0.15), 3.2, 1.7, 0.6, V3(s * 0.5, 0, -1))
 	end
 	headband(ctx, 2.35)
 end
 
--- Tobirama : cheveux courts hérissés, bandeau à plaque et protège-oreilles plats.
+-- Tobirama : visage long et anguleux, sourcils très froncés, cheveux courts hérissés au-dessus
+-- d'un bandeau qui épouse le front, protège-oreilles plats.
 STYLES.plaque = function(ctx)
-	face(ctx, { brow = -0.05, jaw = 1.05, ears = false })
-	spikes(ctx, 2.2, { wide = 1.5 })
-	bandBangs(ctx, 4, 1.7, 2.4, 1.9)
+	face(ctx, { brow = -0.05, jaw = 1.05, long = 1.08, cheek = 1.06, frown = 0.95, mouth = "severe", ears = false })
+	spikes(ctx, 2.3, { wide = 1.45, n = 7, bend = 0.1 })
 	headband(ctx, 2.4)
 	for _, s in { -1, 1 } do
-		B(ctx, "Garde", 0.5, 2.8, 2.4, at(ctx, s * 3.3, 0.4, 0.2, 0, -s * 0.15, 0), HAIR)
+		B(ctx, "Garde", 0.5, 2.6, 2.2, at(ctx, s * 3.3, 0.5, 0.1, 0, -s * 0.15, 0), HAIR)
 	end
 end
 
--- Minato : crinière de grandes pointes, longue frange en pointes, longues mèches qui encadrent le
--- visage jusqu'à la mâchoire.
+-- Minato : visage doux, crinière de grandes pointes, longue frange, longues mèches qui encadrent
+-- le visage jusqu'à la mâchoire.
 STYLES.meches = function(ctx)
-	face(ctx, { jaw = 0.98 })
-	spikes(ctx, 3.3, { fall = -0.4, wide = 1.7, n = 9 })
+	face(ctx, { jaw = 0.98, long = 1.02, cheek = 0.98, frown = -0.15, mouth = "calme" })
+	spikes(ctx, 3.3, { fall = -0.4, wide = 1.7, n = 9, bend = 0.25 })
 	bangs(ctx, 5, 2.2, 1.35, 1.7)
 	for _, s in { -1, 1 } do
-		lock(ctx, V3(s * 2.9, 3.1, -1.5), V3(s * 0.12, -1, -0.2), 5.4, 1.7, 0.42, V3(s * 0.5, 0, -1))
+		lock(ctx, V3(s * 2.9, 3.1, -1.5), V3(s * 0.12, -1, -0.2), 5.4, 1.8, 0.6, V3(s * 0.5, 0, -1))
 	end
 end
 
--- Kakashi : grands épis penchés d'un côté, bandeau incliné sur un œil, masque.
+-- Kakashi : regard las (paupière basse), grands épis penchés d'un côté, bandeau incliné sur un
+-- œil, masque.
 STYLES.penche = function(ctx)
-	face(ctx, { mask = true, hideEye = -1 })
-	spikes(ctx, 3.8, { lean = -0.6, fall = 0.9, wide = 1.3 })
+	face(ctx, { mask = true, hideEye = -1, lid = 1, frown = 0.1, long = 1.03 })
+	spikes(ctx, 3.8, { lean = -0.6, fall = 0.9, wide = 1.3, bend = 0.2 })
 	bangs(ctx, 3, 1.6, 2.7, 1.8, -0.7)
 	headband(ctx, 1.3, 0.42, 1.2, -3.72)
 end
 
--- Boruto : épis plus courts, une longue mèche qui tombe sur le côté, bandeau sur le front.
+-- Boruto : visage jeune et court, regard doux, deux moustaches par joue, épis plus courts, une
+-- longue mèche qui tombe sur le côté, bandeau sur le front.
 STYLES.jeune = function(ctx)
-	face(ctx, { soft = true, jaw = 0.95 })
-	spikes(ctx, 2.6, { wide = 1.5 })
+	face(ctx, { soft = true, jaw = 0.95, long = 0.92, cheek = 0.96, frown = -0.3, mouth = "calme", whiskers = true, whiskerCount = 2, gaze = 1 })
+	spikes(ctx, 2.6, { wide = 1.5, n = 8, bend = 0.2 })
 	bandBangs(ctx, 4, 1.8, 2.35, 1.5)
-	lock(ctx, V3(1.2, 3.9, -2.3), V3(0.35, -1, -0.3), 4.4, 1.6, 0.4, V3(0.3, 0.2, -1))
+	lock(ctx, V3(1.2, 3.9, -2.3), V3(0.35, -1, -0.3), 4.4, 1.7, 0.6, V3(0.3, 0.2, -1))
 	headband(ctx, 2.35)
 end
 
@@ -767,12 +945,28 @@ end
 -- Relief
 ------------------------------------------------------------------------
 
--- Hauteur du sommet du relief en `x` (coins arrondis, bosselé).
+-- Contour du sommet en `x` : un DÔME comme le monument (bosse au centre, épaules qui descendent
+-- sur les côtés, ± 12 studs de bosses), puis deux épaules arrondies en quart de cercle jusqu'au
+-- sol, au-delà de la largeur du relief (pied évasé).
 local function topAt(x: number): number
-	local t = x / (Hokage.Width / 2)
-	return Hokage.Height - 14 * t * t - 60 * t ^ 8 + 5 * math.sin(x * 0.05) + 3 * math.cos(x * 0.13)
+	local half = Hokage.Width / 2
+	local h = Hokage.Height * (0.78 + 0.22 * math.cos(x / Hokage.Width * math.pi)) + 7 * math.sin(x * 0.041 + 0.6) + 5 * math.cos(x * 0.107 + 1.3)
+	local s0 = half - 40
+	local a = math.abs(x)
+	if a > s0 then
+		local f = math.min((a - s0) / (Hokage.Reach - s0), 1)
+		h *= math.sqrt(math.max(1 - f * f, 0))
+	end
+	return h
 end
 Hokage.topAt = topAt
+
+-- Part de l'épaule en `x` (0 au centre du relief, 1 au pied de l'épaule) : les rochers y
+-- rapetissent.
+local function shoulderAt(x: number): number
+	local s0 = Hokage.Width / 2 - 40
+	return math.clamp((math.abs(x) - s0) / (Hokage.Reach - s0), 0, 1)
+end
 
 -- Distance (dans le plan du relief) à la tête la plus proche, normalisée par son encombrement
 -- (< 1 : dans la silhouette de la tête).
@@ -794,70 +988,21 @@ local function nearHead(x: number, y: number, pad: number?): number
 end
 Hokage.nearHead = nearHead
 
--- Un bloc de roche anguleux (pavé, coin ou coin d'angle), roulis de 5 à 25°, faible bascule
--- (sa face avant reste tournée vers le village), à moitié enfoncé : sa face avant arrive à
--- `front` (z local, négatif = devant la paroi). `cf` = repère du relief.
-local function rockBlock(model: Model, cf: CFrame, rng: Random, px: number, py: number, sx: number, sy: number, front: number)
-	local depth = math.max(sx, sy) * 0.8 + 10
-	local function tilt(lo: number, hi: number): number
-		local a = math.rad(rng:NextNumber(lo, hi))
-		return rng:NextNumber() < 0.5 and -a or a
-	end
-	local tone = shade(TONES[rng:NextInteger(1, #TONES)], rng:NextNumber(-0.04, 0.04))
-	local where = cf * CFrame.new(px, py, front + depth / 2)
-	local roll = rng:NextNumber()
-	local props = { Material = ROCK_MAT, CanCollide = false, CanQuery = false }
-	if roll < 0.66 then
-		local rot = CFrame.Angles(tilt(0, 2.5), tilt(0, 3), tilt(4, 14))
-		Build.deco(model, "Bloc", V3(sx, sy, depth), where * rot, tone, { Material = ROCK_MAT })
-		-- arête du haut abattue : un coin posé sur le dessus, la pente vers le village
-		if rng:NextNumber() < 0.4 then
-			local h = sy * rng:NextNumber(0.25, 0.4)
-			local d = math.min(depth * 0.5, sy * 0.8)
-			Build.wedge(model, "Bloc", V3(sx * 0.98, h, d), where * rot * CFrame.new(0, sy / 2 + h / 2 - 0.2, -depth / 2 + d / 2), shade(tone, 0.05), props)
-		end
-	elseif roll < 0.9 then
-		-- coin : pente tournée vers le haut ou un côté (arête vive)
-		local quarter = ({ 0, math.pi / 2, -math.pi / 2 })[rng:NextInteger(1, 3)]
-		local size = quarter == 0 and V3(sx, sy, depth) or V3(sy, sx, depth)
-		Build.wedge(model, "Bloc", size, where * CFrame.Angles(0, 0, quarter + tilt(4, 14)) * CFrame.Angles(tilt(0, 3), 0, 0), tone, props)
-	else
-		local part = Instance.new("CornerWedgePart")
-		part.Name = "Bloc"
-		part.Size = V3(sx, sy, depth)
-		part.CFrame = where * CFrame.Angles(0, rng:NextInteger(0, 1) * math.pi / 2, tilt(4, 14))
-		part.Color = tone
-		part.Material = ROCK_MAT
-		part.Anchored = true
-		part.CanCollide = false
-		part.CanQuery = false
-		part.CanTouch = false
-		part.Parent = model
-	end
-	-- mousse sur le dessus de quelques blocs du haut
-	if py > Hokage.Height * 0.75 and rng:NextNumber() < 0.15 then
-		Build.deco(model, "Mousse", V3(sx * 0.7, 1.4, depth * 0.4), cf * CFrame.new(px, py + sy * 0.45, front + depth * 0.25), MOSS, { Material = Enum.Material.Grass })
-	end
+local function tiltAngle(rng: Random, lo: number, hi: number): number
+	local a = math.rad(rng:NextNumber(lo, hi))
+	return rng:NextNumber() < 0.5 and -a or a
 end
-Hokage.rockBlock = rockBlock
 
--- Rocher facetté (taillé en triangles) à moitié enfoncé dans la paroi : base à cinq côtés dans
--- la roche, une couronne de facettes, un sommet. `front` = avancée du sommet (z local, négatif =
--- devant la paroi). Renvoie le nombre de pièces.
-local function facetRock(model: Model, cf: CFrame, rng: Random, px: number, py: number, r: number, front: number, deep: number?): number
+-- ROCHER ARRONDI (taillé en triangles) à moitié enfoncé dans la paroi. `front` = avancée du
+-- sommet (z local, négatif = devant la paroi). Deux finesses :
+--   * complet : base à cinq côtés, une couronne de facettes et un sommet (15 facettes) ;
+--   * léger (`lite`) : base à six côtés et une arête de deux sommets (8 facettes), pour la masse.
+-- Renvoie le nombre de pièces.
+local function facetRock(model: Model, cf: CFrame, rng: Random, px: number, py: number, r: number, front: number, deep: number?, lite: boolean?): number
 	local tone = shade(TONES[rng:NextInteger(1, #TONES)], rng:NextNumber(-0.05, 0.02))
 	local center = V3(px, py, front + r * 1.1)
+	local zb = front + r * (deep or 0.85)
 	local a0 = rng:NextNumber(0, math.pi * 2)
-	local base, mid = {}, {}
-	for k = 0, 4 do
-		local a = a0 + k / 5 * math.pi * 2 + rng:NextNumber(-0.2, 0.2)
-		local rr = r * rng:NextNumber(0.9, 1.15)
-		base[k + 1] = V3(px + math.cos(a) * rr, py + math.sin(a) * rr * 0.8, front + r * (deep or 0.85))
-		local am = a + math.pi / 5 + rng:NextNumber(-0.15, 0.15)
-		local rm = r * rng:NextNumber(0.5, 0.68)
-		mid[k + 1] = V3(px + math.cos(am) * rm, py + math.sin(am) * rm * 0.8, front + r * rng:NextNumber(0.2, 0.35))
-	end
-	local apex = V3(px + rng:NextNumber(-0.2, 0.2) * r, py + rng:NextNumber(0, 0.25) * r, front)
 	local count = 0
 	local function tri(a: Vector3, b: Vector3, c: Vector3)
 		local n = (b - a):Cross(c - a)
@@ -870,6 +1015,38 @@ local function facetRock(model: Model, cf: CFrame, rng: Random, px: number, py: 
 		end
 		count += triangle(model, cf * a, cf * b, cf * c, cf:VectorToWorldSpace(n), 2.5, shade(tone, rng:NextNumber(-0.03, 0.03)))
 	end
+	if lite then
+		local b = {}
+		for k = 0, 5 do
+			local a = a0 + k / 6 * math.pi * 2 + rng:NextNumber(-0.16, 0.16)
+			local rr = r * rng:NextNumber(0.9, 1.12)
+			b[k + 1] = V3(px + math.cos(a) * rr, py + math.sin(a) * rr * 0.82, zb)
+		end
+		local half = r * rng:NextNumber(0.3, 0.42)
+		local d = V3(math.cos(a0) * half, math.sin(a0) * half * 0.82, 0)
+		local lift = V3(0, r * 0.08, 0)
+		local r1 = V3(px, py, front + r * rng:NextNumber(0, 0.12)) + d + lift
+		local r2 = V3(px, py, front + r * rng:NextNumber(0, 0.12)) - d + lift
+		tri(b[6], b[1], r1)
+		tri(b[1], b[2], r1)
+		tri(b[2], r2, r1)
+		tri(b[2], b[3], r2)
+		tri(b[3], b[4], r2)
+		tri(b[4], b[5], r2)
+		tri(b[5], r1, r2)
+		tri(b[5], b[6], r1)
+		return count
+	end
+	local base, mid = {}, {}
+	for k = 0, 4 do
+		local a = a0 + k / 5 * math.pi * 2 + rng:NextNumber(-0.2, 0.2)
+		local rr = r * rng:NextNumber(0.9, 1.15)
+		base[k + 1] = V3(px + math.cos(a) * rr, py + math.sin(a) * rr * 0.8, zb)
+		local am = a + math.pi / 5 + rng:NextNumber(-0.15, 0.15)
+		local rm = r * rng:NextNumber(0.5, 0.68)
+		mid[k + 1] = V3(px + math.cos(am) * rm, py + math.sin(am) * rm * 0.8, front + r * rng:NextNumber(0.2, 0.35))
+	end
+	local apex = V3(px + rng:NextNumber(-0.2, 0.2) * r, py + rng:NextNumber(0, 0.25) * r, front)
 	for k = 1, 5 do
 		local k2 = k % 5 + 1
 		tri(base[k], base[k2], mid[k])
@@ -880,121 +1057,123 @@ local function facetRock(model: Model, cf: CFrame, rng: Random, px: number, py: 
 end
 Hokage.facetRock = facetRock
 
--- Corps du relief : un mur de roche sombre (il sert de « joint » entre les blocs), sommet
--- herbeux, flancs en gradins de gros blocs qui reculent.
+-- Pierre BISEAUTÉE (5 pièces) : un noyau et quatre pans en biseau autour de sa face avant, comme
+-- un rocher émoussé ; bascule de 4 à 12° sur les trois axes (aucune arête droite alignée).
+-- `front` = face avant (z local, négatif = devant la paroi). Renvoie le nombre de pièces.
+local function bevelRock(model: Model, cf: CFrame, rng: Random, px: number, py: number, sx: number, sy: number, front: number, name: string?): number
+	local tone = shade(TONES[rng:NextInteger(1, #TONES)], rng:NextNumber(-0.06, 0.03))
+	local b = math.min(sx, sy) * rng:NextNumber(0.34, 0.44)
+	local depth = math.max(sx, sy) * 0.6 + 8
+	local o = cf * CFrame.new(px, py, front) * CFrame.Angles(tiltAngle(rng, 4, 9), tiltAngle(rng, 4, 9), tiltAngle(rng, 4, 12))
+	local props = { Material = ROCK_MAT, CanCollide = false, CanQuery = false }
+	local nm = name or "Pierre"
+	Build.deco(model, nm, V3(sx - 2 * b, sy - 2 * b, depth), o * CFrame.new(0, 0, depth / 2), tone, { Material = ROCK_MAT })
+	local lit = shade(tone, 0.04)
+	Build.wedge(model, nm, V3(sx - 2 * b, b, b), o * CFrame.new(0, sy / 2 - b / 2, b / 2), lit, props)
+	Build.wedge(model, nm, V3(sx - 2 * b, b, b), o * CFrame.new(0, -(sy / 2 - b / 2), b / 2) * CFrame.Angles(0, 0, math.pi), shade(tone, -0.05), props)
+	Build.wedge(model, nm, V3(sy - 2 * b, b, b), o * CFrame.new(sx / 2 - b / 2, 0, b / 2) * CFrame.Angles(0, 0, -math.pi / 2), tone, props)
+	Build.wedge(model, nm, V3(sy - 2 * b, b, b), o * CFrame.new(-(sx / 2 - b / 2), 0, b / 2) * CFrame.Angles(0, 0, math.pi / 2), tone, props)
+	return 5
+end
+Hokage.bevelRock = bevelRock
+
+-- Corps du relief : la COUCHE DE RECUL (paroi sombre en ardoise, loin derrière les rochers : les
+-- joints et les creux autour des têtes), qui suit le contour en dôme, et le sommet herbeux en
+-- retrait.
 local function cliffBody(model: Model, cf: CFrame, rng: Random)
-	local half = Hokage.Width / 2
+	local reach = Hokage.Reach
 	local depth = Hokage.Depth
-	local cols = 10
-	local colW = Hokage.Width / cols
-	for c = 0, cols - 1 do
-		local x0 = -half + (c + 0.5) * colW
-		local top = topAt(x0)
+	local colW = 20
+	local x = -reach
+	local k = 0
+	while x < reach do
+		local x0 = x + colW / 2
+		local top = math.max(topAt(x0) - 6, 6)
+		k += 1
 		Build.part(
 			model,
 			"Paroi",
-			V3(colW + 4, top, depth - 14),
-			cf * CFrame.new(x0, top / 2, 14 + (depth - 14) / 2) * CFrame.Angles(0, rng:NextNumber(-0.02, 0.02), 0),
-			shade(JOINT, rng:NextNumber(-0.03, 0.04)),
-			{ Material = ROCK_MAT }
+			V3(colW + 2, top, depth - 14),
+			cf * CFrame.new(x0, top / 2, 14 + (depth - 14) / 2) * CFrame.Angles(0, rng:NextNumber(-0.015, 0.015), 0),
+			shade(JOINT, rng:NextNumber(-0.04, 0.04)),
+			{ Material = CARVE_MAT }
 		)
-		-- sommet herbeux et bosse d'herbe en retrait
-		Build.part(
-			model,
-			"Sommet",
-			V3(colW + 8, 5, depth - 14),
-			cf * CFrame.new(x0, top + 1, 20 + (depth - 14) / 2) * CFrame.Angles(0, rng:NextNumber(-0.03, 0.03), rng:NextNumber(-0.03, 0.03)),
-			shade(GRASS, rng:NextNumber(-0.05, 0.04)),
-			{ Material = Enum.Material.Grass }
-		)
-		Core.ellipsoid(
-			model,
-			"SommetBosse",
-			V3(colW * 1.4, 18, 80),
-			cf * CFrame.new(x0 + rng:NextNumber(-8, 8), top + 2, 80 + rng:NextNumber(0, 30)),
-			GRASS_LIGHT,
-			Enum.Material.Grass
-		)
-	end
-	-- flancs : gradins qui descendent et reculent, habillés de blocs anguleux et d'herbe
-	for _, s in { -1, 1 } do
-		local edge = topAt(s * half)
-		for k = 0, 3 do
-			local w = rng:NextNumber(30, 40)
-			local h = edge * (0.86 - k * 0.2)
-			local x = s * (half - 6 + k * 24 + w / 2)
-			local z = 14 + k * 16
+		if top > 20 then
 			Build.part(
 				model,
-				"Flanc",
-				V3(w, h, depth - k * 20),
-				cf * CFrame.new(x, h / 2, z + (depth - k * 20) / 2) * CFrame.Angles(0, s * rng:NextNumber(0.05, 0.2), 0),
-				shade(JOINT, 0.05),
-				{
-					Material = ROCK_MAT,
-				}
+				"Sommet",
+				V3(colW + 6, 5, depth - 30),
+				cf * CFrame.new(x0, top + 1, 30 + (depth - 30) / 2) * CFrame.Angles(0, rng:NextNumber(-0.03, 0.03), rng:NextNumber(-0.03, 0.03)),
+				shade(GRASS, rng:NextNumber(-0.05, 0.04)),
+				{ Material = Enum.Material.Grass }
 			)
-			Build.part(
-				model,
-				"FlancHerbe",
-				V3(w + 4, 4, depth - k * 20 - 6),
-				cf * CFrame.new(x, h + 1, z + 4 + (depth - k * 20 - 6) / 2),
-				shade(GRASS, rng:NextNumber(-0.06, 0.03)),
-				{
-					Material = Enum.Material.Grass,
-				}
-			)
-			local y = 8
-			while y < h - 8 do
-				local bh = rng:NextNumber(16, 26)
-				rockBlock(model, cf, rng, x + rng:NextNumber(-4, 4), y + bh / 2, w * rng:NextNumber(0.6, 0.9), bh, z - rng:NextNumber(4, 10))
-				y += bh * 0.9
-			end
 		end
+		if k % 3 == 0 and top > 60 then
+			Core.ellipsoid(
+				model,
+				"SommetBosse",
+				V3(colW * 3.2, 18, 80),
+				cf * CFrame.new(x0 + rng:NextNumber(-8, 8), top + 2, 80 + rng:NextNumber(0, 30)),
+				GRASS_LIGHT,
+				Enum.Material.Grass
+			)
+		end
+		x += colW
 	end
 end
 
--- Paroi : maçonnerie naturelle de gros blocs anguleux en trois tailles, serrés, avec des joints
--- sombres (la paroi derrière). Autour des visages, les blocs avancent davantage et forment un
--- cadre en creux d'où sortent les têtes.
+-- Paroi : un amas de ROCHERS ARRONDIS empilés (sans rangées), en trois tailles, avec des joints
+-- sombres. Autour des visages, les rochers avancent davantage et forment le cadre en creux d'où
+-- sortent les têtes ; le long du contour, une crête de rochers qui rapetissent vers les épaules
+-- dessine la silhouette bombée.
 local function cliffFace(model: Model, cf: CFrame, rng: Random)
-	local half = Hokage.Width / 2
+	local reach = Hokage.Reach
 	local base = Hokage.BaseHeight
-	local facetShare = 0.7
-	local function place(px: number, py: number, sx: number, sy: number)
-		local d = nearHead(px, py, math.min(sx, sy) * 0.3)
-		if d < 1.0 or py > topAt(px) - sy * 0.3 then
-			return
-		end
-		local frame = math.clamp((1.55 - d) / 0.55, 0, 1) -- 1 contre une tête, 0 au large
-		local front = lean(py) - rng:NextNumber(6, 13) - frame * rng:NextNumber(10, 18)
-		if rng:NextNumber() < facetShare then
-			-- rocher facetté (sa base rejoint la paroi du fond)
-			local r = math.max(sx, sy) * rng:NextNumber(0.55, 0.66)
-			facetRock(model, cf, rng, px, py, r, front - 2, math.max(0.85, (16 - front) / r))
-		else
-			rockBlock(model, cf, rng, px, py, sx, sy, front)
-		end
+	local function frameOf(d: number): number
+		return math.clamp((1.5 - d) / 0.5, 0, 1) -- 1 contre une tête, 0 au large
 	end
-	-- 1) gros blocs (26 à 40 studs) en rangées décalées
-	local rowH = 24
+	-- 1) la masse : pierres biseautées de 18 à 32 studs, posées en quinconce irrégulier
+	local y = base + 4
 	local row = 0
-	for y = base + 10, Hokage.Height + 4, rowH do
+	while y < Hokage.Height + 10 do
 		row += 1
-		local x = -half + 6 - (row % 2) * 14
-		while x < half - 4 do
-			local w = rng:NextNumber(26, 40)
-			place(x + w / 2 + rng:NextNumber(-2, 2), y + rng:NextNumber(-3, 3), w * 1.05, rowH * rng:NextNumber(1.0, 1.35))
-			x += w
+		local rowH = rng:NextNumber(26, 34)
+		local x = -reach + 4 - (row % 2) * 16
+		while x < reach - 4 do
+			local g = 1 - shoulderAt(x) * 0.5
+			local w = rng:NextNumber(28, 44) * g
+			local px, py = x + w / 2 + rng:NextNumber(-3, 3), y + rng:NextNumber(-5, 5)
+			local h = rowH * rng:NextNumber(0.9, 1.3) * g
+			local d = nearHead(px, py, math.min(w, h) * 0.3)
+			if d >= 1.0 and py < topAt(px) - h * 0.45 and py > 6 then
+				local front = lean(py) - rng:NextNumber(5, 12) - frameOf(d) * rng:NextNumber(8, 16)
+				bevelRock(model, cf, rng, px, py, w * 1.08, h, front)
+			end
+			x += w * rng:NextNumber(0.7, 0.84)
+		end
+		y += rowH * 0.78
+	end
+	-- 1 bis) fond : pierres en retrait qui comblent les grands trous entre les têtes (les têtes
+	-- passent devant ; juste autour de chaque visage, la niche sombre reste visible)
+	local filled = 0
+	for _ = 1, 260 do
+		local px = rng:NextNumber(-Hokage.Width / 2 + 20, Hokage.Width / 2 - 20)
+		local py = rng:NextNumber(base + 20, topAt(px) - 30)
+		local w = rng:NextNumber(22, 32)
+		local d = nearHead(px, py, w * 0.3)
+		if d > 0.86 and d < 1.0 and filled < 16 then
+			filled += 1
+			bevelRock(model, cf, rng, px, py, w, w * rng:NextNumber(0.75, 0.95), lean(py) - rng:NextNumber(1, 5))
 		end
 	end
-	-- 2) blocs moyens et petits (12 à 22 studs) un peu plus en avant, qui cassent les rangées
-	facetShare = 0.25
-	for _ = 1, 50 do
-		local px = rng:NextNumber(-half + 8, half - 8)
-		local py = rng:NextNumber(base + 6, topAt(px) - 6)
-		local size = rng:NextNumber(12, 22)
-		place(px, py, size * rng:NextNumber(0.9, 1.4), size)
+	-- 2) rochers arrondis plus en avant, qui cassent la masse (et cachent les joints droits)
+	for _ = 1, 14 do
+		local px = rng:NextNumber(-reach + 30, reach - 30)
+		local py = rng:NextNumber(base + 10, topAt(px) - 14)
+		local r = rng:NextNumber(9, 14) * (1 - shoulderAt(px) * 0.4)
+		if nearHead(px, py, r * 0.6) > 1.0 then
+			facetRock(model, cf, rng, px, py, r, lean(py) - rng:NextNumber(16, 22), 1.6, true)
+		end
 	end
 	-- 3) collerette sous chaque menton : la tête sort de la roche (sous le menton, jamais devant)
 	for _, h in Hokage.Heads do
@@ -1003,44 +1182,52 @@ local function cliffFace(model: Model, cf: CFrame, rng: Random)
 			local px = h.x + k * 1.3 * u + rng:NextNumber(-2, 2)
 			local py = h.y - (6.9 - math.abs(k) * 0.35) * u + rng:NextNumber(-2, 2)
 			if py > base then
-				if k % 2 == 0 then
-					facetRock(model, cf, rng, px, py, rng:NextNumber(12, 16), lean(py) - rng:NextNumber(24, 30))
-				else
-					rockBlock(model, cf, rng, px, py, rng:NextNumber(20, 28), rng:NextNumber(14, 18), lean(py) - rng:NextNumber(20, 26))
-				end
+				bevelRock(model, cf, rng, px, py, rng:NextNumber(18, 24), rng:NextNumber(13, 17), lean(py) - rng:NextNumber(20, 28))
 			end
 		end
 	end
-	-- 3 bis) gros rochers facettés serrés contre les têtes : le cadre en creux du monument
+	-- 4) gros rochers arrondis serrés contre les têtes : le cadre en creux du monument
 	local placed = 0
 	for _ = 1, 400 do
-		if placed >= 22 then
+		if placed >= 18 then
 			break
 		end
-		local px = rng:NextNumber(-half + 20, half - 20)
+		local px = rng:NextNumber(-reach + 40, reach - 40)
 		local py = rng:NextNumber(base + 20, topAt(px) - 16)
-		local r = rng:NextNumber(14, 22)
+		local r = rng:NextNumber(13, 19)
 		local d = nearHead(px, py, r * 0.6)
-		if d > 1.0 and d < 1.35 then
-			facetRock(model, cf, rng, px, py, r, lean(py) - rng:NextNumber(20, 28))
+		if d > 1.0 and d < 1.3 then
+			if placed % 3 == 0 then
+				facetRock(model, cf, rng, px, py, r, lean(py) - rng:NextNumber(20, 28), nil, true)
+			else
+				bevelRock(model, cf, rng, px, py, r * rng:NextNumber(1.8, 2.2), r * rng:NextNumber(1.5, 1.9), lean(py) - rng:NextNumber(20, 28))
+			end
 			placed += 1
 		end
 	end
-	-- 4) gros éperons anguleux dans les coins du haut (trois blocs qui se chevauchent)
-	for _, spot in { { half - 28, 192 }, { -half + 30, 188 } } do
-		for k = 0, 2 do
-			local px, py = spot[1] + rng:NextNumber(-14, 14), spot[2] + k * 16 - 14
-			if nearHead(px, py, 16) > 1.0 and py < topAt(px) - 6 then
-				rockBlock(model, cf, rng, px, py, rng:NextNumber(30, 42), rng:NextNumber(24, 32), lean(py) - rng:NextNumber(12, 20))
-			end
+	-- 5) CRÊTE : rochers arrondis le long du contour, de plus en plus petits vers les épaules ;
+	-- ils dessinent la silhouette bombée et cachent le haut de la paroi
+	local x = -reach + 6
+	while x < reach - 6 do
+		local f = shoulderAt(x)
+		local r = rng:NextNumber(11, 15) * (1 - f * 0.55)
+		local top = topAt(x)
+		local py = top - r * 0.65
+		if py > 8 and nearHead(x, py, r * 0.5) > 1.0 then
+			bevelRock(model, cf, rng, x, py, r * rng:NextNumber(1.7, 2.1), r * rng:NextNumber(1.4, 1.7), lean(py) - rng:NextNumber(3, 9), "Crete")
 		end
+		local slope = (topAt(x + 2) - topAt(x - 2)) / 4
+		x += r * 1.45 / math.sqrt(1 + slope * slope)
 	end
-	-- 5) creux sombre derrière chaque tête : elle sort d'une niche de la roche
+	-- 6) creux sombre derrière chaque tête (couche de recul) : elle sort d'une niche de la roche
 	for _, h in Hokage.Heads do
 		local e = EXTENT[h.style] or EXTENT.longs
 		local u = U * (h.scale or 1)
-		local cy = h.y + (e[2] + e[3]) / 2 * u
-		Build.deco(model, "Niche", V3(e[1] * 1.9 * u, (e[2] - e[3]) * 0.92 * u, 10), cf * CFrame.new(h.x, cy, lean(h.y) + 4), shade(JOINT, 0.02), { Material = ROCK_MAT })
+		local bottom = h.y + (e[3] - 0.5) * u
+		local top = math.min(h.y + e[2] * u, topAt(h.x) - 14)
+		Build.deco(model, "Niche", V3(e[1] * 2.1 * u, top - bottom, 10), cf * CFrame.new(h.x, (top + bottom) / 2, lean(h.y) + 9), shade(JOINT, -0.04), {
+			Material = CARVE_MAT,
+		})
 	end
 end
 
@@ -1083,25 +1270,29 @@ local function emblem(model: Model, cf: CFrame)
 	end
 end
 
--- Socle taillé (≤ 10 % de la hauteur) et éboulis au pied.
+-- Pied du relief : une rangée IRRÉGULIÈRE de pierres émoussées (8 à 22 studs de haut, basculées,
+-- enfoncées inégalement : aucune arête droite ne traverse la largeur), puis des éboulis qui
+-- s'étalent devant et autour des épaules (pied évasé).
 local function cliffBase(model: Model, cf: CFrame, rng: Random)
-	local half = Hokage.Width / 2
-	local x = -half - 4
-	while x < half + 4 do
-		local w = rng:NextNumber(24, 38)
-		local h = rng:NextNumber(Hokage.BaseHeight - 6, Hokage.BaseHeight + 2)
-		Build.part(
-			model,
-			"Socle",
-			V3(w - 2, h, 30),
-			cf * CFrame.new(x + w / 2, h / 2 - 1, -6 + rng:NextNumber(-3, 3)) * CFrame.Angles(rng:NextNumber(-0.04, 0.04), rng:NextNumber(-0.06, 0.06), rng:NextNumber(-0.04, 0.04)),
-			shade(TONES[rng:NextInteger(1, #TONES)], rng:NextNumber(-0.06, 0.0)),
-			{ Material = ROCK_MAT }
-		)
-		x += w
+	local reach = Hokage.Reach
+	local x = -reach + 4
+	while x < reach - 4 do
+		local w = rng:NextNumber(14, 26) * (1 - shoulderAt(x) * 0.3)
+		local h = rng:NextNumber(8, 22)
+		bevelRock(model, cf, rng, x + w / 2, h / 2 - rng:NextNumber(1, 5), w, h, -rng:NextNumber(4, 14), "Socle")
+		x += w * rng:NextNumber(0.8, 0.95)
 	end
-	for _ = 1, 12 do
-		Nature.rock(model, (cf * CFrame.new(rng:NextNumber(-half - 10, half + 10), 0, rng:NextNumber(-40, -26))).Position, rng:NextNumber(5, 11), {
+	-- éboulis : devant la paroi, et en éventail au pied des épaules
+	for k = 1, 14 do
+		local px, pz
+		if k <= 8 then
+			px, pz = rng:NextNumber(-reach + 30, reach - 30), rng:NextNumber(-36, -18)
+		else
+			local s = k % 2 == 0 and 1 or -1
+			local a = rng:NextNumber(0, math.pi / 2)
+			px, pz = s * (reach - 30 + math.sin(a) * rng:NextNumber(20, 46)), -math.cos(a) * rng:NextNumber(14, 40) + 20
+		end
+		Nature.rock(model, (cf * CFrame.new(px, 0, pz)).Position, rng:NextNumber(3.5, 9), {
 			rng = rng,
 			color = shade(ROCK, rng:NextNumber(-0.08, 0.04)),
 			slot = "RocherFalaise",
@@ -1110,9 +1301,9 @@ local function cliffBase(model: Model, cf: CFrame, rng: Random)
 	end
 end
 
--- Végétation : arbres et buissons sur le sommet et les flancs.
+-- Végétation : arbres (version lointaine, peu de pièces) et buissons sur le sommet et les épaules.
 local function cliffGreenery(model: Model, cf: CFrame, rng: Random)
-	local half = Hokage.Width / 2
+	local reach = Hokage.Reach
 	local function clear(x: number): boolean
 		for _, h in Hokage.Heads do
 			local e = EXTENT[h.style] or EXTENT.longs
@@ -1123,43 +1314,28 @@ local function cliffGreenery(model: Model, cf: CFrame, rng: Random)
 		end
 		return true
 	end
-	local count = 30
+	local count = 26
 	for i = 1, count do
-		local x = -half + 10 + (i - 0.5) / count * (Hokage.Width - 20) + rng:NextNumber(-8, 8)
+		local x = -reach + 40 + (i - 0.5) / count * (reach * 2 - 80) + rng:NextNumber(-8, 8)
 		local deep = i % 3 == 0
-		local z = deep and rng:NextNumber(50, 110) or rng:NextNumber(22, 36)
-		if clear(x) or deep then
+		local z = deep and rng:NextNumber(50, 110) or rng:NextNumber(30, 44)
+		if (clear(x) or deep) and topAt(x) > 40 then
 			local species = rng:NextNumber() < 0.55 and "ArbreFeuillu" or "Sapin"
-			Nature.tree(species, model, (cf * CFrame.new(x, topAt(x) + 2, z)).Position, {
+			Nature.tree(species, model, (cf * CFrame.new(x, topAt(x) - 3, z)).Position, {
 				rng = rng,
-				height = rng:NextNumber(36, 60),
+				height = rng:NextNumber(36, 58) * (1 - shoulderAt(x) * 0.3),
 				palette = "foret",
 				detail = "far",
 			})
 		end
 	end
-	-- arbres et buissons sur les gradins des flancs
-	for _, s in { -1, 1 } do
-		for k = 0, 3 do
-			local x = s * (half + 12 + k * 24)
-			local h = topAt(s * half) * (0.86 - k * 0.2)
-			if k % 2 == 1 then
-				Nature.tree(rng:NextNumber() < 0.5 and "Sapin" or "ArbreFeuillu", model, (cf * CFrame.new(x, h + 2, 40 + k * 16)).Position, {
-					rng = rng,
-					height = rng:NextNumber(30, 44),
-					palette = "foret",
-					detail = "far",
-				})
-			end
-			Nature.bush(model, (cf * CFrame.new(x + rng:NextNumber(-6, 6), h + 2, 26 + k * 16)).Position, { rng = rng, height = rng:NextNumber(7, 11), palette = "foret" })
-		end
-	end
-	for _ = 1, 10 do
-		local x = rng:NextNumber(-half + 10, half - 10)
-		if clear(x) then
-			Nature.bush(model, (cf * CFrame.new(x, topAt(x) + 2, rng:NextNumber(16, 24))).Position, {
+	-- buissons le long de la crête et sur les épaules
+	for _ = 1, 14 do
+		local x = rng:NextNumber(-reach + 20, reach - 20)
+		if clear(x) and topAt(x) > 16 then
+			Nature.bush(model, (cf * CFrame.new(x, topAt(x) - 4, rng:NextNumber(24, 34))).Position, {
 				rng = rng,
-				height = rng:NextNumber(6, 10),
+				height = rng:NextNumber(7, 11),
 				palette = "foret",
 			})
 		end
@@ -1193,6 +1369,21 @@ function Hokage.mountain(parent: Instance, cf: CFrame, rng: Random): Model
 	end
 	heads:SetAttribute("Pieces", total)
 	cliffGreenery(model, cf, rng)
+	-- seules la paroi, le sommet et le pied gardent une collision ; tout le reste (sculptures,
+	-- rochers, végétation) n'est ni touché ni interrogé par le moteur
+	local solid = { Paroi = true, Sommet = true, Socle = true }
+	local parts = 0
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			parts += 1
+			d.CanTouch = false
+			if not solid[d.Name] then
+				d.CanCollide = false
+				d.CanQuery = false
+			end
+		end
+	end
+	model:SetAttribute("Pieces", parts)
 	return model
 end
 
