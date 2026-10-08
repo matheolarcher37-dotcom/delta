@@ -1654,6 +1654,15 @@ local function paintArm(S, look, c, side: string, isLeft: boolean)
 			S:rect(0.5, y, 1, S:dy(0.055), INK, { z = 9 })
 		end
 	end
+	if look.armVeins and side ~= "in" then
+		-- Veines gonflées (deuxième vitesse) ou fêlures de feu sur les bras nus
+		local v = look.armVeins
+		S:line(0.36, 0.22, 0.44, 0.4, 0.03, v, { z = 9, transparency = 0.2 })
+		S:line(0.44, 0.4, 0.4, 0.58, 0.026, v, { z = 9, transparency = 0.2 })
+		S:line(0.4, 0.58, 0.47, 0.76, 0.022, v, { z = 9, transparency = 0.25 })
+		S:line(0.44, 0.4, 0.6, 0.5, 0.02, v, { z = 9, transparency = 0.3, fine = true })
+		S:line(0.6, 0.5, 0.64, 0.66, 0.018, v, { z = 9, transparency = 0.35, fine = true })
+	end
 	if look.shoulderMark and not covered and side == "out" and (not look.shoulderMarkLeft or isLeft) then
 		local y = look.shoulders and 0.36 or 0.17
 		logo(S.g, look.shoulderMark, 0.5, y, 0.42, S.w / S.h)

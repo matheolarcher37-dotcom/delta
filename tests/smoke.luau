@@ -10,6 +10,7 @@ local requireModule = Harness.require
 local find = Harness.find
 local test = Harness.test
 local countParts = Harness.countParts
+local Enum = Harness.roblox.Enum
 local fakeSignal = Harness.newSignal()
 
 local Shared = find("ReplicatedStorage.Shared")
@@ -169,7 +170,7 @@ test("Persos R6 classiques : proportions, tête, visage, budgets", function()
 		for _, joint in CharacterBuilder.JointNames do
 			assert(model:FindFirstChild(joint, true), label .. " : articulation " .. joint)
 		end
-		local plates, frames, parts = 0, 0, 0
+		local plates, frames, parts, lodFrames, lods = 0, 0, 0, 0, 0
 		for _, d in model:GetDescendants() do
 			if d:IsA("BasePart") then
 				parts += 1
@@ -178,9 +179,19 @@ test("Persos R6 classiques : proportions, tête, visage, budgets", function()
 					assert(d.Transparency == 1 and d:FindFirstChildOfClass("SurfaceGui"), label .. " : plaque du visage")
 				end
 			elseif d:IsA("Frame") then
-				frames += 1
+				local gui = d:FindFirstAncestorOfClass("SurfaceGui")
+				if gui and gui:GetAttribute("LodNear") then
+					lodFrames += 1
+				else
+					frames += 1
+				end
+			elseif d:IsA("SurfaceGui") and d:GetAttribute("LodNear") then
+				lods += 1
+				assert(d.MaxDistance > d:GetAttribute("LodNear") and d.ZOffset < 1, label .. " : LOD affiché plus loin et sous la peinture complète")
 			end
 		end
+		assert(lods >= 6, label .. " : niveau de détail intermédiaire attendu (" .. lods .. ")")
+		assert(lodFrames <= 160, label .. " : LOD trop lourd (" .. lodFrames .. ")")
 		local boar = look.accessories and table.find(look.accessories, "boar_head")
 		assert(boar or plates == 6, label .. " : 6 plaques de visage attendues (" .. plates .. ")")
 		assert(parts <= 180, label .. " : trop de pièces (" .. parts .. ")")
@@ -246,6 +257,70 @@ test("Boss lisibles (liseré, lumières, aura) et variétés des persos", functi
 	end
 	local plain = CharacterBuilder.build(look, { scale = 1 })
 	assert(not CharacterBuilder.applyVariety(plain, "inconnue"), "variété inconnue refusée")
+	-- Or : peinture re-teintée (pas de voile qui noie les plis), cheveux en or poli, LOD refait
+	local goldLook = table.clone(look)
+	goldLook.variety = "Or"
+	local gold = CharacterBuilder.build(goldLook, { scale = 1 })
+	assert(gold:GetAttribute("Variety") == "gold", "une unité Or a l'attribut Variety = gold")
+	assert(not gold:FindFirstChild("VarietyTint", true), "Or : plus de voile par-dessus la peinture")
+	local foil, lodAfter = false, 0
+	for _, d in gold:GetDescendants() do
+		if d:IsA("BasePart") and string.sub(d.Name, 1, 4) == "Hair" and d.Material == Enum.Material.Foil then
+			foil = true
+		elseif d:IsA("SurfaceGui") and d:GetAttribute("LodNear") then
+			lodAfter += 1
+		end
+	end
+	assert(foil and lodAfter >= 6, "Or : cheveux Foil et LOD présents")
+	local shadow = CharacterBuilder.build(look, { scale = 1 })
+	CharacterBuilder.applyVariety(shadow, "Ombre")
+	local rim = shadow:FindFirstChild("VarietyRim")
+	assert(rim and rim:IsA("Highlight") and rim.FillTransparency == 1, "Ombre : liseré violet (contour seul)")
+	-- Boss : contour seul, lumière de face blanc chaud
+	local ken = CharacterBuilder.build(Characters.Enemies.occ_kenjakou.look, { scale = 4.2 })
+	local bossRim = ken:FindFirstChild("BossRim")
+	assert(bossRim and bossRim.FillTransparency == 1, "BossRim sans remplissage")
+	local key = ken:FindFirstChild("BossKey", true)
+	assert(key and key.Color.R > key.Color.B, "lumière de face blanc chaud")
+	assert(ken:FindFirstChild("BossFaceLight", true), "lumière douce sous le visage")
+	-- Auras d'évolution : particules depuis la surface d'une enveloppe + rayons, plus de plaques
+	local ssj = CharacterBuilder.build(Formulas.describe({ id = "sai_brolo", level = 1, stars = 2 }).look, { scale = 1 })
+	local beams, surface = 0, false
+	for _, d in ssj:GetDescendants() do
+		assert(d.Name ~= "AuraFlame", "plus de plaques d'aura")
+		if d:IsA("Beam") then
+			beams += 1
+		elseif d:IsA("ParticleEmitter") and d.ShapeStyle == Enum.ParticleEmitterShapeStyle.Surface then
+			surface = true
+		end
+	end
+	assert(beams >= 2 and surface, "aura : 2 rayons et des particules autour de la silhouette")
+	-- Chaque ★2 change la silhouette (pièces en plus) par rapport au ★1
+	for _, id in { "occ_yuzi", "occ_goju", "pou_tanjiru", "oce_ase", "ninja_jiriya", "oce_loffy" } do
+		local function names(stars)
+			local set = {}
+			local m = CharacterBuilder.build(Formulas.describe({ id = id, level = 1, stars = stars }).look, { scale = 1 })
+			for _, d in m:GetDescendants() do
+				if d:IsA("BasePart") or d:IsA("ParticleEmitter") then
+					set[d.Name] = true
+				end
+			end
+			return set
+		end
+		local a, b = names(1), names(2)
+		local changed = false
+		for n in b do
+			if not a[n] then
+				changed = true
+			end
+		end
+		for n in a do
+			if not b[n] then
+				changed = true
+			end
+		end
+		assert(changed, id .. " ★2 : la silhouette doit changer")
+	end
 	local withVariety = table.clone(look)
 	withVariety.variety = "Angélique"
 	local angel = CharacterBuilder.build(withVariety, { scale = 1 })
@@ -288,10 +363,31 @@ test("Nouveaux persos v3.2, uniformes personnalisés, boss Akaino/Freezo", funct
 	assert(partNamed(look("oce_ase"), "HatCrown") == 1, "Ase : chapeau de cow-boy")
 	assert(partNamed(look("occ_nobora"), "Skirt") == 1, "Nobora : jupe plissée")
 	assert(partNamed(look("occ_yuzi"), "HoodCord") == 2, "Yuzi : capuche à cordons")
-	assert(partNamed(Characters.Enemies.oce_akaino.look, "CoatPan") == 2, "Akaino : pans du manteau")
-	assert(partNamed(Characters.Enemies.oce_akaino.look, "MagmaSleeve") == 1, "Akaino : poing de magma soudé")
+	assert(partNamed(Characters.Enemies.oce_akaino.look, "CoatSleeveShell") == 6, "Akaino : manches du manteau en coques autour des bras")
+	assert(partNamed(Characters.Enemies.oce_akaino.look, "CoatPan") == 0, "Akaino : plus de panneaux latéraux")
+	assert(
+		partNamed(Characters.Enemies.oce_akaino.look, "MagmaSleeve") >= 1 and partNamed(Characters.Enemies.oce_akaino.look, "MagmaDrip") >= 6,
+		"Akaino : poing de magma (coque soudée et coulures)"
+	)
 	assert(partNamed(Characters.Enemies.sai_freezo.look, "GemShoulderBevel") == 8, "Freezo : épaulières biseautées")
 	assert(look("occ_megumo").uniformStyle == "spiral", "Megumo : col à bouton spirale")
+	-- Coiffures à silhouette propre (cheveux noirs à pointes)
+	local hairs = {}
+	for _, id in { "sai_goko", "sai_vejeta", "occ_megumo", "sai_brolo", "sai_gohon" } do
+		local h = look(id).hair
+		assert(not hairs[h], id .. " : même coiffure que " .. tostring(hairs[h]))
+		hairs[h] = id
+	end
+	-- Chaque perso tirable figure dans une table de tirage
+	for id in Characters.List do
+		local found = false
+		for _, universe in Universes.List do
+			if table.find(universe.characters, id) then
+				found = true
+			end
+		end
+		assert(found, id .. " absent de toutes les tables de tirage")
+	end
 end)
 
 test("Construction de fusions (toutes les paires Légendaire/Mythique)", function()

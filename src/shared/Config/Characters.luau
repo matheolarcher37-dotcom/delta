@@ -454,7 +454,7 @@ Characters.List = {
 		attack = { kind = "punch", color = rgb(60, 90, 255), name = "Poing Divergent" },
 		evolve = {
 			-- ★★ : poings divergents (énergie maudite bleue)
-			[2] = { accessories = { "hood", "energy_fists" }, energyColor = rgb(70, 110, 255) },
+			[2] = { accessories = { "hood", "energy_fists", "energy_aura", "scar_cheek" }, energyColor = rgb(70, 110, 255) },
 			-- ★★★ : le roi des fléaux prend le dessus (marques, éclair noir et rouge)
 			[3] = { accessories = { "hood", "tattoos", "energy_fists" }, energyColor = rgb(230, 30, 50), eyes = rgb(200, 30, 40) },
 		},
@@ -512,10 +512,10 @@ Characters.List = {
 		},
 		attack = { kind = "orb", color = rgb(170, 60, 255), name = "Violet Imaginaire" },
 		evolve = {
-			-- ★★ : lunettes rondes, on devine les Six Yeux
-			[2] = { accessories = { "round_glasses" }, eyeShadow = rgb(150, 230, 255) },
-			-- ★★★ : sans bandeau (les Six Yeux !), orbe violet de la technique du vide
-			[3] = { accessories = { "hollow_purple" }, eyeShadow = rgb(150, 230, 255) },
+			-- ★★ : il retire le bandeau (cheveux qui retombent, les Six Yeux brillent)
+			[2] = { accessories = {}, hair = "messy", eyeShadow = rgb(150, 230, 255), eyeGlow = true },
+			-- ★★★ : orbe violet de la technique du vide et aura violette
+			[3] = { accessories = { "hollow_purple", "energy_aura" }, hair = "messy", eyeShadow = rgb(150, 230, 255), eyeGlow = true, auraColor = rgb(170, 80, 255) },
 		},
 		fusion = { prefix = "Infini", suffix = "de l'Infini" },
 	},
@@ -927,7 +927,7 @@ Characters.List = {
 		attack = { kind = "stretch", color = rgb(255, 80, 80), name = "Pistolet Élastique" },
 		evolve = {
 			-- ★★ : deuxième vitesse (peau rougie, vapeur)
-			[2] = { skin = rgb(255, 178, 160), accessories = { "straw_hat", "scar_cheek", "steam" } },
+			[2] = { skin = rgb(255, 178, 160), accessories = { "straw_hat", "scar_cheek", "steam" }, armVeins = rgb(196, 70, 80) },
 			-- ★★★ : cinquième vitesse
 			[3] = {
 				skin = SKIN,
@@ -1087,7 +1087,7 @@ Characters.List = {
 		attack = { kind = "ice", color = rgb(70, 170, 255), name = "Souffle de l'Eau" },
 		evolve = {
 			-- ★★ : marque du pourfendeur sur le front
-			[2] = { accessories = { "haori_checker", "earrings", "forehead_mark", "sword_hip" } },
+			[2] = { accessories = { "haori_checker", "earrings", "forehead_mark", "water_blade" } },
 			-- ★★★ : danse du dieu du feu (flammes autour du bras)
 			[3] = { accessories = { "haori_checker", "earrings", "forehead_mark", "sun_flames" }, markLarge = true, mouthStyle = "shout" },
 		},
@@ -1235,7 +1235,11 @@ Characters.List = {
 		attack = { kind = "flame", color = rgb(255, 140, 40), name = "Huile Ardente du Crapaud" },
 		evolve = {
 			-- ★★ : mode Ermite (pigments autour des yeux, verrues de crapaud)
-			[2] = { eyeShadow = rgb(255, 150, 60), eyes = rgb(240, 180, 40) },
+			[2] = {
+				eyeShadow = rgb(255, 150, 60),
+				eyes = rgb(240, 180, 40),
+				accessories = { "horned_headband", "sage_lines", "haori_jiriya", "scroll_back", "sage_toads" },
+			},
 			-- ★★★ : orbe spirale géant dans la main
 			[3] = {
 				accessories = { "horned_headband", "sage_lines", "haori_jiriya", "scroll_back", "energy_fists" },
@@ -1417,7 +1421,7 @@ Characters.List = {
 		attack = { kind = "flame", color = rgb(255, 120, 30), name = "Poing Ardent" },
 		evolve = {
 			-- ★★ : poings de feu
-			[2] = { accessories = { "cowboy_hat", "bead_necklace", "freckles", "energy_fists" }, energyColor = rgb(255, 120, 30) },
+			[2] = { accessories = { "cowboy_hat", "bead_necklace", "freckles", "energy_fists", "energy_aura" }, energyColor = rgb(255, 120, 30), armVeins = rgb(255, 140, 40) },
 			-- ★★★ : corps de flammes (les bras s'embrasent)
 			[3] = { accessories = { "cowboy_hat", "bead_necklace", "freckles", "sun_flames" }, fireBody = true },
 		},
@@ -1643,7 +1647,7 @@ Characters.Enemies = {
 			glowColor = rgb(176, 96, 255),
 			accessories = { "stitches_forehead", "stitch_crown", "kesa", "wide_sleeves", "gauge_earrings" },
 			accColor = rgb(60, 50, 80),
-			boss = { rim = rgb(196, 150, 255), light = rgb(226, 210, 255), aura = rgb(150, 80, 240), paintLight = 0.55 },
+			boss = { rim = rgb(196, 150, 255), light = rgb(226, 210, 255), aura = rgb(150, 80, 240), paintLight = 0.35 },
 		},
 	},
 
@@ -1744,7 +1748,7 @@ Characters.Enemies = {
 			gemColor = rgb(146, 62, 196),
 			accessories = { "freezo_gems", "freezo_tail" },
 			accColor = rgb(146, 62, 196),
-			boss = { rim = rgb(226, 180, 255), light = rgb(255, 240, 255), aura = rgb(196, 120, 255), paintLight = 0.6 },
+			boss = { rim = rgb(226, 180, 255), light = rgb(255, 240, 255), aura = rgb(196, 120, 255), paintLight = 0.35 },
 		},
 	},
 
@@ -1827,7 +1831,7 @@ Characters.Enemies = {
 			accessories = { "cap", "cap_badge", "justice_coat", "magma_fist" },
 			accColor = rgb(246, 246, 248),
 			capBand = rgb(40, 60, 140),
-			boss = { rim = rgb(255, 160, 90), light = rgb(255, 210, 170), aura = rgb(255, 100, 30), paintLight = 0.6 },
+			boss = { rim = rgb(255, 160, 90), light = rgb(255, 210, 170), aura = rgb(255, 100, 30), paintLight = 0.35 },
 		},
 	},
 
@@ -1917,7 +1921,7 @@ Characters.Enemies = {
 			beltColor = rgb(40, 50, 110),
 			accessories = { "tattoos_blue", "rope_belt", "compass_sigil" },
 			accColor = rgb(50, 80, 210),
-			boss = { rim = rgb(170, 225, 255), light = rgb(225, 238, 255), aura = rgb(130, 205, 255), paintLight = 0.4 },
+			boss = { rim = rgb(170, 225, 255), light = rgb(225, 238, 255), aura = rgb(130, 205, 255), paintLight = 0.35 },
 		},
 	},
 }

@@ -723,15 +723,14 @@ HAIR.spiky = function(ctx, c, look)
 		{ 80, 30, 0.56, 0.46 },
 	}, { scale = L, r = 0.34 })
 	-- Rang arrière : pointes couchées vers l'arrière et vers le bas (dessus du crâne vu de dos)
-	-- (deux rangs réguliers, en quinconce : 4 pointes en haut, 3 en dessous)
+	-- (deux rangs réguliers, en quinconce : 3 larges pointes en haut, 3 en dessous)
 	ctx.burst("Head", Vector3.new(0, base + 0.06, 0.1), Vector3.new(0.6, 0.32, 0.58), c, {
-		{ 34, 58, 0.58 * L, 0.5, nil, 0.05 },
-		{ 72, 58, 0.6 * L, 0.52, under, 0.05 },
-		{ 108, 58, 0.6 * L, 0.52, nil, 0.05 },
-		{ 146, 58, 0.58 * L, 0.5, under, 0.05 },
-		{ 53, 82, 0.54 * L, 0.5, nil, -0.22 },
-		{ 90, 82, 0.56 * L, 0.52, under, -0.22 },
-		{ 127, 82, 0.54 * L, 0.5, nil, -0.22 },
+		{ 38, 58, 0.6 * L, 0.56, nil, 0.05 },
+		{ 90, 58, 0.62 * L, 0.58, under, 0.05 },
+		{ 142, 58, 0.6 * L, 0.56, nil, 0.05 },
+		{ 60, 82, 0.56 * L, 0.54, under, -0.22 },
+		{ 120, 82, 0.56 * L, 0.54, under, -0.22 },
+		{ 90, 84, 0.5 * L, 0.5, nil, -0.3 },
 	}, { sink = 0.82 })
 	-- Petites pointes dans la nuque (sous le bandeau) : la nuque n'est jamais nue.
 	for i, a in { 35, 65, 90, 115, 145 } do
@@ -1214,7 +1213,15 @@ HAIR.wild_long = function(ctx, c, look)
 	for row = 0, 1 do
 		for i, x in { -0.4, -0.13, 0.13, 0.4 } do
 			local tone = (i + row) % 3 == 0 and shine or ((i + row) % 3 == 1 and c or under)
-			ctx.spike("Head", tone, Vector3.new(x, 0.35 - row * 0.3, 0.52 + row * 0.06), Vector3.new(x * 0.5, -1, 0.35), (1.0 + row * 0.35) * L, 0.56, { cross = false, thickness = 0.16 })
+			ctx.spike(
+				"Head",
+				tone,
+				Vector3.new(x, 0.35 - row * 0.3, 0.52 + row * 0.06),
+				Vector3.new(x * 0.5, -1, 0.35),
+				(1.0 + row * 0.35) * L,
+				0.56,
+				{ cross = false, thickness = 0.16 }
+			)
 		end
 	end
 end
@@ -1322,10 +1329,11 @@ HAIR.half_bun = function(ctx, c, look)
 		ctx.spike("Head", side < 0 and c or c:Lerp(shine, 0.4), Vector3.new(side * 0.06, 0.64, -0.54), Vector3.new(side, -0.7, 0.2), 0.5, 0.34, { cross = false, thickness = 0.11 })
 	end
 	-- La longue mèche qui tombe devant (côté droit du perso = gauche de l'écran), souple, en S
-	ctx.sleek("Head", c, Vector3.new(0.1, 0.66, -0.64), Vector3.new(0.12, -1, -0.12), 1.05, 0.22, {
-		facing = Vector3.new(0, 0, -1),
-		thickness = 0.09,
-		curl = Vector3.new(-0.18, 0, 0),
+	-- (sur le côté du front, le long de la tempe : elle ne barre plus le visage)
+	ctx.sleek("Head", c, Vector3.new(0.34, 0.66, -0.58), Vector3.new(0.1, -1, -0.1), 1.0, 0.18, {
+		facing = Vector3.new(0.4, 0, -1),
+		thickness = 0.08,
+		curl = Vector3.new(0.1, 0, 0),
 		shine = shine,
 	})
 	-- Vrai chignon rond + reflet + attache
@@ -2625,32 +2633,41 @@ end
 
 -- Poing de magma (amiral) : poing en lave incandescente, roche sombre, fumée et braises.
 ACC.magma_fist = function(ctx, look)
-	-- Poing de magma (amiral) : l'avant-bras et le poing sont recouverts de lave incandescente
-	-- (enveloppe Neon soudée à la main), croûtes de roche, gouttes, halo, fumée et braises.
+	-- Poing de magma (amiral) : une coque de lave (Neon) qui ÉPOUSE l'avant-bras et le poing
+	-- (à peine plus large que le bras, arêtes arrondies), plaques de roche refroidie, cœur plus
+	-- clair sur les jointures, coulures en cônes qui pendent sous le poing, lumière orange,
+	-- fumée et braises.
 	local lava = Color3.fromRGB(255, 104, 18)
 	local core = Color3.fromRGB(255, 196, 80)
-	local rock = Color3.fromRGB(70, 26, 16)
+	local rock = Color3.fromRGB(62, 24, 16)
 	local arm = "Right Arm"
 	local s = ctx.s
-	-- Coulée sur l'avant-bras (part du coude) puis le poing lui-même, à l'attache de la main
-	ctx.ball(arm, "MagmaSleeve", Vector3.new(1.14, 1.1, 1.14), CFrame.new(0, -0.45, 0), lava, { Material = Enum.Material.Neon })
-	local fist = ctx.ball(arm, "MagmaFist", Vector3.new(1.24, 1.0, 1.24), CFrame.new(0, -1.0, 0), lava, { Material = Enum.Material.Neon })
-	ctx.ball(arm, "MagmaCore", Vector3.new(0.8, 0.6, 0.5), CFrame.new(0, -1.02, -0.42), core, { Material = Enum.Material.Neon })
-	ctx.ball(
-		arm,
-		"MagmaGlow",
-		Vector3.new(1.7, 1.5, 1.7),
-		CFrame.new(0, -0.95, 0),
-		Color3.fromRGB(255, 140, 40),
-		{ Material = Enum.Material.Neon, Transparency = 0.72, CastShadow = false }
-	)
-	for i, e in { { -0.5, -0.5, -0.2, 0.42 }, { 0.5, -0.65, 0.2, 0.4 }, { -0.38, -1.25, 0.3, 0.38 }, { 0.42, -1.2, -0.3, 0.36 }, { 0.0, -0.3, 0.52, 0.4 } } do
-		ctx.ball(arm, "MagmaRock", Vector3.new(e[4], e[4] * 0.7, e[4]), CFrame.new(e[1], e[2], e[3]) * CFrame.Angles(i, i * 0.7, 0), rock, { Material = Enum.Material.Basalt })
+	local neon = { Material = Enum.Material.Neon }
+	-- Avant-bras : lave qui monte jusqu'au coude, puis le poing (un peu plus massif)
+	ctx.rounded(arm, "MagmaSleeve", Vector3.new(1.06, 0.9, 1.06), CFrame.new(0, -0.32, 0), lava, 0.22, neon)
+	local fist = ctx.rounded(arm, "MagmaFist", Vector3.new(1.12, 0.72, 1.12), CFrame.new(0, -0.98, 0), lava, 0.26, neon)
+	-- Jointures plus claires (cœur de la lave) sur l'avant du poing
+	ctx.ball(arm, "MagmaCore", Vector3.new(0.78, 0.2, 0.1), CFrame.new(0, -0.86, -0.57), core, neon)
+	-- Croûtes de roche refroidie, plaquées sur la coque
+	for i, e in { { -0.5, -0.45, -0.2, 0.42 }, { 0.5, -0.62, 0.2, 0.38 }, { -0.3, -0.12, 0.5, 0.4 }, { 0.36, -1.12, -0.4, 0.3 } } do
+		ctx.ball(
+			arm,
+			"MagmaRock",
+			Vector3.new(e[4], e[4] * 0.5, e[4]),
+			CFrame.new(e[1], e[2], e[3]) * CFrame.Angles(i * 0.4, i * 0.7, 0),
+			rock,
+			{ Material = Enum.Material.Basalt }
+		)
 	end
-	-- Gouttes qui tombent du poing
-	ctx.ball(arm, "MagmaDrip", Vector3.new(0.2, 0.36, 0.2), CFrame.new(0.15, -1.62, -0.1), lava, { Material = Enum.Material.Neon })
-	ctx.ball(arm, "MagmaDrip", Vector3.new(0.13, 0.26, 0.13), CFrame.new(-0.22, -1.58, 0.2), lava, { Material = Enum.Material.Neon })
-	ctx.ball(arm, "MagmaDrip", Vector3.new(0.1, 0.18, 0.1), CFrame.new(0.05, -1.9, 0.05), core, { Material = Enum.Material.Neon })
+	-- Coulures : cônes pointés vers le bas sous le poing
+	for _, e in { { 0.22, -0.1, 0.5, 0.26, lava }, { -0.24, 0.18, 0.38, 0.2, lava }, { 0.0, -0.28, 0.28, 0.16, core } } do
+		ctx.cone(arm, CFrame.new(e[1], -1.3, e[2]) * CFrame.Angles(math.pi, 0, 0), e[3], e[4], e[4], e[5], lava, nil, "MagmaDrip")
+	end
+	for _, d in ctx.model:GetChildren() do
+		if d.Name == "MagmaDrip" then
+			(d :: BasePart).Material = Enum.Material.Neon
+		end
+	end
 	local light = Instance.new("PointLight")
 	light.Name = "MagmaLight"
 	light.Color = Color3.fromRGB(255, 130, 50)
@@ -2684,17 +2701,21 @@ ACC.magma_fist = function(ctx, look)
 	local _ = look
 end
 
--- Manteau de la justice (amiral) porté sur les épaules : col relevé, manches vides,
--- « 正義 » (justice) dans le dos.
+-- Manteau de la justice (amiral) : il tombe en CAPE depuis les épaules (dos fin incliné vers
+-- l'arrière jusqu'aux mollets, « 正義 » dans le dos), épaulettes à franges dorées, col relevé,
+-- revers sur la poitrine, et des manches en coques ouvertes qui enveloppent les bras (soudées
+-- aux bras : elles suivent les mouvements). Bord doré partout.
 ACC.justice_coat = function(ctx, look)
-	-- Manteau de la justice porté sur les épaules (amiral) : dos avec « 正義 », épaulettes à
-	-- franges dorées, pans qui tombent jusqu'aux genoux en s'évasant, bord doré peint, col relevé.
 	local white = look.coatColor or Color3.fromRGB(246, 246, 248)
 	local gold = Color3.fromRGB(222, 176, 60)
 	local mode = ctx.paint == "parts" and "parts" or nil
-	local back = ctx.add("Torso", "Coat", Vector3.new(2.6, 3.6, 0.12), CFrame.new(0, -0.65, 0.68) * CFrame.Angles(0.08, 0, 0), white)
+	local h = 3.5
+	local back = ctx.add("Torso", "Coat", Vector3.new(2.9, h, 0.15), CFrame.new(0, 1.0, 0.6) * CFrame.Angles(-math.rad(8), 0, 0) * CFrame.new(0, -h / 2, 0), white)
 	Painter.panel(back, Enum.NormalId.Back, mode, white, function(S)
-		S:rect(0.5, 0.985, 1, S:dy(0.1), gold, { z = 3 })
+		S:rect(0.5, 1 - S:dy(0.06), 1, S:dy(0.12), gold, { gradient = { Color3.fromRGB(255, 220, 110), gold }, z = 3 })
+		for _, x in { S:dx(0.05), 1 - S:dx(0.05) } do
+			S:rect(x, 0.5, S:dx(0.1), 1, gold, { z = 3 })
+		end
 	end, { folds = true })
 	if mode ~= "parts" then
 		local gui = back:FindFirstChildOfClass("SurfaceGui")
@@ -2703,8 +2724,8 @@ ACC.justice_coat = function(ctx, look)
 			label.Name = "Justice"
 			label.BackgroundTransparency = 1
 			label.AnchorPoint = Vector2.new(0.5, 0.5)
-			label.Position = UDim2.fromScale(0.5, 0.3)
-			label.Size = UDim2.fromScale(0.8, 0.22)
+			label.Position = UDim2.fromScale(0.5, 0.26)
+			label.Size = UDim2.fromScale(0.8, 0.2)
 			label.Text = "正義"
 			label.TextScaled = true
 			label.Font = Enum.Font.GothamBlack
@@ -2716,37 +2737,39 @@ ACC.justice_coat = function(ctx, look)
 	-- Col relevé (deux pans inclinés derrière la nuque)
 	for _, side in { -1, 1 } do
 		ctx.add("Torso", "CoatCollar", Vector3.new(1.0, 0.62, 0.12), CFrame.new(side * 0.55, 1.22, 0.5) * CFrame.Angles(-0.3, side * 0.35, 0), white)
+		-- Revers sur la poitrine (de l'épaule vers le bas du torse), bord doré
+		local lapel = ctx.add("Torso", "CoatLapel", Vector3.new(0.34, 2.1, 0.1), CFrame.new(side * 0.83, -0.05, -0.56) * CFrame.Angles(0, 0, -side * 0.04), white)
+		Painter.panel(lapel, Enum.NormalId.Front, mode, white, function(S)
+			S:rect(side > 0 and S:dx(0.05) or 1 - S:dx(0.05), 0.5, S:dx(0.1), 1, gold, { z = 3 })
+		end, { folds = false, edges = false })
 	end
-	local tassels = {}
 	for _, side in { -1, 1 } do
 		-- Épaulette : plateau blanc, liseré doré, franges dorées qui pendent sur le bras
-		ctx.add("Torso", "CoatShoulder", Vector3.new(1.3, 0.2, 1.24), CFrame.new(side * 1.52, 1.1, 0.04), white)
-		ctx.add("Torso", "Epaulette", Vector3.new(0.98, 0.1, 0.98), CFrame.new(side * 1.56, 1.24, 0.02), gold, { Material = Enum.Material.Metal, Reflectance = 0.15 })
-		ctx.ball("Torso", "EpauletteKnob", Vector3.new(0.26, 0.16, 0.26), CFrame.new(side * 1.2, 1.3, -0.02), gold, { Material = Enum.Material.Metal })
+		ctx.add("Torso", "CoatShoulder", Vector3.new(1.24, 0.18, 1.24), CFrame.new(side * 1.5, 1.1, 0.04), white)
+		ctx.add("Torso", "Epaulette", Vector3.new(0.98, 0.1, 0.98), CFrame.new(side * 1.54, 1.22, 0.02), gold, { Material = Enum.Material.Metal, Reflectance = 0.15 })
+		ctx.ball("Torso", "EpauletteKnob", Vector3.new(0.26, 0.16, 0.26), CFrame.new(side * 1.2, 1.28, -0.02), gold, { Material = Enum.Material.Metal })
 		for i = -2, 2 do
-			table.insert(
-				tassels,
-				ctx.cyl("Torso", "EpauletteFringe", 0.34, 0.1, CFrame.new(side * 2.3, 0.98, i * 0.2) * CFrame.Angles(0, 0, math.pi / 2), gold, { Material = Enum.Material.Metal })
-			)
+			ctx.cyl("Torso", "EpauletteFringe", 0.3, 0.1, CFrame.new(side * 2.16, 0.98, i * 0.2) * CFrame.Angles(0, 0, math.pi / 2), gold, { Material = Enum.Material.Metal })
 		end
-		-- Manche vide sur le côté (profil du manteau)
-		local sleeve = ctx.add("Torso", "CoatSleeve", Vector3.new(0.14, 3.0, 1.12), CFrame.new(side * 2.16, -0.5, 0.2), white)
-		Painter.panel(sleeve, side < 0 and Enum.NormalId.Left or Enum.NormalId.Right, mode, white, nil, { folds = true })
-		-- Pan avant qui tombe de l'épaule aux genoux en s'évasant, bord doré peint. Côté gauche il
-		-- couvre le bras (porté sur les épaules) ; côté droit il s'ouvre pour laisser le poing de magma.
-		local open = side > 0 and has(look, "magma_fist")
-		local w = open and 0.5 or 1.3
-		local x0 = open and side * 2.18 or side * 1.58
-		local h = 3.55
-		local cf = CFrame.new(x0, 1.12, -0.6) * CFrame.Angles(0, 0, side * 0.07) * CFrame.new(0, -h / 2, 0)
-		local pan = ctx.add("Torso", "CoatPan", Vector3.new(w, h, 0.12), cf, white)
-		Painter.panel(pan, Enum.NormalId.Front, mode, white, function(S)
-			local edge = side > 0 and 1 - S:dx(0.07) or S:dx(0.07)
-			S:rect(edge, 0.5, S:dx(0.14), 1, gold, { gradient = { Color3.fromRGB(255, 220, 110), gold }, z = 3 })
-			S:rect(0.5, 1 - S:dy(0.05), 1, S:dy(0.1), gold, { z = 3 })
-		end, { folds = not open })
 	end
-	local _ = tassels
+	-- Manches : coques ouvertes (avant, arrière, côté extérieur) autour des bras, bord doré en bas.
+	-- Le bras du poing de magma a une manche courte (la lave monte jusqu'au coude).
+	for _, arm in { "Left Arm", "Right Arm" } do
+		local out = arm == "Left Arm" and -1 or 1
+		local len = (arm == "Right Arm" and has(look, "magma_fist")) and 0.95 or 1.55
+		local y = 1.02 - len / 2
+		local shells = {
+			{ "CoatSleeveShell", Vector3.new(1.18, len, 0.09), CFrame.new(out * 0.04, y, -0.56), Enum.NormalId.Front },
+			{ "CoatSleeveShell", Vector3.new(1.18, len, 0.09), CFrame.new(out * 0.04, y, 0.56), Enum.NormalId.Back },
+			{ "CoatSleeveShell", Vector3.new(0.09, len, 1.2), CFrame.new(out * 0.6, y, 0), out > 0 and Enum.NormalId.Right or Enum.NormalId.Left },
+		}
+		for _, e in shells do
+			local shell = ctx.add(arm, e[1], e[2], e[3], white)
+			Painter.panel(shell, e[4], mode, white, function(S)
+				S:rect(0.5, 1 - S:dy(0.07), 1, S:dy(0.14), gold, { z = 3 })
+			end, { folds = len > 1.2, edges = true })
+		end
+	end
 end
 
 -- Insigne de la casquette de marine (mouette blanche sur fond bleu).
@@ -2862,6 +2885,99 @@ local function sparkles(part: BasePart, color: Color3, s: number, rate: number?)
 	return emitter
 end
 
+-- Aura d'énergie (évolutions, boss) : PAS de plaques plantées derrière le perso. Une enveloppe
+-- invisible un peu plus grande que le corps émet des particules depuis sa SURFACE (elles
+-- entourent la silhouette au lieu de naître cachées dans le torse), flammes qui montent +
+-- étincelles, deux rayons (Beam) qui montent le long du corps, et une lumière.
+-- o = { texture ("fire" | "sparkles"), rate, beams (false = sans), light (false = sans), size }
+local FIRE_TEX = "rbxasset://textures/particles/fire_main.dds"
+local SPARKLES_TEX = "rbxasset://textures/particles/sparkles_main.dds"
+local function auraFx(ctx, color: Color3, o)
+	local opts = o or {}
+	local s = ctx.s
+	local hot = color:Lerp(WHITE, 0.45)
+	local shell = ctx.add("Torso", "AuraShell", Vector3.new(3.1, 5.2, 1.7), CFrame.new(0, -0.9, 0.1), WHITE, { Transparency = 1, CastShadow = false })
+	local flames = Instance.new("ParticleEmitter")
+	flames.Name = "AuraFlames"
+	flames.Texture = opts.texture == "sparkles" and SPARKLES_TEX or FIRE_TEX
+	flames.Color = ColorSequence.new(hot, color)
+	flames.LightEmission = 1
+	flames.LightInfluence = 0
+	flames.Shape = Enum.ParticleEmitterShape.Box
+	flames.ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface
+	flames.EmissionDirection = Enum.NormalId.Top
+	flames.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, (opts.size or 0.9) * s),
+		NumberSequenceKeypoint.new(0.6, (opts.size or 0.9) * 0.7 * s),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	flames.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) })
+	flames.Lifetime = NumberRange.new(0.45, 0.85)
+	flames.Rate = opts.rate or 34
+	flames.Speed = NumberRange.new(1.5 * s, 3 * s)
+	flames.SpreadAngle = Vector2.new(12, 12)
+	flames.Acceleration = Vector3.new(0, 2 * s, 0)
+	flames.Parent = shell
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.Name = "AuraSparks"
+	sparks.Texture = SPARKLES_TEX
+	sparks.Color = ColorSequence.new(WHITE, hot)
+	sparks.LightEmission = 1
+	sparks.LightInfluence = 0
+	sparks.Shape = Enum.ParticleEmitterShape.Box
+	sparks.ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface
+	sparks.EmissionDirection = Enum.NormalId.Top
+	sparks.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35 * s), NumberSequenceKeypoint.new(1, 0) })
+	sparks.Lifetime = NumberRange.new(0.4, 0.8)
+	sparks.Rate = 12
+	sparks.Speed = NumberRange.new(2 * s, 4 * s)
+	sparks.Parent = shell
+	if opts.beams ~= false then
+		-- Deux rayons qui montent le long du corps (des mollets au-dessus de la tête)
+		for _, side in { -1, 1 } do
+			local a0 = Instance.new("Attachment")
+			a0.Name = "AuraBeamFrom"
+			a0.Position = Vector3.new(side * 1.25, -2.4, 0.35) * s
+			a0.Parent = shell
+			local a1 = Instance.new("Attachment")
+			a1.Name = "AuraBeamTo"
+			a1.Position = Vector3.new(side * 0.85, 3.4, 0.35) * s
+			a1.Parent = shell
+			local beam = Instance.new("Beam")
+			beam.Name = "AuraBeam"
+			beam.Attachment0 = a0
+			beam.Attachment1 = a1
+			beam.Texture = FIRE_TEX
+			beam.TextureMode = Enum.TextureMode.Stretch
+			beam.TextureSpeed = 1.6
+			beam.Color = ColorSequence.new(color, hot)
+			beam.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(0.3, 0.45),
+				NumberSequenceKeypoint.new(0.75, 0.55),
+				NumberSequenceKeypoint.new(1, 1),
+			})
+			beam.Width0 = 1.1 * s
+			beam.Width1 = 0.3 * s
+			beam.LightEmission = 1
+			beam.LightInfluence = 0
+			beam.FaceCamera = true
+			beam.Segments = 8
+			beam.CurveSize0 = side * 0.6 * s
+			beam.Parent = shell
+		end
+	end
+	if opts.light ~= false then
+		glowLight(ctx.limbs.Torso, color, 12 * s, 1.4)
+	end
+	return shell
+end
+
+-- Aura d'énergie générique (look.auraColor, sinon look.energyColor)
+ACC.energy_aura = function(ctx, look)
+	auraFx(ctx, look.auraColor or look.energyColor or Color3.fromRGB(110, 170, 255))
+end
+
 -- Boule d'énergie tenue DANS la main (soudée à l'attache de la main, CFrame (0, -1.1, 0) du
 -- bras) : cœur blanc, sphère Neon, enveloppe translucide plus grande, lumière.
 local function handOrb(ctx, arm: string, name: string, color: Color3, size: number, core: Color3?)
@@ -2926,24 +3042,89 @@ end
 -- Super Saiyan 3 : flammes d'aura dorées autour du corps (lames Neon translucides), lumière et
 -- étincelles : le perso est cerné d'un liseré doré lumineux.
 ACC.ssj_aura = function(ctx, look)
+	-- Aura de super guerrier : flammes dorées (ou couleur de l'aura) qui montent autour du corps
 	local gold = look.auraColor or Color3.fromRGB(255, 214, 80)
-	ctx.style = { Material = Enum.Material.Neon, Transparency = 0.62, CastShadow = false }
-	local flames = {
-		{ -1.9, -1.2, 0.4, 2.6, -0.25 },
-		{ 1.9, -1.2, 0.4, 2.6, 0.25 },
-		{ -1.6, 0.6, 0.5, 2.0, -0.4 },
-		{ 1.6, 0.6, 0.5, 2.0, 0.4 },
-		{ -0.8, 1.4, 0.7, 1.8, -0.15 },
-		{ 0.8, 1.4, 0.7, 1.8, 0.15 },
-		{ 0, -2.2, 0.6, 1.2, 0 },
-	}
-	for _, f in flames do
-		ctx.blade("Torso", gold, CFrame.new(f[1], f[2], f[3]) * CFrame.Angles(0, 0, -f[5]), f[4], 0.9, 0.06, "AuraFlame")
+	local shell = auraFx(ctx, gold, { rate = 40 })
+	shell.Name = "SuperSaiyanAura"
+	local light = ctx.limbs.Torso:FindFirstChild("EvolutionGlow")
+	if light then
+		light.Name = "SuperSaiyanGlow"
 	end
-	ctx.style = nil
-	local light = glowLight(ctx.limbs.Torso, gold, 12 * ctx.s, 1.6)
-	light.Name = "SuperSaiyanGlow"
-	sparkles(ctx.limbs.Torso, gold, ctx.s, 14)
+end
+
+-- Souffle de l'Eau : sabre dégainé dans la main droite, lame bleu nuit au fil clair, et la
+-- vague qui s'enroule autour de la lame (rayons Beam bleus + gouttes).
+ACC.water_blade = function(ctx, look)
+	local water = look.energyColor or Color3.fromRGB(70, 170, 255)
+	local arm = "Right Arm"
+	local grip = CFrame.new(0, -1.05, -0.05) * CFrame.Angles(math.rad(-58), 0, 0)
+	ctx.add(arm, "WaterTsuka", Vector3.new(0.13, 0.7, 0.18), grip * CFrame.new(0, 0.1, 0), Color3.fromRGB(30, 30, 34))
+	ctx.cyl(arm, "WaterTsuba", 0.06, 0.42, grip * CFrame.new(0, 0.48, 0) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(40, 38, 42), { Material = Enum.Material.Metal })
+	local bladeCf = grip * CFrame.new(0, 0.5 + 1.25, 0)
+	local blade = ctx.add(arm, "WaterBlade", Vector3.new(0.05, 2.5, 0.18), bladeCf, Color3.fromRGB(30, 34, 52), { Material = Enum.Material.Metal, Reflectance = 0.3 })
+	ctx.add(arm, "WaterEdge", Vector3.new(0.055, 2.5, 0.04), bladeCf * CFrame.new(0, 0, -0.1), Color3.fromRGB(200, 236, 255), { Material = Enum.Material.Neon })
+	-- Vague : deux rayons courbes de la garde à la pointe, de part et d'autre de la lame
+	for i, side in { -1, 1 } do
+		local a0 = Instance.new("Attachment")
+		a0.Name = "WaveFrom"
+		a0.Position = Vector3.new(0, -1.2, 0) * ctx.s
+		a0.Parent = blade
+		local a1 = Instance.new("Attachment")
+		a1.Name = "WaveTo"
+		a1.Position = Vector3.new(0, 1.35, side * 0.1) * ctx.s
+		a1.Parent = blade
+		local beam = Instance.new("Beam")
+		beam.Name = "WaterWave"
+		beam.Attachment0 = a0
+		beam.Attachment1 = a1
+		beam.Color = ColorSequence.new(Color3.fromRGB(150, 220, 255), water)
+		beam.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(0.4, 0.3), NumberSequenceKeypoint.new(1, 0.85) })
+		beam.Width0 = 0.25 * ctx.s
+		beam.Width1 = 0.6 * ctx.s
+		beam.CurveSize0 = side * 0.9 * ctx.s
+		beam.CurveSize1 = -side * 0.7 * ctx.s
+		beam.Segments = 12
+		beam.LightEmission = 0.8
+		beam.LightInfluence = 0.2
+		beam.FaceCamera = true
+		beam.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		beam.TextureSpeed = 2 + i
+		beam.Parent = blade
+	end
+	local drops = Instance.new("ParticleEmitter")
+	drops.Name = "WaterDrops"
+	drops.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	drops.Color = ColorSequence.new(Color3.fromRGB(220, 245, 255), water)
+	drops.LightEmission = 0.7
+	drops.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3 * ctx.s), NumberSequenceKeypoint.new(1, 0) })
+	drops.Lifetime = NumberRange.new(0.4, 0.8)
+	drops.Rate = 14
+	drops.Speed = NumberRange.new(0.6 * ctx.s, 1.4 * ctx.s)
+	drops.SpreadAngle = Vector2.new(180, 180)
+	drops.Acceleration = Vector3.new(0, -3 * ctx.s, 0)
+	drops.Parent = blade
+	glowLight(blade, water, 8 * ctx.s, 1.2)
+	local _ = look
+end
+
+-- Mode Ermite : les deux vieux crapauds sages perchés sur les épaules (corps trapu vert-gris,
+-- gros yeux, petite cape, sourcils blancs).
+ACC.sage_toads = function(ctx, look)
+	local skins = { Color3.fromRGB(122, 140, 96), Color3.fromRGB(146, 150, 104) }
+	local capes = { Color3.fromRGB(150, 40, 40), Color3.fromRGB(220, 200, 140) }
+	for i, side in { -1, 1 } do
+		local skin = skins[i]
+		local at = CFrame.new(side * 1.5, 1.3, 0.05)
+		ctx.ball("Torso", "ToadBody", Vector3.new(0.82, 0.6, 0.72), at * CFrame.new(0, 0.28, 0), skin)
+		ctx.ball("Torso", "ToadBelly", Vector3.new(0.6, 0.42, 0.3), at * CFrame.new(0, 0.22, -0.26), skin:Lerp(Color3.fromRGB(236, 226, 190), 0.6))
+		ctx.ball("Torso", "ToadCape", Vector3.new(0.9, 0.36, 0.7), at * CFrame.new(0, 0.42, 0.08), capes[i])
+		for _, e in { -1, 1 } do
+			ctx.ball("Torso", "ToadEye", Vector3.new(0.24, 0.24, 0.2), at * CFrame.new(e * 0.2, 0.62, -0.18), Color3.fromRGB(250, 246, 220))
+			ctx.ball("Torso", "ToadPupil", Vector3.new(0.12, 0.06, 0.06), at * CFrame.new(e * 0.2, 0.62, -0.28), Color3.fromRGB(30, 26, 20))
+			ctx.ball("Torso", "ToadBrow", Vector3.new(0.2, 0.06, 0.08), at * CFrame.new(e * 0.22, 0.76, -0.18) * CFrame.Angles(0, 0, -e * 0.3), WHITE)
+		end
+	end
+	local _ = look
 end
 
 -- Danse du dieu du feu : sabre noir dégainé dans la main droite, embrasé (flammes Neon
@@ -3034,6 +3215,8 @@ ACC.steam = function(ctx, look)
 	emitter.Rate = 10
 	emitter.Speed = NumberRange.new(1 * ctx.s, 2 * ctx.s)
 	emitter.SpreadAngle = Vector2.new(60, 60)
+	emitter.Shape = Enum.ParticleEmitterShape.Box
+	emitter.ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface
 	emitter.Parent = ctx.limbs.Torso
 end
 
@@ -3046,46 +3229,57 @@ bossKit = function(ctx, look)
 	local spec = look.boss
 	local model, s = ctx.model, ctx.s
 	local rim = spec.rim or WHITE
+	-- Liseré lumineux : CONTOUR seul (un remplissage coloré délavait la peinture et la peau)
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "BossRim"
 	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
 	highlight.FillColor = rim
-	highlight.FillTransparency = spec.fill or 0.88
+	highlight.FillTransparency = 1
 	highlight.OutlineColor = rim
-	highlight.OutlineTransparency = spec.outline or 0.2
+	highlight.OutlineTransparency = spec.outline or 0.3
 	highlight.Parent = model
+	-- Halo de la couleur de l'univers autour du corps (discret)
 	local glow = Instance.new("PointLight")
 	glow.Name = "BossGlow"
 	glow.Color = spec.light or rim
-	glow.Brightness = spec.brightness or 0.9
+	glow.Brightness = spec.brightness or 0.5
 	glow.Range = math.min(60, 7 * s)
 	glow.Shadows = false
 	glow.Parent = ctx.limbs.Torso
-	-- Lumière de face (invisible, devant la poitrine)
+	-- Lumière de face blanc chaud (pas la couleur de l'univers : la peau garde sa couleur), sur
+	-- une pièce invisible devant la poitrine
+	local warm = Color3.fromRGB(255, 240, 225)
 	local key = ctx.add("Torso", "BossKeyLight", Vector3.new(0.2, 0.2, 0.2), CFrame.new(0, 1.2, -3), WHITE, { Transparency = 1, CastShadow = false })
 	local front = Instance.new("PointLight")
 	front.Name = "BossKey"
-	front.Color = spec.light or rim
-	front.Brightness = spec.keyBrightness or 0.7
+	front.Color = warm
+	front.Brightness = spec.keyBrightness or 0.8
 	front.Range = math.min(60, 6 * s)
 	front.Shadows = false
 	front.Parent = key
+	-- Lumière douce sous le visage : éclaire le visage de face et d'un peu en dessous (un
+	-- visage de boss ne doit jamais être une tache sombre sous ses cheveux)
+	local chin = ctx.add(
+		"Torso",
+		"BossFaceLight",
+		Vector3.new(0.6, 0.6, 0.1),
+		CFrame.new(0, 1.0, -2.2) * CFrame.Angles(math.rad(-25), 0, 0),
+		WHITE,
+		{ Transparency = 1, CastShadow = false }
+	)
+	local faceLight = Instance.new("SurfaceLight")
+	faceLight.Name = "BossFaceLight"
+	faceLight.Face = Enum.NormalId.Back
+	faceLight.Angle = 70
+	faceLight.Color = warm
+	faceLight.Brightness = 0.4
+	faceLight.Range = math.min(40, 4 * s)
+	faceLight.Shadows = false
+	faceLight.Parent = chin
 	if spec.aura then
-		local aura = Instance.new("ParticleEmitter")
-		aura.Name = "BossAura"
-		aura.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-		aura.Color = ColorSequence.new(spec.aura)
-		aura.LightEmission = 1
-		aura.LightInfluence = 0
-		aura.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5 * s), NumberSequenceKeypoint.new(1, 0) })
-		aura.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(1, 1) })
-		aura.Lifetime = NumberRange.new(0.8, 1.4)
-		aura.Rate = 16
-		aura.Speed = NumberRange.new(0.6 * s, 1.4 * s)
-		aura.SpreadAngle = Vector2.new(40, 40)
-		aura.Acceleration = Vector3.new(0, 1.2 * s, 0)
-		aura.EmissionDirection = Enum.NormalId.Top
-		aura.Parent = ctx.limbs.Torso
+		-- Aura de particules autour de la silhouette (émise depuis une enveloppe invisible)
+		local shell = auraFx(ctx, spec.aura, { texture = "sparkles", rate = 22, beams = false, light = false, size = 0.7 })
+		shell.Name = "BossAura"
 	end
 	for _, d in model:GetDescendants() do
 		if d:IsA("SurfaceGui") then
@@ -3207,9 +3401,12 @@ end
 
 ------------------------------------------------------------------------
 -- Variétés (mutations) : la rareté de BASE du perso ne change pas, la variété se voit en plus,
--- sur TOUT le perso : cheveux (teinte, matière), tenue (voile coloré peint par-dessus les
--- SurfaceGui : doré, glacé, étoilé, pétales...), matière des pièces de la tenue (Foil, Glass...),
--- particules propres à la variété, et pièces en plus (auréole, ailes, fleur).
+-- sur TOUT le perso, sans noyer la peinture : les couleurs de chaque forme peinte sont
+-- re-teintées (dégradé de teinte selon la luminosité, mélangé à 50 % : les traits encrés, les
+-- plis et les ombres restent lisibles), quelques reflets fins en diagonale pour l'Or et le
+-- Diamant ; cheveux et accessoires changent de couleur ET de matière (or poli Foil, cristal
+-- Glass) ; particules propres à la variété ; pièces en plus (auréole, ailes, fleur) ; liseré
+-- coloré (Highlight, contour seul) pour l'Ombre et l'Arc-en-ciel.
 ------------------------------------------------------------------------
 
 local VARIETY_ALIASES = {
@@ -3238,37 +3435,41 @@ local rgb = Color3.fromRGB
 local SPARK = "rbxasset://textures/particles/sparkles_main.dds"
 local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
 
--- hair/mix : teinte des cheveux ; tint = voile de la tenue (couleurs du dégradé, transparences,
--- rotation) ; body = teinte/matière des pièces de la tenue ; fx = particules ; motif = "stars" |
--- "petals" | "glint" peint sur le torse.
+-- hair/mix : teinte des cheveux (+ matière) ; acc = couleur/matière des accessoires ;
+-- ramp/rampMix = teinte de la peinture (sombre, moyen, clair selon la luminosité) ;
+-- desat/dim = peinture et peau désaturées/assombries ; glint = reflets fins en diagonale ;
+-- motif = "stars" | "petals" sur le torse ; outline = liseré (Highlight) ; fx = particules.
 local VARIETIES = {
 	gold = {
-		hair = rgb(255, 196, 56),
-		mix = 0.75,
-		material = Enum.Material.Metal,
+		hair = rgb(232, 181, 48),
+		mix = 0.8,
+		material = Enum.Material.Foil,
 		reflectance = 0.25,
-		tint = { { rgb(255, 240, 160), rgb(255, 196, 60), rgb(190, 130, 25) }, { 0.32, 0.28, 0.24 }, 90 },
-		body = { color = rgb(255, 190, 50), mix = 0.55, material = Enum.Material.Foil, reflectance = 0.18 },
-		motif = "glint",
+		acc = { color = rgb(232, 181, 48), mix = 0.78, material = Enum.Material.Foil, reflectance = 0.25 },
+		ramp = { rgb(110, 66, 12), rgb(236, 178, 46), rgb(255, 240, 168) },
+		rampMix = 0.62,
+		glint = true,
 		fx = { texture = SPARK, colors = { rgb(255, 230, 120), rgb(255, 170, 30) }, size = 0.32, rate = 10, light = rgb(255, 210, 110) },
 	},
 	diamond = {
-		hair = rgb(196, 242, 255),
-		mix = 0.8,
+		hair = rgb(191, 239, 255),
+		mix = 0.82,
 		material = Enum.Material.Glass,
-		reflectance = 0.35,
-		transparency = 0.08,
-		tint = { { rgb(205, 245, 255), rgb(90, 190, 255), rgb(205, 245, 255) }, { 0.3, 0.4, 0.3 }, 45 },
-		body = { color = rgb(170, 230, 255), mix = 0.5, material = Enum.Material.Glass, reflectance = 0.3 },
-		motif = "glint",
+		reflectance = 0.3,
+		transparency = 0.05,
+		acc = { color = rgb(191, 239, 255), mix = 0.72, material = Enum.Material.Glass, reflectance = 0.3 },
+		ramp = { rgb(30, 70, 120), rgb(120, 200, 245), rgb(232, 250, 255) },
+		rampMix = 0.58,
+		glint = true,
 		fx = { texture = SPARK, colors = { rgb(255, 255, 255), rgb(150, 230, 255) }, size = 0.28, rate = 9, light = rgb(170, 230, 255) },
 	},
 	sakura = {
 		hair = rgb(255, 168, 204),
 		mix = 0.6,
 		flower = true,
-		tint = { { rgb(255, 214, 230), rgb(255, 160, 200), rgb(255, 214, 230) }, { 0.55, 0.5, 0.45 }, 90 },
-		body = { color = rgb(255, 170, 205), mix = 0.35 },
+		acc = { color = rgb(255, 176, 208), mix = 0.45 },
+		ramp = { rgb(120, 44, 80), rgb(250, 146, 188), rgb(255, 228, 240) },
+		rampMix = 0.4,
 		motif = "petals",
 		fx = { texture = SPARK, colors = { rgb(255, 200, 222), rgb(255, 140, 190) }, size = 0.34, rate = 7, fall = true },
 	},
@@ -3277,15 +3478,19 @@ local VARIETIES = {
 		mix = 0.82,
 		halo = true,
 		wings = true,
-		tint = { { rgb(255, 255, 250), rgb(255, 248, 220), rgb(255, 226, 150) }, { 0.45, 0.5, 0.45 }, 90 },
-		body = { color = rgb(255, 252, 240), mix = 0.45 },
+		acc = { color = rgb(255, 246, 225), mix = 0.55 },
+		ramp = { rgb(150, 120, 70), rgb(255, 236, 190), rgb(255, 255, 250) },
+		rampMix = 0.42,
 		fx = { texture = SPARK, colors = { rgb(255, 250, 220), rgb(255, 220, 130) }, size = 0.3, rate = 8, light = rgb(255, 240, 190) },
 	},
 	shadow = {
 		hair = rgb(36, 20, 56),
 		mix = 0.7,
-		tint = { { rgb(120, 50, 210), rgb(14, 10, 22), rgb(14, 10, 22), rgb(120, 50, 210) }, { 0.3, 0.22, 0.22, 0.3 }, 0 },
-		body = { color = rgb(24, 16, 36), mix = 0.65 },
+		acc = { color = rgb(40, 26, 60), mix = 0.5 },
+		desat = 0.35,
+		dim = 0.25,
+		skin = true,
+		outline = rgb(150, 70, 255),
 		fx = { texture = SMOKE, colors = { rgb(60, 30, 100), rgb(10, 6, 18) }, size = 0.9, rate = 6, smoke = true },
 	},
 	galaxy = {
@@ -3293,18 +3498,16 @@ local VARIETIES = {
 		mix = 0.7,
 		material = Enum.Material.Neon,
 		neonHalf = true,
-		tint = { { rgb(30, 14, 70), rgb(100, 40, 170), rgb(20, 10, 55) }, { 0.28, 0.3, 0.28 }, 60 },
-		body = { color = rgb(40, 24, 100), mix = 0.6 },
+		acc = { color = rgb(60, 36, 130), mix = 0.6 },
+		ramp = { rgb(14, 8, 40), rgb(80, 40, 160), rgb(196, 170, 255) },
+		rampMix = 0.55,
 		motif = "stars",
 		fx = { texture = SPARK, colors = { rgb(255, 255, 255), rgb(190, 150, 255) }, size = 0.22, rate = 10, light = rgb(150, 100, 255) },
 	},
 	rainbow = {
+		-- Seulement les cheveux (chaque mèche d'une couleur) et le contour : la tenue reste intacte
 		rainbow = true,
-		tint = {
-			{ rgb(255, 90, 90), rgb(255, 210, 80), rgb(110, 230, 120), rgb(90, 170, 255), rgb(200, 110, 255) },
-			{ 0.5, 0.5, 0.5, 0.5, 0.5 },
-			45,
-		},
+		outline = rgb(255, 150, 230),
 		fx = { texture = SPARK, colors = { rgb(255, 90, 90), rgb(255, 230, 80), rgb(90, 200, 255), rgb(210, 110, 255) }, size = 0.3, rate = 10 },
 	},
 	frost = { hair = rgb(170, 230, 255), mix = 0.45, material = Enum.Material.Ice },
@@ -3319,7 +3522,7 @@ local function isHair(part: BasePart): boolean
 	return string.sub(n, 1, 4) == "Hair" or n == "Bun" or n == "BunShine" or n == "Knot" or n == "Cranium"
 end
 
-local LIMBS = { Head = true, HumanoidRootPart = true }
+local LIMB_NAMES = { Torso = true, ["Left Arm"] = true, ["Right Arm"] = true, ["Left Leg"] = true, ["Right Leg"] = true }
 
 local function sequence(colors: { Color3 }): ColorSequence
 	local keys = {}
@@ -3343,24 +3546,49 @@ local function numbers(values: { number }): NumberSequence
 	return NumberSequence.new(keys)
 end
 
--- Voile coloré par-dessus une face peinte (+ motif sur le torse).
-local function tintGui(gui: SurfaceGui, spec, motif: string?)
-	local veil = Instance.new("Frame")
-	veil.Name = "VarietyTint"
-	veil.Size = UDim2.fromScale(1, 1)
-	veil.BackgroundColor3 = Color3.new(1, 1, 1)
-	veil.BorderSizePixel = 0
-	veil.ZIndex = 60
-	local gradient = Instance.new("UIGradient")
-	gradient.Color = sequence(spec.tint[1])
-	gradient.Transparency = numbers(spec.tint[2])
-	gradient.Rotation = spec.tint[3] or 90
-	gradient.Parent = veil
-	veil.Parent = gui
-	if not motif then
-		return
+-- Teinte d'une couleur selon la variété : dégradé de teinte choisi par la luminosité (les
+-- encres restent sombres, les reflets clairs), mélangé à la couleur d'origine ; ou désaturation.
+local function luminance(c: Color3): number
+	return 0.3 * c.R + 0.59 * c.G + 0.11 * c.B
+end
+
+local function tintColor(c: Color3, spec): Color3
+	if spec.ramp then
+		local l = luminance(c)
+		local ramp = spec.ramp
+		local target = l < 0.5 and ramp[1]:Lerp(ramp[2], l / 0.5) or ramp[2]:Lerp(ramp[3], (l - 0.5) / 0.5)
+		c = c:Lerp(target, spec.rampMix or 0.5)
 	end
-	local function dot(x: number, y: number, w: number, h: number, color: Color3, transparency: number, rotation: number?)
+	if spec.desat then
+		local l = luminance(c)
+		c = c:Lerp(Color3.new(l, l, l), spec.desat):Lerp(Color3.new(0.05, 0.03, 0.08), spec.dim or 0)
+	end
+	return c
+end
+
+-- Re-teinte toutes les formes d'une face peinte (+ reflets ou motif sur le torse).
+local function tintGui(gui: SurfaceGui, spec, onTorso: boolean)
+	for _, f in gui:GetDescendants() do
+		if f:IsA("Frame") then
+			local gradient = f:FindFirstChildOfClass("UIGradient")
+			if gradient then
+				-- Dégradé : c'est lui qui porte les couleurs (fond blanc multiplié)
+				local keys = {}
+				for _, k in gradient.Color.Keypoints do
+					table.insert(keys, ColorSequenceKeypoint.new(k.Time, tintColor(k.Value, spec)))
+				end
+				gradient.Color = ColorSequence.new(keys)
+				if f.BackgroundColor3 ~= Color3.new(1, 1, 1) then
+					f.BackgroundColor3 = tintColor(f.BackgroundColor3, spec)
+				end
+			else
+				f.BackgroundColor3 = tintColor(f.BackgroundColor3, spec)
+			end
+		elseif f:IsA("UIStroke") then
+			f.Color = tintColor(f.Color, spec)
+		end
+	end
+	local function dot(x: number, y: number, w: number, h: number, color: Color3, transparency: number, rotation: number?, round: boolean?)
 		local f = Instance.new("Frame")
 		f.Name = "VarietyMotif"
 		f.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -3371,12 +3599,25 @@ local function tintGui(gui: SurfaceGui, spec, motif: string?)
 		f.BorderSizePixel = 0
 		f.Rotation = rotation or 0
 		f.ZIndex = 61
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0.5, 0)
-		corner.Parent = f
+		if round ~= false then
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(0.5, 0)
+			corner.Parent = f
+		end
 		f.Parent = gui
 	end
-	if motif == "stars" then
+	if spec.glint and (onTorso or gui.Face == Enum.NormalId.Front) then
+		-- Reflets fins en diagonale (métal poli / cristal) : 3 sur le torse, 2 ailleurs
+		dot(0.3, 0.45, 0.05, 1.5, Color3.new(1, 1, 1), 0.6, 32, false)
+		dot(0.42, 0.5, 0.022, 1.5, Color3.new(1, 1, 1), 0.6, 32, false)
+		if onTorso then
+			dot(0.78, 0.55, 0.03, 1.5, Color3.new(1, 1, 1), 0.65, 32, false)
+		end
+	end
+	if not onTorso then
+		return
+	end
+	if spec.motif == "stars" then
 		-- Ciel étoilé : points blancs de tailles variées, deux étoiles en croix
 		local stars = { { 0.15, 0.2, 0.05 }, { 0.72, 0.14, 0.035 }, { 0.42, 0.42, 0.03 }, { 0.85, 0.55, 0.045 }, { 0.25, 0.7, 0.035 }, { 0.6, 0.82, 0.05 }, { 0.5, 0.12, 0.025 } }
 		for _, st in stars do
@@ -3386,17 +3627,13 @@ local function tintGui(gui: SurfaceGui, spec, motif: string?)
 			dot(p[1], p[2], 0.11, 0.018, Color3.fromRGB(230, 220, 255), 0.1)
 			dot(p[1], p[2], 0.018, 0.11, Color3.fromRGB(230, 220, 255), 0.1)
 		end
-	elseif motif == "petals" then
+	elseif spec.motif == "petals" then
 		-- Pétales de cerisier qui tombent
 		local petals = { { 0.18, 0.18, 30 }, { 0.7, 0.28, -20 }, { 0.4, 0.55, 60 }, { 0.82, 0.72, 15 }, { 0.22, 0.82, -40 } }
 		for _, p in petals do
 			dot(p[1], p[2], 0.14, 0.08, Color3.fromRGB(255, 196, 220), 0.1, p[3])
 			dot(p[1] + 0.02, p[2] - 0.005, 0.06, 0.03, Color3.fromRGB(255, 240, 246), 0.2, p[3])
 		end
-	elseif motif == "glint" then
-		-- Reflet en diagonale (métal poli / cristal)
-		dot(0.35, 0.45, 0.16, 1.4, Color3.new(1, 1, 1), 0.72, 30)
-		dot(0.6, 0.5, 0.05, 1.4, Color3.new(1, 1, 1), 0.78, 30)
 	end
 end
 
@@ -3417,6 +3654,9 @@ local function varietyFx(torso: BasePart, fx, s: number)
 	emitter.Rotation = NumberRange.new(0, 360)
 	emitter.RotSpeed = NumberRange.new(-90, 90)
 	emitter.Acceleration = Vector3.new(0, (fx.fall and -1.2 or 0.8) * s, 0)
+	-- Depuis la SURFACE du torse (nées dans le volume, elles restaient cachées dedans)
+	emitter.Shape = Enum.ParticleEmitterShape.Box
+	emitter.ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface
 	emitter.Parent = torso
 	if fx.light then
 		local light = Instance.new("PointLight")
@@ -3451,6 +3691,7 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 	local torso = model:FindFirstChild("Torso") :: BasePart?
 	local i = 0
 	local guis = {}
+	local paints = spec.ramp ~= nil or spec.desat ~= nil
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") and isHair(d) then
 			i += 1
@@ -3468,39 +3709,45 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 					d.Transparency = spec.transparency
 				end
 			end
-		elseif d:IsA("BasePart") and spec.tint then
-			-- Tenue : pièces des vêtements et accessoires (pas la tête : le visage garde sa peau ;
-			-- pas les effets lumineux ni les pièces invisibles)
-			local body = spec.body
-			local isPaint = d.Name == "Paint"
-			if not LIMBS[d.Name] and d.Name ~= "FacePlate" and d.Transparency < 0.9 and d.Material ~= Enum.Material.Neon then
-				local parentIsHead = false
-				local weld = d:FindFirstChildOfClass("Weld")
-				if weld and weld.Part0 == head and isPaint then
-					parentIsHead = true
+		elseif d:IsA("BasePart") and d.Name ~= "HumanoidRootPart" and d.Name ~= "FacePlate" and d.Transparency < 0.9 and d.Material ~= Enum.Material.Neon then
+			local painted = d:FindFirstChildOfClass("SurfaceGui") ~= nil
+			if d.Name == "Head" then
+				-- Peau : seulement l'Ombre (désaturée)
+				if spec.skin then
+					d.Color = tintColor(d.Color, spec)
 				end
-				if not parentIsHead then
-					if spec.rainbow then
-						i += 1
-						d.Color = d.Color:Lerp(Color3.fromHSV((i * 0.11) % 1, 0.6, 1), 0.35)
-					elseif body then
-						d.Color = d.Color:Lerp(body.color, body.mix)
-						if body.material and not isPaint then
-							d.Material = body.material
-						end
-						if body.reflectance and not isPaint then
-							d.Reflectance = body.reflectance
-						end
-					end
+			elseif painted or LIMB_NAMES[d.Name] then
+				-- Membres et pièces peintes : même teinte que leur peinture (vue de loin)
+				if paints then
+					d.Color = tintColor(d.Color, spec)
+				end
+			elseif spec.acc then
+				-- Accessoires en relief : couleur et matière de la variété
+				d.Color = d.Color:Lerp(spec.acc.color, spec.acc.mix)
+				if spec.acc.material then
+					d.Material = spec.acc.material
+				end
+				if spec.acc.reflectance then
+					d.Reflectance = spec.acc.reflectance
 				end
 			end
-		elseif d:IsA("SurfaceGui") and spec.tint and d.Name ~= "Face" then
+		elseif d:IsA("SurfaceGui") and paints and not d:GetAttribute("LodNear") and (d.Name ~= "Face" or spec.skin) then
 			table.insert(guis, d)
 		end
 	end
 	for _, gui in guis do
 		local onTorso = gui.Parent == torso and (gui.Face == Enum.NormalId.Front or gui.Face == Enum.NormalId.Back)
-		tintGui(gui, spec, onTorso and spec.motif or nil)
+		tintGui(gui, spec, onTorso)
+	end
+	if spec.outline then
+		-- Liseré coloré (contour seul, sans remplissage : la peinture reste nette)
+		local rim = Instance.new("Highlight")
+		rim.Name = "VarietyRim"
+		rim.FillTransparency = 1
+		rim.OutlineColor = spec.outline
+		rim.OutlineTransparency = 0.25
+		rim.DepthMode = Enum.HighlightDepthMode.Occluded
+		rim.Parent = model
 	end
 	if spec.fx and torso then
 		varietyFx(torso, spec.fx, s)
