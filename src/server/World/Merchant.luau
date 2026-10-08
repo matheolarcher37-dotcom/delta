@@ -38,6 +38,7 @@ Merchant.DeckTop = 1.1
 Merchant.BeamHeight = 900
 Merchant.WagonYaw = 22 -- rotation de la roulotte (degrés)
 Merchant.BeaconZ = 17.6 -- position de la balise, derrière l'échoppe
+local UPRIGHT = CFrame.Angles(0, 0, math.rad(90)) -- cylindre dressé à la verticale
 local DISPLAY_SCALE = 0.75 -- taille des objets exposés sur les étagères
 
 local SIGN_FONT = Font.new("rbxasset://fonts/families/Fondamento.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
@@ -426,19 +427,32 @@ local function buildBeacon(model: Model, cf: CFrame): BasePart
 	local core = deco(beacon, "CrystalCore", Vector3.new(1.3, 2.6, 1.3), crystalCF * CFrame.Angles(0, math.rad(45), 0), Color3.new(1, 1, 1):Lerp(color, 0.4), Enum.Material.Neon)
 	core.CastShadow = false
 	Core.light(core, color, 40, 3)
-	-- Le rayon : cœur blanc, colonne colorée, halo large et transparent.
+	-- Le rayon : cœur blanc, colonne colorée, deux halos larges et transparents. Les halos ne
+	-- commencent qu'au-dessus des arbres (et s'allument en fondu) : de près, l'échoppe et les
+	-- arbres voisins ne sont pas noyés dans un tube violet ; de loin, le rayon est bien large.
 	local height = Merchant.BeamHeight
-	local beamCF = crystalCF * CFrame.new(0, height / 2, 0) * CFrame.Angles(0, 0, math.rad(90))
 	local layers = {
-		{ "LightCore", 1.6, Color3.new(1, 1, 1):Lerp(color, 0.2), 0.05 },
-		{ "LightColumn", 7.5, color, 0.2 },
-		{ "LightHalo", 26, color, 0.6 },
-		{ "LightHalo2", 50, color, 0.85 },
+		{ "LightCore", 1.6, Color3.new(1, 1, 1):Lerp(color, 0.2), 0.05, 0 },
+		{ "LightColumn", 7.5, color, 0.2, 0 },
+		{ "LightHalo", 26, color, 0.6, 70 },
+		{ "LightHalo2", 50, color, 0.85, 90 },
 	}
 	for _, layer in layers do
-		local p = cyl(beacon, layer[1], Vector3.new(height, layer[2], layer[2]), beamCF, layer[3], Enum.Material.Neon)
+		local start = layer[5]
+		local length = height - start
+		local p = cyl(beacon, layer[1], Vector3.new(length, layer[2], layer[2]), crystalCF * CFrame.new(0, start + length / 2, 0) * UPRIGHT, layer[3], Enum.Material.Neon)
 		p.Transparency = layer[4]
 		p.CastShadow = false
+		if start > 0 then
+			-- Fondu d'entrée : deux tronçons de plus en plus transparents vers le bas.
+			for k, fade in { 0.45, 0.75 } do
+				local segment = 20
+				local y = start - (k - 0.5) * segment
+				local f = cyl(beacon, layer[1] .. "Fade", Vector3.new(segment, layer[2], layer[2]), crystalCF * CFrame.new(0, y, 0) * UPRIGHT, layer[3], Enum.Material.Neon)
+				f.Transparency = layer[4] + (1 - layer[4]) * fade
+				f.CastShadow = false
+			end
+		end
 	end
 	-- Éclat au sommet du rayon.
 	for _, flare in { { "TopFlare", 30, 0.45 }, { "TopFlareHalo", 80, 0.85 } } do

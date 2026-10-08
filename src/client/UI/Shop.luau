@@ -437,6 +437,46 @@ local function renderGrid()
 			refs.firstCard = refs.firstCard or card
 		end
 	end
+	-- Dernière case : le prochain passage (nouveau stock, autre coin) avec son compte à rebours.
+	local nextCard = new("Frame", {
+		Name = "NextStock",
+		Size = UDim2.fromOffset(136, 186),
+		BackgroundColor3 = WHITE,
+		LayoutOrder = 1000,
+		Parent = grid,
+	})
+	Theme.corner(14).Parent = nextCard
+	Theme.stroke(ACCENT, 2, 0.45).Parent = nextCard
+	Theme.gradient({ Color3.fromRGB(46, 30, 56), Color3.fromRGB(20, 16, 28) }, 90).Parent = nextCard
+	Theme.label({
+		Text = "?",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 18),
+		Size = UDim2.fromOffset(80, 70),
+		FontFace = Theme.Faces.Title,
+		TextColor3 = ACCENT,
+		StrokeThickness = 2,
+		Parent = nextCard,
+	})
+	Theme.label({
+		Text = "Nouveau stock\net autre coin",
+		Position = UDim2.new(0, 8, 0, 96),
+		Size = UDim2.new(1, -16, 0, 40),
+		FontFace = Theme.Faces.Heavy,
+		TextColor3 = Color3.fromRGB(230, 220, 240),
+		MaxSize = 16,
+		Parent = nextCard,
+	})
+	refs.nextStockLabel = Theme.label({
+		Name = "Countdown",
+		Text = "",
+		Position = UDim2.new(0, 8, 1, -42),
+		Size = UDim2.new(1, -16, 0, 30),
+		FontFace = Theme.Faces.Title,
+		TextColor3 = C.Gold,
+		StrokeThickness = 2,
+		Parent = nextCard,
+	})
 end
 
 local function renderDetail()
@@ -617,7 +657,11 @@ local function renderTop()
 		Components.setPillText(refs.locationPill, "Suis le rayon violet !")
 	end
 	if shopState then
-		Components.setPillText(refs.timerPill, "Change de coin dans " .. Formulas.formatTime(math.max(0, shopState.moveAt - State.now())))
+		local left = Formulas.formatTime(math.max(0, shopState.moveAt - State.now()))
+		Components.setPillText(refs.timerPill, "Change de coin dans " .. left)
+		if refs.nextStockLabel and refs.nextStockLabel.Parent then
+			refs.nextStockLabel.Text = left
+		end
 	end
 	if State.data then
 		Components.setPillText(refs.coinsPill, Formulas.formatNumber(State.data.coins))

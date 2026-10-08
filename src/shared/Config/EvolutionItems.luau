@@ -573,13 +573,13 @@ KINDS.dragonball = function(ctx, look)
 		[1] = { Vector2.new(0, 0) },
 		[2] = { Vector2.new(-0.3, 0.2), Vector2.new(0.3, -0.2) },
 		[3] = { Vector2.new(0, 0.36), Vector2.new(-0.34, -0.22), Vector2.new(0.34, -0.22) },
-		[4] = { Vector2.new(0, 0.42), Vector2.new(-0.42, 0), Vector2.new(0.42, 0), Vector2.new(0, -0.42) },
+		[4] = { Vector2.new(0, 0.46), Vector2.new(-0.46, 0), Vector2.new(0.46, 0), Vector2.new(0, -0.46) },
 	}
 	for _, p in positions[math.clamp(look.stars or 4, 1, 4)] do
 		-- Posée juste sur la surface du verre (rayon 1,05), à plat, pour rester nette.
 		local z = -math.sqrt(math.max(0, 1.06 * 1.06 - p.X * p.X - p.Y * p.Y))
 		local spot = Vector3.new(p.X, p.Y, z)
-		ctx.star("Star", 0.55, center * CFrame.lookAt(Vector3.zero, spot) * CFrame.new(0, 0, -spot.Magnitude), look.accent)
+		ctx.star("Star", 0.4, center * CFrame.lookAt(Vector3.zero, spot) * CFrame.new(0, 0, -spot.Magnitude), look.accent)
 	end
 	-- Reflet : petit ovale blanc, en haut à gauche.
 	local shine = ctx.add(
