@@ -3495,22 +3495,36 @@ end
 local HATS = { "boar_head", "hood_full", "straw_hat", "volcano", "dome", "turban", "cap", "bandana", "cowboy_hat" }
 
 local MAX_PARTS = 178
+local MAX_PREVIEW_PARTS = 396
 local buildOnce
+
+local function countParts(model: Model): number
+	local n = 0
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			n += 1
+		end
+	end
+	return n
+end
 
 function CharacterBuilder.build(look, options: BuildOptions?): Model
 	-- Budget de mèches « lisses » (base arrondie + pointe incurvée : une pièce de plus chacune)
 	-- et de reflets. Les persos aux cheveux très fournis (et chargés d'accessoires) dépasseraient
 	-- le budget de pièces : on les reconstruit avec moins de bases arrondies.
 	local roots = look.hairRoots or 16
-	local model, count, used = buildOnce(look, options, roots)
-	if count > MAX_PARTS and used > 0 then
+	-- Mode « parts » (aperçus des menus) : la peinture devient des pièces, budget plus large
+	local limit = (options and options.paint == "parts") and MAX_PREVIEW_PARTS or MAX_PARTS
+	local model, used = buildOnce(look, options, roots)
+	local count = countParts(model)
+	if count > limit and used > 0 then
 		model:Destroy()
-		model = buildOnce(look, options, math.max(0, used - (count - MAX_PARTS)))
+		model = buildOnce(look, options, math.max(0, used - (count - limit)))
 	end
 	return model
 end
 
-function buildOnce(look, options: BuildOptions?, roots: number): (Model, number, number)
+function buildOnce(look, options: BuildOptions?, roots: number): (Model, number)
 	local opts = options or {}
 	local s = opts.scale or 1
 	local model = Instance.new("Model")
@@ -3610,7 +3624,7 @@ function buildOnce(look, options: BuildOptions?, roots: number): (Model, number,
 
 	model:SetAttribute("BaseScale", s)
 	model:SetAttribute("RootHeight", CharacterBuilder.RootHeight * s)
-	return model, ctx.count, roots - ctx.hairRoots
+	return model, roots - ctx.hairRoots
 end
 
 ------------------------------------------------------------------------
