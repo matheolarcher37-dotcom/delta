@@ -1093,6 +1093,19 @@ test("Défis : kills comptés, palier prêt annoncé, récompense réclamée", f
 	assert(string.find(rival.model:GetAttribute("DisplayName"), "Kakashu", 1, true), "nom du rival")
 	CombatService:DamageEnemy(alice, rival, 1e9, { sword = true })
 	assert((data.Quests.counters["kill:ninja_kakashu"] or 0) >= 1, "kill de rival non compté")
+	-- Défi du jour « Gagne X pièces » : l'objectif suit le revenu du joueur (pas instantané si riche)
+	do
+		local daily = data.Quests.daily
+		local savedList, savedGoals, savedIncome = daily.list, daily.goals, alice:GetAttribute("IncomePerSec")
+		daily.list = { "d_coins" }
+		daily.goals = { d_coins = 50000 }
+		daily.base[QuestsConfig.DailyById.d_coins.key] = QuestsConfig.read(data, QuestsConfig.DailyById.d_coins.key)
+		alice:SetAttribute("IncomePerSec", 10000)
+		QuestService:_check(alice, nil)
+		assert(daily.goals.d_coins >= 10000 * 60 * 20 * 0.9, "objectif de pièces non adapté au revenu : " .. tostring(daily.goals.d_coins))
+		daily.list, daily.goals = savedList, savedGoals
+		alice:SetAttribute("IncomePerSec", savedIncome)
+	end
 	-- Palier 1 de « Village Ninja : tue 50 <ennemi> »
 	local quest = QuestsConfig.ById.u_ninja_1
 	data.Quests.counters[quest.key] = 60

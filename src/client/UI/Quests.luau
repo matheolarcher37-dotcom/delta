@@ -1159,15 +1159,19 @@ local function buildWindow(gui: ScreenGui)
 		return window.firstSelectable()
 	end)
 	Quests.fixIcons(window.root)
-	-- Compte à rebours des défis du jour
+	-- Compte à rebours des défis du jour (affiché tout de suite, puis chaque seconde)
+	local function updateReset()
+		local left = QuestsConfig.nextReset(os.time()) - os.time()
+		local h = math.floor(left / 3600)
+		local m = math.floor(left % 3600 / 60)
+		local s = left % 60
+		Components.setPillText(refs.resetPill, string.format("Nouveaux défis dans %02d:%02d:%02d", h, m, s))
+	end
+	updateReset()
 	task.spawn(function()
 		while true do
 			if window.isOpen then
-				local left = QuestsConfig.nextReset(os.time()) - os.time()
-				local h = math.floor(left / 3600)
-				local m = math.floor(left % 3600 / 60)
-				local s = left % 60
-				Components.setPillText(refs.resetPill, string.format("Nouveaux défis dans %02d:%02d:%02d", h, m, s))
+				updateReset()
 			end
 			task.wait(1)
 		end
@@ -1590,8 +1594,9 @@ end
 -- Démarrage
 ------------------------------------------------------------------------
 
--- Position des bandeaux de notification quand l'écran Défis est ouvert (bas de l'écran).
-Quests.ToastPositionWhileOpen = UDim2.new(0.5, 0, 1, -128)
+-- Position des bandeaux de notification quand l'écran Défis est ouvert : dans la marge du bas
+-- de la fenêtre, sous la liste (ni sur les onglets ni sur les boutons Réclamer).
+Quests.ToastPositionWhileOpen = UDim2.new(0.5, 0, 1, -90)
 
 function Quests.init(gui: ScreenGui)
 	buildWindow(gui)

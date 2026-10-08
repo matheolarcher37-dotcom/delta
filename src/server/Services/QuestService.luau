@@ -87,6 +87,27 @@ function QuestService:_refreshDaily(player: Player, data): boolean
 	return true
 end
 
+-- Le revenu du joueur peut être calculé juste après le tirage (au chargement) : tant qu'un défi
+-- de pièces du jour n'a ni progressé ni été réclamé, son objectif suit le revenu actuel.
+function QuestService:_adjustIncomeGoals(player: Player, data)
+	local q = ensure(data)
+	local income = tonumber(player:GetAttribute("IncomePerSec")) or 0
+	if income <= 0 then
+		return
+	end
+	for _, id in q.daily.list do
+		local daily = Quests.DailyById[id]
+		if daily and daily.incomeMinutes and not q.daily.claimed[id] then
+			local wanted = Quests.dailyGoalFor(daily, income)
+			local current = tonumber(q.daily.goals[id]) or daily.goal
+			local progress = Quests.dailyProgress(data, id)
+			if wanted > current and progress < current * 0.05 then
+				q.daily.goals[id] = wanted
+			end
+		end
+	end
+end
+
 -- Incrémente un compteur de défi.
 function QuestService:Add(player: Player, key: string, amount: number?)
 	local data = self.services.DataService:Get(player)
@@ -347,6 +368,7 @@ function QuestService:_check(player: Player, changed: { [string]: boolean }?)
 	if self:_refreshDaily(player, data) then
 		QuestNotify:FireClient(player, { kind = "daily" })
 	end
+	self:_adjustIncomeGoals(player, data)
 	local seen = buckets[player] or {}
 	buckets[player] = seen
 	local readyTitles = {}
