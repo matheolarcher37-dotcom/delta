@@ -2616,31 +2616,28 @@ end
 -- Larges manches de kimono : manche droite jusqu'au poignet, qui s'évase en bas (coins en Wedge
 -- devant, derrière et sur le côté), ourlet sombre, et le fond de la manche qui pend dans le dos.
 ACC.wide_sleeves = function(ctx, look)
+	-- Manches de kimono qui TOMBENT : la manche épouse le haut du bras (à peine plus large),
+	-- puis la poche de tissu pend derrière l'avant-bras, arrondie en bas ; ouverture du poignet
+	-- soulignée d'un ourlet sombre. Vue de face, elle reste fine (on la voit par la tranche).
 	local color = look.sleeveColor or look.top or Color3.fromRGB(40, 38, 46)
 	local hem = darken(color, 0.35)
-	local flare = lighten(color, 0.04)
 	local mode = ctx.paint == "parts" and "parts" or nil
 	for _, side in { "Left Arm", "Right Arm" } do
 		local sx = side == "Left Arm" and -1 or 1
-		local sleeve = ctx.add(side, "KimonoSleeve", Vector3.new(1.2, 1.5, 1.4), CFrame.new(0, 0.2, 0.06), color)
+		local sleeve = ctx.add(side, "KimonoSleeve", Vector3.new(1.12, 1.36, 1.22), CFrame.new(sx * 0.02, 0.3, 0.08), color)
 		local outer = sx < 0 and Enum.NormalId.Left or Enum.NormalId.Right
-		for _, face in { Enum.NormalId.Front, Enum.NormalId.Back, outer } do
-			local S = Painter.panel(sleeve, face, mode, color, nil, { folds = face ~= Enum.NormalId.Back })
-			if face ~= Enum.NormalId.Back and not S.lite then
+		for _, face in { Enum.NormalId.Front, outer } do
+			local S = Painter.panel(sleeve, face, mode, color, nil, { folds = true })
+			if not S.lite then
 				Painter.fold(S, 0.45, 0.05, 0.38, 0.9, color, { w = 0.1, z = 6 })
 			end
 		end
-		-- Évasement : trois coins (pente vers l'extérieur, plus large en bas)
-		local y = -0.38
-		local h = 0.6
-		local t = 0.32
-		ctx.wedge(side, "KimonoFlare", Vector3.new(1.2, h, t), CFrame.new(0, y, 0.06 - 0.7 - t / 2), flare)
-		ctx.wedge(side, "KimonoFlare", Vector3.new(1.2, h, t), CFrame.new(0, y, 0.06 + 0.7 + t / 2) * CFrame.Angles(0, math.pi, 0), flare)
-		ctx.wedge(side, "KimonoFlare", Vector3.new(1.4, h, t), CFrame.new(sx * (0.6 + t / 2), y, 0.06) * CFrame.Angles(0, -sx * math.pi / 2, 0), flare)
-		-- Ourlet sombre au bas de l'évasement
-		ctx.add(side, "KimonoHem", Vector3.new(1.2 + t, 0.08, 1.4 + 2 * t), CFrame.new(sx * t / 2, y - h / 2 + 0.04, 0.06), hem)
-		-- Fond de la manche qui pend dans le dos
-		ctx.ball(side, "KimonoSleeveBag", Vector3.new(1.1, 0.8, 0.9), CFrame.new(0, -0.55, 0.62), darken(color, 0.1))
+		-- Poche de la manche qui pend derrière l'avant-bras (arrondie en bas)
+		local bag = darken(color, 0.06)
+		ctx.add(side, "KimonoSleeveDrop", Vector3.new(1.06, 0.9, 0.62), CFrame.new(sx * 0.02, -0.5, 0.42), bag)
+		ctx.ball(side, "KimonoSleeveBag", Vector3.new(1.06, 0.5, 0.62), CFrame.new(sx * 0.02, -0.95, 0.42), bag)
+		-- Ouverture du poignet : ourlet sombre fin autour de la main
+		ctx.add(side, "KimonoHem", Vector3.new(1.14, 0.06, 1.24), CFrame.new(sx * 0.02, -0.39, 0.08), hem)
 	end
 end
 
@@ -2653,13 +2650,13 @@ ACC.stitch_crown = function(ctx, look)
 	ctx.vcyl("Head", "StitchWelt", 0.07, 1.306, CFrame.new(0, y, 0), Color3.fromRGB(196, 150, 160), { CastShadow = false })
 	ctx.vcyl("Head", "StitchGlow", 0.04, 1.314, CFrame.new(0, y, 0), glow, { Material = Enum.Material.Neon, Transparency = 0.1, CastShadow = false })
 	ctx.vcyl("Head", "StitchLine", 0.018, 1.322, CFrame.new(0, y, 0), Color3.fromRGB(46, 30, 44), { CastShadow = false })
-	for i = -4, 4 do
-		local a = math.rad(i * 15)
+	for i = -3, 3 do
+		local a = math.rad(i * 19)
 		local r = 0.664
 		ctx.add(
 			"Head",
 			"StitchPoint",
-			Vector3.new(0.032, 0.15, 0.035),
+			Vector3.new(0.03, 0.12, 0.035),
 			CFrame.new(-math.sin(a) * r, y, -math.cos(a) * r) * CFrame.Angles(0, a, math.rad(i % 2 == 0 and 14 or -14)),
 			Color3.fromRGB(40, 26, 38),
 			{ CastShadow = false }
@@ -2895,28 +2892,36 @@ ACC.justice_coat = function(ctx, look)
 	end
 	for _, side in { -1, 1 } do
 		-- Manteau POSÉ sur les épaules (porté en cape, bras libres dans le costume rouge) : un
-		-- pan fin incliné de la base du cou jusqu'au bord de l'épaule, qui ne déborde que de 0,1,
-		-- terminé par un coin (WedgePart) qui retombe ; liseré doré peint sur le bord.
-		local slope = math.rad(4)
-		local drape = CFrame.new(side * 1.28, 1.12, 0.04) * CFrame.Angles(0, 0, -side * slope)
-		local plate = ctx.add("Torso", "CoatDrape", Vector3.new(1.62, 0.15, 1.2), drape, white)
+		-- pan fin qui descend en pente douce de la base du cou au bord de l'épaule (14°), terminé
+		-- par un bourrelet arrondi (le tissu qui retombe, pas un coin de boîte) ; liseré doré.
+		local slope = math.rad(14)
+		local drape = CFrame.new(side * 1.25, 1.2, 0.04) * CFrame.Angles(0, 0, -side * slope)
+		local plate = ctx.add("Torso", "CoatDrape", Vector3.new(1.6, 0.12, 1.16), drape, white)
 		Painter.panel(plate, Enum.NormalId.Top, mode, white, function(S)
 			S:rect(side > 0 and 1 - S:dx(0.05) or S:dx(0.05), 0.5, S:dx(0.1), 1, gold, { z = 3 })
 			S:rect(0.5, S:dy(0.04), 1, S:dy(0.08), gold, { z = 3 })
 			S:rect(0.5, 1 - S:dy(0.04), 1, S:dy(0.08), gold, { z = 3 })
 		end, { folds = false, edges = false })
-		-- Retombée au bord de l'épaule : coin dont la pente part vers l'extérieur
-		local fall = CFrame.new(side * 2.06, 0.86, 0.04) * CFrame.Angles(0, -side * math.pi / 2, 0) * CFrame.Angles(math.pi, 0, 0)
-		ctx.wedge("Torso", "CoatDrapeFall", Vector3.new(1.2, 0.3, 0.14), fall, white)
-		ctx.add("Torso", "CoatDrapeTrim", Vector3.new(0.05, 0.05, 1.22), drape * CFrame.new(side * 0.81, -0.06, 0), gold, { Material = Enum.Material.Metal, Reflectance = 0.15 })
+		-- Bord qui retombe : bourrelet arrondi (cylindre couché) + fin liseré doré dessous
+		local edge = drape * CFrame.new(side * 0.78, -0.07, 0)
+		ctx.cyl("Torso", "CoatDrapeFall", 1.16, 0.24, edge * CFrame.Angles(0, math.pi / 2, 0), white)
+		ctx.cyl(
+			"Torso",
+			"CoatDrapeTrim",
+			1.18,
+			0.07,
+			edge * CFrame.new(side * 0.05, -0.1, 0) * CFrame.Angles(0, math.pi / 2, 0),
+			gold,
+			{ Material = Enum.Material.Metal, Reflectance = 0.15 }
+		)
 		-- Épaulette : fine plaque dorée + 6 franges fines qui pendent au bord de l'épaule
-		local ep = drape * CFrame.new(side * 0.32, 0.1, 0)
-		ctx.add("Torso", "Epaulette", Vector3.new(0.9, 0.05, 0.8), ep, gold, { Material = Enum.Material.Metal, Reflectance = 0.2 })
-		ctx.add("Torso", "EpauletteRim", Vector3.new(0.92, 0.03, 0.82), ep * CFrame.new(0, -0.035, 0), darken(gold, 0.3), { Material = Enum.Material.Metal })
-		ctx.ball("Torso", "EpauletteKnob", Vector3.new(0.16, 0.08, 0.16), ep * CFrame.new(-side * 0.38, 0.04, 0), gold, { Material = Enum.Material.Metal })
+		local ep = drape * CFrame.new(side * 0.3, 0.085, 0)
+		ctx.add("Torso", "Epaulette", Vector3.new(0.72, 0.05, 0.66), ep, gold, { Material = Enum.Material.Metal, Reflectance = 0.2 })
+		ctx.add("Torso", "EpauletteRim", Vector3.new(0.74, 0.03, 0.68), ep * CFrame.new(0, -0.035, 0), darken(gold, 0.3), { Material = Enum.Material.Metal })
+		ctx.ball("Torso", "EpauletteKnob", Vector3.new(0.14, 0.07, 0.14), ep * CFrame.new(-side * 0.3, 0.04, 0), gold, { Material = Enum.Material.Metal })
 		for i = 0, 5 do
-			local z = -0.32 + i * 0.128
-			local top = ep * CFrame.new(side * 0.47, -0.02, z)
+			local z = -0.28 + i * 0.112
+			local top = ep * CFrame.new(side * 0.38, -0.02, z)
 			ctx.vcyl(
 				"Torso",
 				"EpauletteFringe",

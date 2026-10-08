@@ -71,7 +71,14 @@ Characters.List = {
 			-- ★★ : portes ouvertes (peau rougie, vapeur)
 			[2] = { skin = rgb(255, 176, 150), armVeins = rgb(196, 70, 80), accessories = { "leg_warmers", "headband_belt", "steam" } },
 			-- ★★★ : huitième porte (aura de sang verte, yeux blancs)
-			[3] = { skin = rgb(255, 150, 130), armVeins = rgb(196, 70, 80), eyes = rgb(240, 255, 240), pupil = "none", accessories = { "leg_warmers", "headband_belt", "steam", "ssj_aura" }, auraColor = rgb(120, 255, 150) },
+			[3] = {
+				skin = rgb(255, 150, 130),
+				armVeins = rgb(196, 70, 80),
+				eyes = rgb(240, 255, 240),
+				pupil = "none",
+				accessories = { "leg_warmers", "headband_belt", "steam", "ssj_aura" },
+				auraColor = rgb(120, 255, 150),
+			},
 		},
 		attack = { kind = "punch", color = rgb(255, 240, 200), name = "Lotus Recto" },
 		fusion = { prefix = "Fougueux", suffix = "de la Jeunesse" },
@@ -135,7 +142,13 @@ Characters.List = {
 			-- ★★ : cheveux coupés court, poings chargés
 			[2] = { hair = "bob", accessories = { "headband", "energy_fists" }, energyColor = rgb(255, 130, 190) },
 			-- ★★★ : sceau des cent (marques violettes) et aura rose
-			[3] = { hair = "bob", accessories = { "headband", "energy_fists", "energy_aura", "tattoos_blue" }, energyColor = rgb(255, 130, 190), auraColor = rgb(255, 150, 200), eyeGlow = true },
+			[3] = {
+				hair = "bob",
+				accessories = { "headband", "energy_fists", "energy_aura", "tattoos_blue" },
+				energyColor = rgb(255, 130, 190),
+				auraColor = rgb(255, 150, 200),
+				eyeGlow = true,
+			},
 		},
 		attack = { kind = "punch", color = rgb(255, 120, 180), name = "Poing Cerisier" },
 		fusion = { prefix = "Cerisier", suffix = "du Cerisier" },
@@ -370,7 +383,13 @@ Characters.List = {
 				auraColor = rgb(170, 20, 40),
 			},
 			-- ★★★ : kaléidoscope (anneaux) et armure spectrale de flammes rouges
-			[3] = { eyes = rgb(220, 20, 30), pupil = "ring", eyeGlow = true, accessories = { "cloak_skirt", "headband_scratched", "tear_lines", "collar_high", "ssj_aura" }, auraColor = rgb(255, 90, 70) },
+			[3] = {
+				eyes = rgb(220, 20, 30),
+				pupil = "ring",
+				eyeGlow = true,
+				accessories = { "cloak_skirt", "headband_scratched", "tear_lines", "collar_high", "ssj_aura" },
+				auraColor = rgb(255, 90, 70),
+			},
 		},
 		attack = { kind = "flame", color = rgb(70, 20, 90), name = "Flammes Noires" },
 		fusion = { prefix = "Écarlate", suffix = "Écarlate" },
@@ -644,7 +663,13 @@ Characters.List = {
 			-- ★★ : énergie maudite rouge dans les mains, yeux qui brillent
 			[2] = { accessories = { "tattoos", "extra_eyes", "energy_fists" }, energyColor = rgb(200, 20, 40), eyeGlow = true },
 			-- ★★★ : vraie forme (kimono noir, flèche de feu, aura)
-			[3] = { top = rgb(34, 28, 34), accessories = { "tattoos", "extra_eyes", "sun_flames", "energy_aura" }, energyColor = rgb(255, 110, 40), auraColor = rgb(200, 30, 40), eyeGlow = true },
+			[3] = {
+				top = rgb(34, 28, 34),
+				accessories = { "tattoos", "extra_eyes", "sun_flames", "energy_aura" },
+				energyColor = rgb(255, 110, 40),
+				auraColor = rgb(200, 30, 40),
+				eyeGlow = true,
+			},
 		},
 		attack = { kind = "slash", color = rgb(255, 40, 60), name = "Découpe Démoniaque" },
 		fusion = { prefix = "Fléau", suffix = "des Fléaux" },
@@ -820,7 +845,14 @@ Characters.List = {
 			-- ★★ : super guerrier 2 (cheveux dorés, éclairs dans l'aura)
 			[2] = { hairColor = rgb(255, 220, 60), eyes = rgb(60, 200, 160), accessories = { "belt", "ssj_aura" } },
 			-- ★★★ : forme bête (cheveux argentés dressés, yeux rouges)
-			[3] = { hair = "wild", hairLength = 1.2, hairColor = rgb(232, 232, 242), eyes = rgb(220, 30, 40), accessories = { "belt", "energy_aura" }, auraColor = rgb(220, 60, 90) },
+			[3] = {
+				hair = "wild",
+				hairLength = 1.2,
+				hairColor = rgb(232, 232, 242),
+				eyes = rgb(220, 30, 40),
+				accessories = { "belt", "energy_aura" },
+				auraColor = rgb(220, 60, 90),
+			},
 		},
 		fusion = { prefix = "Prodige", suffix = "Prodige" },
 	},
@@ -1147,7 +1179,13 @@ Characters.List = {
 			-- ★★ : fluide royal (aura rouge et noire)
 			[2] = { accessories = { "cape", "scar_eye", "sword_hip", "sash", "energy_aura" }, auraColor = rgb(200, 30, 40), eyeGlow = true },
 			-- ★★★ : sabre chargé, yeux rouges
-			[3] = { accessories = { "cape", "scar_eye", "sword_hip", "sash", "energy_aura", "energy_fists" }, auraColor = rgb(200, 30, 40), energyColor = rgb(40, 10, 20), eyeGlow = true, eyes = rgb(200, 40, 40) },
+			[3] = {
+				accessories = { "cape", "scar_eye", "sword_hip", "sash", "energy_aura", "energy_fists" },
+				auraColor = rgb(200, 30, 40),
+				energyColor = rgb(40, 10, 20),
+				eyeGlow = true,
+				eyes = rgb(200, 40, 40),
+			},
 		},
 		attack = { kind = "slash", color = rgb(255, 40, 40), name = "Haki du Conquérant" },
 		fusion = { prefix = "Empereur", suffix = "des Mers" },
@@ -1211,7 +1249,13 @@ Characters.List = {
 			-- ★★ : souffle de la fleur (aura rose, yeux roses qui brillent)
 			[2] = { accessories = { "cape", "sword_hip", "butterfly_clip", "energy_aura" }, auraColor = rgb(255, 150, 200), eyes = rgb(240, 110, 170), eyeGlow = true },
 			-- ★★★ : yeux de la fleur (rouges), lame rose au lieu du sabre
-			[3] = { accessories = { "cape", "butterfly_clip", "water_blade", "energy_aura" }, energyColor = rgb(255, 140, 200), auraColor = rgb(255, 150, 200), eyes = rgb(230, 40, 70), eyeGlow = true },
+			[3] = {
+				accessories = { "cape", "butterfly_clip", "water_blade", "energy_aura" },
+				energyColor = rgb(255, 140, 200),
+				auraColor = rgb(255, 150, 200),
+				eyes = rgb(230, 40, 70),
+				eyeGlow = true,
+			},
 		},
 		attack = { kind = "slash", color = rgb(255, 160, 220), name = "Souffle des Fleurs" },
 		fusion = { prefix = "Florale", suffix = "des Fleurs" },
@@ -1303,7 +1347,12 @@ Characters.List = {
 		attack = { kind = "ice", color = rgb(70, 170, 255), name = "Souffle de l'Eau" },
 		evolve = {
 			-- ★★ : marque du pourfendeur, souffle de l'eau (lame et aura d'eau, yeux bleus)
-			[2] = { accessories = { "haori_checker", "earrings", "forehead_mark", "water_blade", "energy_aura" }, auraColor = rgb(80, 170, 255), eyes = rgb(70, 140, 220), eyeGlow = true },
+			[2] = {
+				accessories = { "haori_checker", "earrings", "forehead_mark", "water_blade", "energy_aura" },
+				auraColor = rgb(80, 170, 255),
+				eyes = rgb(70, 140, 220),
+				eyeGlow = true,
+			},
 			-- ★★★ : danse du dieu du feu (flammes autour du bras)
 			[3] = { accessories = { "haori_checker", "earrings", "forehead_mark", "sun_flames" }, markLarge = true, mouthStyle = "shout", eyes = rgb(220, 50, 30), eyeGlow = true },
 		},
@@ -1341,7 +1390,14 @@ Characters.List = {
 			-- ★★ : forme démoniaque (bâillon retiré, cornes, crocs, veines)
 			[2] = { accessories = { "hair_ribbon", "horns" }, mouthStyle = "fang", pupil = "slit", armVeins = rgb(220, 90, 140), eyeGlow = true },
 			-- ★★★ : flammes de sang roses
-			[3] = { accessories = { "hair_ribbon", "horns", "sun_flames" }, mouthStyle = "fang", pupil = "slit", armVeins = rgb(220, 90, 140), eyeGlow = true, energyColor = rgb(255, 100, 170) },
+			[3] = {
+				accessories = { "hair_ribbon", "horns", "sun_flames" },
+				mouthStyle = "fang",
+				pupil = "slit",
+				armVeins = rgb(220, 90, 140),
+				eyeGlow = true,
+				energyColor = rgb(255, 100, 170),
+			},
 		},
 		attack = { kind = "flame", color = rgb(255, 90, 160), name = "Sang Explosif" },
 		fusion = { prefix = "Démoniaque", suffix = "Démoniaque" },
@@ -1549,7 +1605,13 @@ Characters.List = {
 			-- ★★ : sang manipulé autour des mains
 			[2] = { accessories = { "twin_tufts", "nose_line", "energy_fists" }, energyColor = rgb(200, 20, 40) },
 			-- ★★★ : convergence (cheveux lâchés, aura de sang, yeux rouges)
-			[3] = { hair = "wild", accessories = { "nose_line", "energy_fists", "energy_aura" }, energyColor = rgb(200, 20, 40), auraColor = rgb(220, 30, 50), eyes = rgb(200, 30, 40) },
+			[3] = {
+				hair = "wild",
+				accessories = { "nose_line", "energy_fists", "energy_aura" },
+				energyColor = rgb(200, 20, 40),
+				auraColor = rgb(220, 30, 50),
+				eyes = rgb(200, 30, 40),
+			},
 		},
 		attack = { kind = "beam", color = rgb(200, 20, 40), name = "Hémorragie Perçante" },
 		fusion = { prefix = "Grand Frère", suffix = "du Sang" },
@@ -1767,7 +1829,12 @@ Characters.List = {
 			-- ★★ : dard de poison (lame violette)
 			[2] = { accessories = { "haori_butterfly", "butterfly_clip", "water_blade" }, energyColor = rgb(190, 110, 255) },
 			-- ★★★ : danse du papillon (aura violette, yeux qui brillent)
-			[3] = { accessories = { "haori_butterfly", "butterfly_clip", "water_blade", "energy_aura" }, energyColor = rgb(190, 110, 255), auraColor = rgb(200, 140, 255), eyeGlow = true },
+			[3] = {
+				accessories = { "haori_butterfly", "butterfly_clip", "water_blade", "energy_aura" },
+				energyColor = rgb(190, 110, 255),
+				auraColor = rgb(200, 140, 255),
+				eyeGlow = true,
+			},
 		},
 		attack = { kind = "slash", color = rgb(200, 120, 255), name = "Danse du Papillon" },
 		fusion = { prefix = "Papillon", suffix = "de l'Insecte" },
@@ -1916,7 +1983,7 @@ Characters.Enemies = {
 		-- Boss de l'Académie Occulte : moine maudit (demi-chignon, kesa en patchwork, couture au front)
 		name = "Kenjakou",
 		look = {
-			skin = rgb(220, 222, 202),
+			skin = rgb(228, 224, 196), -- teinte neutre-chaude (la lumière violette de l'arène rosit la peau)
 			hair = "half_bun",
 			hairColor = rgb(24, 22, 30),
 			hairShine = rgb(92, 88, 120),
