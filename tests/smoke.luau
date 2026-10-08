@@ -160,7 +160,12 @@ test("Persos R6 classiques : proportions, tête, visage, budgets", function()
 		local head = model:FindFirstChild("Head")
 		assert(head and head.Size.X == 2 and head.Size.Y == 1 and head.Size.Z == 1, label .. " : tête classique 2x1x1 attendue")
 		local mesh = head:FindFirstChildOfClass("SpecialMesh")
-		assert(mesh and mesh.MeshType.Name == "Head" and math.abs(mesh.Scale.Y - 1.25 * (look.headScale and (typeof(look.headScale) == "Vector3" and look.headScale.Y or look.headScale) or 1)) < 1e-4, label .. " : maillage Head 1.25 (x headScale)")
+		assert(
+			mesh
+				and mesh.MeshType.Name == "Head"
+				and math.abs(mesh.Scale.Y - 1.25 * (look.headScale and (typeof(look.headScale) == "Vector3" and look.headScale.Y or look.headScale) or 1)) < 1e-4,
+			label .. " : maillage Head 1.25 (x headScale)"
+		)
 		local torso = model:FindFirstChild("Torso")
 		assert(torso.Size.X == 2 and torso.Size.Y == 2 and torso.Size.Z == 1, label .. " : torse 2x2x1")
 		for _, limb in { "Left Arm", "Right Arm", "Left Leg", "Right Leg" } do
@@ -257,6 +262,36 @@ test("Boss lisibles (liseré, lumières, aura) et variétés des persos", functi
 	end
 	local plain = CharacterBuilder.build(look, { scale = 1 })
 	assert(not CharacterBuilder.applyVariety(plain, "inconnue"), "variété inconnue refusée")
+	-- La fabrique applique la variété tirée de l'unité (options.variety) au modèle et à l'aperçu
+	local CharacterFactory = requireModule(Shared.Modules.CharacterFactory)
+	local fromUnit = CharacterFactory.build("sai_goko", 1, look, { scale = 1, variety = "Diamant" })
+	assert(fromUnit:GetAttribute("Variety") == "diamond", "fabrique : variété de l'unité appliquée")
+	local previewV = CharacterFactory.buildPreview("sai_goko", 1, look, "Sakura")
+	assert(previewV:GetAttribute("Variety") == "sakura", "fabrique : variété appliquée à l'aperçu")
+	local noVariety = CharacterFactory.build("sai_goko", 1, look, { scale = 1 })
+	assert(noVariety:GetAttribute("Variety") == nil, "fabrique : pas de variété par défaut")
+	-- Reliefs 3D génériques : col fourré de Maruto, ceinture du gi, semelles
+	local function named(model, name)
+		local n = 0
+		for _, d in model:GetDescendants() do
+			if d:IsA("BasePart") and d.Name == name then
+				n += 1
+			end
+		end
+		return n
+	end
+	local maruto = CharacterBuilder.build(Formulas.describe({ id = "ninja_maruto", level = 1, stars = 1 }).look, { scale = 1 })
+	assert(named(maruto, "ReliefCollarBack") == 1 and named(maruto, "ReliefCollarFront") == 2, "Maruto : col fourré en relief")
+	assert(named(maruto, "ReliefSole") == 2, "Maruto : semelles en relief")
+	local reliefs = 0
+	for id in Characters.List do
+		local m = CharacterBuilder.build(Formulas.describe({ id = id, level = 1, stars = 1 }).look, { scale = 1 })
+		if named(m, "ReliefBelt") > 0 then
+			reliefs += 1
+		end
+		m:Destroy()
+	end
+	assert(reliefs >= 8, "ceintures en relief sur les persos en gi/uniforme (" .. reliefs .. ")")
 	-- Or : peinture re-teintée (pas de voile qui noie les plis), cheveux en or poli, LOD refait
 	local goldLook = table.clone(look)
 	goldLook.variety = "Or"
@@ -297,7 +332,24 @@ test("Boss lisibles (liseré, lumières, aura) et variétés des persos", functi
 	assert(beams >= 2 and surface, "aura : 2 rayons et des particules autour de la silhouette")
 	-- CHAQUE perso change à CHAQUE étoile (★1 -> ★2 -> ★3) : coiffure, yeux ou pièce de tenue
 	-- (une aura seule ne suffit pas), et la silhouette construite change (pièces/effets en plus)
-	local STRONG = { "hair", "hairColor", "hairLength", "eyes", "pupil", "eyeGlow", "eyeMarks", "eyeStyle", "top", "bottom", "outfit", "skin", "markLarge", "curseSpread", "nails", "armVeins" }
+	local STRONG = {
+		"hair",
+		"hairColor",
+		"hairLength",
+		"eyes",
+		"pupil",
+		"eyeGlow",
+		"eyeMarks",
+		"eyeStyle",
+		"top",
+		"bottom",
+		"outfit",
+		"skin",
+		"markLarge",
+		"curseSpread",
+		"nails",
+		"armVeins",
+	}
 	local AURAS = { energy_aura = true, ssj_aura = true, steam = true }
 	local ids = {}
 	for id in Characters.List do
@@ -418,7 +470,10 @@ test("Nouveaux persos v3.2, uniformes personnalisés, boss Akaino/Freezo", funct
 	assert(partNamed(akaino, "CoatDrape") == 2 and partNamed(akaino, "CoatDrapeFall") == 2, "Akaino : manteau posé sur les épaules (pans fins + retombée)")
 	assert(partNamed(akaino, "EpauletteFringe") == 12, "Akaino : épaulettes fines à 6 franges")
 	assert(partNamed(akaino, "CoatPan") == 0, "Akaino : plus de panneaux latéraux")
-	assert(partNamed(akaino, "MagmaSleeve") == 0 and partNamed(akaino, "MagmaFist") == 1 and partNamed(akaino, "MagmaRock") == 5, "Akaino : poing de lave ajusté et croûtes de basalte")
+	assert(
+		partNamed(akaino, "MagmaSleeve") == 0 and partNamed(akaino, "MagmaFist") == 1 and partNamed(akaino, "MagmaRock") == 5,
+		"Akaino : poing de lave ajusté et croûtes de basalte"
+	)
 	do
 		local m = CharacterBuilder.build(akaino, { scale = 1 })
 		local fist = m:FindFirstChild("MagmaFist") :: BasePart
@@ -439,7 +494,10 @@ test("Nouveaux persos v3.2, uniformes personnalisés, boss Akaino/Freezo", funct
 	assert(partNamed(freezo, "GemShoulder") == 2 and partNamed(freezo, "GemShoulderBevel") == 0, "Freezo : épaulières bombées")
 	assert(partNamed(freezo, "Chin") == 2 and partNamed(freezo, "BrowRidge") == 2 and partNamed(freezo, "TailTip") == 1, "Freezo : menton, front en V, queue")
 	local kenjakou = Characters.Enemies.occ_kenjakou.look
-	assert(partNamed(kenjakou, "KesaRing") == 0 and partNamed(kenjakou, "KesaKnot") == 1 and partNamed(kenjakou, "KesaTrim") == 0, "Kenjakou : nœud de cordon, kesa sans planches en relief")
+	assert(
+		partNamed(kenjakou, "KesaRing") == 0 and partNamed(kenjakou, "KesaKnot") == 1 and partNamed(kenjakou, "KesaTrim") == 0,
+		"Kenjakou : nœud de cordon, kesa sans planches en relief"
+	)
 	do
 		local m = CharacterBuilder.build(kenjakou, { scale = 1 })
 		assert((m:FindFirstChild("Kesa") :: BasePart).Size.X <= 0.55, "Kenjakou : kesa fin")

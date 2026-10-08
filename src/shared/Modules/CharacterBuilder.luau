@@ -316,7 +316,13 @@ local function newContext(model: Model, s: number, paint: string)
 				-- Reflet : fine mèche claire sur la moitié éclairée
 				ctx.hairShines -= 1
 				local lit = litFrame(tipFrame)
-				ctx.ball(limbName, "HairShine", Vector3.new(width * 0.14, length * 0.42, depth * 0.2), lit * CFrame.new(width * 0.2, length * 0.24, -depth * 0.12), color:Lerp(Color3.new(1, 1, 1), 0.35))
+				ctx.ball(
+					limbName,
+					"HairShine",
+					Vector3.new(width * 0.14, length * 0.42, depth * 0.2),
+					lit * CFrame.new(width * 0.2, length * 0.24, -depth * 0.12),
+					color:Lerp(Color3.new(1, 1, 1), 0.35)
+				)
 			end
 		elseif full then
 			ctx.cone(limbName, litFrame(face), length, width, depth, color, dark)
@@ -1286,7 +1292,15 @@ HAIR.heavy_long = function(ctx, c, look)
 	fringe(ctx, c, { -0.4, -0.18, 0.04, 0.26, 0.44 }, { 0.48, 0.6, 0.66, 0.58, 0.46 }, 0.34, { alt = shine, y = 0.6, spread = 0.9, out = 0.22 })
 	-- Dessus : mèches lisses couchées vers l'arrière (volume arrondi, pas d'épis)
 	for i, x in { -0.3, 0, 0.3 } do
-		ctx.sleek("Head", i == 2 and shine or c, Vector3.new(x, 0.9, -0.3), Vector3.new(x * 0.3, -0.25, 1), 0.9, 0.5, { segments = 2, facing = Vector3.new(x, 1, 0), thickness = 0.2, point = false })
+		ctx.sleek(
+			"Head",
+			i == 2 and shine or c,
+			Vector3.new(x, 0.9, -0.3),
+			Vector3.new(x * 0.3, -0.25, 1),
+			0.9,
+			0.5,
+			{ segments = 2, facing = Vector3.new(x, 1, 0), thickness = 0.2, point = false }
+		)
 	end
 	-- Lourdes mèches qui tombent (des côtés de la tête jusque dans le dos ; jamais devant le visage)
 	for i, a in { -108, -82, -54, -24, 0, 24, 54, 82, 108 } do
@@ -2766,7 +2780,7 @@ ACC.magma_fist = function(ctx, look)
 		S:line(0.2, 0.5, 0.45, 0.62, 0.05, rock, { z = 2 })
 		S:line(0.45, 0.62, 0.38, 0.8, 0.04, rock, { z = 2 })
 		S:line(0.7, 0.48, 0.82, 0.7, 0.045, rock, { z = 2 })
-		local gui = (S.g :: any)
+		local gui = S.g :: any
 		if typeof(gui) == "Instance" and gui:IsA("SurfaceGui") then
 			gui.LightInfluence = 0
 			gui.Brightness = 1.4
@@ -2777,13 +2791,15 @@ ACC.magma_fist = function(ctx, look)
 	local fist = ctx.ball(arm, "MagmaFist", Vector3.new(1.2, 0.66, 1.2), CFrame.new(0, -0.74, 0), lava, neon)
 	ctx.ball(arm, "MagmaCore", Vector3.new(0.7, 0.3, 0.12), CFrame.new(0, -0.7, -0.56), core, neon)
 	-- Croûtes de basalte noir (CornerWedge) plaquées sur la lave, sans dépasser de plus de 0,1
-	for i, e in {
-		{ -0.38, -0.2, -0.47, 0 },
-		{ 0.4, -0.45, 0.47, math.pi },
-		{ 0.47, -0.05, -0.2, math.pi / 2 },
-		{ -0.47, -0.6, 0.2, -math.pi / 2 },
-		{ 0.15, -0.95, -0.5, math.pi * 0.25 },
-	} do
+	for i, e in
+		{
+			{ -0.38, -0.2, -0.47, 0 },
+			{ 0.4, -0.45, 0.47, math.pi },
+			{ 0.47, -0.05, -0.2, math.pi / 2 },
+			{ -0.47, -0.6, 0.2, -math.pi / 2 },
+			{ 0.15, -0.95, -0.5, math.pi * 0.25 },
+		}
+	do
 		ctx.cornerWedge(
 			arm,
 			"MagmaRock",
@@ -2901,7 +2917,15 @@ ACC.justice_coat = function(ctx, look)
 		for i = 0, 5 do
 			local z = -0.32 + i * 0.128
 			local top = ep * CFrame.new(side * 0.47, -0.02, z)
-			ctx.vcyl("Torso", "EpauletteFringe", 0.34, 0.08, CFrame.new(top.Position + Vector3.new(0, -0.17, 0)), i % 2 == 0 and gold or darken(gold, 0.15), { Material = Enum.Material.Metal })
+			ctx.vcyl(
+				"Torso",
+				"EpauletteFringe",
+				0.34,
+				0.08,
+				CFrame.new(top.Position + Vector3.new(0, -0.17, 0)),
+				i % 2 == 0 and gold or darken(gold, 0.15),
+				{ Material = Enum.Material.Metal }
+			)
 		end
 	end
 end
@@ -3492,6 +3516,90 @@ local function reshapeHead(ctx, k: Vector3)
 	end
 end
 
+------------------------------------------------------------------------
+-- Reliefs 3D génériques (par-dessus la peinture) : col montant, ceinture à boucle et semelles,
+-- comme sur les avatars classiques de référence (col fourré, ceinture et sandales en relief).
+-- Pièces fines (0,05 à 0,08) : elles accrochent la lumière sans alourdir la silhouette.
+------------------------------------------------------------------------
+
+local COVERING = { "hood", "hood_full", "collar_high", "collar_gold", "scarf_long" }
+local BELTED = { "belt", "rope_belt", "headband_belt", "cloak_skirt" }
+
+local function anyOf(look, list): boolean
+	for _, name in list do
+		if has(look, name) then
+			return true
+		end
+	end
+	return false
+end
+
+local function relief(ctx, look)
+	if look.noRelief or look.boss then
+		return
+	end
+	local c = Painter.palette(look)
+	local outfit = c.outfit
+	if outfit == "creature" then
+		return
+	end
+	-- Col montant (col fourré blanc, ou col droit d'uniforme) : 4 pièces fines autour du cou,
+	-- ouvert en V sur le devant.
+	local collar = nil
+	if look.collar == "fur" then
+		collar = { color = look.collarColor or Color3.fromRGB(226, 232, 238), h = 0.26, fur = true }
+	elseif outfit == "uniform" and not c.haori then
+		collar = { color = darken(c.top, 0.12), h = 0.2 }
+	end
+	if collar and not anyOf(look, COVERING) then
+		local h, col = collar.h, collar.color
+		local props = collar.fur and { Material = Enum.Material.Fabric } or nil
+		local y = 1 + h / 2 - 0.04
+		ctx.add("Torso", "ReliefCollarBack", Vector3.new(1.28, h, 0.06), CFrame.new(0, y, 0.43) * CFrame.Angles(math.rad(-10), 0, 0), col, props)
+		for _, side in { -1, 1 } do
+			ctx.add("Torso", "ReliefCollarSide", Vector3.new(0.06, h, 0.84), CFrame.new(side * 0.63, y, 0.0) * CFrame.Angles(0, 0, math.rad(side * 10)), col, props)
+		end
+		-- Devant : deux rabats en V (le col s'ouvre sous le menton)
+		for _, side in { -1, 1 } do
+			ctx.add(
+				"Torso",
+				"ReliefCollarFront",
+				Vector3.new(0.46, h * 0.86, 0.06),
+				CFrame.new(side * 0.38, y - 0.02, -0.42) * CFrame.Angles(math.rad(8), math.rad(side * 22), 0),
+				col,
+				props
+			)
+		end
+	end
+	-- Ceinture en relief (bande fine + boucle ou nœud)
+	if not anyOf(look, BELTED) then
+		if outfit == "uniform" and (look.beltColor or look.topAccent) then
+			local belt = look.beltColor or c.accent
+			ctx.add("Torso", "ReliefBelt", Vector3.new(2.04, 0.15, 1.04), CFrame.new(0, -0.72, 0), belt)
+			local buckle = look.beltColor and GOLD or lighten(belt, 0.1)
+			ctx.add(
+				"Torso",
+				"ReliefBuckle",
+				Vector3.new(0.44, 0.26, 0.05),
+				CFrame.new(0, -0.72, -0.53),
+				buckle,
+				look.beltColor and { Material = Enum.Material.Metal, Reflectance = 0.2 } or nil
+			)
+		elseif outfit == "gi" then
+			local belt = c.acc or c.accent
+			ctx.add("Torso", "ReliefBelt", Vector3.new(2.04, 0.2, 1.04), CFrame.new(0, -0.7, 0), belt)
+			ctx.ball("Torso", "ReliefBeltKnot", Vector3.new(0.3, 0.24, 0.14), CFrame.new(0.24, -0.72, -0.54), lighten(belt, 0.06))
+		end
+	end
+	-- Semelles en relief (chaussures, bottes, sandales, zori)
+	if c.footwear ~= "barefoot" and not look.noFeet then
+		local soleColor = (c.footwear == "zori") and Color3.fromRGB(196, 168, 112) or darken(c.shoes, 0.45)
+		for _, leg in { "Left Leg", "Right Leg" } do
+			ctx.add(leg, "ReliefSole", Vector3.new(1.04, 0.08, 1.1), CFrame.new(0, -0.96, -0.03), soleColor)
+		end
+	end
+end
+
 local HATS = { "boar_head", "hood_full", "straw_hat", "volcano", "dome", "turban", "cap", "bandana", "cowboy_hat" }
 
 local MAX_PARTS = 178
@@ -3515,16 +3623,22 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 	local roots = look.hairRoots or 16
 	-- Mode « parts » (aperçus des menus) : la peinture devient des pièces, budget plus large
 	local limit = (options and options.paint == "parts") and MAX_PREVIEW_PARTS or MAX_PARTS
-	local model, used = buildOnce(look, options, roots)
+	local model, used = buildOnce(look, options, roots, true)
 	local count = countParts(model)
 	if count > limit and used > 0 then
 		model:Destroy()
-		model = buildOnce(look, options, math.max(0, used - (count - limit)))
+		model, used = buildOnce(look, options, math.max(0, used - (count - limit)), true)
+		count = countParts(model)
+	end
+	if count > limit then
+		-- Perso très chargé : on renonce aux reliefs génériques (col, ceinture, semelles)
+		model:Destroy()
+		model = buildOnce(look, options, used, false)
 	end
 	return model
 end
 
-function buildOnce(look, options: BuildOptions?, roots: number): (Model, number)
+function buildOnce(look, options: BuildOptions?, roots: number, withRelief: boolean): (Model, number)
 	local opts = options or {}
 	local s = opts.scale or 1
 	local model = Instance.new("Model")
@@ -3556,7 +3670,15 @@ function buildOnce(look, options: BuildOptions?, roots: number): (Model, number)
 		for _, side in { -1, 1 } do
 			-- Cheveux courts sous la casquette (`sideburns`) : pattes peintes, pas de mèches longues
 			if not look.sideburns then
-				ctx.lock("Head", hairColor, Vector3.new(side * 0.6, 0.3, -0.1), Vector3.new(side * 0.15, -1, 0), 0.4, 0.36, { facing = Vector3.new(side, 0, 0.2), thickness = 0.12 })
+				ctx.lock(
+					"Head",
+					hairColor,
+					Vector3.new(side * 0.6, 0.3, -0.1),
+					Vector3.new(side * 0.15, -1, 0),
+					0.4,
+					0.36,
+					{ facing = Vector3.new(side, 0, 0.2), thickness = 0.12 }
+				)
 			end
 			ctx.spike("Head", under, Vector3.new(side * 0.3, 0.05, 0.55), Vector3.new(side * 0.3, -0.8, 0.8), 0.36, 0.42, { cross = false })
 		end
@@ -3569,6 +3691,9 @@ function buildOnce(look, options: BuildOptions?, roots: number): (Model, number)
 		end
 	end
 
+	if withRelief then
+		relief(ctx, look)
+	end
 	if look.boss then
 		bossKit(ctx, look)
 	end
