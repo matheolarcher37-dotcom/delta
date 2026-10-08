@@ -15,6 +15,7 @@ local TraitService = {}
 
 local OpenMenu = Remotes.event("OpenMenu")
 local Announce = Remotes.event("Announce")
+local TraitRolled = Remotes.event("TraitRolled")
 local rng = Random.new()
 
 function TraitService:Init(services)
@@ -38,9 +39,12 @@ function TraitService:Reroll(player: Player, uid: any)
 		return false, "Impossible pendant un échange."
 	end
 	data.traitCrystals -= 1
+	local previous = entry.trait
 	local traitId = Traits.roll(rng)
 	entry.trait = traitId
 	DataService:Sync(player)
+	-- Le serveur tire le trait ; le client ne fait que l'afficher (rouleau, révélation, cinématique).
+	TraitRolled:FireClient(player, { uid = uid, traitId = traitId, previous = previous, crystals = data.traitCrystals })
 	if self.services.QuestService then
 		self.services.QuestService:OnTraitReroll(player) -- défis « Relance N traits »
 	end

@@ -15,6 +15,7 @@ local EVENTS = {
 	"OpenMenu", -- (nomDuMenu, argument?) ouvre un menu côté client (prompts de proximité)
 	"RollResult", -- { results = { {id, stars, rarity, price, dps, ...} }, pity = {...}, x10In = n } (machine ROULER)
 	"QuestNotify", -- (info) défis : { kind = "ready" | "progress" | "punch" | "punchTier", ... } (QuestService)
+	"TraitRolled", -- ({ uid, traitId, previous, crystals }) résultat d'une relance de trait (TraitService) : le client l'affiche
 
 	-- Client -> Serveur
 	"SetTarget", -- (ennemi) cible prioritaire de l'équipe

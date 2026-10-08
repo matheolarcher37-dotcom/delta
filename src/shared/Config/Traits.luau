@@ -66,6 +66,51 @@ Traits.List = {
 -- Ordre d'affichage (du plus rare au plus commun).
 Traits.Order = { "monarque", "celeste", "midas", "vampire", "celerite3", "vigueur3", "critique", "colosse", "fortune", "celerite2", "vigueur2", "erudit", "celerite1", "vigueur1" }
 
+-- Habillage visuel des traits (écran des Traits + révélations) :
+--   icon      = icône vectorielle de l'emblème du trait (UI/Icons, dessinée sans image) ;
+--   motto     = petite phrase sous le nom lors de la révélation ;
+--   cinematic = cinématique jouée dans le monde (Controllers/TraitCinematic) quand on l'obtient.
+-- Les autres traits ont une révélation à l'écran dont la force dépend de leur rang (voir revealLevel).
+Traits.Visual = {
+	vigueur1 = { icon = "sword", motto = "Un peu plus de force." },
+	celerite1 = { icon = "fast", motto = "Un peu plus vif." },
+	erudit = { icon = "book", motto = "Apprend deux fois plus vite." },
+	vigueur2 = { icon = "sword", motto = "Des coups qui font mal." },
+	celerite2 = { icon = "fast", motto = "Vif comme l'éclair." },
+	fortune = { icon = "coin", motto = "Les pièces l'adorent." },
+	colosse = { icon = "shield", motto = "Une montagne de muscles." },
+	critique = { icon = "target", motto = "Chaque coup peut être fatal." },
+	vigueur3 = { icon = "sword", motto = "Une force colossale." },
+	celerite3 = { icon = "bolt", motto = "Plus rapide que l'œil." },
+	vampire = { icon = "heart", motto = "La nuit lui appartient.", cinematic = "vampire" },
+	midas = { icon = "coin", motto = "Tout ce qu'il touche devient or.", cinematic = "midas" },
+	celeste = { icon = "star", motto = "Béni par les cieux.", cinematic = "celeste" },
+	monarque = { icon = "crown", motto = "Tous s'inclinent devant lui.", cinematic = "monarch" },
+}
+
+-- Force de la révélation d'un trait : 1 = simple éclat, 2 = étincelles, 3 = révélation renforcée
+-- à l'écran (rayons, gros titre), 4 = cinématique dans le monde.
+function Traits.revealLevel(id: string?): number
+	local trait = id and Traits.List[id]
+	if not trait then
+		return 0
+	end
+	local visual = Traits.Visual[id :: string]
+	if visual and visual.cinematic then
+		return 4
+	end
+	if trait.tier >= 3 then
+		return 3
+	end
+	return trait.tier >= 2 and 2 or 1
+end
+
+-- Cinématique d'un trait (ou nil) : "monarch", "celeste", "midas" ou "vampire".
+function Traits.cinematicOf(id: string?): string?
+	local visual = id and Traits.Visual[id]
+	return visual and visual.cinematic or nil
+end
+
 -- Chance d'obtenir un trait directement en ouvrant une relique.
 Traits.HatchChance = 0.35
 
