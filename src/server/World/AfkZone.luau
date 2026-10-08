@@ -81,7 +81,8 @@ end
 ------------------------------------------------------------------------
 
 -- Compteur au-dessus d'un sac : taille en STUDS (7 x 3,55), il rapetisse avec la distance comme
--- le décor : vus de l'entrée de la zone, les 3 compteurs ne se chevauchent pas. Tout est placé en
+-- le décor : vus de l'entrée de la zone, les 3 compteurs ne se chevauchent pas (et vus du joueur
+-- qui tape, ils restent sous le panneau compact du haut de l'écran). Tout est placé en
 -- proportions de la carte (260 x 132 « pixels » de référence).
 local COUNTER_W, COUNTER_H = 260, 132
 local function sx(px: number): number

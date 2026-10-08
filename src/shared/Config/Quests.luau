@@ -328,7 +328,7 @@ end
 -- Défis généraux.
 local GENERAL = {
 	{ "c_kill", "combat", "Tue %s ennemis", "sword", rgb(236, 60, 70), "kill", { 100, 500, 2000, 10000, 50000 }, { 800, 3000, 12000, 50000, 200000 }, { 1, 2, 4, 8, 15 } },
-	{ "c_elite", "combat", "Tue %s ennemis d'élite (les plus forts)", "skull", rgb(200, 40, 60), "elite", { 25, 150, 800, 3000 }, { 2000, 9000, 40000, 150000 }, { 1, 3, 6, 12 } },
+	{ "c_elite", "combat", "Tue %s ennemis d'élite", "skull", rgb(200, 40, 60), "elite", { 25, 150, 800, 3000 }, { 2000, 9000, 40000, 150000 }, { 1, 3, 6, 12 } },
 	{ "c_boss", "combat", "Bats %s boss", "crown", rgb(255, 190, 40), "boss", { 1, 5, 25, 100 }, { 4000, 20000, 90000, 300000 }, { 2, 4, 10, 20 } },
 	{ "c_sword", "combat", "Tue %s ennemis avec ton épée", "sword", rgb(255, 140, 36), "swordkill", { 25, 250, 2000 }, { 1500, 10000, 60000 }, { 1, 3, 8 } },
 	{
@@ -361,7 +361,7 @@ local GENERAL = {
 	{ "p_reroll", "progression", "Relance %s traits", "gem", rgb(50, 214, 255), "reroll", { 5, 25, 100, 500 }, { 2000, 8000, 30000, 120000 }, { 1, 3, 6, 12 } },
 	{ "p_trade", "progression", "Réussis %s échanges", "swap", rgb(60, 140, 240), "stat:trades", { 1, 10, 50 }, { 3000, 20000, 80000 }, { 1, 3, 6 } },
 	{ "p_play", "progression", "Joue %s minutes", "hourglass", rgb(120, 200, 255), "stat:playtime", { 30, 120, 600, 3000 }, { 1500, 6000, 30000, 150000 }, { 1, 3, 6, 12 } },
-	{ "a_punch", "afk", "Tape %s fois le punching-ball", "punchbag", rgb(50, 214, 255), "punch", { 1000, 5000, 20000, 100000 }, { 3000, 15000, 60000, 250000 }, { 2, 4, 8, 16 } },
+	{ "a_punch", "afk", "Frappe %s fois le sac", "punchbag", rgb(50, 214, 255), "punch", { 1000, 5000, 20000, 100000 }, { 3000, 15000, 60000, 250000 }, { 2, 4, 8, 16 } },
 	{ "a_gems", "afk", "Récolte %s gemmes de trait", "gem", rgb(80, 230, 255), "gems", { 10, 50, 250, 1000 }, { 2000, 10000, 50000, 200000 }, { 1, 3, 6, 12 } },
 }
 for _, g in GENERAL do

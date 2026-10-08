@@ -359,6 +359,8 @@ test("Zone anti-AFK : panneau affiché sur place, sac qui se balance", function(
 	task.wait(0.05)
 	local tracker = gui:FindFirstChild("QuestHUD") and gui.QuestHUD:FindFirstChild("Tracker")
 	assert(tracker and not tracker.Visible, "les cartes de suivi des défis doivent être masquées dans la zone")
+	local toasts = gui:FindFirstChild("Toasts", true)
+	assert(toasts and toasts.Position.Y.Offset >= panel.Position.Y.Offset + panel.Size.Y.Offset, "les bandeaux doivent passer sous le panneau AFK")
 	local station = workspaceService.World.AfkZone.Stations.Station1
 	-- compteur en studs (rapetisse avec la distance) et tableau ligne par ligne, texte fixe
 	local counter = station:FindFirstChild("Counter", true)
@@ -484,7 +486,8 @@ test("Traits : relance avec une gemme, relance auto, cinématiques Monarque et M
 			if child.Name ~= "Hero" then
 				kneelerCount += 1
 				local lo, hi = boxOf(child)
-				assert(hi.Y < 4.2, "perso pas agenouillé : " .. child.Name)
+				local torso = child:FindFirstChild("Torso")
+				assert(torso and torso.CFrame.Position.Y < 2.2, "perso pas agenouillé : " .. child.Name)
 				table.insert(boxes, { name = child.Name, lo = lo, hi = hi })
 			end
 		end

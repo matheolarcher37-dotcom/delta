@@ -293,10 +293,14 @@ test("Défis : configuration cohérente (paliers croissants, ennemis, récompens
 	assert(Quests.rewardCoins(rival.tiers[1].reward, 2540) == 760000, "5 min de 2 540 ¥/s ≈ 760 k")
 	assert(Quests.rewardCoins(Quests.DailyBonus, 100) == 180000, "coffre du jour : 30 min de revenu")
 	assert(Quests.rewardCoins(Quests.DailyById.d_kill.reward, 1) == Quests.DailyById.d_kill.reward.coins, "petit revenu : minimum")
+	local long = {}
 	for _, quest in Quests.List do
 		local title = Quests.title(quest, quest.tiers[#quest.tiers].goal)
-		assert(utf8.len(title) <= 31, "titre trop long : " .. title)
+		if utf8.len(title) > 31 then
+			table.insert(long, title)
+		end
 	end
+	assert(#long == 0, "titres trop longs : " .. table.concat(long, " | "))
 	local firstNinja
 	for _, quest in Quests.List do
 		if quest.universe == "ninja" then

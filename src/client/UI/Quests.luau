@@ -121,8 +121,8 @@ local CUSTOM_ICONS: { [string]: { any } } = {
 	-- Épée en diagonale (« / ») : pommeau, poignée filetée, garde transversale, lame à gouttière
 	-- et pointe (un carré droit dont le coin suit l'axe de la lame tournée à 45°).
 	sword = {
-		sr(0.586, 0.414, 0.13, 0.6, 0.15, 45, false, 0), -- lame
-		sr(0.794, 0.206, 0.092, 0.092, 0, 0, false, 0), -- pointe
+		sr(0.586, 0.414, 0.15, 0.6, 0.15, 45, false, 0), -- lame
+		sr(0.794, 0.206, 0.106, 0.106, 0, 0, false, 0), -- pointe
 		sr(0.57, 0.43, 0.03, 0.44, 0.5, 45, true, 1), -- gouttière
 		sr(0.358, 0.642, 0.4, 0.075, 0.5, 45, false, 2), -- garde (perpendiculaire à la lame)
 		sc(0.494, 0.778, 0.1, false, 2), -- boules au bout de la garde
@@ -1700,6 +1700,8 @@ end
 -- Position des bandeaux de notification quand l'écran Défis est ouvert : dans la marge du bas
 -- de la fenêtre, sous la liste (ni sur les onglets ni sur les boutons Réclamer).
 Quests.ToastPositionWhileOpen = UDim2.new(0.5, 0, 1, -90)
+-- Dans la zone anti-AFK : sous le panneau compact du haut (jamais par-dessus).
+Quests.ToastPositionInZone = UDim2.new(0.5, 0, 0, 190)
 
 function Quests.init(gui: ScreenGui)
 	buildWindow(gui)
@@ -1756,7 +1758,8 @@ function Quests.init(gui: ScreenGui)
 			toastHome = toastFrame and toastFrame.Position or nil
 		end
 		if toastFrame and toastHome then
-			local wanted = open and Quests.ToastPositionWhileOpen or toastHome
+			local inZone = afk.panel ~= nil and afk.panel.Visible
+			local wanted = open and Quests.ToastPositionWhileOpen or inZone and Quests.ToastPositionInZone or toastHome
 			if toastFrame.Position ~= wanted then
 				toastFrame.Position = wanted
 			end
