@@ -465,6 +465,30 @@ test("Traits : relance avec une gemme, relance auto, cinématiques Monarque et M
 	local pose = TraitsMenu.kneelPose(model)
 	local torso = model:FindFirstChild("Torso")
 	assert(pose[torso] and pose[torso][2].Position.Y < pose[torso][1].Position.Y - 0.5, "le torse ne descend pas à genoux")
+	-- à genoux lisible : torse presque droit, tête baissée, jambes à plat au sol (pas sous le sol)
+	assert(pose[torso][2].UpVector.Y > 0.9, "le torse doit rester presque droit")
+	local head = model:FindFirstChild("Head")
+	assert(pose[head][2].LookVector.Y < -0.3, "la tête doit être baissée")
+	for _, legName in { "Left Leg", "Right Leg" } do
+		local leg = model:FindFirstChild(legName)
+		local cf = pose[leg][2]
+		assert(math.abs(cf.UpVector.Y) < 0.2, legName .. " doit être repliée à plat")
+		assert(cf.Position.Y - leg.Size.X * 0.5 > -0.3 and cf.Position.Y < 1.2, legName .. " doit reposer au sol")
+	end
+	-- plan final de la cinématique : les 6 persos à genoux et l'unité dans le champ de la caméra
+	local keys = TraitsMenu.monarchCamera(7.5)
+	local last = keys[#keys]
+	local fwd = (last[3] - last[2]).Unit
+	local rightV = fwd:Cross(Vector3.new(0, 1, 0)).Unit
+	local upV = rightV:Cross(fwd)
+	for _, p in { Vector3.new(0, 4, 0), Vector3.new(-4.6, 1, -15), Vector3.new(4.6, 1, -15), Vector3.new(4.6, 1, -7) } do
+		local d = p - last[2]
+		local depth = d:Dot(fwd)
+		assert(depth > 0, "point derrière la caméra")
+		local ax = math.deg(math.atan(math.abs(d:Dot(rightV)) / depth))
+		local ay = math.deg(math.atan(math.abs(d:Dot(upV)) / depth))
+		assert(ax < 36 and ay < 20, "un perso sort du cadre final : " .. tostring(p))
+	end
 	-- Mythique
 	local asc = TraitsMenu.playAscension(entry, desc, Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Traits")).List.celeste, 1)
 	assert(asc and asc:FindFirstChild("Title", true), "ascension sans titre")
