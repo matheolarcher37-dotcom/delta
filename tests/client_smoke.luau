@@ -323,7 +323,15 @@ test("Défis : les 5 onglets, réclamer, suivi à l'écran", function()
 	end
 	assert(data.Quests.claimed.u_ninja_1 == 1, "réclamer depuis l'écran ne marche pas")
 	assert(QuestsUI.readyCount() >= 0, "compte des récompenses")
+	-- Bandeaux de notification : en bas de l'écran tant que la fenêtre Défis est ouverte
+	local toasts = gui:FindFirstChild("Toasts", true)
+	assert(toasts, "conteneur des bandeaux introuvable")
+	Harness.services.RunService.RenderStepped:Fire(1 / 60)
+	assert(toasts.Position == QuestsUI.ToastPositionWhileOpen, "les bandeaux masquent les onglets de la fenêtre Défis")
 	Menus.close("Quests")
+	task.wait(0.1)
+	Harness.services.RunService.RenderStepped:Fire(1 / 60)
+	assert(toasts.Position ~= QuestsUI.ToastPositionWhileOpen, "les bandeaux ne reviennent pas à leur place")
 	-- Suivi : bandeaux de progression et de réussite
 	local QuestNotify = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Remotes")).event("QuestNotify")
 	signalFor(QuestNotify, "OnClientEvent"):Fire({ kind = "progress", id = "c_kill", title = "Tue 500 ennemis", progress = 250, goal = 500, icon = "sword" })
@@ -408,6 +416,50 @@ test("Traits : relance avec une gemme, relance auto, cinématiques Monarque et M
 	end
 	TraitsMenu.skipCinematic()
 	assert(not cine.Parent, "la cinématique ne se passe pas")
+	-- Plan final (horloge simulée) : l'unité et les 6 persos à genou sont entiers dans le champ
+	-- (entre les bandes noires, écran 16/9), aucun pilier entre la caméra et l'unité.
+	local fake = 0
+	local cine2 = TraitsMenu.playMonarch(entry, desc, 7.5, function()
+		return fake
+	end)
+	fake = 7.5
+	for _ = 1, 3 do
+		Harness.services.RunService.RenderStepped:Fire(1 / 30)
+		task.wait(0.03)
+	end
+	local scene2 = cine2.Scene
+	local cam = scene2:FindFirstChildOfClass("Camera")
+	local tanV = math.tan(math.rad(cam.FieldOfView) / 2)
+	local tanH = tanV * 16 / 9
+	local heroCenter
+	for _, child in scene2:GetChildren() do
+		if child:IsA("Model") and child.Name ~= "Crown" then
+			for _, part in child:GetDescendants() do
+				if part:IsA("BasePart") and part.Transparency < 1 then
+					local v = cam.CFrame:PointToObjectSpace(part.CFrame.Position)
+					assert(v.Z < 0, "perso derrière la caméra")
+					assert(math.abs(v.X / -v.Z) < tanH * 0.98, "perso coupé par le bord : " .. child.Name)
+					assert(math.abs(v.Y / -v.Z) < tanV * 0.78, "perso coupé par les bandes noires : " .. child.Name)
+				end
+			end
+			local head = child:FindFirstChild("Head")
+			if head and math.abs(head.CFrame.Position.Z) < 1 then
+				heroCenter = head.CFrame.Position
+			end
+		end
+	end
+	assert(heroCenter, "unité introuvable sur l'estrade")
+	local a, b = cam.CFrame.Position, heroCenter
+	for _, part in scene2:GetChildren() do
+		if part.Name == "Pillar" then
+			local p = part.CFrame.Position
+			local ab = b - a
+			local t = math.clamp((p - a):Dot(ab) / ab:Dot(ab), 0, 1)
+			local closest = a + ab * t
+			assert(Vector3.new(closest.X - p.X, 0, closest.Z - p.Z).Magnitude > 2, "un pilier masque l'unité")
+		end
+	end
+	TraitsMenu.skipCinematic()
 	-- Pose à genoux : les jambes et le torse descendent
 	local model = Harness.require(client.UI.Components).characterModel(desc.look, entry.id, entry.stars)
 	local pose = TraitsMenu.kneelPose(model)

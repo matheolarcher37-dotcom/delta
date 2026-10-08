@@ -414,12 +414,12 @@ local function sunburst(parent: Instance, color: Color3, count: number, z: numbe
 	return holder
 end
 
-local function bigTitle(root: Frame, text: string, color: Color3, subtitle: string, z: number, y: number)
+local function bigTitle(root: Frame, text: string, color: Color3, subtitle: string, z: number, y: number, x: number?)
 	local title = Theme.label({
 		Name = "Title",
 		Text = text,
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, y),
+		Position = UDim2.fromScale(x or 0.5, y),
 		Size = UDim2.fromOffset(900, 110),
 		FontFace = Theme.Faces.Title,
 		TextColor3 = WHITE,
@@ -440,7 +440,7 @@ local function bigTitle(root: Frame, text: string, color: Color3, subtitle: stri
 		Name = "Subtitle",
 		Text = subtitle,
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, y, 76),
+		Position = UDim2.new(x or 0.5, 0, y, 76),
 		Size = UDim2.fromOffset(900, 34),
 		FontFace = Theme.Faces.Heavy,
 		TextColor3 = WHITE,
@@ -466,7 +466,7 @@ local KNEEL = {
 	frontLeg = 66, -- jambe droite vers l'avant
 	backLeg = 58, -- jambe gauche vers l'arrière (genou au sol)
 	torso = 12, -- torse légèrement incliné
-	head = 25, -- tête baissée
+	head = 18, -- tête baissée
 	fistLift = 78, -- bras droit levé vers l'avant...
 	fistYaw = 58, -- ... et ramené vers la poitrine
 	leftArm = 14, -- bras gauche presque le long du corps
@@ -641,24 +641,23 @@ local function buildThroneRoom(parent: Instance)
 	part("DaisHigh", Vector3.new(0.6, 8, 8), CFrame.new(0, 0.9, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(252, 248, 238), Enum.Material.Marble, CYL)
 	part("DaisGlow", Vector3.new(0.05, 6.4, 6.4), CFrame.new(0, 1.22, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(255, 226, 140), Enum.Material.Neon, CYL).Transparency =
 		0.35
-	-- Le héros ressort : halo doré derrière lui et colonne de lumière qui tombe sur l'estrade
-	-- (un ViewportFrame n'affiche pas les PointLight : la lumière est faite de pièces Neon).
-	local halo = part("Halo", Vector3.new(0.1, 7.2, 7.2), CFrame.new(0, 5.6, 1.7) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 214, 90), Enum.Material.Neon, CYL)
-	halo.Transparency = 0.15
-	local haloRing = part("HaloRing", Vector3.new(0.12, 8.4, 8.4), CFrame.new(0, 5.6, 1.75) * CFrame.Angles(0, math.rad(90), 0), GOLD, Enum.Material.Metal, CYL)
-	haloRing.Transparency = 0
-	for i = 0, 11 do
-		local a = i / 12 * math.pi * 2
+	-- Le héros ressort : grand disque doré derrière lui, anneau d'or et rayons
+	-- (un ViewportFrame n'affiche pas les PointLight : la lumière est faite de couleurs vives).
+	local halo =
+		part("Halo", Vector3.new(0.1, 6.6, 6.6), CFrame.new(0, 5.4, 1.0) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 206, 84), Enum.Material.SmoothPlastic, CYL)
+	halo.Transparency = 0.05
+	part("HaloRing", Vector3.new(0.12, 7.6, 7.6), CFrame.new(0, 5.4, 1.05) * CFrame.Angles(0, math.rad(90), 0), GOLD, Enum.Material.Metal, CYL)
+	for i = 0, 15 do
+		local a = i / 16 * math.pi * 2
+		local long = i % 2 == 0
 		part(
 			"HaloRay",
-			Vector3.new(0.35, 2.4, 0.08),
-			CFrame.new(math.cos(a) * 5.4, 5.6 + math.sin(a) * 5.4, 1.8) * CFrame.Angles(0, 0, a - math.pi / 2),
-			Color3.fromRGB(255, 236, 160),
+			Vector3.new(0.28, long and 2.2 or 1.3, 0.08),
+			CFrame.new(math.cos(a) * (long and 5 or 4.55), 5.4 + math.sin(a) * (long and 5 or 4.55), 1.85) * CFrame.Angles(0, 0, a - math.pi / 2),
+			Color3.fromRGB(255, 232, 150),
 			Enum.Material.Neon
 		)
 	end
-	local shaft = part("LightShaft", Vector3.new(26, 7, 7), CFrame.new(0, 13, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(255, 236, 170), Enum.Material.Neon, CYL)
-	shaft.Transparency = 0.82
 	-- Trône
 	part("ThroneSeat", Vector3.new(4, 1.2, 3), CFrame.new(0, 1.8, 2.6), Color3.fromRGB(160, 20, 36), Enum.Material.Fabric)
 	part("ThroneBack", Vector3.new(4.4, 8, 0.8), CFrame.new(0, 5.2, 4.1), GOLD, Enum.Material.Metal)
@@ -668,8 +667,9 @@ local function buildThroneRoom(parent: Instance)
 		part("ThroneArm", Vector3.new(0.6, 2.4, 3.2), CFrame.new(x, 2.4, 2.6), GOLD, Enum.Material.Metal)
 	end
 	-- Piliers et bannières
-	for _, z in { -4, -16, -28 } do
-		for _, x in { -10, 10 } do
+	-- (rangées écartées : la caméra de 3/4 passe entre les piliers sans être masquée)
+	for _, z in { -3, -15, -27 } do
+		for _, x in { -27, 27 } do
 			part("Pillar", Vector3.new(18, 2.2, 2.2), CFrame.new(x, 9, z) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(226, 216, 200), Enum.Material.Marble, CYL)
 			part("PillarCap", Vector3.new(3, 1, 3), CFrame.new(x, 18.2, z), GOLD, Enum.Material.Metal)
 			part("PillarFoot", Vector3.new(3, 1, 3), CFrame.new(x, 0.5, z), Color3.fromRGB(190, 180, 168), Enum.Material.Marble)
@@ -715,16 +715,17 @@ end
 -- Trajet de la caméra de la cinématique MONARQUE : { temps, position, point visé }.
 local function monarchCamera(total: number): { { any } }
 	return {
-		{ 0, Vector3.new(0, 3, -31), Vector3.new(0, 3.4, 0) },
-		{ 1.5, Vector3.new(6, 4.2, -25), Vector3.new(0, 3.2, -6) },
-		{ 2.9, Vector3.new(14, 6, -16), Vector3.new(0, 3.5, -5) },
-		{ math.max(total, 3.8), Vector3.new(12.6, 5.6, -14.6), Vector3.new(0, 3.6, -5) },
+		{ 0, Vector3.new(0, 3.4, -30), Vector3.new(0, 3.6, 0) },
+		{ 1.6, Vector3.new(6, 5, -24), Vector3.new(0, 3.4, -5) },
+		{ 3, Vector3.new(23, 11.5, -6.5), Vector3.new(0, 3, -5.5) },
+		{ math.max(total, 3.8), Vector3.new(21.5, 10.8, -6), Vector3.new(0, 3.1, -5.5) },
 	}
 end
 TraitsMenu.monarchCamera = monarchCamera
 
 -- MONARQUE : salle du trône, les persos s'agenouillent, la couronne descend.
-function TraitsMenu.playMonarch(entry, desc, duration: number?)
+-- `clock` (facultatif, pour les tests) remplace os.clock comme horloge de la scène.
+function TraitsMenu.playMonarch(entry, desc, duration: number?, clock: (() -> number)?)
 	local total = duration or 7.5
 	local root, isDone = cinematicLayer("Monarque", total)
 	local backdrop = new("Frame", {
@@ -746,7 +747,7 @@ function TraitsMenu.playMonarch(entry, desc, duration: number?)
 		ZIndex = 3,
 		Parent = root,
 	})
-	local camera = new("Camera", { FieldOfView = 45, Parent = viewport })
+	local camera = new("Camera", { FieldOfView = 50, Parent = viewport })
 	viewport.CurrentCamera = camera
 	buildThroneRoom(viewport)
 	-- L'unité, debout sur l'estrade
@@ -758,18 +759,18 @@ function TraitsMenu.playMonarch(entry, desc, duration: number?)
 	local headTop = head and (head.CFrame.Position.Y + head.Size.Y * 0.5 + 0.55) or 6.9
 	-- Les persos qui s'agenouillent, de part et d'autre du tapis
 	local spots = {
-		Vector3.new(-4.8, 0, -6),
-		Vector3.new(4.8, 0, -6),
-		Vector3.new(-5.2, 0, -10.5),
-		Vector3.new(5.2, 0, -10.5),
-		Vector3.new(-5.6, 0, -15),
-		Vector3.new(5.6, 0, -15),
+		Vector3.new(-4.6, 0, -5.5),
+		Vector3.new(4.6, 0, -5.5),
+		Vector3.new(-4.6, 0, -9.5),
+		Vector3.new(4.6, 0, -9.5),
+		Vector3.new(-4.6, 0, -13.5),
+		Vector3.new(4.6, 0, -13.5),
 	}
 	local kneelers = {}
 	for i, info in kneelerLooks(entry and entry.uid or selected, #spots) do
 		local model = Components.characterModel(info.look, info.id, info.stars)
 		local pose = TraitsMenu.kneelPose(model)
-		local place = CFrame.lookAt(spots[i], Vector3.new(0, 0, spots[i].Z + 6))
+		local place = CFrame.lookAt(spots[i], Vector3.new(0, 0, spots[i].Z + 12)) -- tournés vers le trône
 		applyPose(pose, place, 0)
 		model.Parent = viewport
 		table.insert(kneelers, { pose = pose, place = place, delay = 0.7 + i * 0.16 })
@@ -779,9 +780,10 @@ function TraitsMenu.playMonarch(entry, desc, duration: number?)
 	-- Caméra : arrivée dans l'axe du tapis (les persos sont debout), puis plan de 3/4 de côté
 	-- qui montre les 6 persos à genou de profil et l'unité en entier devant son trône.
 	local keys = monarchCamera(total)
-	local start = os.clock()
+	local now = clock or os.clock
+	local start = now()
 	local function step()
-		local t = os.clock() - start
+		local t = now() - start
 		local a, b = keys[1], keys[#keys]
 		for i = 1, #keys - 1 do
 			if t >= keys[i][1] and t <= keys[i + 1][1] then
@@ -808,7 +810,8 @@ function TraitsMenu.playMonarch(entry, desc, duration: number?)
 	local name = desc and desc.name or "ton unité"
 	task.delay(3.7, function()
 		if not isDone() and root.Parent then
-			bigTitle(root, "MONARQUE", GOLD, "Tous s'inclinent devant " .. name .. " !", 25, 0.2)
+			-- titre à droite : le héros (à gauche) et les persos à genou restent visibles
+			bigTitle(root, "MONARQUE", GOLD, "Tous s'inclinent devant " .. name .. " !", 25, 0.22, 0.66)
 			SoundService:PlayLocalSound(rareSound)
 		end
 	end)

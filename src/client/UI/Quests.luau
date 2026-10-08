@@ -1590,6 +1590,9 @@ end
 -- Démarrage
 ------------------------------------------------------------------------
 
+-- Position des bandeaux de notification quand l'écran Défis est ouvert (bas de l'écran).
+Quests.ToastPositionWhileOpen = UDim2.new(0.5, 0, 1, -128)
+
 function Quests.init(gui: ScreenGui)
 	buildWindow(gui)
 	trackerRoot = Theme.scaledRoot(gui, "QuestHUD", 6)
@@ -1630,10 +1633,25 @@ function Quests.init(gui: ScreenGui)
 			Notifications.toast("Nouveaux défis du jour disponibles !", "info")
 		end
 	end)
+	-- Bandeaux de notification (UI/Notifications) : pendant que l'écran Défis est ouvert, ils
+	-- s'affichent en bas de l'écran pour ne pas masquer les onglets et les boutons du haut.
+	local toastFrame: GuiObject? = nil
+	local toastHome: UDim2? = nil
 	Theme.onFrame(trackerRoot, function()
 		stepSwings()
+		local open = window and window.isOpen or false
 		-- bandeaux de suivi cachés pendant que l'écran Défis est ouvert
-		trackerStack.Visible = not (window and window.isOpen)
+		trackerStack.Visible = not open
+		if not toastFrame or not toastFrame.Parent then
+			toastFrame = gui:FindFirstChild("Toasts", true) :: GuiObject?
+			toastHome = toastFrame and toastFrame.Position or nil
+		end
+		if toastFrame and toastHome then
+			local wanted = open and Quests.ToastPositionWhileOpen or toastHome
+			if toastFrame.Position ~= wanted then
+				toastFrame.Position = wanted
+			end
+		end
 	end)
 	-- Gemme de trait gagnée : une petite gemme vole de l'ennemi vers le compteur du HUD.
 	Remotes.event("Reward").OnClientEvent:Connect(function(kind, amount, position)
