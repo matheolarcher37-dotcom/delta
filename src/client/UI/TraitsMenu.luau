@@ -20,7 +20,6 @@ local SoundService = game:GetService("SoundService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Traits = require(Shared.Config.Traits)
-local Economy = require(Shared.Config.Economy)
 local Characters = require(Shared.Config.Characters)
 local QuestsConfig = require(Shared.Config.Quests)
 local Formulas = require(Shared.Modules.Formulas)
@@ -456,9 +455,20 @@ local function bigTitle(root: Frame, text: string, color: Color3, subtitle: stri
 	return title
 end
 
--- Prépare une pose « à genoux » pour un modèle d'aperçu (pièces ancrées) :
+-- Prépare une pose « chevalier à genou » pour un modèle d'aperçu (pièces ancrées) :
 -- renvoie { [pièce] = { debout, à genoux } } dans le repère du modèle (pieds à y = 0, face -Z).
 local LIMBS = { "Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "HumanoidRootPart" }
+-- Angles de la pose « chevalier à genou » (degrés).
+local KNEEL = {
+	frontLeg = 66, -- jambe droite vers l'avant
+	backLeg = 58, -- jambe gauche vers l'arrière (genou au sol)
+	torso = 12, -- torse légèrement incliné
+	head = 25, -- tête baissée
+	fistLift = 78, -- bras droit levé vers l'avant...
+	fistYaw = 58, -- ... et ramené vers la poitrine
+	leftArm = 14, -- bras gauche presque le long du corps
+}
+TraitsMenu.KneelAngles = KNEEL
 
 function TraitsMenu.kneelPose(model: Model): { [BasePart]: { CFrame } }
 	-- Regroupe les pièces par membre (soudures, sans les articulations).
@@ -511,19 +521,23 @@ function TraitsMenu.kneelPose(model: Model): { [BasePart]: { CFrame } }
 	local function about(p: Vector3, angle: number): CFrame
 		return CFrame.new(p) * CFrame.fromAxisAngle(right, angle) * CFrame.new(-p)
 	end
-	-- À genoux (seiza) : les jambes repliées à plat derrière, le torse incliné vers l'avant, la tête
-	-- baissée, les bras tendus vers le sol devant les genoux.
-	local legAngle = math.rad(90)
-	local drop = 1.5
+	-- Chevalier à genou (lisible en R6, membres d'un seul bloc) : jambe droite en avant, pied
+	-- posé devant ; jambe gauche en arrière, genou à terre ; torse presque droit ; tête baissée ;
+	-- poing droit contre la poitrine ; main gauche le long du corps.
+	local up = tcf.UpVector
+	local drop = 1.05
 	local hipCenter = tcf:PointToWorldSpace(Vector3.new(0, -1, 0))
+	local function arm(p: Vector3, yaw: number, forward: number): CFrame
+		return CFrame.new(p) * CFrame.fromAxisAngle(up, yaw) * CFrame.fromAxisAngle(right, forward) * CFrame.new(-p)
+	end
 	local limbMove = {
-		["Left Leg"] = about(pivot("Left Leg", Vector3.new(-0.5, -1, 0)), -legAngle),
-		["Right Leg"] = about(pivot("Right Leg", Vector3.new(0.5, -1, 0)), -legAngle),
-		["Right Arm"] = about(pivot("Right Arm", Vector3.new(1, 0.5, 0)), math.rad(58)),
-		["Left Arm"] = about(pivot("Left Arm", Vector3.new(-1, 0.5, 0)), math.rad(50)),
-		Head = about(pivot("Head", Vector3.new(0, 1, 0)), math.rad(-18)),
+		["Right Leg"] = about(pivot("Right Leg", Vector3.new(0.5, -1, 0)), math.rad(KNEEL.frontLeg)),
+		["Left Leg"] = about(pivot("Left Leg", Vector3.new(-0.5, -1, 0)), -math.rad(KNEEL.backLeg)),
+		["Right Arm"] = arm(pivot("Right Arm", Vector3.new(1, 0.5, 0)), math.rad(KNEEL.fistYaw), math.rad(KNEEL.fistLift)),
+		["Left Arm"] = about(pivot("Left Arm", Vector3.new(-1, 0.5, 0)), math.rad(KNEEL.leftArm)),
+		Head = about(pivot("Head", Vector3.new(0, 1, 0)), -math.rad(KNEEL.head)),
 	}
-	local bow = about(hipCenter, math.rad(-30))
+	local bow = about(hipCenter, -math.rad(KNEEL.torso))
 	local down = CFrame.new(0, -drop, 0)
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") then
@@ -619,13 +633,32 @@ local function buildThroneRoom(parent: Instance)
 	for _, x in { -3.7, 3.7 } do
 		part("CarpetTrim", Vector3.new(0.4, 0.12, 44), CFrame.new(x, 0.06, -22), GOLD, Enum.Material.Fabric)
 	end
-	part("DaisLow", Vector3.new(0.6, 11, 11), CFrame.new(0, 0.3, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(210, 200, 190), Enum.Material.Marble, CYL)
+	part("DaisLow", Vector3.new(0.6, 11, 11), CFrame.new(0, 0.3, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(240, 234, 222), Enum.Material.Marble, CYL)
 	part("DaisTrim", Vector3.new(0.12, 11.2, 11.2), CFrame.new(0, 0.62, 0) * CFrame.Angles(0, 0, math.rad(90)), GOLD, Enum.Material.Metal, CYL)
-	part("DaisHigh", Vector3.new(0.6, 8, 8), CFrame.new(0, 0.9, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(230, 222, 214), Enum.Material.Marble, CYL)
+	part("DaisHigh", Vector3.new(0.6, 8, 8), CFrame.new(0, 0.9, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(252, 248, 238), Enum.Material.Marble, CYL)
+	part("DaisGlow", Vector3.new(0.05, 6.4, 6.4), CFrame.new(0, 1.22, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(255, 226, 140), Enum.Material.Neon, CYL).Transparency = 0.35
+	-- Le héros ressort : halo doré derrière lui et colonne de lumière qui tombe sur l'estrade
+	-- (un ViewportFrame n'affiche pas les PointLight : la lumière est faite de pièces Neon).
+	local halo = part("Halo", Vector3.new(0.1, 7.2, 7.2), CFrame.new(0, 5.6, 1.7) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 214, 90), Enum.Material.Neon, CYL)
+	halo.Transparency = 0.15
+	local haloRing = part("HaloRing", Vector3.new(0.12, 8.4, 8.4), CFrame.new(0, 5.6, 1.75) * CFrame.Angles(0, math.rad(90), 0), GOLD, Enum.Material.Metal, CYL)
+	haloRing.Transparency = 0
+	for i = 0, 11 do
+		local a = i / 12 * math.pi * 2
+		part(
+			"HaloRay",
+			Vector3.new(0.35, 2.4, 0.08),
+			CFrame.new(math.cos(a) * 5.4, 5.6 + math.sin(a) * 5.4, 1.8) * CFrame.Angles(0, 0, a - math.pi / 2),
+			Color3.fromRGB(255, 236, 160),
+			Enum.Material.Neon
+		)
+	end
+	local shaft = part("LightShaft", Vector3.new(26, 7, 7), CFrame.new(0, 13, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(255, 236, 170), Enum.Material.Neon, CYL)
+	shaft.Transparency = 0.82
 	-- Trône
 	part("ThroneSeat", Vector3.new(4, 1.2, 3), CFrame.new(0, 1.8, 2.6), Color3.fromRGB(160, 20, 36), Enum.Material.Fabric)
 	part("ThroneBack", Vector3.new(4.4, 8, 0.8), CFrame.new(0, 5.2, 4.1), GOLD, Enum.Material.Metal)
-	part("ThroneCushion", Vector3.new(3.4, 6.4, 0.3), CFrame.new(0, 5, 3.6), Color3.fromRGB(160, 20, 36), Enum.Material.Fabric)
+	part("ThroneCushion", Vector3.new(3.4, 6.4, 0.3), CFrame.new(0, 5, 3.6), Color3.fromRGB(196, 30, 48), Enum.Material.Fabric)
 	part("ThroneTop", Vector3.new(1.4, 1.4, 1.4), CFrame.new(0, 9.6, 4.1), GOLD, Enum.Material.Metal, Enum.PartType.Ball)
 	for _, x in { -2.4, 2.4 } do
 		part("ThroneArm", Vector3.new(0.6, 2.4, 3.2), CFrame.new(x, 2.4, 2.6), GOLD, Enum.Material.Metal)
@@ -675,6 +708,17 @@ local function kneelerLooks(exceptUid: string?, count: number): { { look: any, i
 	return list
 end
 
+-- Trajet de la caméra de la cinématique MONARQUE : { temps, position, point visé }.
+local function monarchCamera(total: number): { { any } }
+	return {
+		{ 0, Vector3.new(0, 3, -31), Vector3.new(0, 3.4, 0) },
+		{ 2.1, Vector3.new(0, 4.2, -22), Vector3.new(0, 3.2, -4) },
+		{ 3.7, Vector3.new(14, 6, -16), Vector3.new(0, 3.5, -5) },
+		{ math.max(total, 3.8), Vector3.new(12.6, 5.6, -14.6), Vector3.new(0, 3.6, -5) },
+	}
+end
+TraitsMenu.monarchCamera = monarchCamera
+
 -- MONARQUE : salle du trône, les persos s'agenouillent, la couronne descend.
 function TraitsMenu.playMonarch(entry, desc, duration: number?)
 	local total = duration or 7.5
@@ -692,13 +736,13 @@ function TraitsMenu.playMonarch(entry, desc, duration: number?)
 		Name = "Scene",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
-		Ambient = Color3.fromRGB(150, 120, 120),
-		LightColor = Color3.fromRGB(255, 226, 170),
-		LightDirection = Vector3.new(-0.4, -1, 0.6),
+		Ambient = Color3.fromRGB(176, 150, 146),
+		LightColor = Color3.fromRGB(255, 232, 186),
+		LightDirection = Vector3.new(-0.5, -1, 0.7),
 		ZIndex = 3,
 		Parent = root,
 	})
-	local camera = new("Camera", { FieldOfView = 40, Parent = viewport })
+	local camera = new("Camera", { FieldOfView = 45, Parent = viewport })
 	viewport.CurrentCamera = camera
 	buildThroneRoom(viewport)
 	-- L'unité, debout sur l'estrade
@@ -728,13 +772,9 @@ function TraitsMenu.playMonarch(entry, desc, duration: number?)
 	end
 	local crown = buildCrown(viewport)
 	local crownTarget = Vector3.new(0, headTop, 0)
-	-- Caméra : plan large au ras du tapis, puis montée vers l'unité.
-	local keys = {
-		{ 0, Vector3.new(0, 2.2, -32), Vector3.new(0, 3, 0) },
-		{ 2.2, Vector3.new(0, 3.4, -20), Vector3.new(0, 3.6, 0) },
-		{ 3.9, Vector3.new(11, 6.5, -10), Vector3.new(0, 4, -3) },
-		{ total, Vector3.new(0, 8.6, -25), Vector3.new(0, 3.6, 0) },
-	}
+	-- Caméra : arrivée dans l'axe du tapis (les persos sont debout), puis plan de 3/4 de côté
+	-- qui montre les 6 persos à genou de profil et l'unité en entier devant son trône.
+	local keys = monarchCamera(total)
 	local start = os.clock()
 	local function step()
 		local t = os.clock() - start
@@ -1062,7 +1102,13 @@ local function renderDetail()
 		ZIndex = 3,
 		Parent = portrait,
 	})
-	Components.rarityTag(portrait, Components.rarityOf(entry, desc), { Position = UDim2.fromOffset(10, 40), Size = UDim2.fromOffset(110, 22), ZIndex = 3 })
+	local rarity = Components.rarityTag(portrait, Components.rarityOf(entry, desc), { Position = UDim2.fromOffset(10, 40), Size = UDim2.fromOffset(110, 22), ZIndex = 3 })
+	-- Components met le nom en majuscules sans gérer les accents (« LéGENDAIRE ») : on corrige.
+	for _, d in rarity:GetDescendants() do
+		if d:IsA("TextLabel") then
+			d.Text = upper(d.Text)
+		end
+	end
 
 	-- Trait actuel + boutons
 	local right = new("Frame", { Name = "Right", Size = UDim2.new(1, -290, 0, 318), Position = UDim2.fromOffset(276, 12), BackgroundTransparency = 1, Parent = sheet })
@@ -1252,22 +1298,8 @@ function TraitsMenu.init(screenGui: ScreenGui)
 	local content = window.content
 	local left = new("Frame", { Name = "Left", Size = UDim2.new(0, 400, 1, 0), BackgroundTransparency = 1, Parent = content })
 	local toolbar = new("Frame", { Name = "Toolbar", Size = UDim2.new(1, 0, 0, 46), BackgroundTransparency = 1, Parent = left })
-	refs.crystals = Components.pill(toolbar, "gem", "0 gemme de trait", GEM, { Size = UDim2.new(0.56, -4, 0, 42), Position = UDim2.fromOffset(0, 2) })
-	Components.button({
-		Text = Formulas.formatNumber(Economy.TraitCrystalPrice),
-		Icon = "coin",
-		Color = C.Blue,
-		Size = UDim2.new(0.44, -4, 0, 44),
-		Position = UDim2.new(0.56, 4, 0, 1),
-		TextSize = 20,
-		Parent = toolbar,
-		OnClick = function()
-			local ok, message = State.invoke("BuyTraitCrystal")
-			if message then
-				Notifications.toast(message, ok and "success" or "error")
-			end
-		end,
-	}):SetAttribute("SelKey", "buy")
+	-- Les gemmes se gagnent en jeu (ennemis, boss, punching-ball, défis) : pas d'achat en pièces ici.
+	refs.crystals = Components.pill(toolbar, "gem", "0 gemme de trait", GEM, { Size = UDim2.new(1, 0, 0, 42), Position = UDim2.fromOffset(0, 2) })
 	refs.grid = Components.cardGrid(left, Vector2.new(118, 152), { Name = "Grid", Size = UDim2.new(1, 0, 1, -104), Position = UDim2.fromOffset(0, 52) }, 8)
 	refs.pager = Components.pager(left, { Position = UDim2.new(0, 0, 1, -96) }, function(target)
 		page = target
@@ -1275,7 +1307,7 @@ function TraitsMenu.init(screenGui: ScreenGui)
 	end)
 	local earn = Components.button({
 		Text = "GAGNER DES GEMMES",
-		Icon = "target",
+		Icon = "gem",
 		Color = Color3.fromRGB(30, 150, 170),
 		Size = UDim2.new(1, 0, 0, 46),
 		Position = UDim2.new(0, 0, 1, -46),

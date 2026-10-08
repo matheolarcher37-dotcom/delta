@@ -55,7 +55,7 @@ local function ensure(data)
 			q[key] = {}
 		end
 	end
-	for _, key in { "list", "base", "claimed" } do
+	for _, key in { "list", "base", "claimed", "goals" } do
 		if type(q.daily[key]) ~= "table" then
 			q.daily[key] = {}
 		end
@@ -74,14 +74,16 @@ function QuestService:_refreshDaily(player: Player, data): boolean
 		return false
 	end
 	local list = Quests.pickDaily(today, player.UserId)
-	local base = {}
+	local base, goals = {}, {}
+	local income = tonumber(player:GetAttribute("IncomePerSec")) or 0
 	for _, id in list do
 		local daily = Quests.DailyById[id]
 		if daily then
 			base[daily.key] = Quests.read(data, daily.key)
+			goals[id] = Quests.dailyGoalFor(daily, income)
 		end
 	end
-	q.daily = { day = today, list = list, base = base, claimed = {}, bonus = false }
+	q.daily = { day = today, list = list, base = base, goals = goals, claimed = {}, bonus = false }
 	return true
 end
 
@@ -402,9 +404,9 @@ function QuestService:_check(player: Player, changed: { [string]: boolean }?)
 		end
 	end
 	if #readyTitles > 0 then
-		local text = #readyTitles == 1 and ("🎯 Défi réussi : " .. readyTitles[1] .. " ! Réclame ta récompense dans Défis.")
-			or ("🎯 " .. #readyTitles .. " défis réussis ! Réclame tes récompenses dans Défis.")
-		Notify:FireClient(player, text, "success")
+		-- Un seul bandeau récapitulatif, affiché par le client (pas quand l'écran Défis est ouvert :
+		-- il montre déjà le compteur de récompenses prêtes).
+		QuestNotify:FireClient(player, { kind = "readySummary", count = #readyTitles, title = readyTitles[1] })
 		DataService:Sync(player)
 	end
 end

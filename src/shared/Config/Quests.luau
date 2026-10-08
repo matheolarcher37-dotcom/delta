@@ -24,17 +24,70 @@ local Quests = {}
 ------------------------------------------------------------------------
 
 Quests.Gems = {
-	-- [force de l'ennemi] = { chance, minimum, maximum }
+	-- [force de l'ennemi] = { chance, minimum, maximum } : on en gagne souvent en combat
+	-- (« Tue 200 ennemis » ≈ 30 gemmes), le punching-ball reste à 1000 coups = 20 gemmes.
 	Tiers = {
-		[1] = { chance = 0.02, min = 1, max = 1 },
-		[2] = { chance = 0.05, min = 1, max = 1 },
-		[3] = { chance = 0.12, min = 1, max = 2 },
+		[1] = { chance = 0.08, min = 1, max = 1 },
+		[2] = { chance = 0.15, min = 1, max = 1 },
+		[3] = { chance = 0.30, min = 1, max = 2 },
 	},
-	Boss = { min = 3, max = 6 }, -- pour chaque joueur qui a participé au combat
+	Rival = { chance = 0.5, min = 1, max = 2 }, -- rivaux d'univers (Kakashu, Vejeta...)
+	Boss = { min = 5, max = 10 }, -- pour chaque joueur qui a participé au combat
 	Name = "Gemme de trait",
 	NamePlural = "Gemmes de trait",
 	Color = rgb(50, 214, 255),
 }
+
+------------------------------------------------------------------------
+-- Rivaux d'univers : de temps en temps, un perso de l'univers apparaît comme ennemi
+-- (« Village Ninja : tue 200 Kakashu »). Compté avec la clé kill:<idPerso>.
+------------------------------------------------------------------------
+
+Quests.RivalChance = 0.15 -- part des apparitions d'ennemis remplacées par un rival
+Quests.Rivals = {
+	ninja = { "ninja_kakashu", "ninja_sasuki" },
+	occulte = { "occ_megumo", "occ_toudo" },
+	saiyan = { "sai_vejeta", "sai_piccola" },
+	ocean = { "oce_zoru", "oce_sanjo" },
+	pourfendeur = { "pou_inosoke", "pou_zenitso" },
+}
+
+-- Rivaux valides d'un univers (persos qui existent vraiment ; sinon deux persos de l'univers).
+function Quests.rivalsFor(universe: any): { string }
+	local list = {}
+	if type(universe) ~= "table" then
+		return list
+	end
+	for _, id in Quests.Rivals[universe.id] or {} do
+		if Characters.List[id] then
+			table.insert(list, id)
+		end
+	end
+	if #list == 0 and type(universe.characters) == "table" then
+		for i = #universe.characters - 2, #universe.characters - 3, -1 do
+			local id = universe.characters[i]
+			if id and Characters.List[id] then
+				table.insert(list, id)
+			end
+		end
+	end
+	return list
+end
+
+-- Nom au pluriel d'un ennemi pour les titres (« Tue 50 Pirates de Buggi »). Les noms propres
+-- (Kabouto, Zabouza...) restent tels quels.
+Quests.Plurals = {
+	ninja_son = "Ninjas du Son",
+	occ_fleau = "Fléaux Mineurs",
+	sai_soldat = "Soldats de Freezo",
+	sai_saibamon = "Saibamons",
+	oce_pirate = "Pirates de Buggi",
+	oce_marine = "Marines",
+	pou_demon = "Démons Inférieurs",
+}
+function Quests.plural(id: string, name: string): string
+	return Quests.Plurals[id] or name
+end
 
 ------------------------------------------------------------------------
 -- Zone anti-AFK : punching-balls
@@ -132,6 +185,7 @@ export type Quest = {
 	id: string,
 	category: string, -- "univers" | "combat" | "progression" | "afk"
 	universe: string?,
+	rival: string?, -- perso de l'univers à affronter (défis de rivaux)
 	title: string, -- « %s » est remplacé par l'objectif (ex. « Tue %s Kabouto »)
 	icon: string,
 	color: Color3,
@@ -143,7 +197,7 @@ Quests.Categories = {
 	{ id = "univers", name = "Univers", icon = "pin", color = rgb(255, 140, 40) },
 	{ id = "combat", name = "Combat", icon = "sword", color = rgb(236, 60, 70) },
 	{ id = "progression", name = "Progression", icon = "upgrade", color = rgb(70, 214, 96) },
-	{ id = "afk", name = "Entraînement", icon = "target", color = rgb(50, 214, 255) },
+	{ id = "afk", name = "Entraînement", icon = "punchbag", color = rgb(50, 214, 255) },
 }
 
 Quests.List = {} :: { Quest }
@@ -188,6 +242,21 @@ for _, universe in Universes.List do
 		{ goals = { 40, 150, 600 }, coins = { 600, 2500, 12000 }, gems = { 1, 2, 4 }, items = { [3] = items[2] and { [items[2]] = 1 } or nil } },
 		{ goals = { 20, 80, 300 }, coins = { 1500, 6000, 25000 }, gems = { 1, 3, 6 }, items = { [3] = items[2] and { [items[2]] = 2 } or nil } },
 	}
+	-- Rivaux d'abord : « Tue 200 Kakashu » → 1 000 ¥ (premier défi du Village Ninja)
+	for index, charId in Quests.rivalsFor(universe) do
+		local def = Characters.List[charId]
+		add({
+			id = "u_" .. universe.id .. "_rival" .. index,
+			category = "univers",
+			universe = universe.id,
+			rival = charId,
+			title = "Tue %s " .. def.name,
+			icon = "skull",
+			color = universe.color,
+			key = "kill:" .. charId,
+			tiers = tiers({ 200, 600, 1500 }, { 1000, 6000, 25000 }, { 2, 4, 8 }, { [3] = items[2] and { [items[2]] = 1 } or nil }),
+		})
+	end
 	for tier, enemyId in universe.enemies do
 		local def = Characters.Enemies[enemyId]
 		local plan = enemyPlans[tier]
@@ -196,7 +265,7 @@ for _, universe in Universes.List do
 				id = "u_" .. universe.id .. "_" .. tier,
 				category = "univers",
 				universe = universe.id,
-				title = "Tue %s " .. def.name,
+				title = "Tue %s " .. Quests.plural(enemyId, def.name),
 				icon = tier == 3 and "skull" or "sword",
 				color = universe.color,
 				key = "kill:" .. enemyId,
@@ -265,7 +334,7 @@ local GENERAL = {
 	{ "p_reroll", "progression", "Relance %s traits", "gem", rgb(50, 214, 255), "reroll", { 5, 25, 100, 500 }, { 2000, 8000, 30000, 120000 }, { 1, 3, 6, 12 } },
 	{ "p_trade", "progression", "Réussis %s échanges", "swap", rgb(60, 140, 240), "stat:trades", { 1, 10, 50 }, { 3000, 20000, 80000 }, { 1, 3, 6 } },
 	{ "p_play", "progression", "Joue %s minutes", "hourglass", rgb(120, 200, 255), "stat:playtime", { 30, 120, 600, 3000 }, { 1500, 6000, 30000, 150000 }, { 1, 3, 6, 12 } },
-	{ "a_punch", "afk", "Tape %s fois le punching-ball", "target", rgb(50, 214, 255), "punch", { 1000, 5000, 20000, 100000 }, { 3000, 15000, 60000, 250000 }, { 2, 4, 8, 16 } },
+	{ "a_punch", "afk", "Tape %s fois le punching-ball", "punchbag", rgb(50, 214, 255), "punch", { 1000, 5000, 20000, 100000 }, { 3000, 15000, 60000, 250000 }, { 2, 4, 8, 16 } },
 	{ "a_gems", "afk", "Récolte %s gemmes de trait", "gem", rgb(80, 230, 255), "gems", { 10, 50, 250, 1000 }, { 2000, 10000, 50000, 200000 }, { 1, 3, 6, 12 } },
 }
 for _, g in GENERAL do
@@ -302,7 +371,16 @@ end
 -- Défis quotidiens
 ------------------------------------------------------------------------
 
-export type Daily = { id: string, title: string, icon: string, color: Color3, key: string, goal: number, reward: Reward }
+export type Daily = {
+	id: string,
+	title: string,
+	icon: string,
+	color: Color3,
+	key: string,
+	goal: number,
+	incomeMinutes: number?,
+	reward: Reward,
+}
 
 Quests.DailyCount = 4
 Quests.DailyPool = {
@@ -312,9 +390,18 @@ Quests.DailyPool = {
 	{ id = "d_sword", title = "Tue %s ennemis à l'épée", icon = "sword", color = rgb(255, 140, 36), key = "swordkill", goal = 40, reward = { coins = 3000, gems = 2 } },
 	{ id = "d_roll", title = "Roule %s fois", icon = "dice", color = rgb(168, 78, 255), key = "stat:RollCount", goal = 40, reward = { coins = 2000, gems = 1 } },
 	{ id = "d_collect", title = "Collecte %s persos", icon = "unit", color = rgb(70, 214, 96), key = "stat:hatched", goal = 6, reward = { coins = 2500, gems = 1 } },
-	{ id = "d_punch", title = "Tape %s fois le punching-ball", icon = "target", color = rgb(50, 214, 255), key = "punch", goal = 300, reward = { coins = 1500, gems = 2 } },
+	{ id = "d_punch", title = "Tape %s fois le punching-ball", icon = "punchbag", color = rgb(50, 214, 255), key = "punch", goal = 300, reward = { coins = 1500, gems = 2 } },
 	{ id = "d_reroll", title = "Relance %s traits", icon = "gem", color = rgb(50, 214, 255), key = "reroll", goal = 5, reward = { coins = 3000, gems = 3 } },
-	{ id = "d_coins", title = "Gagne %s pièces", icon = "coin", color = rgb(255, 206, 64), key = "stat:totalCoins", goal = 50000, reward = { coins = 5000, gems = 1 } },
+	{
+		id = "d_coins",
+		title = "Gagne %s pièces",
+		icon = "coin",
+		color = rgb(255, 206, 64),
+		key = "stat:totalCoins",
+		goal = 50000,
+		incomeMinutes = 20, -- objectif réel : 20 min du revenu du joueur au moment du tirage (≥ 50 000)
+		reward = { coins = 5000, gems = 1 },
+	},
 	{ id = "d_play", title = "Joue %s minutes", icon = "hourglass", color = rgb(120, 200, 255), key = "stat:playtime", goal = 30, reward = { coins = 2000, gems = 2 } },
 	{ id = "d_evolve", title = "Fais évoluer %s perso", icon = "evolve", color = rgb(150, 70, 255), key = "stat:evolutions", goal = 1, reward = { coins = 4000, gems = 2 } },
 } :: { Daily }
@@ -347,6 +434,24 @@ function Quests.pickDaily(day: number, userId: number): { string }
 	return picked
 end
 
+-- Arrondi « joli » (2 chiffres significatifs) : 1 234 567 → 1 200 000.
+function Quests.niceRound(n: number): number
+	if n < 100 then
+		return math.max(1, math.floor(n + 0.5))
+	end
+	local p = 10 ^ (math.floor(math.log10(n)) - 1)
+	return math.floor(n / p + 0.5) * p
+end
+
+-- Objectif d'un défi du jour adapté au joueur au moment du tirage (défis de pièces : quelques
+-- minutes de son revenu, pour qu'un joueur riche ne le réussisse pas instantanément).
+function Quests.dailyGoalFor(daily: Daily, incomePerSec: number): number
+	if daily.incomeMinutes then
+		return math.max(daily.goal, Quests.niceRound((tonumber(incomePerSec) or 0) * 60 * daily.incomeMinutes))
+	end
+	return daily.goal
+end
+
 -- Progression d'un défi du jour (compteur actuel - valeur au début de la journée).
 function Quests.dailyProgress(data: any, dailyId: string): (number, number)
 	local daily = Quests.DailyById[dailyId]
@@ -356,7 +461,8 @@ function Quests.dailyProgress(data: any, dailyId: string): (number, number)
 	local q = type(data) == "table" and type(data.Quests) == "table" and data.Quests or nil
 	local d = q and type(q.daily) == "table" and q.daily or nil
 	local base = d and type(d.base) == "table" and tonumber(d.base[daily.key]) or 0
-	return math.max(0, Quests.read(data, daily.key) - (base or 0)), daily.goal
+	local goal = d and type(d.goals) == "table" and tonumber(d.goals[dailyId]) or daily.goal
+	return math.max(0, Quests.read(data, daily.key) - (base or 0)), math.max(1, goal or daily.goal)
 end
 
 local function dailyState(data: any)

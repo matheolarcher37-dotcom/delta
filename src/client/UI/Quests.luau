@@ -61,7 +61,7 @@ local TABS = {
 	{ id = "univers", text = "Univers", icon = "pin" },
 	{ id = "combat", text = "Combat", icon = "sword" },
 	{ id = "progression", text = "Progression", icon = "upgrade" },
-	{ id = "afk", text = "Entraînement", icon = "target" },
+	{ id = "afk", text = "Entraînement", icon = "punchbag" },
 }
 
 local window
@@ -78,6 +78,163 @@ local hitSound = Instance.new("Sound")
 hitSound.SoundId = "rbxasset://sounds/swordlunge.wav"
 hitSound.Volume = 0.25
 hitSound.Parent = SoundService
+
+------------------------------------------------------------------------
+-- Icônes propres aux défis (dessinées avec des Frames, comme UI/Icons) : punching-ball,
+-- trophée et cible (anneaux bien empilés). Les autres icônes viennent de UI/Icons.
+------------------------------------------------------------------------
+
+-- Forme : { k = "r" | "c" | "o", x, y, w, h (0-1), rad (arrondi), rot (degrés), ink (détail), th, z (couche) }
+local function sr(x, y, w, h, rad, rot, ink, z)
+	return { k = "r", x = x, y = y, w = w, h = h, rad = rad or 0, rot = rot or 0, ink = ink, z = z or (ink and 1 or 0) }
+end
+local function sc(x, y, d, ink, z)
+	return { k = "c", x = x, y = y, w = d, h = d, ink = ink, z = z or (ink and 1 or 0) }
+end
+local function so(x, y, d, th, ink, z)
+	return { k = "o", x = x, y = y, w = d, h = d, th = th, ink = ink, z = z or (ink and 1 or 0) }
+end
+local CUSTOM_ICONS: { [string]: { any } } = {
+	-- Punching-ball : crochet, chaîne, sac arrondi avec deux sangles et un écusson.
+	punchbag = {
+		sr(0.5, 0.05, 0.36, 0.08, 0.5),
+		sr(0.5, 0.14, 0.07, 0.14, 0.3),
+		so(0.5, 0.21, 0.13, 0.05),
+		sr(0.5, 0.58, 0.5, 0.68, 0.42),
+		sr(0.5, 0.36, 0.5, 0.07, 0, 0, true),
+		sr(0.5, 0.8, 0.5, 0.07, 0, 0, true),
+		sc(0.5, 0.58, 0.17, true),
+		sr(0.37, 0.58, 0.07, 0.38, 0.5, 0, false, 2),
+	},
+	-- Trophée : coupe, anses, pied, socle, étoile gravée.
+	trophy = {
+		so(0.2, 0.36, 0.26, 0.07),
+		so(0.8, 0.36, 0.26, 0.07),
+		sr(0.5, 0.33, 0.56, 0.44, 0.3),
+		sr(0.5, 0.17, 0.62, 0.1, 0.4),
+		sr(0.5, 0.64, 0.14, 0.2, 0.2),
+		sr(0.5, 0.78, 0.42, 0.1, 0.3),
+		sr(0.5, 0.88, 0.58, 0.1, 0.3),
+		sr(0.5, 0.36, 0.17, 0.17, 0.15, 45, true),
+		sr(0.5, 0.88, 0.36, 0.035, 0, 0, true),
+	},
+	-- Cible : anneaux empilés du plus grand au plus petit (chacun sur sa propre couche).
+	target = {
+		sc(0.5, 0.5, 0.88, false, 0),
+		sc(0.5, 0.5, 0.66, true, 1),
+		sc(0.5, 0.5, 0.44, false, 2),
+		sc(0.5, 0.5, 0.2, true, 3),
+	},
+}
+
+local function drawCustomShape(holder: Frame, shape, color: Color3, ink: Color3, px: number, z: number, transparency: number)
+	local fill = shape.ink and ink or color
+	local frame = new("Frame", {
+		Name = shape.ink and "Ink" or "Shape",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(shape.x, shape.y),
+		Size = UDim2.fromScale(shape.w, shape.h),
+		Rotation = shape.rot or 0,
+		BackgroundColor3 = fill,
+		BackgroundTransparency = shape.k == "o" and 1 or transparency,
+		BorderSizePixel = 0,
+		ZIndex = z,
+		Parent = holder,
+	})
+	if shape.k == "c" or shape.k == "o" then
+		new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = frame })
+	elseif (shape.rad or 0) > 0 then
+		new("UICorner", { CornerRadius = UDim.new(shape.rad, 0), Parent = frame })
+	end
+	if shape.k == "o" then
+		new("UIStroke", {
+			Color = fill,
+			Thickness = math.max(1.5, (shape.th or 0.08) * px),
+			Transparency = transparency,
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Parent = frame,
+		})
+	end
+	return frame
+end
+
+-- Remplit `holder` (cadre carré) avec une icône propre aux défis. Renvoie faux si inconnue.
+local function paintCustomIcon(holder: Frame, name: string, color: Color3?, ink: Color3?, px: number?, shadow: boolean?): boolean
+	local shapes = CUSTOM_ICONS[name]
+	if not shapes then
+		return false
+	end
+	local z = holder.ZIndex
+	local size = px or 40
+	if shadow ~= false then
+		local shade = new("Frame", {
+			Name = "IconShadow",
+			Size = UDim2.fromScale(1, 1),
+			Position = UDim2.fromScale(0.035, 0.05),
+			BackgroundTransparency = 1,
+			ZIndex = z,
+			Parent = holder,
+		})
+		for _, shape in shapes do
+			if not shape.ink then
+				drawCustomShape(shade, shape, Color3.new(0, 0, 0), Color3.new(0, 0, 0), size, z, 0.62)
+			end
+		end
+	end
+	for _, shape in shapes do
+		drawCustomShape(holder, shape, color or WHITE, ink or Color3.fromRGB(40, 40, 60), size, z + (shape.z or 0), 0)
+	end
+	return true
+end
+
+-- Dessine une icône (propre aux défis ou de UI/Icons).
+local function drawIcon(name: string, parent: Instance, opts: { [string]: any }): Frame
+	if not CUSTOM_ICONS[name] then
+		return Icons.make(name, parent, opts :: any)
+	end
+	local holder = new("Frame", {
+		Name = "Icon_" .. name,
+		AnchorPoint = opts.anchor or Vector2.new(0.5, 0.5),
+		Position = opts.position or UDim2.fromScale(0.5, 0.5),
+		Size = opts.size or UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		ZIndex = opts.zindex or 3,
+		Parent = parent,
+	})
+	new("UIAspectRatioConstraint", { AspectRatio = 1, Parent = holder })
+	paintCustomIcon(holder, name, opts.color, opts.ink, opts.px, opts.shadow)
+	return holder
+end
+Quests.drawIcon = drawIcon
+
+-- Les composants communs (fenêtres, onglets, boutons) dessinent leurs icônes avec UI/Icons :
+-- une icône propre aux défis y apparaît comme texte. On la redessine ici.
+function Quests.fixIcons(root: Instance)
+	for _, d in root:GetDescendants() do
+		if d:IsA("Frame") and string.sub(d.Name, 1, 5) == "Icon_" then
+			local name = string.sub(d.Name, 6)
+			if CUSTOM_ICONS[name] and not d:GetAttribute("CustomIcon") then
+				-- couleurs d'origine : forme principale et détail « encre » éventuels
+				local color, ink = WHITE, nil
+				for _, child in d:GetChildren() do
+					if child:IsA("TextLabel") then
+						color = child.TextColor3
+					elseif child:IsA("Frame") and child.Name == "Ink" then
+						ink = child.BackgroundColor3
+					end
+				end
+				for _, child in d:GetChildren() do
+					if not child:IsA("UIAspectRatioConstraint") then
+						child:Destroy()
+					end
+				end
+				d:SetAttribute("CustomIcon", true)
+				local px = d.AbsoluteSize.X > 4 and math.floor(d.AbsoluteSize.X) or 40
+				paintCustomIcon(d, name, color, ink or Color3.fromRGB(40, 40, 60), px, true)
+			end
+		end
+	end
+end
 
 ------------------------------------------------------------------------
 -- Petits blocs
@@ -108,7 +265,7 @@ local function iconTile(parent: Instance, icon: string, color: Color3, size: num
 		ZIndex = tile.ZIndex + 2,
 		Parent = tile,
 	})
-	Icons.make(icon, holder, { px = math.floor(size * 0.66), ink = Theme.dark(color, 0.55), zindex = tile.ZIndex + 2 })
+	drawIcon(icon, holder, { px = math.floor(size * 0.66), ink = Theme.dark(color, 0.55), zindex = tile.ZIndex + 2 })
 	return tile
 end
 
@@ -634,7 +791,7 @@ local function punchPanel(parent: Instance, data, order: number)
 	Theme.stroke(Theme.dark(GEM, 0.2), 3).Parent = panel
 	Theme.gradient({ Color3.fromRGB(20, 70, 96), Color3.fromRGB(16, 26, 40), Color3.fromRGB(12, 14, 22) }, 0).Parent = panel
 	Theme.sparkles(panel, 8, 77, 0.78)
-	iconTile(panel, "target", GEM, 76, { Position = UDim2.fromOffset(14, 14) })
+	iconTile(panel, "punchbag", GEM, 76, { Position = UDim2.fromOffset(14, 14) })
 	Theme.label({
 		Text = "ZONE ANTI-AFK : PUNCHING-BALLS",
 		Size = UDim2.new(1, -330, 0, 30),
@@ -658,7 +815,7 @@ local function punchPanel(parent: Instance, data, order: number)
 	})
 	Components.button({
 		Text = "Y ALLER",
-		Icon = "boot",
+		Icon = "arrowRight",
 		Color = C.Blue,
 		Size = UDim2.fromOffset(190, 54),
 		AnchorPoint = Vector2.new(1, 0),
@@ -886,11 +1043,12 @@ render = function(force: boolean?)
 		end
 	end)
 	refs.renderedTab = tabId
+	Quests.fixIcons(refs.body)
 end
 
 local function buildWindow(gui: ScreenGui)
 	window = Components.window(gui, "DÉFIS", ACCENT, UDim2.fromOffset(1180, 640), {
-		icon = "target",
+		icon = "trophy",
 		subtitle = "Réussis des défis pour gagner pièces, gemmes et objets",
 		tabs = TABS,
 		onTab = function(id)
@@ -944,6 +1102,7 @@ local function buildWindow(gui: ScreenGui)
 		end
 		return window.firstSelectable()
 	end)
+	Quests.fixIcons(window.root)
 	-- Compte à rebours des défis du jour
 	task.spawn(function()
 		while true do
@@ -970,6 +1129,9 @@ local trackerCards: { [string]: Frame } = {}
 local function trackerCard(info)
 	if not trackerStack then
 		return
+	end
+	if window and window.isOpen then
+		return -- l'écran Défis montre déjà tout : pas de bandeau par-dessus
 	end
 	local id = tostring(info.id or info.kind)
 	local existing = trackerCards[id]
@@ -1093,7 +1255,7 @@ local function buildAfkPanel(root: Frame)
 	local edge = new("Frame", { Size = UDim2.new(1, -6, 1, -6), Position = UDim2.fromOffset(3, 3), BackgroundTransparency = 1, Parent = panel })
 	Theme.corner(14).Parent = edge
 	Theme.stroke(GEM, 1.5, 0.4).Parent = edge
-	iconTile(panel, "target", GEM, 58, { Position = UDim2.fromOffset(12, 12) })
+	iconTile(panel, "punchbag", GEM, 58, { Position = UDim2.fromOffset(12, 12) })
 	afk.title = Theme.label({
 		Text = "ZONE ANTI-AFK",
 		Size = UDim2.new(1, -200, 0, 26),
@@ -1394,6 +1556,16 @@ function Quests.init(gui: ScreenGui)
 		end
 		if info.kind == "progress" or info.kind == "ready" then
 			trackerCard(info)
+		elseif info.kind == "readySummary" then
+			-- bandeau récapitulatif, sauf si l'écran Défis est ouvert (il affiche déjà le compteur)
+			if not (window and window.isOpen) then
+				local count = tonumber(info.count) or 1
+				Notifications.toast(
+					count <= 1 and ("Défi réussi : " .. tostring(info.title or "") .. " ! Réclame ta récompense dans Défis.")
+						or (count .. " défis réussis ! Réclame tes récompenses dans Défis."),
+					"success"
+				)
+			end
 		elseif info.kind == "punchTier" then
 			punchTierPop(info.gems or 0, info.hits)
 		elseif info.kind == "punchCycle" then
@@ -1404,6 +1576,14 @@ function Quests.init(gui: ScreenGui)
 	end)
 	Theme.onFrame(trackerRoot, function()
 		stepSwings()
+		-- bandeaux de suivi cachés pendant que l'écran Défis est ouvert
+		trackerStack.Visible = not (window and window.isOpen)
+	end)
+	-- Gemme de trait gagnée : une petite gemme vole de l'ennemi vers le compteur du HUD.
+	Remotes.event("Reward").OnClientEvent:Connect(function(kind, amount, position)
+		if kind == "crystal" then
+			Quests.flyGem(tonumber(amount) or 1, typeof(position) == "Vector3" and position or nil)
+		end
 	end)
 	task.spawn(function()
 		while true do
@@ -1412,6 +1592,95 @@ function Quests.init(gui: ScreenGui)
 		end
 	end)
 	task.spawn(setupStations)
+end
+
+-- Compteur de gemmes du HUD (cadre « Crystals » de UI/HUD), s'il est affiché.
+local function hudGemCounter(): GuiObject?
+	local player = Players.LocalPlayer
+	local playerGui = player and player:FindFirstChildOfClass("PlayerGui")
+	if not playerGui then
+		return nil
+	end
+	for _, d in playerGui:GetDescendants() do
+		if d.Name == "Crystals" and d:IsA("GuiObject") and d.Parent and d.Parent.Name == "Row" and d.AbsoluteSize.X > 0 then
+			return d
+		end
+	end
+	return nil
+end
+
+-- Petite gemme qui vole de l'ennemi (position 3D projetée à l'écran) jusqu'au compteur du HUD,
+-- qui grossit un instant à l'arrivée. Une gemme par gemme gagnée (5 au plus).
+function Quests.flyGem(amount: number, position: Vector3?)
+	if not trackerRoot then
+		return
+	end
+	local target = hudGemCounter()
+	-- coordonnées logiques du calque (1280 x 720 mis à l'échelle par un UIScale)
+	local origin = trackerRoot.AbsolutePosition
+	local uiScale = trackerRoot:FindFirstChildOfClass("UIScale")
+	local k = 1 / math.max(0.05, uiScale and uiScale.Scale or 1)
+	local scaleX, scaleY = k, k
+	-- départ : l'ennemi à l'écran (sinon le centre de l'écran)
+	local startX, startY = 640, 400
+	local camera = Workspace.CurrentCamera
+	if position and camera then
+		local ok, point, visible = pcall(function()
+			return camera:WorldToScreenPoint(position + Vector3.new(0, 3, 0))
+		end)
+		if ok and visible then
+			startX = (point.X - origin.X) * scaleX
+			startY = (point.Y - origin.Y) * scaleY
+		end
+	end
+	-- arrivée : le compteur de gemmes du HUD (sinon en haut à gauche)
+	local endX, endY = 70, 90
+	if target then
+		endX = (target.AbsolutePosition.X + 18 - origin.X) * scaleX
+		endY = (target.AbsolutePosition.Y + target.AbsoluteSize.Y / 2 - origin.Y) * scaleY
+	end
+	for i = 1, math.clamp(math.floor(amount), 1, 5) do
+		task.delay((i - 1) * 0.08, function()
+			if not trackerRoot.Parent then
+				return
+			end
+			local gem = new("Frame", {
+				Name = "FlyingGem",
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromOffset(startX + (i - 1) * 8, startY),
+				Size = UDim2.fromOffset(30, 30),
+				BackgroundTransparency = 1,
+				ZIndex = 40,
+				Parent = trackerRoot,
+			})
+			Components.gem(gem, GEM, 30, UDim2.fromScale(0.5, 0.5))
+			local scale = new("UIScale", { Scale = 0.4, Parent = gem })
+			Theme.tween(scale, 0.18, { Scale = 1.25 }, Enum.EasingStyle.Back)
+			-- petit saut puis vol vers le compteur
+			Theme.tween(gem, 0.2, { Position = UDim2.fromOffset(startX + (i - 1) * 8, startY - 40) }, Enum.EasingStyle.Quad)
+			task.delay(0.2, function()
+				if not gem.Parent then
+					return
+				end
+				Theme.tween(gem, 0.55, { Position = UDim2.fromOffset(endX, endY) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+				Theme.tween(scale, 0.55, { Scale = 0.6 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+				task.delay(0.56, function()
+					if gem.Parent then
+						gem:Destroy()
+					end
+					if target and target.Parent then
+						local pulse = target:FindFirstChild("GemPulse") :: UIScale?
+						if not pulse then
+							pulse = new("UIScale", { Name = "GemPulse", Scale = 1, Parent = target }) :: UIScale
+						end
+						local p = pulse :: UIScale
+						p.Scale = 1.18
+						Theme.tween(p, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
+					end
+				end)
+			end)
+		end)
+	end
 end
 
 -- Nombre de récompenses prêtes (pour la pastille du menu principal).

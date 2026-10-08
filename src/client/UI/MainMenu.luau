@@ -70,7 +70,7 @@ local function buildMenu(gui: ScreenGui)
 	-- Bandeau « Défis » (pastille = récompenses prêtes à réclamer)
 	local quests = Components.tile({
 		Text = "Défis",
-		Icon = "target",
+		Icon = "trophy",
 		Color = Color3.fromRGB(230, 130, 20),
 		Color2 = Color3.fromRGB(150, 40, 30),
 		Size = UDim2.new(0.4, -18, 0, 76),
@@ -83,6 +83,7 @@ local function buildMenu(gui: ScreenGui)
 		end,
 	})
 	quests.Name = "QuestsTile"
+	Quests.fixIcons(quests) -- trophée dessiné par UI/Quests
 	local grid = new("Frame", {
 		Name = "Grid",
 		Size = UDim2.new(1, 0, 0, 318),
