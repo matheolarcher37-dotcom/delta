@@ -3458,8 +3458,9 @@ local VARIETIES = {
 		reflectance = 0.3,
 		transparency = 0.05,
 		acc = { color = rgb(191, 239, 255), mix = 0.72, material = Enum.Material.Glass, reflectance = 0.3 },
-		ramp = { rgb(30, 70, 120), rgb(120, 200, 245), rgb(232, 250, 255) },
-		rampMix = 0.58,
+		-- Bleu glacé saturé (un bleu trop gris rendait la tenue « délavée »)
+		ramp = { rgb(16, 58, 128), rgb(70, 178, 255), rgb(214, 246, 255) },
+		rampMix = 0.86,
 		glint = true,
 		fx = { texture = SPARK, colors = { rgb(255, 255, 255), rgb(150, 230, 255) }, size = 0.28, rate = 9, light = rgb(170, 230, 255) },
 	},
@@ -3606,13 +3607,12 @@ local function tintGui(gui: SurfaceGui, spec, onTorso: boolean)
 		end
 		f.Parent = gui
 	end
-	if spec.glint and (onTorso or gui.Face == Enum.NormalId.Front) then
-		-- Reflets fins en diagonale (métal poli / cristal) : 3 sur le torse, 2 ailleurs
-		dot(0.3, 0.45, 0.05, 1.5, Color3.new(1, 1, 1), 0.6, 32, false)
-		dot(0.42, 0.5, 0.022, 1.5, Color3.new(1, 1, 1), 0.6, 32, false)
-		if onTorso then
-			dot(0.78, 0.55, 0.03, 1.5, Color3.new(1, 1, 1), 0.65, 32, false)
-		end
+	if spec.glint and onTorso and gui.Face == Enum.NormalId.Front then
+		-- Reflets fins en diagonale (métal poli / cristal), seulement sur le devant du torse :
+		-- partout, ils faisaient « vitre » par-dessus la tenue
+		dot(0.3, 0.45, 0.035, 1.5, Color3.new(1, 1, 1), 0.6, 32, false)
+		dot(0.4, 0.5, 0.016, 1.5, Color3.new(1, 1, 1), 0.6, 32, false)
+		dot(0.8, 0.55, 0.022, 1.5, Color3.new(1, 1, 1), 0.65, 32, false)
 	end
 	if not onTorso then
 		return
