@@ -422,8 +422,8 @@ function Facets.new(plates, mode: string?, w: number, h: number, pixelsPerStud: 
 		local canvas = surface(plate.part, Enum.NormalId.Front, "Face", pixelsPerStud, mode)
 		if typeof(canvas) == "Instance" then
 			-- Le visage reste affiché plus loin que la tenue (c'est lui qui rend le perso
-			-- reconnaissable) : ~70 Frames seulement, donc peu coûteux.
-			canvas.MaxDistance = 100 * math.max(1, Painter.scale or 1)
+			-- reconnaissable, aussi loin que le LOD de la tenue) : ~70 Frames, peu coûteux.
+			canvas.MaxDistance = 140 * math.max(1, Painter.scale or 1)
 		end
 		table.insert(self.list, { g = canvas, u0 = plate.u0, u1 = plate.u1 })
 	end
@@ -2630,6 +2630,150 @@ function Painter.panel(part: BasePart, face: Enum.NormalId, mode: string?, color
 		edgeShade(S, "r", 0.14, color, 0, 1, 5)
 	end
 	return S
+end
+
+------------------------------------------------------------------------
+-- Niveau de détail intermédiaire (LOD) : au-delà de ~55 studs la tenue complète (SurfaceGui de
+-- centaines de Frames) n'est plus dessinée. Pour qu'un perso posé sur la base, vu à 50-140 studs,
+-- ne redevienne pas un assemblage de blocs unis, chaque face peinte reçoit une seconde
+-- SurfaceGui légère : les grandes formes de la peinture (fond de tissu et son ombrage, col,
+-- ceinture, poignets, emblème, grandes ombres), 10 Frames au plus, en basse résolution.
+-- Elle est dessinée SOUS la peinture complète (ZOffset plus petit) : de près, la peinture
+-- complète la recouvre exactement ; le RigAnimator la coupe en plus quand la caméra est proche.
+------------------------------------------------------------------------
+
+local LOD_FRAMES = 10
+local LOD_DISTANCE = 2.6 -- distance d'affichage du LOD = 2,6 x celle de la peinture complète
+
+local function frameTone(frame: Frame): Color3
+	local color = frame.BackgroundColor3
+	local gradient = frame:FindFirstChildOfClass("UIGradient")
+	if gradient then
+		local keys = gradient.Color.Keypoints
+		local mid = keys[math.ceil(#keys / 2)].Value
+		color = Color3.new(color.R * mid.R, color.G * mid.G, color.B * mid.B)
+	end
+	return color
+end
+
+local function tone(c: Color3): number
+	return 0.3 * c.R + 0.59 * c.G + 0.11 * c.B
+end
+
+-- Crée le LOD d'une face peinte. Renvoie la SurfaceGui LOD (ou nil).
+function Painter.lod(gui: SurfaceGui, maxFrames: number?): SurfaceGui?
+	local parent = gui.Parent
+	if not parent then
+		return nil
+	end
+	local frames = {}
+	local covered = false
+	local base: Color3? = nil
+	for order, child in gui:GetChildren() do
+		if not child:IsA("Frame") or not child.Visible or child.BackgroundTransparency >= 0.6 then
+			continue
+		end
+		local w, h = child.Size.X.Scale, child.Size.Y.Scale
+		local gradient = child:FindFirstChildOfClass("UIGradient")
+		local faded = false
+		if gradient then
+			for _, k in gradient.Transparency.Keypoints do
+				if k.Value > 0.05 then
+					faded = true
+				end
+			end
+		end
+		local opaque = child.BackgroundTransparency < 0.05 and not faded
+		if opaque and w >= 0.97 and h >= 0.97 and child.Rotation == 0 then
+			covered = true
+			base = base or frameTone(child)
+		end
+		table.insert(frames, { f = child, area = w * h, opaque = opaque, order = order, rotated = child.Rotation ~= 0 })
+	end
+	if #frames == 0 then
+		return nil
+	end
+	-- Sans fond opaque qui couvre toute la face, une forme translucide recopiée se verrait en
+	-- double de près : on ne garde alors que les formes opaques.
+	local reference = base or frameTone(frames[1].f)
+	local picked = {}
+	for _, e in frames do
+		if not covered and not e.opaque then
+			continue
+		end
+		-- Les traits fins (plis, coutures, contours) ne se voient plus à cette distance.
+		if e.area < 0.012 or (e.rotated and e.area < 0.05) then
+			continue
+		end
+		local c = frameTone(e.f)
+		local contrast = math.abs(tone(c) - tone(reference)) + (math.abs(c.R - reference.R) + math.abs(c.G - reference.G) + math.abs(c.B - reference.B)) * 0.5
+		e.score = e.area * (0.25 + contrast) * (e.opaque and 1 or 0.6) + (e.area >= 0.9 and 10 or 0)
+		table.insert(picked, e)
+	end
+	table.sort(picked, function(a, b)
+		return a.score > b.score
+	end)
+	-- Budget selon la taille de la face (en studs² à l'échelle 1) : 10 Frames pour le devant du
+	-- torse, 5 ou 6 pour un bras, 2 ou 3 pour le dessus d'un membre ou un petit accessoire.
+	local fw, fh = faceSize((parent :: BasePart).Size, gui.Face)
+	local k = (parent :: any):FindFirstAncestorOfClass("Model")
+	local scale = k and k:GetAttribute("BaseScale") or Painter.scale or 1
+	local area = fw * fh / (scale * scale)
+	local limit = maxFrames or math.clamp(math.floor(area * 2.6 + 0.5), 1, LOD_FRAMES)
+	if limit < 2 then
+		-- Petite face : la couleur de la pièce suffit à cette distance
+		return nil
+	end
+	local keep = {}
+	for i = 1, math.min(limit, #picked) do
+		table.insert(keep, picked[i])
+	end
+	if #keep == 0 then
+		return nil
+	end
+	table.sort(keep, function(a, b)
+		return a.order < b.order
+	end)
+	local lod = Instance.new("SurfaceGui")
+	lod.Name = "Lod" .. gui.Name
+	lod.Face = gui.Face
+	lod.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	lod.PixelsPerStud = math.max(8, gui.PixelsPerStud * 0.3)
+	lod.LightInfluence = gui.LightInfluence
+	lod.Brightness = gui.Brightness
+	lod.ClipsDescendants = true
+	lod.ZIndexBehavior = gui.ZIndexBehavior
+	lod.MaxDistance = gui.MaxDistance * LOD_DISTANCE
+	lod.ZOffset = gui.ZOffset - 1
+	lod:SetAttribute("LodNear", gui.MaxDistance)
+	for _, e in keep do
+		local copy = e.f:Clone()
+		-- Les enfants Frame (motifs imbriqués) ne sont pas gardés : seulement l'aspect de la forme.
+		for _, d in copy:GetChildren() do
+			if d:IsA("GuiObject") or d:IsA("UIStroke") then
+				d:Destroy()
+			end
+		end
+		copy.Parent = lod
+	end
+	lod.Parent = parent
+	return lod
+end
+
+-- LOD de toutes les faces peintes d'un modèle (sauf le visage, déjà affiché plus loin).
+function Painter.lods(model: Instance)
+	local guis = {}
+	for _, d in model:GetDescendants() do
+		if d:IsA("SurfaceGui") and d:GetAttribute("LodNear") then
+			d:Destroy()
+		elseif d:IsA("SurfaceGui") and d.Name ~= "Face" and d.Enabled then
+			table.insert(guis, d)
+		end
+	end
+	for _, gui in guis do
+		gui.ZOffset = 1
+		Painter.lod(gui)
+	end
 end
 
 Painter.cloth = cloth

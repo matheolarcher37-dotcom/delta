@@ -3046,6 +3046,11 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 	if look.variety then
 		CharacterBuilder.applyVariety(model, look.variety)
 	end
+	if ctx.paint ~= "parts" then
+		-- Niveau de détail intermédiaire (tenue lisible de 55 à ~140 studs : persos sur la base)
+		Painter.lods(model)
+		model:SetAttribute("Lod", true)
+	end
 
 	local root = ctx.limbs.HumanoidRootPart
 	model.PrimaryPart = root
@@ -3386,6 +3391,10 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 	end
 	if spec.fx and torso then
 		varietyFx(torso, spec.fx, s)
+	end
+	if model:GetAttribute("Lod") then
+		-- Le LOD reprend les couleurs teintées
+		Painter.lods(model)
 	end
 	if not head then
 		return true
