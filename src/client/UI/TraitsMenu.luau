@@ -462,14 +462,18 @@ end
 -- renvoie { [pièce] = { debout, à genoux } } dans le repère du modèle (pieds à y = 0, face -Z).
 local LIMBS = { "Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "HumanoidRootPart" }
 -- Angles de la pose « chevalier à genou » (degrés).
+-- Avec des jambes R6 d'un seul bloc, la pose qui se lit le mieux (essais de rendu) est « à genoux,
+-- tibias au sol » : les deux jambes à plat derrière, le torse droit, la tête baissée et le poing
+-- droit posé au sol devant (le salut du chevalier). Un seul genou levé ressemblait à un grand écart.
 local KNEEL = {
-	frontLeg = 66, -- jambe droite vers l'avant
-	backLeg = 58, -- jambe gauche vers l'arrière (genou au sol)
-	torso = 12, -- torse légèrement incliné
-	head = 18, -- tête baissée
-	fistLift = 78, -- bras droit levé vers l'avant...
-	fistYaw = 58, -- ... et ramené vers la poitrine
-	leftArm = 14, -- bras gauche presque le long du corps
+	frontLeg = -90, -- jambe droite à plat derrière (genou à terre)
+	backLeg = 90, -- jambe gauche à plat derrière (genou à terre)
+	torso = 14, -- torse presque droit, légèrement incliné
+	head = 28, -- tête baissée
+	fistLift = 30, -- bras droit vers l'avant : le poing touche le sol
+	fistYaw = 0,
+	leftArm = 10, -- bras gauche le long du corps
+	drop = 1.5, -- le corps descend de la longueur des jambes repliées
 }
 TraitsMenu.KneelAngles = KNEEL
 
@@ -524,11 +528,10 @@ function TraitsMenu.kneelPose(model: Model): { [BasePart]: { CFrame } }
 	local function about(p: Vector3, angle: number): CFrame
 		return CFrame.new(p) * CFrame.fromAxisAngle(right, angle) * CFrame.new(-p)
 	end
-	-- Chevalier à genou (lisible en R6, membres d'un seul bloc) : jambe droite en avant, pied
-	-- posé devant ; jambe gauche en arrière, genou à terre ; torse presque droit ; tête baissée ;
-	-- poing droit contre la poitrine ; main gauche le long du corps.
+	-- À genoux (angles dans KNEEL) : jambes repliées à plat derrière, torse presque droit,
+	-- tête baissée, poing droit posé au sol devant, main gauche le long du corps.
 	local up = tcf.UpVector
-	local drop = 1.05
+	local drop = KNEEL.drop
 	local hipCenter = tcf:PointToWorldSpace(Vector3.new(0, -1, 0))
 	local function arm(p: Vector3, yaw: number, forward: number): CFrame
 		return CFrame.new(p) * CFrame.fromAxisAngle(up, yaw) * CFrame.fromAxisAngle(right, forward) * CFrame.new(-p)
@@ -715,10 +718,12 @@ end
 -- Trajet de la caméra de la cinématique MONARQUE : { temps, position, point visé }.
 local function monarchCamera(total: number): { { any } }
 	return {
-		{ 0, Vector3.new(0, 3.4, -30), Vector3.new(0, 3.6, 0) },
-		{ 1.6, Vector3.new(6, 5, -24), Vector3.new(0, 3.4, -5) },
-		{ 3, Vector3.new(23, 11.5, -6.5), Vector3.new(0, 3, -5.5) },
-		{ math.max(total, 3.8), Vector3.new(21.5, 10.8, -6), Vector3.new(0, 3.1, -5.5) },
+		-- arrivée : plan large et haut dans l'axe du tapis (personne n'est coupé par le bord)
+		{ 0, Vector3.new(0, 9, -34), Vector3.new(0, 3.5, -4) },
+		{ 1.6, Vector3.new(10, 9, -28), Vector3.new(0, 3.2, -5) },
+		-- plan final de 3/4 : l'unité de face devant son trône, les 6 persos à genoux de profil
+		{ 3, Vector3.new(18, 8.4, -23.5), Vector3.new(1.5, 3, -9) },
+		{ math.max(total, 3.8), Vector3.new(17, 8, -22.5), Vector3.new(1.5, 3, -9) },
 	}
 end
 TraitsMenu.monarchCamera = monarchCamera
@@ -759,12 +764,12 @@ function TraitsMenu.playMonarch(entry, desc, duration: number?, clock: (() -> nu
 	local headTop = head and (head.CFrame.Position.Y + head.Size.Y * 0.5 + 0.55) or 6.9
 	-- Les persos qui s'agenouillent, de part et d'autre du tapis
 	local spots = {
-		Vector3.new(-4.6, 0, -5.5),
-		Vector3.new(4.6, 0, -5.5),
-		Vector3.new(-4.6, 0, -9.5),
-		Vector3.new(4.6, 0, -9.5),
-		Vector3.new(-4.6, 0, -13.5),
-		Vector3.new(4.6, 0, -13.5),
+		Vector3.new(-4.6, 0, -7),
+		Vector3.new(4.6, 0, -7),
+		Vector3.new(-4.6, 0, -11),
+		Vector3.new(4.6, 0, -11),
+		Vector3.new(-4.6, 0, -15),
+		Vector3.new(4.6, 0, -15),
 	}
 	local kneelers = {}
 	for i, info in kneelerLooks(entry and entry.uid or selected, #spots) do

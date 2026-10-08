@@ -1214,7 +1214,7 @@ local function trackerCard(info)
 	Theme.gradient({ Theme.dark(color, 0.5), Color3.fromRGB(18, 18, 26) }, 0).Parent = card
 	local accentBar = new("Frame", { Size = UDim2.new(0, 6, 1, -12), Position = UDim2.fromOffset(6, 6), BackgroundColor3 = color, Parent = card })
 	Theme.round().Parent = accentBar
-	iconTile(card, info.icon or "target", color, 44, { Position = UDim2.fromOffset(18, 11) })
+	iconTile(card, info.icon or "trophy", color, 44, { Position = UDim2.fromOffset(18, 11) })
 	Theme.label({
 		Text = ready and (info.daily and "DÉFI DU JOUR RÉUSSI !" or "DÉFI RÉUSSI !") or "DÉFI EN COURS",
 		Size = UDim2.new(1, -80, 0, 16),
@@ -1681,8 +1681,13 @@ local function hudGemCounter(): GuiObject?
 		return nil
 	end
 	for _, d in playerGui:GetDescendants() do
-		if d.Name == "Crystals" and d:IsA("GuiObject") and d.Parent and d.Parent.Name == "Row" and d.AbsoluteSize.X > 0 then
-			return d
+		if d.Name == "Crystals" and d:IsA("GuiObject") and d.Parent and d.Parent.Name == "Row" then
+			local ok, shown = pcall(function()
+				return d.AbsoluteSize.X > 0
+			end)
+			if ok and shown then
+				return d
+			end
 		end
 	end
 	return nil
