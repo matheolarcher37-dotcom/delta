@@ -650,7 +650,7 @@ local function fillGrass(folder: Instance, rng: Random, style: DressStyle, free:
 			Build.wedge(
 				fill,
 				"Touffe",
-				Vector3.new(0.35, hh, h * 0.32),
+				Vector3.new(0.5, hh, h * 0.4),
 				CFrame.new(p + Vector3.new(0, hh / 2 - 0.1, 0)) * CFrame.Angles(0, a, 0) * CFrame.Angles(rng:NextNumber(-0.25, 0.25), 0, rng:NextNumber(-0.2, 0.2)),
 				Core.shade(k == 1 and dark or grass, rng:NextNumber(-0.05, 0.05)),
 				{ Material = leaf, CanCollide = false, CanQuery = false, CastShadow = false }
@@ -676,41 +676,57 @@ local function fillGrass(folder: Instance, rng: Random, style: DressStyle, free:
 			if open then
 				local g = Common.ground(p)
 				local roll = rng:NextNumber()
-				if roll < 0.42 then
-					-- haute touffe d'herbe
-					tuft(g, rng:NextNumber(1.8, 3))
-				elseif roll < 0.6 and flowers then
+				local function patch(d: number)
+					-- tache d'herbe d'une autre nuance (plus claire, plus sombre ou plus sèche)
+					local tint = ({ 0.07, -0.07, 0.04 })[rng:NextInteger(1, 3)]
+					local c = Core.shade(grass, tint)
+					if tint == 0.04 then
+						c = c:Lerp(Color3.fromRGB(176, 170, 96), 0.25)
+					end
+					Core.flatDisc(fill, "Tache", g, d, g.Y + 0.06 + rng:NextNumber(0, 0.04), c, leaf).CastShadow = false
+				end
+				if roll < 0.32 then
+					-- tache d'herbe et haute touffe
+					patch(rng:NextNumber(8, 15))
+					tuft(g + Vector3.new(rng:NextNumber(-2, 2), 0, rng:NextNumber(-2, 2)), rng:NextNumber(2.6, 4.2))
+				elseif roll < 0.5 and flowers then
 					-- grappe de fleurs : un coussin de feuilles et 5 corolles
 					local c = flowers[rng:NextInteger(1, #flowers)]
-					Core.ellipsoid(fill, "Feuillage", Vector3.new(3.2, 0.9, 2.6), CFrame.new(g + Vector3.new(0, 0.3, 0)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0), dark, leaf).CastShadow =
+					Core.ellipsoid(fill, "Feuillage", Vector3.new(4.6, 1.2, 3.6), CFrame.new(g + Vector3.new(0, 0.4, 0)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0), dark, leaf).CastShadow =
 						false
 					for _ = 1, 5 do
-						local q = g + Vector3.new(rng:NextNumber(-1.4, 1.4), rng:NextNumber(0.7, 1.2), rng:NextNumber(-1.2, 1.2))
-						Core.ellipsoid(fill, "Corolle", Vector3.new(0.75, 0.32, 0.75), CFrame.new(q), Core.shade(c, rng:NextNumber(-0.06, 0.08)), Enum.Material.SmoothPlastic).CastShadow =
+						local q = g + Vector3.new(rng:NextNumber(-1.9, 1.9), rng:NextNumber(0.9, 1.4), rng:NextNumber(-1.5, 1.5))
+						Core.ellipsoid(fill, "Corolle", Vector3.new(1.1, 0.42, 1.1), CFrame.new(q), Core.shade(c, rng:NextNumber(-0.06, 0.08)), Enum.Material.SmoothPlastic).CastShadow =
 							false
 					end
-				elseif roll < 0.78 then
-					-- cailloux
+				elseif roll < 0.66 then
+					-- cailloux (et parfois une tache d'herbe sèche autour)
 					for k = 1, 2 do
-						local sz = rng:NextNumber(0.8, 1.9) / k ^ 0.3
+						local sz = rng:NextNumber(1.3, 2.6) / k ^ 0.4
 						Build.deco(
 							fill,
 							"Caillou",
 							Vector3.new(sz * 1.3, sz * 0.7, sz),
-							CFrame.new(g + Vector3.new(rng:NextNumber(-1.5, 1.5), sz * 0.2, rng:NextNumber(-1.5, 1.5)))
+							CFrame.new(g + Vector3.new(rng:NextNumber(-1.8, 1.8), sz * 0.2, rng:NextNumber(-1.8, 1.8)))
 								* CFrame.Angles(rng:NextNumber(-0.4, 0.4), rng:NextNumber(0, 3), rng:NextNumber(-0.4, 0.4)),
 							Core.shade(rock, rng:NextNumber(-0.08, 0.06)),
 							{ Material = Enum.Material.Slate }
 						)
 					end
-				elseif roll < 0.94 then
+					if rng:NextNumber() < 0.4 then
+						patch(rng:NextNumber(7, 11))
+					end
+				elseif roll < 0.9 then
 					-- petit buisson (deux boules de feuillage)
-					local h = rng:NextNumber(1.8, 2.8)
-					Core.ellipsoid(fill, "Buissonnet", Vector3.new(h * 1.6, h, h * 1.4), CFrame.new(g + Vector3.new(0, h * 0.35, 0)), Core.shade(grass, -0.08), leaf)
-					Core.ellipsoid(fill, "Buissonnet", Vector3.new(h * 1.1, h * 0.8, h), CFrame.new(g + Vector3.new(h * 0.5, h * 0.55, h * 0.2)), Core.shade(grass, 0.02), leaf)
+					local h = rng:NextNumber(2.6, 4)
+					Core.ellipsoid(fill, "Buissonnet", Vector3.new(h * 1.6, h, h * 1.4), CFrame.new(g + Vector3.new(0, h * 0.35, 0)), Core.shade(grass, -0.1), leaf)
+					Core.ellipsoid(fill, "Buissonnet", Vector3.new(h * 1.1, h * 0.8, h), CFrame.new(g + Vector3.new(h * 0.5, h * 0.55, h * 0.2)), Core.shade(grass, 0.0), leaf)
+				elseif roll < 0.96 then
+					-- grande tache d'herbe seule (casse la pelouse unie de loin)
+					patch(rng:NextNumber(12, 20))
 				else
 					-- souche
-					local d = rng:NextNumber(1.4, 2.2)
+					local d = rng:NextNumber(1.6, 2.6)
 					Core.vcyl(fill, "Souche", CFrame.new(g - Vector3.new(0, 0.2, 0)), d * 0.6, d, Color3.fromRGB(104, 76, 52), Enum.Material.Wood)
 					Core.vcyl(fill, "Souche", CFrame.new(g + Vector3.new(0, d * 0.6 - 0.18, 0)), 0.2, d * 0.82, Color3.fromRGB(196, 160, 112), Enum.Material.Wood)
 				end
