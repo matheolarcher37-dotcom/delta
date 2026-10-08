@@ -5,15 +5,30 @@
 --   arcs électriques, flammes, brume...) qui s'intensifie avec le rang de l'épée.
 -- Repère : la poignée (Handle) est tenue dans la main ; la lame part vers -Z de la poignée
 -- (prise standard des outils Roblox). Le plat de la lame est le plan XZ (épaisseur selon Y),
--- le tranchant principal est du côté -X. L'outil est tenu avec Grip = rotation de -90° autour de Z :
+-- le tranchant principal est du côté -X. L'outil est tenu avec Grip = GRIP (≈ -90° autour de Z) :
 -- en main, la lame est donc DE CHANT (plat vers les côtés, tranchant vers le bas, dos et courbure
--- des katanas vers le haut), comme dans les animés.
+-- des katanas vers le haut), levée devant et un peu vers la droite, comme une garde d'animé.
 
 local SwordBuilder = {}
 
--- Prise de l'outil : la lame reste le long de -Z de la poignée, mais tourne de -90° sur elle-même
--- pour être tenue de chant (tranchant -X vers le bas, dos +X vers le haut).
-SwordBuilder.GRIP = CFrame.Angles(0, 0, math.rad(-90))
+-- Prise de l'outil. Repère de la main (prise R6, bras levé devant) : -Z = devant, +Y = haut,
+-- +X = droite du perso. La lame reste le long de -Z de la poignée ; `pitch` l'incline vers le
+-- haut (degrés), `yaw` vers la droite, `roll` la fait tourner sur elle-même pour montrer un peu
+-- le plat. Dos de la lame (+X de la poignée) vers le haut : tenue DE CHANT, tranchant en bas.
+function SwordBuilder.gripFrom(pitch: number, yaw: number, roll: number): CFrame
+	local p, y, r = math.rad(pitch), math.rad(yaw), math.rad(roll)
+	local dir = Vector3.new(math.sin(y) * math.cos(p), math.sin(p), -math.cos(y) * math.cos(p))
+	local up = Vector3.new(0, 1, 0)
+	local spine = (up - dir * up:Dot(dir)).Unit
+	local side = dir:Cross(spine)
+	spine = spine * math.cos(r) + side * math.sin(r)
+	local back = -dir
+	return CFrame.fromMatrix(Vector3.zero, spine, back:Cross(spine), back):Inverse()
+end
+-- Lame levée devant et vers la droite (garde d'animé) : bien visible dans la vue du joueur (de
+-- dos), roulée de 40° pour qu'on voie aussi le plat. Pointer vers le bas la cachait derrière le bras.
+SwordBuilder.GRIP_ANGLES = { pitch = 30, yaw = 25, roll = 40 }
+SwordBuilder.GRIP = SwordBuilder.gripFrom(SwordBuilder.GRIP_ANGLES.pitch, SwordBuilder.GRIP_ANGLES.yaw, SwordBuilder.GRIP_ANGLES.roll)
 
 local rgb = Color3.fromRGB
 local WHITE = Color3.new(1, 1, 1)
@@ -265,7 +280,7 @@ end
 ------------------------------------------------------------------------
 
 -- Tsuka de katana : peau de raie + tsuka-ito croisé en losanges, fuchi, kashira, menuki.
-local function tsuka(ctx: Ctx, length: number, rayskin: Color3, ito: Color3, metal: Color3, ornament: Color3?)
+local function tsuka(ctx: Ctx, length: number, rayskin: Color3, ito: Color3, metal: Color3, ornament: Color3?, itoWidth: number?)
 	local back = GRIP_FRONT + length
 	local extra = back - 0.55
 	if extra > 0.02 then
@@ -275,7 +290,7 @@ local function tsuka(ctx: Ctx, length: number, rayskin: Color3, ito: Color3, met
 	local z = GRIP_FRONT + 0.16
 	while z < back - 0.12 do
 		for _, sign in { 1, -1 } do
-			block(ctx, "TsukaIto", Vector3.new(0.35, 0.27, 0.075), CFrame.new(0, 0, z) * CFrame.Angles(0, math.rad(38 * sign), 0), ito, Enum.Material.Fabric)
+			block(ctx, "TsukaIto", Vector3.new(0.35, 0.27, itoWidth or 0.075), CFrame.new(0, 0, z) * CFrame.Angles(0, math.rad(38 * sign), 0), ito, Enum.Material.Fabric)
 		end
 		z += pitch
 	end
@@ -704,9 +719,12 @@ type Style = {
 	hilt: (Ctx) -> (),
 	blade: (Ctx) -> (),
 	width: number,
-	carry: string, -- "hip" (fourreau à la hanche) ou "back" (dans le dos)
+	carry: string, -- "hip" (hanche si la lame est courte, sinon dos) ou "back" (toujours dans le dos)
 	sheath: string, -- "saya" (katana), "scabbard" (droit) ou "none"
 	handle: Vector3,
+	backTop: number?, -- port dans le dos : hauteur du haut de la poignée (sinon BACK_CARRY.top)
+	backX: number?, -- port dans le dos : décalage latéral du milieu (sinon BACK_CARRY.centerX)
+	backGap: number?, -- port dans le dos : écart avec le dos (sinon BACK_CARRY.gap)
 }
 
 local STYLES: { [string]: Style } = {}
@@ -843,7 +861,8 @@ STYLES.thunder = {
 	handle = Vector3.new(0.3, 0.24, 1.1),
 	hilt = function(ctx)
 		local look = ctx.look
-		local back = tsuka(ctx, 1.5, look.grip, look.hilt, look.accent)
+		-- Tsuka-ito fin en or mat : les losanges de galuchat noir dominent.
+		local back = tsuka(ctx, 1.5, look.grip, look.ito or look.hilt, look.accent, nil, look.itoWidth)
 		local z = -0.68
 		-- Tsuba en étoile de foudre : disque laqué noir cerclé d'or, quatre éclairs en zigzag
 		-- (deux biseaux chacun) sertis d'une petite gemme jaune.
@@ -934,6 +953,9 @@ STYLES.sun = {
 STYLES.mist = {
 	width = 1.3,
 	carry = "back",
+	backTop = 3.2, -- longue poignée qui dépasse au-dessus de la tête (couperet géant)
+	backX = -0.35,
+	backGap = 0.16, -- lame très large : un peu décollée du dos pour laisser passer le bras qui balance
 	sheath = "none",
 	handle = Vector3.new(0.26, 0.26, 1.1),
 	hilt = function(ctx)
@@ -985,16 +1007,61 @@ STYLES.mist = {
 		slab("Blade", left, right - 0.12, holeZ - r - 0.2, tipZ)
 		tri(ctx, "EndCorner", 0.12, 0.16, t, BP(right - 0.12, tipZ + 0.16), look.blade, m)
 		block(ctx, "EndCornerFill", Vector3.new(0.12, t, holeZ - r - 0.2 - (tipZ + 0.16) + 0.01), CFrame.new(right - 0.06, 0, (holeZ - r - 0.2 + tipZ + 0.16) / 2), look.blade, m)
-		-- Tranchant (biseaux) sur toute la longueur et dos renforcé.
+		-- Tranchant (biseaux) en Foil, nettement plus clair que le plat, et dos renforcé sombre.
 		for _, up in { 1, -1 } do
-			tri(ctx, "Bevel", -bevelW, up * t / 2, L, CFrame.new(left, 0, s - L / 2), look.bevel, m)
+			tri(ctx, "Bevel", -bevelW, up * t / 2, L, CFrame.new(left, 0, s - L / 2), look.bevel, Enum.Material.Foil)
 		end
-		-- Ligne de trempe le long du tranchant et rivets de la soie.
-		block(ctx, "TemperLine", Vector3.new(0.03, t + 0.012, L - 0.3), CFrame.new(left + 0.015, 0, s - L / 2 - 0.1), look.accent, m)
+		-- Ligne de trempe (Foil clair) le long du tranchant et rivets de la soie.
+		block(ctx, "TemperLine", Vector3.new(0.035, t + 0.012, L - 0.3), CFrame.new(left + 0.02, 0, s - L / 2 - 0.1), look.temper or look.bevel, Enum.Material.Foil)
 		for _, x in { -0.09, 0.09 } do
 			orb(ctx, "Rivet", Vector3.new(0.08, t + 0.12, 0.08), CFrame.new(x, 0, s - 0.03), look.bevel, m)
 		end
-		block(ctx, "Spine", Vector3.new(0.09, t + 0.035, L - 0.85), CFrame.new(right - 0.045, 0, s - 0.7 - (L - 0.85) / 2 + 0.01), look.accent, m)
+		local spineLen = L - 0.85
+		local spineZ = s - 0.7 - spineLen / 2 + 0.01
+		block(ctx, "Spine", Vector3.new(0.1, t + 0.04, spineLen), CFrame.new(right - 0.05, 0, spineZ), look.accent, m)
+		-- Rangée de rivets le long du dos (traversent la lame : visibles des deux côtés).
+		for i = 1, 7 do
+			local z = s - 0.85 - (i - 1) * (spineLen - 0.3) / 6
+			orb(ctx, "SpineRivet", Vector3.new(0.075, t + 0.09, 0.075), CFrame.new(right - 0.05, 0, z), look.rivet or look.bevel, Enum.Material.Foil)
+		end
+		-- Gravures de brume en volutes (Neon bleu pâle, très fines) le long du plat.
+		local mistColor = look.engrave or look.trail
+		local mid = (left + right - 0.1) / 2
+		local wisps = {
+			{ z = s - 0.95, x = mid - 0.05, len = 1.0, turn = 1 },
+			{ z = s - 2.05, x = mid + 0.1, len = 0.95, turn = -1 },
+			{ z = s - 3.1, x = mid - 0.02, len = 0.85, turn = 1 },
+		}
+		for _, wisp in wisps do
+			-- Une volute : un trait qui part le long de la lame puis s'enroule en crosse.
+			local lens = { 0.36, 0.24, 0.16, 0.12, 0.1 }
+			local turns = { 8, 30, 70, 115, 165 }
+			local cf = CFrame.new(wisp.x, 0, wisp.z)
+			for j = 1, #lens do
+				local len = lens[j] * wisp.len
+				local seg = CFrame.new(cf.Position) * CFrame.Angles(0, math.rad(turns[j] * wisp.turn), 0)
+				block(ctx, "MistEngraving", Vector3.new(0.028, t + 0.014, len + 0.02), seg * CFrame.new(0, 0, -len / 2), mistColor, Enum.Material.Neon, { Transparency = 0.3 })
+				cf = seg * CFrame.new(0, 0, -len)
+			end
+		end
+		-- Bague dorée de 8 segments autour du trou : il se lit comme un trou rond voulu.
+		local ringColor = look.ring or GOLD
+		local c2 = r * 0.55
+		local straight = 2 * r - 2 * c2
+		local diag = c2 * math.sqrt(2)
+		local dDiag = math.sqrt(2) * (r - c2 / 2)
+		for i = 0, 7 do
+			local a = math.rad(i * 45)
+			local isDiag = i % 2 == 1
+			local dist = (isDiag and dDiag or r) + 0.025
+			local len = (isDiag and diag or straight) + 0.07
+			local cf = CFrame.new(hx, 0, holeZ) * CFrame.Angles(0, a, 0) * CFrame.new(0, 0, -dist)
+			block(ctx, "HoleRing", Vector3.new(len, t + 0.05, 0.06), cf, ringColor, Enum.Material.Foil)
+		end
+		-- Deux gouttes d'eau qui perlent à la sortie du trou.
+		local water = look.water or rgb(190, 225, 255)
+		orb(ctx, "WaterDrop", Vector3.new(0.1, t + 0.07, 0.15), CFrame.new(hx - 0.06, 0, holeZ + r + 0.11), water, Enum.Material.Glass, { Transparency = 0.3, Reflectance = 0.3 })
+		orb(ctx, "WaterDrop", Vector3.new(0.07, t + 0.05, 0.1), CFrame.new(hx + 0.08, 0, holeZ + r + 0.3), water, Enum.Material.Glass, { Transparency = 0.3, Reflectance = 0.3 })
 		ctx.tip = Vector3.new(0, 0, tipZ)
 	end,
 }
@@ -1012,7 +1079,7 @@ STYLES.abyss = {
 		end
 		local z = -0.68
 		block(ctx, "GuardCore", Vector3.new(0.4, 0.3, 0.28), CFrame.new(0, 0, z), look.guard, Enum.Material.Metal)
-		orb(ctx, "Eye", Vector3.new(0.3, 0.42, 0.2), CFrame.new(0, 0, z), look.accent, Enum.Material.Neon)
+		orb(ctx, "Eye", Vector3.new(0.3, 0.42, 0.2), CFrame.new(0, 0, z), look.eye or look.accent, Enum.Material.Neon)
 		block(ctx, "Pupil", Vector3.new(0.05, 0.44, 0.15), CFrame.new(0, 0, z), rgb(10, 4, 14), Enum.Material.SmoothPlastic)
 		for _, side in { -1, 1 } do
 			local h1 = CFrame.new(side * 0.2, 0, z) * CFrame.Angles(0, math.rad(side * 18), 0) * CFrame.new(side * 0.16, 0, 0)
@@ -1050,6 +1117,12 @@ STYLES.abyss = {
 			local z = start - 0.45 - (i - 1) * (start - endZ - 0.6) / 3.4
 			tri(ctx, "Tooth", -0.15, 0.27, t, BP(-w / 2 + 0.01, z), look.bevel, m)
 			tri(ctx, "Tooth", 0.15, 0.27, t, BP(w / 2 - 0.01, z - 0.2), look.bevel, m)
+			-- Liseré violet clair (Foil) sur le fil de chaque dent : la silhouette se détache.
+			local fang = look.fang or look.edge
+			local hyp = math.sqrt(0.15 ^ 2 + 0.27 ^ 2)
+			local tilt = math.atan2(0.15, 0.27)
+			block(ctx, "ToothEdge", Vector3.new(0.035, t + 0.016, hyp), CFrame.new(-w / 2 + 0.01 - 0.075, 0, z - 0.135) * CFrame.Angles(0, -tilt, 0), fang, Enum.Material.Foil)
+			block(ctx, "ToothEdge", Vector3.new(0.035, t + 0.016, hyp), CFrame.new(w / 2 - 0.01 + 0.075, 0, z - 0.335) * CFrame.Angles(0, tilt, 0), fang, Enum.Material.Foil)
 		end
 		local S = CFrame.new(0, 0, start)
 		local span = start - endZ
@@ -1307,6 +1380,22 @@ function SwordBuilder.buildModel(sword): Model
 	return model
 end
 
+-- Épée d'exposition (présentoir du Forgeron au hub) : modèle ancré, lame vers le haut, effet
+-- permanent adouci (particules à 25 %, pas de lueur). À poser avec model:PivotTo(...).
+function SwordBuilder.buildDisplay(sword, rate: number?): Model
+	local model = SwordBuilder.buildModel(sword)
+	model.Name = "DisplaySword"
+	for _, d in model:GetDescendants() do
+		if d:IsA("ParticleEmitter") then
+			d.Rate *= rate or 0.25
+		elseif d:IsA("PointLight") then
+			d.Enabled = false
+		end
+	end
+	model:SetAttribute("SwordId", sword.id)
+	return model
+end
+
 -- Hauteurs de la pointe et du pommeau d'une épée (repère du modèle d'aperçu).
 function SwordBuilder.span(sword): (number, number)
 	local model = SwordBuilder.buildModel(sword)
@@ -1315,9 +1404,25 @@ function SwordBuilder.span(sword): (number, number)
 	return top, bottom
 end
 
--- Épée rangée : poignée + fourreau (katanas et épées droites, à la hanche) ou épée entière dans
--- le dos (Couperet). Les pièces de la poignée portent l'attribut "Hilt" (cachées quand l'épée
--- est en main), le reste est le fourreau.
+-- Port de l'épée rangée : les lames courtes (jusqu'à HIP_MAX_LENGTH) à la hanche, les longues
+-- (et le Couperet) dans le dos en diagonale, poignée au-dessus de l'épaule droite. Une lame de
+-- plus de 4 studs ne peut pas pendre à la hanche d'un perso R6 (5 studs de haut) sans traîner
+-- presque à l'horizontale, « comme une lance » : dans le dos, elle reste dans la silhouette.
+SwordBuilder.HIP_MAX_LENGTH = 4
+-- Échelle de l'épée portée sur le perso (l'outil en main garde sa taille).
+SwordBuilder.WORN_SCALE = 0.9
+
+function SwordBuilder.carryOf(sword): string
+	local style = styleOf(sword)
+	if style.carry == "back" or (sword.look.length or 0) > SwordBuilder.HIP_MAX_LENGTH then
+		return "back"
+	end
+	return "hip"
+end
+
+-- Épée rangée : poignée + fourreau (katanas et épées droites, à la hanche ou dans le dos) ou
+-- épée entière dans le dos (Couperet). Les pièces de la poignée portent l'attribut "Hilt"
+-- (cachées quand l'épée est en main), le reste est le fourreau.
 function SwordBuilder.buildSheath(sword): Model
 	local style = styleOf(sword)
 	local model = Instance.new("Model")
@@ -1339,11 +1444,12 @@ function SwordBuilder.buildSheath(sword): Model
 		local mouth = ctx.bladeStart
 		buildScabbard(ctx, style)
 		model:SetAttribute("MouthZ", mouth)
-		model:SetAttribute("TipZ", ctx.tip.Z)
 	end
+	model:SetAttribute("TipZ", ctx.tip.Z)
+	model:SetAttribute("BackZ", ctx.back)
 	model.PrimaryPart = handle
 	model:SetAttribute("SwordId", sword.id)
-	model:SetAttribute("Carry", style.carry)
+	model:SetAttribute("Carry", SwordBuilder.carryOf(sword))
 	return model
 end
 
@@ -1360,21 +1466,28 @@ end
 -- Positions calculées pour ne toucher ni le torse, ni le bras gauche, ni la jambe gauche au repos,
 -- et pour rester presque hors d'eux pendant le balancement de la marche : l'embouchure du fourreau
 -- est sous le bras (y < -1) et à gauche de la jambe (x < -1), la poignée sort en avant et vers le
--- haut, le fourreau descend vers l'arrière le long de la cuisse.
---   mouth : embouchure du fourreau · pitch : inclinaison maximale (degrés, poignée vers le haut)
+-- haut, le fourreau descend nettement vers l'arrière le long de la cuisse.
+--   mouth : embouchure du fourreau · pitch : inclinaison maximale (degrés sous l'horizontale)
 --   yaw : pommeau tourné vers le ventre (degrés) · roll : rotation sur l'axe de la lame (degrés)
 local HIP_CARRY = {
-	-- Katanas : tranchant vers le haut, tourné de 40° vers le corps (port traditionnel).
-	saya = { mouth = Vector3.new(-1.3, -1.2, -0.9), pitch = 20, yaw = 4, roll = 40 },
+	-- Katanas : tranchant vers le haut, tourné de 22° vers l'extérieur.
+	saya = { mouth = Vector3.new(-1.3, -1.15, -0.8), pitch = 40, yaw = 4, roll = 22 },
 	-- Épées droites : fourreau de cuir pendu à plat contre la cuisse, garde à l'horizontale.
-	scabbard = { mouth = Vector3.new(-1.4, -1.0, -1.0), pitch = 22, yaw = 0, roll = 90 },
+	scabbard = { mouth = Vector3.new(-1.35, -1.05, -0.85), pitch = 40, yaw = 0, roll = 90 },
 }
 SwordBuilder.HIP_CARRY = HIP_CARRY
+-- Port dans le dos : haut de la poignée et bas de la pointe (repère du torse R6), angle par
+-- rapport à la verticale (min / max), écart minimal avec le dos et inclinaison (haut vers l'arrière).
+local BACK_CARRY = { top = 2.45, bottom = -2.6, minAngle = 14, maxAngle = 50, centerX = -0.15, gap = 0.06, lean = 7 }
+SwordBuilder.BACK_CARRY = BACK_CARRY
+-- Rubans, pompons et chaînes : souples, ils ne comptent pas pour faire tenir l'épée dans le dos.
+local LOOSE_PARTS =
+	{ Sageo = true, SageoKnot = true, Tassel = true, TasselCord = true, Ribbon = true, RibbonKnot = true, ChainLink = true, ChainGem = true, Rag = true, RagEnd = true }
 
 -- Repère de la poignée (dans le repère du torse) pour une épée rangée à la hanche.
 local function hipFrame(carry, mouth: Vector3, floorY: number, mouthZ: number, length: number): CFrame
-	-- La pointe reste au-dessus du sol : on réduit l'inclinaison pour les longues lames.
-	local room = mouth.Y - floorY - 0.6
+	-- La pointe reste au-dessus du sol : on réduit l'inclinaison pour les lames plus longues.
+	local room = mouth.Y - floorY - 0.3
 	local pitch = math.clamp(math.asin(math.clamp(room / length, 0, 1)), math.rad(12), math.rad(carry.pitch))
 	local yaw = math.rad(carry.yaw)
 	local toPommel = Vector3.new(math.sin(yaw) * math.cos(pitch), math.sin(pitch), -math.cos(yaw) * math.cos(pitch))
@@ -1391,9 +1504,76 @@ local function hipFrame(carry, mouth: Vector3, floorY: number, mouthZ: number, l
 	return CFrame.fromMatrix(mouth - toPommel * mouthZ, spineRolled, sideRolled, toPommel)
 end
 
+-- Repère de la poignée (dans le repère du torse) pour une épée portée dans le dos : diagonale
+-- poignée en haut à droite, plat contre le dos. `rel` = repères des pièces dans celui de la poignée.
+local function backFrame(rel: { { cf: CFrame, half: Vector3, loose: boolean } }, torsoHalfZ: number, yShift: number, top: number?, centerX: number?, gap: number?): CFrame
+	local function extents(frame: CFrame, all: boolean?): (Vector3, Vector3)
+		local lo, hi = Vector3.new(math.huge, math.huge, math.huge), Vector3.new(-math.huge, -math.huge, -math.huge)
+		for _, r in rel do
+			if r.loose and not all then
+				continue
+			end
+			for _, sx in { -1, 1 } do
+				for _, sy in { -1, 1 } do
+					for _, sz in { -1, 1 } do
+						local q = frame * r.cf * Vector3.new(sx * r.half.X, sy * r.half.Y, sz * r.half.Z)
+						lo, hi = lo:Min(q), hi:Max(q)
+					end
+				end
+			end
+		end
+		return lo, hi
+	end
+	top = top or BACK_CARRY.top
+	local vertical = top - BACK_CARRY.bottom
+	local frame, lo, hi
+	-- Angle le plus proche de la verticale qui fait tenir l'épée entre le haut de la tête et le sol.
+	for deg = BACK_CARRY.minAngle, BACK_CARRY.maxAngle, 2 do
+		local angle = math.rad(deg)
+		local toPommel = Vector3.new(math.sin(angle), math.cos(angle), 0)
+		-- Tranchant vers le haut et la gauche (on dégaine par-dessus l'épaule), dos vers le bas.
+		local spine = Vector3.new(math.cos(angle), -math.sin(angle), 0)
+		-- Légère inclinaison : le haut s'écarte du dos (la poignée passe derrière la tête).
+		frame = CFrame.Angles(math.rad(BACK_CARRY.lean), 0, 0) * CFrame.fromMatrix(Vector3.zero, spine, toPommel:Cross(spine), toPommel)
+		lo, hi = extents(frame)
+		if hi.Y - lo.Y <= vertical then
+			break
+		end
+	end
+	-- Poignée en haut (au niveau du haut de la tête), milieu vers le centre du dos (légèrement à
+	-- gauche : la poignée reste près de la tête), juste derrière le dos (aucune pièce dans le torse).
+	local y = math.max(top - hi.Y, BACK_CARRY.bottom - lo.Y)
+	local x = (centerX or BACK_CARRY.centerX) - (lo.X + hi.X) / 2
+	local loAll = extents(frame, true)
+	local z = torsoHalfZ + (gap or BACK_CARRY.gap) - loAll.Z
+	return CFrame.new(x, y + yShift, z) * frame
+end
+
+-- Réduit l'épée portée (WORN_SCALE) autour de sa poignée.
+local function scaleSheath(sheath: Model, handle: BasePart, scale: number)
+	if math.abs(scale - 1) < 1e-3 then
+		return
+	end
+	local origin = handle.CFrame
+	for _, p in sheath:GetDescendants() do
+		if p:IsA("BasePart") then
+			local rel = origin:ToObjectSpace(p.CFrame)
+			p.Size *= scale
+			p.CFrame = origin * CFrame.new(rel.Position * scale) * (rel - rel.Position)
+		end
+	end
+	for _, key in { "MouthZ", "TipZ", "BackZ" } do
+		local value = sheath:GetAttribute(key)
+		if value then
+			sheath:SetAttribute(key, value * scale)
+		end
+	end
+	sheath:SetAttribute("WornScale", scale)
+end
+
 -- Accroche le fourreau au perso et le soude.
 --   Hanche : voir HIP_CARRY (katana tranchant en haut, épées droites à plat contre la cuisse).
---   Dos : le Couperet entier, en diagonale, plat contre le dos.
+--   Dos : voir BACK_CARRY (longues lames au fourreau et Couperet, en diagonale, plat contre le dos).
 function SwordBuilder.attachSheath(sheath: Model, character: Model, sword, drawn: boolean?): boolean
 	local style = styleOf(sword)
 	local handle = sheath.PrimaryPart
@@ -1404,17 +1584,22 @@ function SwordBuilder.attachSheath(sheath: Model, character: Model, sword, drawn
 	if not handle or not torso or not upper then
 		return false
 	end
+	if not sheath:GetAttribute("WornScale") then
+		scaleSheath(sheath, handle, SwordBuilder.WORN_SCALE)
+	end
 	local r6 = torso.Name ~= "LowerTorso"
 	local target: CFrame
 	local anchor: BasePart
-	if style.carry == "back" then
+	if SwordBuilder.carryOf(sword) == "back" then
 		anchor = upper
-		-- Diagonale à 40°, centrée sur le dos : la poignée dépasse au-dessus de l'épaule droite,
-		-- la pointe reste au-dessus du sol (le Couperet est plus long que le perso n'est haut).
-		local c, s = math.cos(math.rad(40)), math.sin(math.rad(40))
-		local back = CFrame.fromMatrix(Vector3.zero, Vector3.new(-s, c, 0), Z_AXIS, Vector3.new(c, s, 0))
-		local half = (0.75 + sword.look.length - 1.2) / 2
-		target = upper.CFrame * CFrame.new(0, r6 and 0.1 or 0.5, upper.Size.Z / 2 + 0.12) * back * CFrame.new(0, 0, half)
+		local rel = {}
+		for _, p in sheath:GetDescendants() do
+			if p:IsA("BasePart") then
+				table.insert(rel, { cf = handle.CFrame:ToObjectSpace(p.CFrame), half = p.Size / 2, loose = LOOSE_PARTS[p.Name] == true })
+			end
+		end
+		-- R15 : l'UpperTorso est centré environ 0,4 plus haut que le Torso R6.
+		target = upper.CFrame * backFrame(rel, upper.Size.Z / 2, r6 and 0 or -0.4, style.backTop, style.backX, style.backGap)
 	else
 		anchor = torso
 		local mouthZ = sheath:GetAttribute("MouthZ") or -0.75

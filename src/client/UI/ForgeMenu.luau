@@ -312,7 +312,8 @@ local function renderGrid()
 			title = sword.name,
 			subtitle = status,
 			subtitleColor = statusColor,
-			color = sword.look.trail,
+			-- Couleur de carte propre à l'épée si sa lame est sombre (fond plus sombre, lame qui ressort).
+			color = sword.look.card or sword.look.trail,
 			layoutOrder = i,
 			selected = sword.id == selected,
 			selKey = sword.id,

@@ -898,7 +898,14 @@ test("Épées : épée rouillée de départ, Forgeron, coup d'épée", function(
 	local SwordBuilderModule = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.SwordBuilder"))
 	local SwordsConfig = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Swords"))
 	local bright = SwordBuilderModule.buildTool(SwordsConfig.get("celeste"))
-	assert(bright.Grip.RightVector:Dot(SwordBuilderModule.GRIP.RightVector) > 0.999 and math.abs(bright.Grip.RightVector.Y) > 0.99, "prise de l'épée (lame de chant)")
+	local spineInHand = bright.Grip:Inverse():VectorToWorldSpace(Vector3.new(1, 0, 0))
+	assert(bright.Grip.RightVector:Dot(SwordBuilderModule.GRIP.RightVector) > 0.999 and spineInHand.Y > 0.5, "prise de l'épée (lame de chant)")
+	-- Présentoir du hub : modèle ancré, effet adouci, sans lueur.
+	local display = SwordBuilderModule.buildDisplay(SwordsConfig.get("foudre"))
+	assert(display.Name == "DisplaySword" and display.PrimaryPart.Anchored and not display.AuraVolume.Glow.Enabled, "épée d'exposition")
+	-- Épée rangée sur le perso : réduite (WORN_SCALE).
+	local worn = alice.Character:FindFirstChild("SwordSheath")
+	assert(worn and worn:GetAttribute("WornScale") == SwordBuilderModule.WORN_SCALE, "épée portée non réduite")
 	local glow = bright.AuraVolume.Glow
 	local base = glow.Brightness
 	services.SwordService:Flash(bright, 0.1, false)

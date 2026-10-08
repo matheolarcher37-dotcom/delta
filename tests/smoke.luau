@@ -408,10 +408,13 @@ test("Épées : tenues de chant, Neon discret, lueur plafonnée", function()
 	local SwordBuilder = requireModule(Shared.Modules.SwordBuilder)
 	for _, sword in Swords.List do
 		local tool = SwordBuilder.buildTool(sword)
-		-- La lame reste le long de -Z, mais la prise la tourne de chant (largeur X -> vertical).
-		local grip = tool.Grip
-		assert(math.abs(grip.LookVector:Dot(Vector3.new(0, 0, -1)) - 1) < 1e-3, sword.id .. " : prise : lame plus le long de -Z")
-		assert(math.abs(grip.RightVector.Y) > 0.99, sword.id .. " : lame tenue à plat")
+		-- La lame reste le long de -Z de la poignée ; la prise la tient de chant (dos +X vers le haut
+		-- du repère de la main), levée devant et vers la droite, roulée pour montrer un peu le plat.
+		local inv = tool.Grip:Inverse()
+		local blade = inv:VectorToWorldSpace(Vector3.new(0, 0, -1))
+		local spine = inv:VectorToWorldSpace(Vector3.new(1, 0, 0))
+		assert(blade.Z < -0.6 and blade.Y > math.sin(math.rad(15)) and blade.X > 0.2, sword.id .. " : prise : lame pas levée devant")
+		assert(spine.Y > math.cos(math.rad(55)) and spine.Y < math.cos(math.rad(10)), sword.id .. " : lame tenue à plat ou pas roulée")
 		for _, part in tool:GetDescendants() do
 			if part:IsA("BasePart") and part.Material == Enum.Material.Neon and not part:FindFirstChildOfClass("SpecialMesh") then
 				local s = part.Size
@@ -429,7 +432,7 @@ test("Épées : tenues de chant, Neon discret, lueur plafonnée", function()
 	assert(SwordBuilder.buildTool(Swords.get("celeste")).AuraVolume.Glow.Brightness <= 1.21, "Céleste : lueur trop forte")
 end)
 
-test("Épées : fourreau à la hanche hors du bras, de la jambe et du sol (R6)", function()
+test("Épées : portées à la hanche ou dans le dos, hors du corps et du sol (R6)", function()
 	local Swords = requireModule(Shared.Config.Swords)
 	local SwordBuilder = requireModule(Shared.Modules.SwordBuilder)
 	-- Gabarit R6 dans le repère du torse (centre du torse à 3 studs du sol). Le bras et la jambe
@@ -442,9 +445,14 @@ test("Épées : fourreau à la hanche hors du bras, de la jambe et du sol (R6)",
 			table.insert(limbs, { name = name, rest = a == 0, inv = cf:Inverse(), half = half })
 		end
 	end
-	limb("Left Arm", Vector3.new(-1.5, 0, 0), Vector3.new(-1.5, 0.5, 0), Vector3.new(0.5, 1, 0.5))
-	limb("Left Leg", Vector3.new(-0.5, -2, 0), Vector3.new(-0.5, -1, 0), Vector3.new(0.5, 1, 0.5))
+	for _, side in { -1, 1 } do
+		local name = side < 0 and "gauche" or "droit"
+		limb("bras " .. name, Vector3.new(side * 1.5, 0, 0), Vector3.new(side * 1.5, 0.5, 0), Vector3.new(0.5, 1, 0.5))
+		limb("jambe " .. name, Vector3.new(side * 0.5, -2, 0), Vector3.new(side * 0.5, -1, 0), Vector3.new(0.5, 1, 0.5))
+	end
 	table.insert(limbs, { name = "Torso", rest = true, inv = CFrame.new(), half = Vector3.new(1, 1, 0.5) })
+	table.insert(limbs, { name = "tête", rest = true, inv = CFrame.new(0, -1.5, 0), half = Vector3.new(0.62, 0.5, 0.62) })
+	local carries = {}
 	local problems = {}
 	for _, sword in Swords.List do
 		local character = Instance.new("Model")
@@ -455,8 +463,11 @@ test("Épées : fourreau à la hanche hors du bras, de la jambe et du sol (R6)",
 		torso.Parent = character
 		local sheath = SwordBuilder.buildSheath(sword)
 		assert(SwordBuilder.attachSheath(sheath, character, sword, false), sword.id .. " : fourreau non accroché")
-		local hip = sheath:GetAttribute("Carry") == "hip"
+		local carry = sheath:GetAttribute("Carry")
+		carries[carry] = (carries[carry] or 0) + 1
 		local lowest = math.huge
+		local extent = Vector3.new(-math.huge, -math.huge, -math.huge)
+		local extentLo = Vector3.new(math.huge, math.huge, math.huge)
 		local worst = {}
 		for _, part in sheath:GetDescendants() do
 			if part:IsA("BasePart") then
@@ -473,15 +484,14 @@ test("Épées : fourreau à la hanche hors du bras, de la jambe et du sol (R6)",
 							if i == 0 or j == 0 or k == 0 or i == nx or j == ny or k == nz then
 								local q = rel * Vector3.new(h.X * (2 * i / nx - 1), h.Y * (2 * j / ny - 1), h.Z * (2 * k / nz - 1))
 								lowest = math.min(lowest, q.Y)
-								if hip then
-									for _, l in limbs do
-										local p = l.inv * q
-										local pen = math.min(l.half.X - math.abs(p.X), l.half.Y - math.abs(p.Y), l.half.Z - math.abs(p.Z))
-										if pen > 0 then
-											local key = l.name .. (l.rest and " (repos)" or " (marche)")
-											if pen > (worst[key] or 0) then
-												worst[key] = pen
-											end
+								extent, extentLo = extent:Max(q), extentLo:Min(q)
+								for _, l in limbs do
+									local p = l.inv * q
+									local pen = math.min(l.half.X - math.abs(p.X), l.half.Y - math.abs(p.Y), l.half.Z - math.abs(p.Z))
+									if pen > 0 then
+										local key = l.name .. (l.rest and " (repos)" or " (marche)")
+										if pen > (worst[key] or 0) then
+											worst[key] = pen
 										end
 									end
 								end
@@ -498,8 +508,23 @@ test("Épées : fourreau à la hanche hors du bras, de la jambe et du sol (R6)",
 				table.insert(problems, string.format("%s : traverse %s de %.2f", sword.id, key, pen))
 			end
 		end
-		print(string.format("   %-22s %s · pointe à %.2f du sol", sword.name, sheath:GetAttribute("Carry"), lowest + 3))
+		-- Pas de « lance » : l'épée rangée ne dépasse pas loin devant / derrière ni sur les côtés.
+		assert(extent.Z < 2.6 and extentLo.Z > -2.4, sword.id .. string.format(" : dépasse trop devant/derrière (%.2f / %.2f)", extentLo.Z, extent.Z))
+		assert(extent.X < 3 and extentLo.X > -3, sword.id .. string.format(" : dépasse trop sur les côtés (%.2f / %.2f)", extentLo.X, extent.X))
+		if carry == "hip" then
+			-- Fourreau nettement incliné vers le bas (pas presque à plat).
+			local tipZ = sheath:GetAttribute("TipZ")
+			local tipWorld = sheath.PrimaryPart.CFrame * Vector3.new(0, 0, tipZ)
+			local mouthWorld = sheath.PrimaryPart.CFrame * Vector3.new(0, 0, sheath:GetAttribute("MouthZ"))
+			local dir = torso.CFrame:VectorToObjectSpace(tipWorld - mouthWorld).Unit
+			assert(math.deg(math.asin(-dir.Y)) >= 28, sword.id .. string.format(" : fourreau trop à plat (%.0f°)", math.deg(math.asin(-dir.Y))))
+		end
+		print(
+			string.format("   %-22s %-4s · pointe à %.2f du sol · étendue x %.1f..%.1f z %.1f..%.1f", sword.name, carry, lowest + 3, extentLo.X, extent.X, extentLo.Z, extent.Z)
+		)
 	end
+	assert((carries.hip or 0) >= 2 and (carries.back or 0) >= 2, "ports de l'épée (hanche / dos)")
+	assert(SwordBuilder.carryOf(Swords.get("celeste")) == "back" and SwordBuilder.carryOf(Swords.get("rouillee")) == "hip", "port selon la longueur")
 	for _, c in problems do
 		print("   !! " .. c)
 	end
