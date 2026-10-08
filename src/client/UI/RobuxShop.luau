@@ -504,7 +504,7 @@ local function starterCard(parent: Instance, size: UDim2, position: UDim2, seed:
 	RobuxShop.offerIcon(icons, "clover", Robux.Boosts.Luck.color, 50, nil, UDim2.fromScale(0.8, 0.55), Robux.Boosts.Luck.color)
 	Theme.label({
 		Name = "Title",
-		Text = string.upper(product.name),
+		Text = product.name,
 		Size = UDim2.new(1, -20, 0, 28),
 		Position = UDim2.fromOffset(10, 92),
 		FontFace = Theme.Faces.Title,
@@ -846,7 +846,7 @@ local function renderBoosts(container: Frame)
 		if pass and left > 0 then
 			return "Passe + Boost · " .. Formulas.formatTime(left)
 		elseif left > 0 then
-			return "Boost " .. label .. " x2 · " .. Formulas.formatTime(left)
+			return "Boost x2 · " .. Formulas.formatTime(left)
 		elseif pass then
 			return "Passe x2 " .. label
 		end
@@ -940,12 +940,13 @@ function RobuxShop.init(gui: ScreenGui)
 	-- Barre d'indications manette (A / B / LB / RB) sur une pastille sombre collée sous la fenêtre.
 	local hints = holder and holder:FindFirstChild("PadHints", true)
 	if hints and hints:IsA("Frame") then
-		hints.AutomaticSize = Enum.AutomaticSize.X
-		hints.Size = UDim2.fromOffset(0, 40)
+		hints.AutomaticSize = Enum.AutomaticSize.None
+		hints.Size = UDim2.fromOffset(620, 40)
 		hints.Position = UDim2.new(0.5, 0, 1, 4)
 		hints.BackgroundColor3 = Color3.fromRGB(6, 6, 12)
-		hints.BackgroundTransparency = 0.35
+		hints.BackgroundTransparency = 0.15
 		Theme.corner(12).Parent = hints
+		Theme.stroke(Color3.fromRGB(90, 70, 130), 1.5, 0.3).Parent = hints
 		new("UIPadding", { PaddingLeft = UDim.new(0, 18), PaddingRight = UDim.new(0, 18), Parent = hints })
 	end
 
