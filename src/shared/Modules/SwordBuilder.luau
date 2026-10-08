@@ -1376,8 +1376,12 @@ function SwordBuilder.attachSheath(sheath: Model, character: Model, sword, drawn
 	local anchor: BasePart
 	if style.carry == "back" then
 		anchor = upper
-		local back = CFrame.fromMatrix(Vector3.zero, Vector3.new(-0.866, 0.5, 0), Z_AXIS, Vector3.new(0.5, 0.866, 0))
-		target = upper.CFrame * CFrame.new(0, r6 and -0.6 or -0.2, upper.Size.Z / 2 + 0.12) * back * CFrame.new(0, 0, 3)
+		-- Diagonale à 40°, centrée sur le dos : la poignée dépasse au-dessus de l'épaule droite,
+		-- la pointe reste au-dessus du sol (le Couperet est plus long que le perso n'est haut).
+		local c, s = math.cos(math.rad(40)), math.sin(math.rad(40))
+		local back = CFrame.fromMatrix(Vector3.zero, Vector3.new(-s, c, 0), Z_AXIS, Vector3.new(c, s, 0))
+		local half = (0.75 + sword.look.length - 1.2) / 2
+		target = upper.CFrame * CFrame.new(0, r6 and 0.1 or 0.5, upper.Size.Z / 2 + 0.12) * back * CFrame.new(0, 0, half)
 	else
 		anchor = torso
 		local mouthZ = sheath:GetAttribute("MouthZ") or -0.75
@@ -1387,7 +1391,7 @@ function SwordBuilder.attachSheath(sheath: Model, character: Model, sword, drawn
 		local halfX, halfZ = torso.Size.X / 2, torso.Size.Z / 2
 		local mouth, floorY
 		if r6 then
-			mouth = Vector3.new(-(halfX + 0.2), -0.98, -(halfZ + 0.08))
+			mouth = Vector3.new(-halfX, -0.98, -(halfZ + 0.5))
 			floorY = -3
 		else
 			mouth = Vector3.new(-(halfX + 0.14), -0.1, -(halfZ + 0.08))
@@ -1396,7 +1400,7 @@ function SwordBuilder.attachSheath(sheath: Model, character: Model, sword, drawn
 		-- Inclinaison : 38° au plus, moins pour les longues lames (la pointe reste au-dessus du sol).
 		local room = mouth.Y - floorY - 0.55
 		local pitch = math.clamp(math.asin(math.clamp(room / length, 0, 1)), math.rad(14), math.rad(38))
-		local yaw = math.rad(15)
+		local yaw = math.rad(30)
 		local toPommel = Vector3.new(math.sin(yaw) * math.cos(pitch), math.sin(pitch), -math.cos(yaw) * math.cos(pitch))
 		local up = Vector3.new(0, 1, 0)
 		local spine = -(up - toPommel * up:Dot(toPommel)).Unit -- dos (+X) vers le bas : tranchant en haut
