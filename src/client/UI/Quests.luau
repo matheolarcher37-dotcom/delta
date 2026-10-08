@@ -202,6 +202,7 @@ local function drawIcon(name: string, parent: Instance, opts: { [string]: any })
 		Parent = parent,
 	})
 	new("UIAspectRatioConstraint", { AspectRatio = 1, Parent = holder })
+	holder:SetAttribute("CustomIcon", true)
 	paintCustomIcon(holder, name, opts.color, opts.ink, opts.px, opts.shadow)
 	return holder
 end
@@ -210,29 +211,35 @@ Quests.drawIcon = drawIcon
 -- Les composants communs (fenêtres, onglets, boutons) dessinent leurs icônes avec UI/Icons :
 -- une icône propre aux défis y apparaît comme texte. On la redessine ici.
 function Quests.fixIcons(root: Instance)
+	-- liste d'abord (redessiner détruit des descendants), puis redessine
+	local targets = {}
 	for _, d in root:GetDescendants() do
-		if d:IsA("Frame") and string.sub(d.Name, 1, 5) == "Icon_" then
-			local name = string.sub(d.Name, 6)
-			if CUSTOM_ICONS[name] and not d:GetAttribute("CustomIcon") then
-				-- couleurs d'origine : forme principale et détail « encre » éventuels
-				local color, ink = WHITE, nil
-				for _, child in d:GetChildren() do
-					if child:IsA("TextLabel") then
-						color = child.TextColor3
-					elseif child:IsA("Frame") and child.Name == "Ink" then
-						ink = child.BackgroundColor3
-					end
-				end
-				for _, child in d:GetChildren() do
-					if not child:IsA("UIAspectRatioConstraint") then
-						child:Destroy()
-					end
-				end
-				d:SetAttribute("CustomIcon", true)
-				local px = d.AbsoluteSize.X > 4 and math.floor(d.AbsoluteSize.X) or 40
-				paintCustomIcon(d, name, color, ink or Color3.fromRGB(40, 40, 60), px, true)
+		if d:IsA("Frame") and string.sub(d.Name, 1, 5) == "Icon_" and CUSTOM_ICONS[string.sub(d.Name, 6)] and not d:GetAttribute("CustomIcon") then
+			table.insert(targets, d)
+		end
+	end
+	for _, d in targets do
+		local name = string.sub(d.Name, 6)
+		-- couleurs d'origine : forme principale et détail « encre » éventuels
+		local color, ink = WHITE, nil
+		for _, child in d:GetChildren() do
+			if child:IsA("TextLabel") then
+				color = child.TextColor3
+			elseif child:IsA("Frame") and child.Name == "Ink" then
+				ink = child.BackgroundColor3
 			end
 		end
+		for _, child in d:GetChildren() do
+			if not child:IsA("UIAspectRatioConstraint") then
+				child:Destroy()
+			end
+		end
+		d:SetAttribute("CustomIcon", true)
+		local okSize, absolute = pcall(function()
+			return d.AbsoluteSize.X
+		end)
+		local px = (okSize and absolute and absolute > 4) and math.floor(absolute) or 40
+		paintCustomIcon(d, name, color, ink or Color3.fromRGB(40, 40, 60), px, true)
 	end
 end
 
@@ -360,6 +367,34 @@ local function rewardChips(parent: Instance, reward, height: number, align: Enum
 	return row
 end
 
+-- Message de l'écran Défis : affiché DANS la fenêtre (en bas) quand elle est ouverte, pour ne
+-- jamais couvrir les onglets ; sinon en bandeau classique.
+local feedbackSerial = 0
+local function feedback(message: string, kind: string)
+	local holder = refs.feedback :: Frame?
+	if not (window and window.isOpen and holder and holder.Parent) then
+		Notifications.toast(message, kind)
+		return
+	end
+	feedbackSerial += 1
+	local serial = feedbackSerial
+	local color = kind == "success" and READY or kind == "error" and C.Red or GEM
+	holder.Visible = true
+	holder.BackgroundColor3 = Theme.dark(color, 0.62)
+	local stroke = holder:FindFirstChildOfClass("UIStroke")
+	if stroke then
+		stroke.Color = color
+	end
+	refs.feedbackText.Text = message
+	holder.Position = UDim2.new(0.5, 0, 1, 10)
+	Theme.tween(holder, 0.25, { Position = UDim2.new(0.5, 0, 1, -8) }, Enum.EasingStyle.Back)
+	task.delay(2.6, function()
+		if serial == feedbackSerial and holder.Parent then
+			holder.Visible = false
+		end
+	end)
+end
+
 local function invokeClaim(id: string?)
 	local ok, message
 	if id then
@@ -368,7 +403,7 @@ local function invokeClaim(id: string?)
 		ok, message = State.invoke("QuestClaimAll")
 	end
 	if message then
-		Notifications.toast(message, ok and "success" or "error")
+		feedback(message, ok and "success" or "error")
 	end
 	if ok then
 		SoundService:PlayLocalSound(claimSound)
@@ -392,9 +427,9 @@ local function claimButton(parent: Instance, state: string, onClick: () -> (), p
 			if state == "ready" then
 				onClick()
 			elseif state == "done" then
-				Notifications.toast("Déjà réclamé !", "info")
+				feedback("Déjà réclamé !", "info")
 			else
-				Notifications.toast("Continue : ce défi n'est pas encore fini.", "info")
+				feedback("Continue : ce défi n'est pas encore fini.", "info")
 			end
 		end,
 	})
@@ -1083,6 +1118,27 @@ local function buildWindow(gui: ScreenGui)
 		Position = UDim2.fromOffset(0, 60),
 		BackgroundTransparency = 1,
 		Parent = content,
+	})
+	-- Message de retour (réclamer...) en bas de la fenêtre
+	refs.feedback = new("Frame", {
+		Name = "Feedback",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -8),
+		Size = UDim2.fromOffset(620, 46),
+		BackgroundColor3 = Theme.dark(READY, 0.62),
+		Visible = false,
+		ZIndex = 30,
+		Parent = content,
+	})
+	Theme.corner(14).Parent = refs.feedback
+	Theme.stroke(READY, 2.5).Parent = refs.feedback
+	refs.feedbackText = Theme.label({
+		Text = "",
+		Size = UDim2.new(1, -24, 1, -12),
+		Position = UDim2.fromOffset(12, 6),
+		ZIndex = 31,
+		MaxSize = 22,
+		Parent = refs.feedback,
 	})
 	Components.registerWindow(Menus, "Quests", window, function(arg)
 		if type(arg) == "string" and window.tabs[arg] then

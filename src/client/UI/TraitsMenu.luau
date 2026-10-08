@@ -259,6 +259,9 @@ local function sparkleBurst(parent: Instance, color: Color3, count: number)
 			Rotation = math.random(-180, 180),
 		}, Enum.EasingStyle.Quart)
 		task.delay(0.45, function()
+			if not spark.Parent then
+				return
+			end
 			for _, bar in spark:GetChildren() do
 				if bar:IsA("Frame") then
 					Theme.tween(bar, 0.3, { BackgroundTransparency = 1 })
@@ -636,7 +639,8 @@ local function buildThroneRoom(parent: Instance)
 	part("DaisLow", Vector3.new(0.6, 11, 11), CFrame.new(0, 0.3, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(240, 234, 222), Enum.Material.Marble, CYL)
 	part("DaisTrim", Vector3.new(0.12, 11.2, 11.2), CFrame.new(0, 0.62, 0) * CFrame.Angles(0, 0, math.rad(90)), GOLD, Enum.Material.Metal, CYL)
 	part("DaisHigh", Vector3.new(0.6, 8, 8), CFrame.new(0, 0.9, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(252, 248, 238), Enum.Material.Marble, CYL)
-	part("DaisGlow", Vector3.new(0.05, 6.4, 6.4), CFrame.new(0, 1.22, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(255, 226, 140), Enum.Material.Neon, CYL).Transparency = 0.35
+	part("DaisGlow", Vector3.new(0.05, 6.4, 6.4), CFrame.new(0, 1.22, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(255, 226, 140), Enum.Material.Neon, CYL).Transparency =
+		0.35
 	-- Le héros ressort : halo doré derrière lui et colonne de lumière qui tombe sur l'estrade
 	-- (un ViewportFrame n'affiche pas les PointLight : la lumière est faite de pièces Neon).
 	local halo = part("Halo", Vector3.new(0.1, 7.2, 7.2), CFrame.new(0, 5.6, 1.7) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 214, 90), Enum.Material.Neon, CYL)
@@ -712,8 +716,8 @@ end
 local function monarchCamera(total: number): { { any } }
 	return {
 		{ 0, Vector3.new(0, 3, -31), Vector3.new(0, 3.4, 0) },
-		{ 2.1, Vector3.new(0, 4.2, -22), Vector3.new(0, 3.2, -4) },
-		{ 3.7, Vector3.new(14, 6, -16), Vector3.new(0, 3.5, -5) },
+		{ 1.5, Vector3.new(6, 4.2, -25), Vector3.new(0, 3.2, -6) },
+		{ 2.9, Vector3.new(14, 6, -16), Vector3.new(0, 3.5, -5) },
 		{ math.max(total, 3.8), Vector3.new(12.6, 5.6, -14.6), Vector3.new(0, 3.6, -5) },
 	}
 end

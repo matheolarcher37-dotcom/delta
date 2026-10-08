@@ -1087,12 +1087,24 @@ test("Défis : kills comptés, palier prêt annoncé, récompense réclamée", f
 	assert((data.Quests.counters.kill or 0) == killsBefore + 1, "kill non compté pour les défis")
 	assert((data.Quests.counters["kill:" .. defId] or 0) >= 1, "kill par ennemi non compté")
 	assert((data.Quests.counters.swordkill or 0) >= 1, "kill à l'épée non compté")
+	-- Rival d'univers (« Tue 200 Kakashu ») : un perso de l'univers apparaît comme ennemi
+	local rival = CombatService:_createEnemy("ninja_kakashu", 1, false, "ninja_son")
+	assert(rival and rival.rival and rival.model:GetAttribute("Rival") == true, "rival non créé")
+	assert(string.find(rival.model:GetAttribute("DisplayName"), "Kakashu", 1, true), "nom du rival")
+	CombatService:DamageEnemy(alice, rival, 1e9, { sword = true })
+	assert((data.Quests.counters["kill:ninja_kakashu"] or 0) >= 1, "kill de rival non compté")
 	-- Palier 1 de « Village Ninja : tue 50 <ennemi> »
 	local quest = QuestsConfig.ById.u_ninja_1
 	data.Quests.counters[quest.key] = 60
 	QuestService:_check(alice, { [quest.key] = true })
-	local notify = lastEvent("QuestNotify", alice)
-	assert(notify and notify.args[1].kind == "ready", "défi réussi non annoncé")
+	local announced, summary = false, false
+	for _, event in clientEvents do
+		if event.name == "QuestNotify" and event.player == alice and type(event.args[1]) == "table" then
+			announced = announced or event.args[1].kind == "ready"
+			summary = summary or event.args[1].kind == "readySummary"
+		end
+	end
+	assert(announced and summary, "défi réussi non annoncé")
 	local coins = data.coins
 	local ok, message = invoke("QuestClaim", alice, quest.id)
 	assert(ok, "réclamer : " .. tostring(message))

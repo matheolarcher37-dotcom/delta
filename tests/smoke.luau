@@ -281,12 +281,33 @@ test("Défis : configuration cohérente (paliers croissants, ennemis, récompens
 	-- Exemple demandé : « Village Ninja : tue 200 <ennemi> » → 1 000 pièces
 	local ninja = Quests.ById.u_ninja_1
 	assert(ninja.tiers[2].goal == 200 and ninja.tiers[2].reward.coins == 1000, "exemple 200 kills / 1000 pièces")
+	-- Exemple exact de l'utilisateur : « Village Ninja : tue 200 Kakashu » → 1 000 pièces (rival)
+	local rival = Quests.ById.u_ninja_rival1
+	assert(rival and rival.rival == "ninja_kakashu", "défi « Tue 200 Kakashu » manquant")
+	assert(Quests.title(rival, rival.tiers[1].goal) == "Tue 200 Kakashu", Quests.title(rival, rival.tiers[1].goal))
+	assert(rival.tiers[1].reward.coins == 1000, "Tue 200 Kakashu doit donner 1 000 pièces")
+	local firstNinja
+	for _, quest in Quests.List do
+		if quest.universe == "ninja" then
+			firstNinja = quest
+			break
+		end
+	end
+	assert(firstNinja == rival, "le premier défi du Village Ninja doit être « Tue 200 Kakashu »")
+	for _, universe in Universes.List do
+		assert(#Quests.rivalsFor(universe) >= 2, universe.id .. " : il faut au moins 2 rivaux")
+	end
 	assert(Quests.Punch.Bags == 3, "il faut exactement 3 punching-balls")
 	assert(Quests.punchCycleGems() == 20 and Quests.Punch.Goal == 1000, "1000 coups doivent donner 20 gemmes")
 	assert(#Quests.pickDaily(20000, 42) == Quests.DailyCount, "défis du jour")
 	local a, b = Quests.pickDaily(20000, 42), Quests.pickDaily(20000, 42)
 	assert(table.concat(a) == table.concat(b), "tirage du jour instable")
-	assert(Quests.title(ninja, 1000) == "Tue 1 000 " .. Characters.Enemies.ninja_son.name, Quests.title(ninja, 1000))
+	assert(Quests.title(ninja, 1000) == "Tue 1 000 Ninjas du Son", Quests.title(ninja, 1000))
+	assert(Quests.title(Quests.ById.u_ocean_1, 50) == "Tue 50 Pirates de Buggi", Quests.title(Quests.ById.u_ocean_1, 50))
+	-- Défi du jour « Gagne X pièces » adapté au revenu du joueur
+	local coinsDaily = Quests.DailyById.d_coins
+	assert(Quests.dailyGoalFor(coinsDaily, 0) == coinsDaily.goal, "objectif de pièces minimal")
+	assert(Quests.dailyGoalFor(coinsDaily, 10000) == 12000000, "objectif de pièces selon le revenu")
 	-- Progression lue dans une sauvegarde
 	local data = {
 		RollCount = 12,
