@@ -272,8 +272,9 @@ local function newContext(model: Model, s: number, paint: string)
 		if lum < 0.16 then
 			return color:Lerp(Color3.new(0, 0, 0), 0.35)
 		end
-		-- Ombre saturée (comme l'ombrage des cheveux en maillage) : plus sombre, jamais grisâtre
-		return Color3.new(color.R * 0.78, color.G * 0.74, color.B * 0.8)
+		-- Ombre saturée (comme l'ombrage des cheveux en maillage) : plus sombre, jamais grisâtre,
+		-- mais proche de la teinte éclairée (dégradé doux, pas de facettes « origami »)
+		return Color3.new(color.R * 0.86, color.G * 0.82, color.B * 0.87)
 	end
 	ctx.shadeOf = shadeOf
 
@@ -296,9 +297,28 @@ local function newContext(model: Model, s: number, paint: string)
 		local dark = opts.dark or shadeOf(color)
 		if ctx.hairDarken then
 			-- Moitié ombrée plus marquée : chaque pointe se détache de ses voisines (contour)
-			dark = dark:Lerp(Color3.new(0.25, 0.18, 0.05), ctx.hairDarken)
+			dark = dark:Lerp(Color3.new(0.25, 0.18, 0.05), ctx.hairDarken * 0.6)
 		end
-		if full then
+		if full and (ctx.hairRoots or 0) > 0 and opts.root ~= false then
+			-- Mèche en maillage lisse : base arrondie (ellipsoïde, ton moyen) puis pointe qui
+			-- s'incurve de 15° (vers le haut, ou vers l'arrière pour les pointes dressées)
+			ctx.hairRoots -= 1
+			local mid = color:Lerp(dark, 0.35)
+			ctx.ball(limbName, "HairRoot", Vector3.new(width * 0.96, length * 0.42, depth), alongY(from + d * (length * 0.04), d), mid)
+			local axis = d:Cross(Vector3.new(0, 1, 0))
+			if axis.Magnitude < 0.2 then
+				axis = Vector3.new(1, 0, 0)
+			end
+			local bent = CFrame.fromAxisAngle(axis.Unit, math.rad(opts.bend or 15)) * face.Rotation
+			local tipFrame = CFrame.new(from + d * (length * 0.22)) * bent
+			ctx.cone(limbName, litFrame(tipFrame), length * 0.8, width * 0.86, depth * 0.9, color, dark)
+			if (ctx.hairShines or 0) > 0 and d.Y > 0.25 and d.Z < 0.35 then
+				-- Reflet : fine mèche claire sur la moitié éclairée
+				ctx.hairShines -= 1
+				local lit = litFrame(tipFrame)
+				ctx.ball(limbName, "HairShine", Vector3.new(width * 0.14, length * 0.42, depth * 0.2), lit * CFrame.new(width * 0.2, length * 0.24, -depth * 0.12), color:Lerp(Color3.new(1, 1, 1), 0.35))
+			end
+		elseif full then
 			ctx.cone(limbName, litFrame(face), length, width, depth, color, dark)
 		else
 			-- Dos plat contre la calotte : la moitié +Z (vers l'extérieur) seulement.
@@ -1223,6 +1243,67 @@ HAIR.wild_long = function(ctx, c, look)
 				{ cross = false, thickness = 0.16 }
 			)
 		end
+	end
+end
+
+HAIR.tousled = function(ctx, c, look)
+	-- Cheveux courts ébouriffés, PLATS (jeune guerrier studieux) : volume bas et large, mèches
+	-- couchées sur les côtés et vers l'arrière (presque pas de pointes dressées), et UNE grande
+	-- mèche unique qui tombe sur le front.
+	local under, shine = hairTones(c, look)
+	local L = look.hairLength or 1
+	cap(ctx, c, { height = 0.74, lift = -0.02, grow = 0.08, color2 = under, backLength = 1.2 })
+	scales(ctx, c, shine, under, 0.42, 0.4, { front = false, lift = 0.5 })
+	ctx.burst("Head", Vector3.new(0, 0.5, 0.06), Vector3.new(0.64, 0.3, 0.62), c, {
+		{ 0, 78, 0.56 * L, 0.52, nil, -0.05 },
+		{ 180, 78, 0.56 * L, 0.52, nil, -0.05 },
+		{ 25, 72, 0.52 * L, 0.5, under, 0.0 },
+		{ 155, 72, 0.52 * L, 0.5, under, 0.0 },
+		{ 60, 70, 0.58 * L, 0.52, nil, -0.08 },
+		{ 120, 70, 0.58 * L, 0.52, nil, -0.08 },
+		{ 90, 66, 0.62 * L, 0.54, under, -0.1 },
+		{ 330, 74, 0.46 * L, 0.46, shine, 0.05 },
+		{ 210, 74, 0.46 * L, 0.46, nil, 0.05 },
+		{ 40, 36, 0.46 * L, 0.48, shine, 0.12 },
+		{ 140, 36, 0.46 * L, 0.48, nil, 0.12 },
+		{ 290, 44, 0.4 * L, 0.44, nil, 0.1 },
+	}, { sink = 0.84 })
+	-- La mèche unique sur le front (large, qui part en virgule vers la gauche de l'observateur)
+	ctx.lock("Head", c, Vector3.new(0.12, 0.62, -0.6), Vector3.new(-0.45, -1, -0.25), 0.68, 0.44, { facing = Vector3.new(0.1, 0, -1), thickness = 0.13 })
+	ctx.lock("Head", shine, Vector3.new(0.1, 0.6, -0.63), Vector3.new(-0.42, -1, -0.25), 0.4, 0.16, { facing = Vector3.new(0.1, 0, -1), thickness = 0.08 })
+	-- Petites mèches courtes de part et d'autre (front dégagé)
+	fringe(ctx, under, { -0.42, 0.42 }, { 0.26, 0.26 }, 0.3, { y = 0.5, spread = 0.9, out = 0.1, thickness = 0.1 })
+	sidelocks(ctx, c, 0.34, 0.3, 0.38)
+end
+
+HAIR.heavy_long = function(ctx, c, look)
+	-- Crinière lourde jusqu'aux épaules (guerrier légendaire) : gros volume, frange à épis sur
+	-- les yeux, et de LOURDES mèches lisses qui retombent tout autour jusqu'aux épaules et dans le
+	-- dos (silhouette large et massive, rien à voir avec une coiffure dressée).
+	local under, shine = hairTones(c, look)
+	local L = look.hairLength or 1
+	cap(ctx, c, { color2 = under, backLength = 1.9, grow = 0.16, height = 0.92 })
+	fringe(ctx, c, { -0.4, -0.18, 0.04, 0.26, 0.44 }, { 0.48, 0.6, 0.66, 0.58, 0.46 }, 0.34, { alt = shine, y = 0.6, spread = 0.9, out = 0.22 })
+	-- Dessus : mèches lisses couchées vers l'arrière (volume arrondi, pas d'épis)
+	for i, x in { -0.3, 0, 0.3 } do
+		ctx.sleek("Head", i == 2 and shine or c, Vector3.new(x, 0.9, -0.3), Vector3.new(x * 0.3, -0.25, 1), 0.9, 0.5, { segments = 2, facing = Vector3.new(x, 1, 0), thickness = 0.2, point = false })
+	end
+	-- Lourdes mèches qui tombent (des côtés de la tête jusque dans le dos ; jamais devant le visage)
+	for i, a in { -108, -82, -54, -24, 0, 24, 54, 82, 108 } do
+		local r = math.rad(a)
+		-- a = angle depuis l'arrière (0 = dos), + vers la droite du perso
+		local out = Vector3.new(math.sin(r), 0, math.cos(r))
+		local from = Vector3.new(out.X * 0.64, 0.36, out.Z * 0.64 + 0.1)
+		local length = (math.abs(a) > 90 and 1.4 or 1.8) * L
+		local tone = (i % 3 == 0) and under or c
+		ctx.sleek("Head", tone, from, Vector3.new(out.X * 0.22, -1, out.Z * 0.22 + 0.06), length, 0.6, {
+			segments = 3,
+			facing = out,
+			thickness = 0.24,
+			curl = Vector3.new(out.X * 0.12, 0, out.Z * 0.12),
+			taper = 0.45,
+			shine = (i == 4 or i == 7) and shine or nil,
+		})
 	end
 end
 
@@ -2581,7 +2662,7 @@ ACC.bulk = function(ctx, look)
 	for _, limb in { "Left Arm", "Right Arm" } do
 		local out = limb == "Left Arm" and -1 or 1
 		ctx.ball(limb, "Deltoid", Vector3.new(1.3, 1.05, 1.22), CFrame.new(out * 0.1, 0.62, 0), upper)
-		ctx.ball(limb, "Forearm", Vector3.new(1.16, 0.8, 1.14), CFrame.new(out * 0.04, -0.42, 0), lower)
+		ctx.rounded(limb, "Forearm", Vector3.new(1.12, 0.7, 1.1), CFrame.new(out * 0.02, -0.45, 0), lower, 0.2)
 	end
 	ctx.wedge("Torso", "Trapezius", Vector3.new(1.3, 0.34, 0.5), CFrame.new(0, 1.12, 0.22) * CFrame.Angles(0, math.pi, 0), c.top)
 end
@@ -3413,7 +3494,23 @@ end
 
 local HATS = { "boar_head", "hood_full", "straw_hat", "volcano", "dome", "turban", "cap", "bandana", "cowboy_hat" }
 
+local MAX_PARTS = 178
+local buildOnce
+
 function CharacterBuilder.build(look, options: BuildOptions?): Model
+	-- Budget de mèches « lisses » (base arrondie + pointe incurvée : une pièce de plus chacune)
+	-- et de reflets. Les persos aux cheveux très fournis (et chargés d'accessoires) dépasseraient
+	-- le budget de pièces : on les reconstruit avec moins de bases arrondies.
+	local roots = look.hairRoots or 16
+	local model, count, used = buildOnce(look, options, roots)
+	if count > MAX_PARTS and used > 0 then
+		model:Destroy()
+		model = buildOnce(look, options, math.max(0, used - (count - MAX_PARTS)))
+	end
+	return model
+end
+
+function buildOnce(look, options: BuildOptions?, roots: number): (Model, number, number)
 	local opts = options or {}
 	local s = opts.scale or 1
 	local model = Instance.new("Model")
@@ -3421,6 +3518,8 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 
 	local ctx = newContext(model, s, opts.paint or "gui")
 	ctx.hairDarken = look.hairDarken
+	ctx.hairRoots = roots
+	ctx.hairShines = 3
 	Painter.scale = s
 	buildBody(ctx, look)
 
@@ -3511,7 +3610,7 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 
 	model:SetAttribute("BaseScale", s)
 	model:SetAttribute("RootHeight", CharacterBuilder.RootHeight * s)
-	return model
+	return model, ctx.count, roots - ctx.hairRoots
 end
 
 ------------------------------------------------------------------------
@@ -3561,9 +3660,11 @@ local VARIETIES = {
 		material = Enum.Material.Foil,
 		reflectance = 0.25,
 		acc = { color = rgb(232, 181, 48), mix = 0.78, material = Enum.Material.Foil, reflectance = 0.25 },
-		ramp = { rgb(110, 66, 12), rgb(236, 178, 46), rgb(255, 240, 168) },
-		rampMix = 0.62,
+		-- Les zones sombres virent au bronze chaud (pas au brun boueux), les encres restent sombres
+		ramp = { rgb(58, 34, 6), rgb(138, 90, 18), rgb(236, 178, 46), rgb(255, 240, 168) },
+		rampMix = 0.82,
 		glint = true,
+		edges = rgb(255, 226, 130),
 		fx = { texture = SPARK, colors = { rgb(255, 230, 120), rgb(255, 170, 30) }, size = 0.32, rate = 10, light = rgb(255, 210, 110) },
 	},
 	diamond = {
@@ -3584,8 +3685,9 @@ local VARIETIES = {
 		mix = 0.6,
 		flower = true,
 		acc = { color = rgb(255, 176, 208), mix = 0.45 },
+		-- La tenue garde sa saturation (légère touche rose), pétales peints partout
 		ramp = { rgb(120, 44, 80), rgb(250, 146, 188), rgb(255, 228, 240) },
-		rampMix = 0.4,
+		rampMix = 0.16,
 		motif = "petals",
 		fx = { texture = SPARK, colors = { rgb(255, 200, 222), rgb(255, 140, 190) }, size = 0.34, rate = 7, fall = true },
 	},
@@ -3615,9 +3717,11 @@ local VARIETIES = {
 		material = Enum.Material.Neon,
 		neonHalf = true,
 		acc = { color = rgb(60, 36, 130), mix = 0.6 },
-		ramp = { rgb(14, 8, 40), rgb(80, 40, 160), rgb(196, 170, 255) },
-		rampMix = 0.55,
+		-- Bleu nuit profond, nébuleuse violet-cyan et étoiles
+		ramp = { rgb(4, 4, 18), rgb(14, 18, 62), rgb(52, 56, 160), rgb(170, 190, 255) },
+		rampMix = 0.84,
 		motif = "stars",
+		nebula = { rgb(150, 60, 230), rgb(40, 190, 230) },
 		fx = { texture = SPARK, colors = { rgb(255, 255, 255), rgb(190, 150, 255) }, size = 0.22, rate = 10, light = rgb(150, 100, 255) },
 	},
 	rainbow = {
@@ -3670,9 +3774,12 @@ end
 
 local function tintColor(c: Color3, spec): Color3
 	if spec.ramp then
-		local l = luminance(c)
+		-- Dégradé à N teintes réparties sur la luminosité (0 = encre, 1 = reflet)
+		local l = math.clamp(luminance(c), 0, 1)
 		local ramp = spec.ramp
-		local target = l < 0.5 and ramp[1]:Lerp(ramp[2], l / 0.5) or ramp[2]:Lerp(ramp[3], (l - 0.5) / 0.5)
+		local t = l * (#ramp - 1)
+		local i = math.min(#ramp - 1, math.floor(t))
+		local target = ramp[i + 1]:Lerp(ramp[i + 2], t - i)
 		c = c:Lerp(target, spec.rampMix or 0.5)
 	end
 	if spec.desat then
@@ -3729,7 +3836,42 @@ local function tintGui(gui: SurfaceGui, spec, onTorso: boolean)
 		dot(0.4, 0.5, 0.016, 1.5, Color3.new(1, 1, 1), 0.6, 32, false)
 		dot(0.8, 0.55, 0.022, 1.5, Color3.new(1, 1, 1), 0.65, 32, false)
 	end
+	if spec.edges then
+		-- Reflets dorés sur les bords de chaque face (métal poli)
+		dot(0.025, 0.5, 0.05, 1, spec.edges, 0.35, 0, false)
+		dot(0.975, 0.5, 0.05, 1, spec.edges, 0.35, 0, false)
+	end
+	if spec.nebula then
+		-- Nébuleuse : nuée violet -> cyan en dégradé, en travers de la face
+		local f = Instance.new("Frame")
+		f.Name = "VarietyMotif"
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Position = UDim2.fromScale(0.5, 0.5)
+		f.Size = UDim2.fromScale(1.3, 0.6)
+		f.Rotation = onTorso and -25 or 70
+		f.BackgroundColor3 = Color3.new(1, 1, 1)
+		f.BackgroundTransparency = 0
+		f.BorderSizePixel = 0
+		f.ZIndex = 60
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = f
+		local g = Instance.new("UIGradient")
+		g.Color = ColorSequence.new(spec.nebula[1], spec.nebula[2])
+		g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(0.5, 0.45), NumberSequenceKeypoint.new(1, 0.9) })
+		g.Parent = f
+		f.Parent = gui
+	end
 	if not onTorso then
+		if spec.motif == "stars" then
+			for _, st in { { 0.3, 0.25, 0.06 }, { 0.7, 0.6, 0.05 }, { 0.4, 0.85, 0.04 } } do
+				dot(st[1], st[2], st[3], st[3] * 0.5, Color3.new(1, 1, 1), 0.05)
+			end
+		elseif spec.motif == "petals" then
+			for _, p in { { 0.3, 0.3, 40 }, { 0.7, 0.7, -25 } } do
+				dot(p[1], p[2], 0.3, 0.09, Color3.fromRGB(255, 176, 208), 0.05, p[3])
+			end
+		end
 		return
 	end
 	if spec.motif == "stars" then
@@ -3744,9 +3886,9 @@ local function tintGui(gui: SurfaceGui, spec, onTorso: boolean)
 		end
 	elseif spec.motif == "petals" then
 		-- Pétales de cerisier qui tombent
-		local petals = { { 0.18, 0.18, 30 }, { 0.7, 0.28, -20 }, { 0.4, 0.55, 60 }, { 0.82, 0.72, 15 }, { 0.22, 0.82, -40 } }
+		local petals = { { 0.18, 0.18, 30 }, { 0.7, 0.28, -20 }, { 0.4, 0.55, 60 }, { 0.82, 0.72, 15 }, { 0.22, 0.82, -40 }, { 0.55, 0.1, 75 }, { 0.62, 0.9, -10 } }
 		for _, p in petals do
-			dot(p[1], p[2], 0.14, 0.08, Color3.fromRGB(255, 196, 220), 0.1, p[3])
+			dot(p[1], p[2], 0.14, 0.08, Color3.fromRGB(255, 170, 205), 0.02, p[3])
 			dot(p[1] + 0.02, p[2] - 0.005, 0.06, 0.03, Color3.fromRGB(255, 240, 246), 0.2, p[3])
 		end
 	end
@@ -3875,7 +4017,7 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 		return true
 	end
 	local function attach(base: BasePart, name: string, size: Vector3, offset: CFrame, color: Color3, props)
-		local part = Instance.new("Part")
+		local part: BasePart = (props and props.wedge) and Instance.new("WedgePart") or Instance.new("Part")
 		part.Name = name
 		part.Size = size * s
 		part.CFrame = base.CFrame * CFrame.new(offset.Position * s) * offset.Rotation
@@ -3892,6 +4034,8 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 				local mesh = Instance.new("SpecialMesh")
 				mesh.MeshType = Enum.MeshType.Sphere
 				mesh.Parent = part
+			elseif k == "wedge" then
+				continue
 			else
 				(part :: any)[k] = v
 			end
@@ -3922,22 +4066,26 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 		light.Parent = halo
 	end
 	if spec.wings and torso then
-		-- Grandes ailes blanches dans le dos : elles dépassent largement des épaules, on les voit
-		-- de face. Une arête (os de l'aile) + quatre rémiges en éventail par côté.
+		-- Ailes en plumes PLATES étagées (4 rémiges en coin par côté, de la plus haute, dressée,
+		-- à la plus basse, pendante), légèrement translucides, bord d'attaque lumineux (Neon).
+		local B = CFrame.Angles(0, math.pi / 2, 0)
 		for _, side in { -1, 1 } do
-			local shoulder = CFrame.new(side * 0.45, 0.55, 0.62)
-			attach(torso, "VarietyWing", Vector3.new(0.34, 2.3, 0.2), shoulder * CFrame.Angles(0, 0, -side * 1.05) * CFrame.new(0, 1.05, 0), rgb(255, 255, 252), {
-				sphere = true,
-			})
-			local boneDir = Vector3.new(side * 0.87, 0.5, 0)
+			local shoulder = Vector3.new(side * 0.42, 0.62, 0.6)
 			for k = 0, 3 do
-				-- Rémiges : les plus longues au bout de l'aile, pendantes vers le bas et l'extérieur
-				local len = 2.3 - k * 0.38
-				local pos = shoulder.Position + boneDir * (2.05 - k * 0.5) + Vector3.new(0, 0, 0.05 + k * 0.03)
-				local tilt = side * (0.42 - k * 0.12)
-				local color = rgb(255, 255, 255):Lerp(rgb(214, 226, 255), k * 0.22)
-				attach(torso, "VarietyWing", Vector3.new(0.62, len, 0.12), CFrame.new(pos) * CFrame.Angles(0, 0, tilt) * CFrame.new(0, -len * 0.45, 0), color, {
-					sphere = true,
+				local a = math.rad(50 + k * 22)
+				local len = 2.5 - k * 0.3
+				local width = 0.7 - k * 0.06
+				local dir = Vector3.new(side * math.sin(a), math.cos(a), 0)
+				local center = shoulder + dir * (len * 0.5) + Vector3.new(0, 0, 0.06 + k * 0.05)
+				local cf = CFrame.new(center) * CFrame.Angles(0, 0, -side * a) * B
+				if side > 0 then
+					cf *= CFrame.Angles(0, math.pi, 0)
+				end
+				local tone = rgb(255, 255, 255):Lerp(rgb(220, 230, 255), k * 0.2)
+				attach(torso, "VarietyWing", Vector3.new(0.08, len, width), cf, tone, { wedge = true, Transparency = 0.1 })
+				attach(torso, "VarietyWingEdge", Vector3.new(0.1, len * 0.96, 0.06), cf * CFrame.new(0, 0, width / 2 - 0.02), rgb(255, 255, 255), {
+					Material = Enum.Material.Neon,
+					Transparency = 0.15,
 				})
 			end
 		end
