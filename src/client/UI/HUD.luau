@@ -679,9 +679,20 @@ function HUD.init(gui: ScreenGui)
 	end
 	layoutForDevice()
 	Console.onModeChanged(layoutForDevice)
-	-- L'arbre de compétences occupe tout l'écran : le HUD se cache pendant ce temps.
+	-- L'arbre de compétences et la boutique Robux occupent tout l'écran : le HUD se cache pendant
+	-- ce temps. Pour les autres fenêtres, la barre du bas (objectif, voyages), la bannière d'univers et
+	-- la barre Robux de droite se cachent : rien ne passe sous la fenêtre ni sous ses indications manette.
 	Menus.onChanged(function(name)
-		root.Visible = name ~= "SkillTree"
+		root.Visible = name ~= "SkillTree" and name ~= "RobuxShop"
+		local free = name == nil
+		refs.objectiveFrame.Visible = free
+		refs.travel.Visible = free
+		-- La bannière d'univers laisse sa place en haut au bandeau des annonces (Notifications).
+		refs.banner.Visible = free
+		local bar = RobuxSideBar.holder()
+		if bar then
+			bar.Visible = free
+		end
 	end)
 
 	local lastTeamKey = ""

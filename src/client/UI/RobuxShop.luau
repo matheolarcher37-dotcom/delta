@@ -1,9 +1,11 @@
 -- BOUTIQUE ROBUX : trois onglets (Passes, Packs, Boosts) en grandes cartes brillantes.
 --   • Passes : Roulement automatique + en vedette (500 R$), puis x2 / x3 persos, x2 Argent,
---     x2 Chance, Lancer AFK (29 R$) et VIP. Badge « POSSÉDÉ » quand le passe est à toi.
+--     x2 Chance, Lancer AFK (29 R$), +2 Cases, VIP et le Pack de départ (un seul achat).
+--     Badge « POSSÉDÉ » quand le passe est à toi.
 --   • Packs  : pièces (selon tes revenus) et gemmes de trait (Cristaux de Trait).
 --   • Boosts : Chance x2 / Argent x2 pendant 15 min (ou les deux pendant 30 min), minuteur en direct.
 -- Le bouton de prix ouvre l'achat Roblox (Robux_Buy). Manette : A = acheter, LB / RB = onglets.
+-- Pendant la boutique : voile sombre derrière la fenêtre et HUD caché (HUD.luau).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -152,7 +154,7 @@ local function glow(parent: Instance, color: Color3, size: number, position: UDi
 end
 
 -- Grande icône d'offre (icône vectorielle + badge « x2 / x3 / + »).
-function RobuxShop.offerIcon(parent: Instance, icon: string, color: Color3, size: number, badge: string?, position: UDim2?)
+function RobuxShop.offerIcon(parent: Instance, icon: string, color: Color3, size: number, badge: string?, position: UDim2?, fill: Color3?)
 	local holder = new("Frame", {
 		Name = "OfferIcon",
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -165,7 +167,7 @@ function RobuxShop.offerIcon(parent: Instance, icon: string, color: Color3, size
 	if icon == "coin" then
 		Components.coinIcon(holder, math.floor(size * 0.84)).ZIndex = 3
 	else
-		Icons.make(icon, holder, { px = size, size = UDim2.fromScale(0.9, 0.9), ink = Theme.dark(color, 0.55), zindex = 3 })
+		Icons.make(icon, holder, { px = size, size = UDim2.fromScale(0.9, 0.9), color = fill, ink = Theme.dark(color, 0.55), zindex = 3 })
 	end
 	if badge then
 		Theme.label({
@@ -311,6 +313,20 @@ local function configTag(parent: Instance, entry)
 	})
 end
 
+-- Taille de texte minimale (coordonnées logiques) : à 720p avec la fenêtre réduite à la manette,
+-- 17 donne encore environ 14 px réels.
+local MIN_TEXT = 17
+local function minText(label: TextLabel, value: number?)
+	local constraint = label:FindFirstChildOfClass("UITextSizeConstraint")
+	if not constraint then
+		constraint = new("UITextSizeConstraint", { Parent = label })
+	end
+	local minimum = value or MIN_TEXT
+	constraint.MinTextSize = minimum
+	constraint.MaxTextSize = math.max(constraint.MaxTextSize, minimum)
+	return label
+end
+
 -- Fond de carte : dégradé de la couleur, liseré clair, étincelles, reflet animé.
 local function cardBase(parent: Instance, name: string, color: Color3, size: UDim2, position: UDim2?, seed: number): Frame
 	local card = new("Frame", {
@@ -344,6 +360,10 @@ function RobuxShop.buy(kind: string, key: string)
 		Notifications.toast("Tu possèdes déjà « " .. entry.name .. " » !", "info")
 		return
 	end
+	if kind == "product" and entry.once and Robux.onceTaken(State.data, key) then
+		Notifications.toast("Tu as déjà pris « " .. entry.name .. " » (un seul achat).", "info")
+		return
+	end
 	busy = true
 	local ok, message = State.invoke("Robux_Buy", kind, key)
 	busy = false
@@ -373,19 +393,19 @@ local function passCard(parent: Instance, key: string, size: UDim2, position: UD
 		ZIndex = 3,
 		Parent = card,
 	})
-	Theme.label({
+	minText(Theme.label({
 		Name = "Desc",
 		Text = pass.desc,
-		Size = UDim2.new(1, -24, 0, 50),
-		Position = UDim2.fromOffset(12, 122),
-		FontFace = Theme.Faces.Medium,
-		TextColor3 = Color3.fromRGB(220, 222, 236),
+		Size = UDim2.new(1, -16, 0, 46),
+		Position = UDim2.fromOffset(8, 122),
+		FontFace = Theme.Faces.Bold,
+		TextColor3 = Color3.fromRGB(226, 228, 240),
 		TextWrapped = true,
 		StrokeThickness = 1,
-		MaxSize = 15,
+		MaxSize = 18,
 		ZIndex = 3,
 		Parent = card,
-	})
+	}))
 	local button = RobuxShop.priceButton(card, pass.price, {
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -21),
@@ -437,7 +457,7 @@ local function featuredCard(parent: Instance, key: string, size: UDim2)
 			FontFace = Theme.Faces.Bold,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			StrokeThickness = 1.5,
-			MaxSize = 18,
+			MaxSize = 19,
 			Parent = row,
 		})
 	end
@@ -459,46 +479,70 @@ local function featuredCard(parent: Instance, key: string, size: UDim2)
 	return card, button
 end
 
--- Tuile d'information (dernière case de la grille) : achats sûrs, passes définitifs.
-local function infoTile(parent: Instance, size: UDim2, position: UDim2)
-	local tile = new("Frame", { Name = "Info", Size = size, Position = position, BackgroundColor3 = WHITE, Parent = parent })
-	Theme.corner(18).Parent = tile
-	Theme.stroke(C.Stroke, 3).Parent = tile
-	Theme.gradient({ Color3.fromRGB(40, 44, 66), Color3.fromRGB(24, 26, 40), Color3.fromRGB(14, 14, 22) }, 90).Parent = tile
-	local holder = new("Frame", {
+-- Pack de départ (dernière case de la grille) : pièces + gemmes de trait + Chance x2, un seul achat.
+local function starterCard(parent: Instance, size: UDim2, position: UDim2, seed: number)
+	local key = "Starter"
+	local product = Robux.Products[key]
+	local color = Color3.fromRGB(255, 170, 40)
+	local taken = Robux.onceTaken(State.data, key)
+	local card = cardBase(parent, "Pack_" .. key, color, size, position, seed)
+	Theme.rainbowStroke(card:FindFirstChild("Rim") :: GuiObject, 2)
+	ribbon(card, product.ribbon or "1 SEUL ACHAT", C.Red, { Position = UDim2.new(0.5, 0, 0, 0), Size = UDim2.fromOffset(150, 26) })
+	glow(card, color, 110, UDim2.new(0.5, 0, 0, 54))
+	-- Trois objets du pack : pièces, gemme de trait, trèfle de chance.
+	local icons = new("Frame", {
+		Name = "OfferIcon",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0, 50),
-		Size = UDim2.fromOffset(60, 60),
+		Position = UDim2.new(0.5, 0, 0, 56),
+		Size = UDim2.fromOffset(140, 70),
 		BackgroundTransparency = 1,
 		ZIndex = 3,
-		Parent = tile,
+		Parent = card,
 	})
-	Icons.make("shield", holder, { px = 60, size = UDim2.fromScale(0.9, 0.9), ink = Theme.dark(RobuxShop.RobuxGreen, 0.5), zindex = 3 })
+	Components.coinIcon(icons, 50, UDim2.fromScale(0.2, 0.55)).ZIndex = 3
+	Components.gem(icons, C.Cyan, 40, UDim2.fromScale(0.5, 0.42)).ZIndex = 4
+	RobuxShop.offerIcon(icons, "clover", Robux.Boosts.Luck.color, 50, nil, UDim2.fromScale(0.8, 0.55), Robux.Boosts.Luck.color)
 	Theme.label({
-		Text = "ACHATS SÛRS",
-		Size = UDim2.new(1, -20, 0, 26),
-		Position = UDim2.fromOffset(10, 90),
+		Name = "Title",
+		Text = string.upper(product.name),
+		Size = UDim2.new(1, -20, 0, 28),
+		Position = UDim2.fromOffset(10, 92),
 		FontFace = Theme.Faces.Title,
-		TextColor3 = Color3.fromRGB(120, 255, 190),
-		StrokeThickness = 2,
-		MaxSize = 24,
+		TextColor3 = Color3.fromRGB(255, 226, 120),
+		StrokeThickness = 2.5,
+		MaxSize = 26,
 		ZIndex = 3,
-		Parent = tile,
+		Parent = card,
 	})
-	Theme.label({
-		Text = "Un passe est à toi pour toujours. Les boosts s'additionnent si tu en reprends.",
-		Size = UDim2.new(1, -24, 1, -128),
-		Position = UDim2.fromOffset(12, 120),
-		FontFace = Theme.Faces.Medium,
-		TextColor3 = Color3.fromRGB(210, 214, 230),
+	minText(Theme.label({
+		Name = "Desc",
+		Text = "¥ + " .. (product.crystals or 0) .. " gemmes + Chance x2",
+		Size = UDim2.new(1, -16, 0, 46),
+		Position = UDim2.fromOffset(8, 122),
+		FontFace = Theme.Faces.Bold,
+		TextColor3 = Color3.fromRGB(226, 228, 240),
 		TextWrapped = true,
-		TextYAlignment = Enum.TextYAlignment.Top,
 		StrokeThickness = 1,
-		MaxSize = 15,
+		MaxSize = 18,
 		ZIndex = 3,
-		Parent = tile,
-	})
-	return tile
+		Parent = card,
+	}))
+	local button = RobuxShop.priceButton(card, product.price, {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -21),
+		Size = UDim2.new(1, -28, 0, 42),
+		Color = Color3.fromRGB(230, 140, 20),
+	}, function()
+		RobuxShop.buy("product", key)
+	end)
+	button:SetAttribute("SelKey", "product_" .. key)
+	if taken then
+		RobuxShop.setOwned(button, true)
+		Components.setButtonText(button, "DÉJÀ PRIS ✓")
+		ownedTag(card)
+	end
+	configTag(card, product)
+	return card, button
 end
 
 local COLUMNS = 4
@@ -529,8 +573,10 @@ local function renderPasses(container: Frame)
 		end
 	end
 	if index < COLUMNS * 2 then
-		local size, position = cell(index + 1)
-		infoTile(grid, size, position)
+		index += 1
+		local size, position = cell(index)
+		local _, button = starterCard(grid, size, position, index * 11)
+		buttons[index] = button
 	end
 	refs.firstButton = featuredButton
 	-- Navigation manette : la vedette à gauche, la grille 4 x 2 à droite.
@@ -706,11 +752,11 @@ local function boostCard(parent: Instance, key: string, size: UDim2, position: U
 	local card = cardBase(parent, "Boost_" .. key, color, size, position, seed)
 	glow(card, color, 150, UDim2.new(0.5, 0, 0, 92))
 	if combo then
-		RobuxShop.offerIcon(card, "clover", Robux.Boosts.Luck.color, 84, nil, UDim2.new(0.5, -34, 0, 88))
+		RobuxShop.offerIcon(card, "clover", Robux.Boosts.Luck.color, 84, nil, UDim2.new(0.5, -34, 0, 88), Theme.light(Robux.Boosts.Luck.color, 0.2))
 		RobuxShop.offerIcon(card, "coin", Robux.Boosts.Coins.color, 84, nil, UDim2.new(0.5, 34, 0, 98))
 		ribbon(card, product.ribbon or "LES DEUX", C.Red, { Position = UDim2.new(0.5, 0, 0, 0), Size = UDim2.fromOffset(150, 28) })
 	else
-		RobuxShop.offerIcon(card, first.icon, first.color, 100, "x2", UDim2.new(0.5, 0, 0, 92))
+		RobuxShop.offerIcon(card, first.icon, first.color, 100, "x2", UDim2.new(0.5, 0, 0, 92), Theme.light(first.color, 0.2))
 	end
 	Theme.label({
 		Name = "Title",
@@ -730,18 +776,18 @@ local function boostCard(parent: Instance, key: string, size: UDim2, position: U
 	})
 	Theme.label({
 		Name = "Desc",
-		Text = combo and "Chance ET argent doublés pendant 30 minutes."
-			or (product.boosts[1] == "Luck" and "Chance doublée à la machine ROULER." or "Toutes tes pièces sont doublées."),
+		Text = combo and "Chance ET argent doublés" or (product.boosts[1] == "Luck" and "Chance doublée à la machine" or "Toutes tes pièces doublées"),
 		Size = UDim2.new(1, -30, 0, 40),
 		Position = UDim2.fromOffset(15, 246),
 		FontFace = Theme.Faces.Medium,
 		TextColor3 = Color3.fromRGB(220, 222, 236),
 		TextWrapped = true,
 		StrokeThickness = 1,
-		MaxSize = 17,
+		MaxSize = 18,
 		ZIndex = 3,
 		Parent = card,
 	})
+	minText(card:FindFirstChild("Desc") :: TextLabel)
 	local status = Components.pill(card, "bolt", "Inactif", C.Gray, {
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 292),
@@ -793,10 +839,22 @@ local function renderBoosts(container: Frame)
 	local coinsPill = multiplierPill(row, "coin", C.Gold, 1)
 	local luckPill = multiplierPill(row, "clover", C.Green, 2)
 	local vipPill = multiplierPill(row, "crown", C.Purple, 3)
+	-- « Passe x2 Argent » (définitif) et « Boost Argent x2 · 12:04 » (temporaire) sont bien distingués.
+	local function bonusText(passKey: string, boostKey: string, label: string): string
+		local pass = Robux.hasPass(player, passKey)
+		local left = Robux.boostLeft(player, boostKey, now())
+		if pass and left > 0 then
+			return "Passe + Boost · " .. Formulas.formatTime(left)
+		elseif left > 0 then
+			return "Boost " .. label .. " x2 · " .. Formulas.formatTime(left)
+		elseif pass then
+			return "Passe x2 " .. label
+		end
+		return label .. " : aucun bonus"
+	end
 	table.insert(timers, function()
-		local t = now()
-		Components.setPillText(coinsPill, "Argent x" .. (math.floor(Robux.coinMultiplier(player, t) * 100 + 0.5) / 100))
-		Components.setPillText(luckPill, "Chance x" .. (math.floor(Robux.luckMultiplier(player, t) * 100 + 0.5) / 100))
+		Components.setPillText(coinsPill, bonusText("Coins2", "Coins", "Argent"))
+		Components.setPillText(luckPill, bonusText("Luck2", "Luck", "Chance"))
 		Components.setPillText(vipPill, Robux.hasPass(player, "VIP") and "VIP actif" or "Pas encore VIP")
 	end)
 	local cards = new("Frame", { Name = "Cards", Size = UDim2.new(1, 0, 1, -74), Position = UDim2.fromOffset(0, 74), BackgroundTransparency = 1, Parent = container })
@@ -873,10 +931,32 @@ function RobuxShop.init(gui: ScreenGui)
 		Console.onModeChanged(fitConsole)
 	end
 
+	-- Voile sombre derrière la fenêtre (le HUD est aussi caché pendant la boutique, voir HUD.luau) :
+	-- on ne regarde que la boutique, et les clics à côté sont bloqués.
+	local dim = holder and holder.Parent and holder.Parent:FindFirstChild("Dim")
+	if dim and dim:IsA("GuiObject") then
+		dim.Active = true
+	end
+	-- Barre d'indications manette (A / B / LB / RB) sur une pastille sombre collée sous la fenêtre.
+	local hints = holder and holder:FindFirstChild("PadHints", true)
+	if hints and hints:IsA("Frame") then
+		hints.AutomaticSize = Enum.AutomaticSize.X
+		hints.Size = UDim2.fromOffset(0, 40)
+		hints.Position = UDim2.new(0.5, 0, 1, 4)
+		hints.BackgroundColor3 = Color3.fromRGB(6, 6, 12)
+		hints.BackgroundTransparency = 0.35
+		Theme.corner(12).Parent = hints
+		new("UIPadding", { PaddingLeft = UDim.new(0, 18), PaddingRight = UDim.new(0, 18), Parent = hints })
+	end
+
 	Components.registerWindow(Menus, "RobuxShop", window, function(arg)
 		local tab = (arg == "packs" or arg == "boosts" or arg == "passes") and arg or currentTab
 		window.setTab(tab, true)
 		RobuxShop.render(tab)
+		if dim and dim:IsA("GuiObject") then
+			dim.BackgroundTransparency = 1
+			Theme.tween(dim, 0.15, { BackgroundTransparency = 0.42 })
+		end
 	end, function()
 		return refs.firstButton or window.firstSelectable()
 	end)
@@ -921,6 +1001,14 @@ function RobuxShop.init(gui: ScreenGui)
 		Notifications.announce("MERCI ! 💚", text, Color3.fromRGB(90, 255, 160), true)
 		if window.isOpen then
 			RobuxShop.render()
+			-- Offre unique : la sauvegarde arrive juste après, on redessine pour afficher « DÉJÀ PRIS ».
+			if kind == "product" and entry.once then
+				task.delay(0.6, function()
+					if window.isOpen then
+						RobuxShop.render()
+					end
+				end)
+			end
 		end
 	end)
 end

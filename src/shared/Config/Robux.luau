@@ -50,7 +50,7 @@ Robux.Passes = {
 		name = "Roulage x2",
 		short = "Roulage x2",
 		price = 149,
-		desc = "Chaque roulage tire 2 persos à la fois.",
+		desc = "2 persos tirés à chaque roulage",
 		icon = "dice",
 		badge = "x2",
 		color = Color3.fromRGB(60, 150, 255),
@@ -61,7 +61,7 @@ Robux.Passes = {
 		name = "Roulage x3",
 		short = "Roulage x3",
 		price = 399,
-		desc = "Chaque roulage tire 3 persos à la fois !",
+		desc = "3 persos tirés à chaque roulage !",
 		icon = "dice",
 		badge = "x3",
 		color = Color3.fromRGB(255, 100, 50),
@@ -72,7 +72,7 @@ Robux.Passes = {
 		name = "x2 Argent",
 		short = "x2 Argent",
 		price = 199,
-		desc = "Toutes les pièces que tu gagnes sont doublées, pour toujours.",
+		desc = "Toutes tes pièces doublées, à vie",
 		icon = "coin",
 		badge = "x2",
 		color = Color3.fromRGB(255, 195, 40),
@@ -83,7 +83,7 @@ Robux.Passes = {
 		name = "x2 Chance",
 		short = "x2 Chance",
 		price = 249,
-		desc = "Chance doublée à chaque roulage : plus de Rares et de Légendaires.",
+		desc = "Chance doublée à chaque roulage",
 		icon = "clover",
 		badge = "x2",
 		color = Color3.fromRGB(70, 210, 90),
@@ -94,7 +94,7 @@ Robux.Passes = {
 		name = "Lancer AFK",
 		short = "Lancer AFK",
 		price = 29,
-		desc = "La machine roule toute seule et s'arrête sur les raretés que tu choisis.",
+		desc = "Roule seul, pause sur tes raretés",
 		icon = "robot",
 		color = Color3.fromRGB(40, 200, 230),
 		order = 5,
@@ -118,10 +118,10 @@ Robux.Passes = {
 	},
 	Slots = {
 		id = 0,
-		name = "Emplacements +",
-		short = "+2 cases",
+		name = "+2 Cases",
+		short = "+2 Cases",
 		price = 199,
-		desc = "+2 cases d'unités dans ta base : 2 persos de plus qui rapportent.",
+		desc = "2 persos de plus dans ta base",
 		icon = "grid",
 		badge = "+2",
 		color = Color3.fromRGB(60, 200, 170),
@@ -132,7 +132,7 @@ Robux.Passes = {
 		name = "VIP",
 		short = "VIP",
 		price = 299,
-		desc = "+25 % d'argent, +10 % de chance, couronne VIP et nom doré dans le chat.",
+		desc = "+25 % argent, +10 % chance, couronne",
 		icon = "crown",
 		color = Color3.fromRGB(175, 70, 255),
 		order = 7,
@@ -149,6 +149,7 @@ Robux.PassOrder = { "AutoRollPlus", "Roll2", "Roll3", "Coins2", "Luck2", "AutoRo
 -- kind = "coins"    : base = minimum de pièces, minutes = minutes de revenus (le plus grand des deux)
 -- kind = "crystals" : amount = Cristaux de Trait (les gemmes qui servent à relancer les traits)
 -- kind = "boost"    : boosts = { "Luck" | "Coins" }, duration = secondes (les boosts s'additionnent)
+-- kind = "bundle"   : un peu de tout (pièces comme "coins", `crystals` gemmes, boosts) ; once = un seul achat
 Robux.Products = {
 	CoinsS = { id = 0, name = "Bourse", price = 19, kind = "coins", base = 5000, minutes = 5, tier = 1, order = 1 },
 	CoinsM = { id = 0, name = "Sac de pièces", price = 79, kind = "coins", base = 30000, minutes = 30, tier = 2, order = 2, ribbon = "POPULAIRE" },
@@ -158,6 +159,22 @@ Robux.Products = {
 	GemsS = { id = 0, name = "Poignée de gemmes", price = 25, kind = "crystals", amount = 10, tier = 1, order = 5 },
 	GemsM = { id = 0, name = "Bourse de gemmes", price = 99, kind = "crystals", amount = 50, tier = 2, order = 6, ribbon = "+25 %" },
 	GemsL = { id = 0, name = "Coffre de gemmes", price = 249, kind = "crystals", amount = 150, tier = 3, order = 7, ribbon = "+50 %" },
+
+	-- Offre unique (un seul achat par joueur, voir data.RobuxOnce) : un peu de tout pour bien démarrer.
+	Starter = {
+		id = 0,
+		name = "Pack de départ",
+		price = 99,
+		kind = "bundle",
+		once = true,
+		base = 25000,
+		minutes = 20,
+		crystals = 20,
+		boosts = { "Luck" },
+		duration = 900,
+		order = 0,
+		ribbon = "1 SEUL ACHAT",
+	},
 
 	BoostLuck = { id = 0, name = "Chance x2", price = 49, kind = "boost", boosts = { "Luck" }, duration = 900, order = 8 },
 	BoostCoins = { id = 0, name = "Argent x2", price = 49, kind = "boost", boosts = { "Coins" }, duration = 900, order = 9 },
@@ -276,6 +293,11 @@ end
 
 function Robux.productKeyById(id: number): string?
 	return findById(Robux.Products, id)
+end
+
+-- Offre à achat unique déjà prise ? (`data` = données du joueur, serveur ou client)
+function Robux.onceTaken(data, key: string): boolean
+	return type(data) == "table" and type(data.RobuxOnce) == "table" and data.RobuxOnce[key] ~= nil
 end
 
 function Robux.get(kind: string, key: string)

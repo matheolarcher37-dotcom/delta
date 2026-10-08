@@ -28,7 +28,8 @@ local toastContainer: Frame
 local announceFrame: Frame
 local announceQueue = {}
 -- Annonce affichée en grand au centre, ou en petit bandeau en haut quand un menu est ouvert
--- (elle ne doit jamais cacher la boutique ou une autre fenêtre).
+-- (elle ne doit jamais cacher la boutique ou une autre fenêtre). Pendant un menu, le HUD cache sa
+-- bannière d'univers : le bandeau prend sa place sans se superposer.
 local ANNOUNCE_CENTER = UDim2.fromScale(0.5, 0.33)
 local ANNOUNCE_TOP = UDim2.new(0.5, 0, 0, 40)
 local ANNOUNCE_TOP_SCALE = 0.5

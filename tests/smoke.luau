@@ -366,7 +366,7 @@ test("Boutique Robux : configuration (passes, produits, aides)", function()
 	local ids = {}
 	for key, product in Robux.Products do
 		assert(type(product.id) == "number" and product.price > 0 and product.name, "produit incomplet : " .. key)
-		assert(product.kind == "coins" or product.kind == "crystals" or product.kind == "boost", "type inconnu : " .. key)
+		assert(product.kind == "coins" or product.kind == "crystals" or product.kind == "boost" or product.kind == "bundle", "type inconnu : " .. key)
 		if product.kind == "boost" then
 			for _, boost in product.boosts do
 				assert(Robux.Boosts[boost], "boost inconnu : " .. boost)

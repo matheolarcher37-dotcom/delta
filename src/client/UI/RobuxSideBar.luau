@@ -30,8 +30,11 @@ local new = Theme.new
 local WHITE = Color3.new(1, 1, 1)
 local player = Players.LocalPlayer
 
-local BUTTON_W, BUTTON_H, GAP = 104, 92, 8
-local ICON_SIZE, ICON_Y, LABEL_Y, LABEL_H = 36, 23, 44, 21 -- icône au-dessus, libellé 4 px dessous
+-- PC / manette : icône, libellé et prix. Téléphone : bouton carré, icône + prix (pas de libellé,
+-- illisible à cette taille), voir `dims`.
+local BUTTON_W, BUTTON_H, GAP = 104, 86, 6
+local ICON_SIZE, ICON_Y, LABEL_Y, LABEL_H = 34, 21, 40, 20 -- icône au-dessus, libellé dessous
+local TOUCH_SIZE, TOUCH_ICON = 78, 40
 local MAX_SHIFT = 240 -- au-delà, la barre passe SOUS les panneaux de droite au lieu de flotter vers le centre
 
 -- Offres proposées, dans l'ordre (les passes possédés sont sautés).
@@ -52,6 +55,14 @@ local sweeps: { any } = {}
 local timers: { () -> () } = {}
 local buttons: { GuiObject } = {}
 local lastKey = ""
+
+-- Mesures du bouton selon l'appareil : largeur, hauteur, mode compact (téléphone).
+local function dims(): (number, number, boolean)
+	if Console.isTouch() then
+		return TOUCH_SIZE, TOUCH_SIZE, true
+	end
+	return BUTTON_W, BUTTON_H, false
+end
 
 local function now(): number
 	local ok, t = pcall(State.now)
@@ -80,9 +91,10 @@ local function offerButton(parent: Instance, offer, order: number)
 	local color = boost and boost.color or entry.color
 	local icon = boost and boost.icon or entry.icon
 
+	local w, h, compact = dims()
 	local button = new("TextButton", {
 		Name = "Offer_" .. offer.key,
-		Size = UDim2.fromOffset(BUTTON_W, BUTTON_H),
+		Size = UDim2.fromOffset(w, h),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Text = "",
@@ -103,24 +115,30 @@ local function offerButton(parent: Instance, offer, order: number)
 	Theme.shine(body, 14, 0.35)
 	Theme.sparkles(body, 3, order * 7, 0.6, 3)
 	RobuxShop.sweep(body, 16, order * 0.21, sweeps)
-	RobuxShop.offerIcon(body, icon, color, ICON_SIZE, nil, UDim2.new(0.5, 0, 0, ICON_Y))
-	Theme.label({
-		Name = "Label",
-		Text = offer.label,
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, LABEL_Y),
-		Size = UDim2.new(1, -8, 0, LABEL_H),
-		FontFace = Theme.Faces.Title,
-		StrokeThickness = 2,
-		ZIndex = 7,
-		Parent = body,
-	})
+	local badge = (offer.key == "Roll3" and "x3") or (offer.key == "Roll2" and "x2") or nil
+	if compact then
+		-- Téléphone : grande icône (avec « x2 / x3 » pour le roulage), prix dessous.
+		RobuxShop.offerIcon(body, icon, color, TOUCH_ICON, badge, UDim2.new(0.5, 0, 0, 28))
+	else
+		RobuxShop.offerIcon(body, icon, color, ICON_SIZE, nil, UDim2.new(0.5, 0, 0, ICON_Y))
+		Theme.label({
+			Name = "Label",
+			Text = offer.label,
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, LABEL_Y),
+			Size = UDim2.new(1, -8, 0, LABEL_H),
+			FontFace = Theme.Faces.Title,
+			StrokeThickness = 2,
+			ZIndex = 7,
+			Parent = body,
+		})
+	end
 	-- Pastille de prix (dépasse en bas du bouton, comme les jeux de référence).
 	local price = new("Frame", {
 		Name = "Price",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, 0),
-		Size = UDim2.fromOffset(BUTTON_W - 16, 26),
+		Size = UDim2.fromOffset(w - (compact and 6 or 16), compact and 28 or 26),
 		BackgroundColor3 = WHITE,
 		ZIndex = 8,
 		Parent = button,
@@ -128,12 +146,12 @@ local function offerButton(parent: Instance, offer, order: number)
 	Theme.round().Parent = price
 	Theme.stroke(C.Stroke, 2).Parent = price
 	Theme.gradient({ Color3.fromRGB(60, 225, 150), RobuxShop.RobuxGreen, Color3.fromRGB(0, 120, 74) }, 90).Parent = price
-	RobuxShop.robuxIcon(price, 17, WHITE, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 9, 0.5, 0), ZIndex = 9 })
+	RobuxShop.robuxIcon(price, 17, WHITE, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, compact and 5 or 9, 0.5, 0), ZIndex = 9 })
 	local priceLabel = Theme.label({
 		Name = "Amount",
 		Text = tostring(entry.price),
-		Size = UDim2.new(1, -40, 1, -5),
-		Position = UDim2.fromOffset(32, 2),
+		Size = UDim2.new(1, compact and -30 or -40, 1, -4),
+		Position = UDim2.fromOffset(compact and 25 or 32, 2),
 		FontFace = Theme.Faces.Title,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		StrokeThickness = 1.5,
@@ -156,9 +174,10 @@ local function offerButton(parent: Instance, offer, order: number)
 end
 
 local function shopButton(parent: Instance, order: number)
+	local w, h, compact = dims()
 	local button = new("TextButton", {
 		Name = "OpenShop",
-		Size = UDim2.fromOffset(BUTTON_W, BUTTON_H),
+		Size = UDim2.fromOffset(w, h),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Text = "",
@@ -174,23 +193,27 @@ local function shopButton(parent: Instance, order: number)
 	Theme.shine(body, 14, 0.35)
 	Theme.sparkles(body, 3, 41, 0.6, 3)
 	RobuxShop.sweep(body, 16, 0.55, sweeps)
-	RobuxShop.robuxIcon(body, ICON_SIZE - 2, WHITE, { Position = UDim2.new(0.5, 0, 0, ICON_Y), ZIndex = 4 })
-	Theme.label({
-		Name = "Label",
-		Text = "Boutique",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, LABEL_Y),
-		Size = UDim2.new(1, -8, 0, LABEL_H),
-		FontFace = Theme.Faces.Title,
-		StrokeThickness = 2,
-		ZIndex = 7,
-		Parent = body,
-	})
+	if compact then
+		RobuxShop.robuxIcon(body, TOUCH_ICON - 4, WHITE, { Position = UDim2.new(0.5, 0, 0, 28), ZIndex = 4 })
+	else
+		RobuxShop.robuxIcon(body, ICON_SIZE - 2, WHITE, { Position = UDim2.new(0.5, 0, 0, ICON_Y), ZIndex = 4 })
+		Theme.label({
+			Name = "Label",
+			Text = "Boutique",
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, LABEL_Y),
+			Size = UDim2.new(1, -8, 0, LABEL_H),
+			FontFace = Theme.Faces.Title,
+			StrokeThickness = 2,
+			ZIndex = 7,
+			Parent = body,
+		})
+	end
 	local more = new("Frame", {
 		Name = "Price",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, 0),
-		Size = UDim2.fromOffset(BUTTON_W - 16, 26),
+		Size = UDim2.fromOffset(w - (compact and 6 or 16), compact and 28 or 26),
 		BackgroundColor3 = WHITE,
 		ZIndex = 8,
 		Parent = button,
@@ -200,7 +223,7 @@ local function shopButton(parent: Instance, order: number)
 	Theme.gradient({ Color3.fromRGB(255, 236, 120), C.Gold, Color3.fromRGB(210, 140, 20) }, 90).Parent = more
 	Theme.label({
 		Name = "Amount",
-		Text = "Tout voir",
+		Text = compact and "Boutique" or "Tout voir",
 		Size = UDim2.new(1, -12, 1, -6),
 		Position = UDim2.fromOffset(6, 3),
 		FontFace = Theme.Faces.Title,
@@ -224,7 +247,7 @@ function RobuxSideBar.rebuild(force: boolean?)
 	end
 	local maxCount = Console.isTouch() and 3 or 4
 	local offers = RobuxSideBar.visibleOffers(maxCount)
-	local key = tostring(maxCount)
+	local key = tostring(maxCount) .. (Console.isTouch() and "t" or "")
 	for _, offer in offers do
 		key ..= "," .. offer.key
 	end
@@ -265,7 +288,7 @@ end
 -- (libellés d'au moins ~18 px à 1280 x 720).
 function RobuxSideBar.scaleFor(): number
 	if Console.isTouch() then
-		return 0.8
+		return 0.95
 	elseif Console.isGamepad() or Console.isTenFoot() then
 		return 1.14
 	end
@@ -296,7 +319,8 @@ function RobuxSideBar.layout()
 	local scaleValue = RobuxSideBar.scaleFor()
 	refs.scale.Scale = scaleValue
 	local count = #buttons
-	local height = (count * (BUTTON_H + GAP) - GAP) * scaleValue
+	local w, h = dims()
+	local height = (count * (h + GAP) - GAP) * scaleValue
 	local top = touch and 236 or 152
 	local H = rootHeight(root)
 	local panels = rightPanels(root, holder, H)
@@ -322,7 +346,7 @@ function RobuxSideBar.layout()
 		end
 	end
 	holder.Position = UDim2.new(1, -right, 0, top)
-	holder.Size = UDim2.fromOffset(BUTTON_W + 20, height / scaleValue)
+	holder.Size = UDim2.fromOffset(w + 20, height / scaleValue)
 end
 
 function RobuxSideBar.init(root: Frame)

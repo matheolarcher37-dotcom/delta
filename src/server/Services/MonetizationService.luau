@@ -305,6 +305,9 @@ function MonetizationService:RequestPurchase(player: Player, kind: any, key: any
 	if kind == "pass" and Robux.hasPass(player, key) then
 		return false, "Tu possèdes déjà « " .. entry.name .. " » !"
 	end
+	if kind == "product" and entry.once and Robux.onceTaken(data, key) then
+		return false, "Tu as déjà pris « " .. entry.name .. " » (un seul achat par joueur)."
+	end
 
 	if not Robux.isConfigured(entry) then
 		if isStudio() and Robux.StudioSimulate then
@@ -380,7 +383,22 @@ function MonetizationService:_grantProduct(player: Player, key: string)
 		end
 		details.duration = product.duration
 		details.text = product.name .. " pendant " .. math.floor(product.duration / 60) .. " min"
+	elseif product.kind == "bundle" then
+		-- Pack de départ : pièces + gemmes de trait + boost(s).
+		local amount = Robux.coinPackAmount(product, player:GetAttribute("IncomePerSec"))
+		DataService:AddCoins(player, amount)
+		data.traitCrystals = (tonumber(data.traitCrystals) or 0) + (product.crystals or 0)
+		for _, boost in product.boosts or {} do
+			self:AddBoost(player, boost, product.duration or 0)
+		end
+		details.amount = amount
+		details.text = "¥ " .. Formulas.formatNumber(amount) .. " + " .. (product.crystals or 0) .. " gemmes de trait + Chance x2"
 	end
+	if product.once then
+		data.RobuxOnce = type(data.RobuxOnce) == "table" and data.RobuxOnce or {}
+		data.RobuxOnce[key] = os.time()
+	end
+	DataService:Sync(player)
 	Granted:FireClient(player, "product", key, details)
 	return details
 end
