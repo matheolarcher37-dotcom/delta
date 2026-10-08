@@ -1,13 +1,12 @@
 -- Traits : relance du trait d'un perso à l'Autel des Traits (au centre).
 -- Chaque relance coûte 1 GEMME DE TRAIT (= Cristal de Trait, champ traitCrystals). Les gemmes se
 -- gagnent en tuant des ennemis et des boss, au punching-ball de la zone anti-AFK et en défis
--- (voir QuestService), ou s'achètent avec des pièces.
+-- (voir QuestService). Elles ne s'achètent PAS avec des pièces : on les gagne en jouant.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Economy = require(Shared.Config.Economy)
 local Traits = require(Shared.Config.Traits)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
@@ -59,26 +58,9 @@ function TraitService:Reroll(player: Player, uid: any)
 	return true, "Nouveau trait : " .. (trait and trait.name or "?"), traitId
 end
 
-function TraitService:BuyCrystal(player: Player)
-	local DataService = self.services.DataService
-	local data = DataService:Get(player)
-	if not data then
-		return false, "Erreur."
-	end
-	if not DataService:SpendCoins(player, Economy.TraitCrystalPrice) then
-		return false, "Il te manque 💰 " .. Formulas.formatNumber(Economy.TraitCrystalPrice - data.coins)
-	end
-	data.traitCrystals = (data.traitCrystals or 0) + 1
-	DataService:Sync(player)
-	return true, "+1 gemme de trait 💎"
-end
-
 function TraitService:Start()
 	Remotes.func("RerollTrait").OnServerInvoke = function(player, uid)
 		return self:Reroll(player, uid)
-	end
-	Remotes.func("BuyTraitCrystal").OnServerInvoke = function(player)
-		return self:BuyCrystal(player)
 	end
 	local function hook(altar: Instance)
 		local prompt = altar:FindFirstChildWhichIsA("ProximityPrompt", true)

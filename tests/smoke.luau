@@ -284,8 +284,19 @@ test("Défis : configuration cohérente (paliers croissants, ennemis, récompens
 	-- Exemple exact de l'utilisateur : « Village Ninja : tue 200 Kakashu » → 1 000 pièces (rival)
 	local rival = Quests.ById.u_ninja_rival1
 	assert(rival and rival.rival == "ninja_kakashu", "défi « Tue 200 Kakashu » manquant")
-	assert(Quests.title(rival, rival.tiers[1].goal) == "Tue 200 Kakashu", Quests.title(rival, rival.tiers[1].goal))
-	assert(rival.tiers[1].reward.coins == 1000, "Tue 200 Kakashu doit donner 1 000 pièces")
+	assert(Quests.title(rival, rival.tiers[2].goal) == "Tue 200 Kakashu", Quests.title(rival, rival.tiers[2].goal))
+	assert(rival.tiers[2].reward.coins == 1000, "Tue 200 Kakashu doit donner 1 000 pièces (minimum)")
+	assert(rival.tiers[1].goal == 50 and rival.tiers[3].goal == 1000, "paliers du rival : 50 → 200 → 1 000")
+	-- Pièces adaptées au revenu : minimum = valeur de base, sinon 5 / 15 / 45 min de revenu
+	assert(Quests.rewardCoins(rival.tiers[2].reward, 0) == 1000, "sans revenu : valeur de base")
+	assert(Quests.rewardCoins(rival.tiers[2].reward, 2540) == 2300000, "15 min de 2 540 ¥/s ≈ 2,3 M")
+	assert(Quests.rewardCoins(rival.tiers[1].reward, 2540) == 760000, "5 min de 2 540 ¥/s ≈ 760 k")
+	assert(Quests.rewardCoins(Quests.DailyBonus, 100) == 180000, "coffre du jour : 30 min de revenu")
+	assert(Quests.rewardCoins(Quests.DailyById.d_kill.reward, 1) == Quests.DailyById.d_kill.reward.coins, "petit revenu : minimum")
+	for _, quest in Quests.List do
+		local title = Quests.title(quest, quest.tiers[#quest.tiers].goal)
+		assert(utf8.len(title) <= 34, "titre trop long : " .. title)
+	end
 	local firstNinja
 	for _, quest in Quests.List do
 		if quest.universe == "ninja" then

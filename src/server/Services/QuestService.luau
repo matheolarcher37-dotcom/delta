@@ -227,7 +227,8 @@ function QuestService:GiveReward(player: Player, reward): string
 		return ""
 	end
 	local parts = {}
-	local coins = reward.coins or 0
+	-- pièces adaptées au revenu du joueur (minimum = valeur de base du défi)
+	local coins = Quests.rewardCoins(reward, player:GetAttribute("IncomePerSec"))
 	if type(reward.items) == "table" then
 		for itemId, amount in reward.items do
 			local item = itemInfo(itemId)

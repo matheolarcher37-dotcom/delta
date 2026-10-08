@@ -80,8 +80,18 @@ end
 -- Un poste : potence, chaîne, sac, tapis, compteur, invite
 ------------------------------------------------------------------------
 
+-- Compteur au-dessus d'un sac : taille en STUDS (7 x 3,55), il rapetisse avec la distance comme
+-- le décor : vus de l'entrée de la zone, les 3 compteurs ne se chevauchent pas. Tout est placé en
+-- proportions de la carte (260 x 132 « pixels » de référence).
+local COUNTER_W, COUNTER_H = 260, 132
+local function sx(px: number): number
+	return px / COUNTER_W
+end
+local function sy(px: number): number
+	return px / COUNTER_H
+end
 local function counterGui(adornee: BasePart, index: number, color: Color3): BillboardGui
-	local gui = Build.billboard(adornee, UDim2.fromOffset(260, 132), Vector3.new(0, 9.2, 0), 70)
+	local gui = Build.billboard(adornee, UDim2.fromScale(7, 7 * COUNTER_H / COUNTER_W), Vector3.new(0, 9.2, 0), 90)
 	gui.Name = "Counter"
 	gui.LightInfluence = 0
 	local card = Instance.new("Frame")
@@ -91,7 +101,7 @@ local function counterGui(adornee: BasePart, index: number, color: Color3): Bill
 	card.BackgroundTransparency = 0.15
 	card.Parent = gui
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 14)
+	corner.CornerRadius = UDim.new(0.1, 0)
 	corner.Parent = card
 	local stroke = Instance.new("UIStroke")
 	stroke.Name = "Stroke"
@@ -105,8 +115,8 @@ local function counterGui(adornee: BasePart, index: number, color: Color3): Bill
 
 	local badge = Instance.new("Frame")
 	badge.Name = "Badge"
-	badge.Size = UDim2.fromOffset(34, 34)
-	badge.Position = UDim2.fromOffset(10, 8)
+	badge.Size = UDim2.fromScale(sx(34), sy(34))
+	badge.Position = UDim2.fromScale(sx(10), sy(8))
 	badge.BackgroundColor3 = color
 	badge.Parent = card
 	local badgeCorner = Instance.new("UICorner")
@@ -119,17 +129,17 @@ local function counterGui(adornee: BasePart, index: number, color: Color3): Bill
 	local number = Build.label(badge, tostring(index), UDim2.fromScale(0.8, 0.8), UDim2.fromScale(0.1, 0.1), rgb(255, 255, 255), Enum.Font.GothamBlack)
 	number.Name = "Number"
 
-	local owner = Build.label(card, "LIBRE", UDim2.new(1, -60, 0, 26), UDim2.fromOffset(52, 12), rgb(130, 240, 150), Enum.Font.GothamBlack)
+	local owner = Build.label(card, "LIBRE", UDim2.fromScale(sx(200), sy(26)), UDim2.fromScale(sx(52), sy(12)), rgb(130, 240, 150), Enum.Font.GothamBlack)
 	owner.Name = "Owner"
 	owner.TextXAlignment = Enum.TextXAlignment.Left
 
-	local count = Build.label(card, "Sors ton épée et frappe !", UDim2.new(1, -20, 0, 38), UDim2.fromOffset(10, 46), rgb(255, 255, 255), Enum.Font.GothamBlack)
+	local count = Build.label(card, "Sors ton épée et frappe !", UDim2.fromScale(sx(240), sy(38)), UDim2.fromScale(sx(10), sy(46)), rgb(255, 255, 255), Enum.Font.GothamBlack)
 	count.Name = "Count"
 
 	local bar = Instance.new("Frame")
 	bar.Name = "Bar"
-	bar.Size = UDim2.new(1, -20, 0, 14)
-	bar.Position = UDim2.fromOffset(10, 88)
+	bar.Size = UDim2.fromScale(sx(240), sy(14))
+	bar.Position = UDim2.fromScale(sx(10), sy(88))
 	bar.BackgroundColor3 = rgb(8, 8, 12)
 	bar.Parent = card
 	local barCorner = Instance.new("UICorner")
@@ -149,7 +159,8 @@ local function counterGui(adornee: BasePart, index: number, color: Color3): Bill
 	fillGradient.Rotation = 90
 	fillGradient.Parent = fill
 
-	local nextTier = Build.label(card, "1000 coups = 20 relances de trait", UDim2.new(1, -20, 0, 20), UDim2.fromOffset(10, 106), rgb(150, 236, 255), Enum.Font.GothamBold)
+	local nextTier =
+		Build.label(card, "1000 coups = 20 relances de trait", UDim2.fromScale(sx(240), sy(20)), UDim2.fromScale(sx(10), sy(106)), rgb(150, 236, 255), Enum.Font.GothamBold)
 	nextTier.Name = "Next"
 	return gui
 end
@@ -366,7 +377,9 @@ function AfkZone.build(world: Instance): Model
 	end
 
 	-- Tableaux : paliers (gauche) et mode d'emploi (droite), tournés vers le centre
-	local function board(name: string, angle: number, title: string, lines: string)
+	-- Une ligne = un TextLabel (UIListLayout), taille de texte FIXE (24 px à 40 px par stud) :
+	-- le texte ne rétrécit jamais, contrairement à un seul TextScaled multiligne.
+	local function board(name: string, angle: number, title: string, lines: { string })
 		local a = math.rad(angle)
 		local pos = (floorCF * CFrame.new(math.sin(a) * 29, 0, math.cos(a) * 29)).Position
 		local face = CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z))
@@ -383,19 +396,34 @@ function AfkZone.build(world: Instance): Model
 		gui.PixelsPerStud = 40
 		gui.LightInfluence = 0.3
 		gui.Parent = panel
-		local label = Instance.new("TextLabel")
-		label.Name = "Lines"
+		local box = Instance.new("Frame")
+		box.Name = "Lines"
 		-- marges en proportion : les ferrures des coins ne mordent pas sur le texte
-		label.Size = UDim2.fromScale(0.86, 0.8)
-		label.Position = UDim2.fromScale(0.07, 0.1)
-		label.BackgroundTransparency = 1
-		label.Text = lines
-		label.TextColor3 = rgb(60, 36, 24)
-		label.TextScaled = true
-		label.Font = Enum.Font.Fantasy
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.TextYAlignment = Enum.TextYAlignment.Top
-		label.Parent = gui
+		box.Size = UDim2.fromScale(0.86, 0.82)
+		box.Position = UDim2.fromScale(0.07, 0.09)
+		box.BackgroundTransparency = 1
+		box.Parent = gui
+		local layout = Instance.new("UIListLayout")
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Padding = UDim.new(0, 1)
+		layout.Parent = box
+		for i, line in lines do
+			local last = i == #lines and string.sub(line, 1, 1) ~= " "
+			local label = Instance.new("TextLabel")
+			label.Name = "Line" .. i
+			label.LayoutOrder = i
+			label.Size = UDim2.new(1, 0, 0, 28)
+			label.BackgroundTransparency = 1
+			label.Text = line
+			label.TextColor3 = last and rgb(150, 40, 20) or rgb(60, 36, 24)
+			label.TextSize = 24
+			label.TextScaled = false
+			label.TextWrapped = false
+			label.Font = Enum.Font.Fantasy
+			label.TextXAlignment = Enum.TextXAlignment.Left
+			label.TextYAlignment = Enum.TextYAlignment.Center
+			label.Parent = box
+		end
 		-- toit de planches
 		Build.deco(model, "BoardRoof", Vector3.new(13.4, 0.4, 2.4), face * CFrame.new(0, 10.4, 0.4) * CFrame.Angles(math.rad(-12), 0, 0), rgb(70, 48, 34), {
 			Material = Enum.Material.WoodPlanks,
@@ -409,13 +437,14 @@ function AfkZone.build(world: Instance): Model
 		table.insert(tierLines, string.format("%d coups  →  +%d gemmes", tier[1], tier[2]))
 	end
 	table.insert(tierLines, string.format("Total : %d relances de trait", cumul))
-	board("TiersBoard", -100, "PALIERS (pour 1000 coups)", table.concat(tierLines, "\n"))
-	board(
-		"HowToBoard",
-		100,
-		"COMMENT ÇA MARCHE",
-		"1. Prends un sac libre.\n2. Sors ton épée et tape !\n    (ou l'invite « Frapper »)\n3. 1000 coups = 20 gemmes.\nLe sac ne t'attaque jamais."
-	)
+	board("TiersBoard", -100, "PALIERS (pour 1000 coups)", tierLines)
+	board("HowToBoard", 100, "COMMENT ÇA MARCHE", {
+		"1. Prends un sac libre.",
+		"2. Sors ton épée et tape !",
+		"    (ou l'invite « Frapper »)",
+		"3. 1000 coups = 20 gemmes.",
+		"Le sac ne t'attaque jamais.",
+	})
 
 	-- Décor paisible : lanternes suspendues, bancs, plantes
 	local deco = Build.folder(zone, "Deco")

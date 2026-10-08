@@ -1121,7 +1121,11 @@ test("Défis : kills comptés, palier prêt annoncé, récompense réclamée", f
 	local coins = data.coins
 	local ok, message = invoke("QuestClaim", alice, quest.id)
 	assert(ok, "réclamer : " .. tostring(message))
-	assert(data.coins == coins + quest.tiers[1].reward.coins, "récompense en pièces non donnée")
+	local expected = QuestsConfig.rewardCoins(quest.tiers[1].reward, alice:GetAttribute("IncomePerSec"))
+	assert(expected >= quest.tiers[1].reward.coins, "la récompense ne peut pas descendre sous le minimum")
+	assert(data.coins == coins + expected, "récompense en pièces non donnée")
+	-- revenu élevé : les pièces suivent (5 min de revenu au 1er palier)
+	assert(QuestsConfig.rewardCoins(quest.tiers[1].reward, 10000) == 3000000, "pièces non adaptées au revenu")
 	assert(data.Quests.claimed[quest.id] == 1, "palier non enregistré")
 	local again = invoke("QuestClaim", alice, quest.id)
 	assert(not again, "palier 2 réclamé sans l'avoir atteint")
@@ -1130,7 +1134,8 @@ test("Défis : kills comptés, palier prêt annoncé, récompense réclamée", f
 	local gems = data.traitCrystals
 	coins = data.coins
 	assert(invoke("QuestClaim", alice, quest.id), "palier 2")
-	assert(data.coins == coins + 1000 and data.traitCrystals == gems + 1, "récompense du palier 2")
+	local expected2 = QuestsConfig.rewardCoins(quest.tiers[2].reward, alice:GetAttribute("IncomePerSec"))
+	assert(expected2 >= 1000 and data.coins == coins + expected2 and data.traitCrystals == gems + 1, "récompense du palier 2")
 	assert(not invoke("QuestClaim", alice, "defi_inconnu"), "défi inconnu accepté")
 end)
 

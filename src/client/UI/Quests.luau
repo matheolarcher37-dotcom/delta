@@ -118,6 +118,22 @@ local CUSTOM_ICONS: { [string]: { any } } = {
 		sr(0.5, 0.36, 0.17, 0.17, 0.15, 45, true),
 		sr(0.5, 0.88, 0.36, 0.035, 0, 0, true),
 	},
+	-- Épée en diagonale (« / ») : pommeau, poignée filetée, garde transversale, lame à gouttière
+	-- et pointe (un carré droit dont le coin suit l'axe de la lame tournée à 45°).
+	sword = {
+		sr(0.586, 0.414, 0.13, 0.6, 0.15, 45, false, 0), -- lame
+		sr(0.794, 0.206, 0.092, 0.092, 0, 0, false, 0), -- pointe
+		sr(0.57, 0.43, 0.03, 0.44, 0.5, 45, true, 1), -- gouttière
+		sr(0.358, 0.642, 0.4, 0.075, 0.5, 45, false, 2), -- garde (perpendiculaire à la lame)
+		sc(0.494, 0.778, 0.1, false, 2), -- boules au bout de la garde
+		sc(0.222, 0.506, 0.1, false, 2),
+		sr(0.358, 0.642, 0.3, 0.022, 0, 45, true, 3), -- filet gravé sur la garde
+		sr(0.285, 0.715, 0.085, 0.2, 0.3, 45, false, 2), -- poignée
+		sr(0.3, 0.7, 0.1, 0.024, 0, 45, true, 3), -- filetage
+		sr(0.265, 0.735, 0.1, 0.024, 0, 45, true, 3),
+		sc(0.2, 0.8, 0.13, false, 3), -- pommeau
+		sc(0.2, 0.8, 0.05, true, 4),
+	},
 	-- Cible : anneaux empilés du plus grand au plus petit (chacun sur sa propre couche).
 	target = {
 		sc(0.5, 0.5, 0.88, false, 0),
@@ -323,7 +339,8 @@ local function rewardChips(parent: Instance, reward, height: number, align: Enum
 			Parent = frame,
 		})
 	end
-	local coins = reward and reward.coins or 0
+	-- valeur réelle : adaptée au revenu du joueur (comme côté serveur)
+	local coins = QuestsConfig.rewardCoins(reward, Players.LocalPlayer:GetAttribute("IncomePerSec"))
 	local items = reward and reward.items
 	if type(items) == "table" then
 		for itemId, amount in items do
@@ -616,45 +633,118 @@ local function renderDaily(body: Frame, data)
 		BackgroundTransparency = 1,
 		Parent = chest,
 	})
+	-- Couvercle bombé : un dôme (coins arrondis à 50 %) dont le bas est caché par le corps.
 	local lid = new("Frame", {
 		Name = "Lid",
-		Size = UDim2.new(1, 0, 0.42, 0),
+		Size = UDim2.fromScale(1, 0.62),
 		BackgroundColor3 = WHITE,
 		Rotation = bonusDone and -14 or 0,
+		ZIndex = 2,
 		Parent = box,
 	})
-	Theme.corner(18).Parent = lid
+	new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = lid })
 	Theme.stroke(C.Stroke, 3).Parent = lid
-	Theme.gradient({ Color3.fromRGB(196, 110, 50), Color3.fromRGB(120, 60, 26) }, 90).Parent = lid
+	Theme.gradient({ Color3.fromRGB(226, 140, 70), Color3.fromRGB(160, 82, 34), Color3.fromRGB(110, 52, 22) }, 90).Parent = lid
+	-- planches du couvercle
+	for _, x in { 0.36, 0.64 } do
+		new("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.fromScale(x, 0.1),
+			Size = UDim2.new(0, 2, 0.6, 0),
+			BackgroundColor3 = Color3.fromRGB(90, 42, 16),
+			BorderSizePixel = 0,
+			ZIndex = 3,
+			Parent = lid,
+		})
+	end
 	local base = new("Frame", {
 		Name = "Base",
 		Position = UDim2.fromScale(0, 0.4),
 		Size = UDim2.fromScale(1, 0.6),
 		BackgroundColor3 = WHITE,
+		ZIndex = 4,
 		Parent = box,
 	})
 	Theme.corner(10).Parent = base
 	Theme.stroke(C.Stroke, 3).Parent = base
-	Theme.gradient({ Color3.fromRGB(176, 96, 40), Color3.fromRGB(96, 46, 20) }, 90).Parent = base
-	for _, x in { 0.18, 0.82 } do
+	Theme.gradient({ Color3.fromRGB(190, 106, 46), Color3.fromRGB(104, 50, 20) }, 90).Parent = base
+	for _, y in { 0.38, 0.7 } do
 		new("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.fromScale(x, 0),
-			Size = UDim2.new(0, 12, 1, 0),
-			BackgroundColor3 = C.Gold,
+			Position = UDim2.fromScale(0.04, y),
+			Size = UDim2.new(0.92, 0, 0, 2),
+			BackgroundColor3 = Color3.fromRGB(84, 38, 14),
 			BorderSizePixel = 0,
-			Parent = box,
+			ZIndex = 5,
+			Parent = base,
 		})
 	end
-	local lock = new("Frame", {
+	-- ferrures dorées : bande au bord du couvercle, bandes verticales, coins rivetés
+	local function gold(name: string, props: { [string]: any }): Frame
+		local frame = new("Frame", {
+			Name = name,
+			BackgroundColor3 = WHITE,
+			BorderSizePixel = 0,
+			ZIndex = props.ZIndex or 6,
+			Parent = box,
+		})
+		for key, value in props do
+			(frame :: any)[key] = value
+		end
+		Theme.gradient({ Color3.fromRGB(255, 236, 140), C.Gold, Color3.fromRGB(196, 130, 30) }, 90).Parent = frame
+		Theme.stroke(C.Stroke, 2).Parent = frame
+		return frame
+	end
+	gold("Rim", { Position = UDim2.new(0, -3, 0.4, -5), Size = UDim2.new(1, 6, 0, 10) })
+	for _, x in { 0.2, 0.8 } do
+		local band = gold("Band", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(x, 0.02), Size = UDim2.new(0, 12, 0.98, 0), ZIndex = 5 })
+		Theme.corner(3).Parent = band
+	end
+	for _, corner in { { 0, 1 }, { 1, 1 } } do
+		local plate = gold("CornerPlate", {
+			AnchorPoint = Vector2.new(corner[1], 1),
+			Position = UDim2.fromScale(corner[1], corner[2]),
+			Size = UDim2.fromOffset(22, 22),
+			ZIndex = 6,
+		})
+		Theme.corner(4).Parent = plate
+		local rivet = new("Frame", {
+			Name = "Rivet",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromOffset(6, 6),
+			BackgroundColor3 = Color3.fromRGB(120, 70, 10),
+			ZIndex = 7,
+			Parent = plate,
+		})
+		new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = rivet })
+	end
+	-- serrure : plaque dorée, trou de serrure (rond + fente)
+	local lock = gold("Lock", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.45),
-		Size = UDim2.fromOffset(30, 34),
-		BackgroundColor3 = C.Gold,
-		Parent = box,
+		Position = UDim2.fromScale(0.5, 0.47),
+		Size = UDim2.fromOffset(30, 36),
+		ZIndex = 8,
 	})
 	Theme.corner(8).Parent = lock
-	Theme.stroke(C.Stroke, 2.5).Parent = lock
+	local keyHole = new("Frame", {
+		Name = "KeyHole",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.4),
+		Size = UDim2.fromOffset(10, 10),
+		BackgroundColor3 = Color3.fromRGB(40, 20, 8),
+		ZIndex = 9,
+		Parent = lock,
+	})
+	new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = keyHole })
+	new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0.45),
+		Size = UDim2.fromOffset(4, 11),
+		BackgroundColor3 = Color3.fromRGB(40, 20, 8),
+		BorderSizePixel = 0,
+		ZIndex = 9,
+		Parent = lock,
+	})
 	if bonusReady then
 		Theme.onFrame(box, function(_, t)
 			box.Rotation = math.sin(t * 9) * 3
@@ -1297,29 +1387,31 @@ Quests.trackerCard = trackerCard
 
 local afk: { [string]: any } = {}
 
+-- Version compacte, en haut au centre sous la bannière d'univers : elle ne cache ni les sacs ni
+-- le perso pendant qu'on tape (et les cartes de suivi des défis sont masquées dans la zone).
 local function buildAfkPanel(root: Frame)
 	local panel = new("Frame", {
 		Name = "AfkPanel",
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -142),
-		Size = UDim2.fromOffset(560, 104),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 98),
+		Size = UDim2.fromOffset(520, 80),
 		BackgroundColor3 = WHITE,
 		Visible = false,
 		Parent = root,
 	})
 	afk.panel = panel
 	afk.scale = new("UIScale", { Parent = panel })
-	Theme.corner(16).Parent = panel
+	Theme.corner(14).Parent = panel
 	Theme.stroke(C.Stroke, 3).Parent = panel
 	Theme.gradient({ Color3.fromRGB(20, 70, 96), Color3.fromRGB(14, 20, 32) }, 90).Parent = panel
 	local edge = new("Frame", { Size = UDim2.new(1, -6, 1, -6), Position = UDim2.fromOffset(3, 3), BackgroundTransparency = 1, Parent = panel })
-	Theme.corner(14).Parent = edge
+	Theme.corner(12).Parent = edge
 	Theme.stroke(GEM, 1.5, 0.4).Parent = edge
-	iconTile(panel, "punchbag", GEM, 58, { Position = UDim2.fromOffset(12, 12) })
+	iconTile(panel, "punchbag", GEM, 54, { Position = UDim2.fromOffset(10, 13) })
 	afk.title = Theme.label({
 		Text = "ZONE ANTI-AFK",
-		Size = UDim2.new(1, -200, 0, 26),
-		Position = UDim2.fromOffset(80, 8),
+		Size = UDim2.new(1, -250, 0, 24),
+		Position = UDim2.fromOffset(74, 5),
 		FontFace = Theme.Faces.Title,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		StrokeThickness = 2.5,
@@ -1327,8 +1419,8 @@ local function buildAfkPanel(root: Frame)
 	})
 	afk.status = Theme.label({
 		Text = "Prends un punching-ball libre et tape-le avec ton épée !",
-		Size = UDim2.new(1, -96, 0, 20),
-		Position = UDim2.fromOffset(80, 36),
+		Size = UDim2.new(1, -88, 0, 16),
+		Position = UDim2.fromOffset(74, 27),
 		FontFace = Theme.Faces.Bold,
 		TextColor3 = Color3.fromRGB(170, 230, 255),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -1338,15 +1430,15 @@ local function buildAfkPanel(root: Frame)
 	afk.count = Theme.label({
 		Text = "0 / 1000",
 		AnchorPoint = Vector2.new(1, 0),
-		Size = UDim2.fromOffset(150, 30),
-		Position = UDim2.new(1, -14, 0, 6),
+		Size = UDim2.fromOffset(140, 26),
+		Position = UDim2.new(1, -12, 0, 4),
 		FontFace = Theme.Faces.Title,
 		TextColor3 = WHITE,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		StrokeThickness = 2.5,
 		Parent = panel,
 	})
-	local track = new("Frame", { Name = "Track", Size = UDim2.new(1, -36, 0, 18), Position = UDim2.fromOffset(18, 74), BackgroundTransparency = 1, Parent = panel })
+	local track = new("Frame", { Name = "Track", Size = UDim2.new(1, -150, 0, 12), Position = UDim2.fromOffset(78, 57), BackgroundTransparency = 1, Parent = panel })
 	afk.bar = Components.progressBar(track, GEM, { Size = UDim2.fromScale(1, 1) })
 	afk.marks = {}
 	for i, tier in QuestsConfig.Punch.Tiers do
@@ -1354,7 +1446,7 @@ local function buildAfkPanel(root: Frame)
 		local mark = new("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(x, 0, 0.5, 0),
-			Size = UDim2.fromOffset(18, 18),
+			Size = UDim2.fromOffset(14, 14),
 			BackgroundColor3 = Color3.fromRGB(40, 44, 60),
 			Rotation = 45,
 			ZIndex = 4,
@@ -1362,11 +1454,12 @@ local function buildAfkPanel(root: Frame)
 		})
 		Theme.corner(3).Parent = mark
 		Theme.stroke(C.Stroke, 2).Parent = mark
+		-- gain du palier, juste au-dessus du losange (sous le texte d'état)
 		local label = Theme.label({
 			Text = "+" .. tier[2],
 			AnchorPoint = Vector2.new(0.5, 1),
-			Position = UDim2.new(x, 0, 0, -1),
-			Size = UDim2.fromOffset(40, 14),
+			Position = UDim2.new(x, 0, 0, -3),
+			Size = UDim2.fromOffset(30, 11),
 			FontFace = Theme.Faces.Heavy,
 			TextColor3 = Color3.fromRGB(150, 236, 255),
 			StrokeThickness = 1.5,
@@ -1375,7 +1468,20 @@ local function buildAfkPanel(root: Frame)
 		})
 		afk.marks[i] = { mark = mark, label = label }
 	end
-	afk.hint = Console.hint(panel, "X", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -170, 0, 8) })
+	-- total des gemmes du cycle, au bout de la barre
+	Theme.label({
+		Name = "CycleGems",
+		Text = "= " .. QuestsConfig.punchCycleGems() .. " gemmes",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Size = UDim2.fromOffset(60, 16),
+		Position = UDim2.new(1, -10, 0, 63),
+		FontFace = Theme.Faces.Heavy,
+		TextColor3 = C.Gold,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		StrokeThickness = 1.5,
+		Parent = panel,
+	})
+	afk.hint = Console.hint(panel, "X", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -156, 0, 5) })
 end
 
 local function updateAfkPanel()
@@ -1423,10 +1529,7 @@ local function updateAfkPanel()
 	end
 	local nextTier = QuestsConfig.nextPunchTier(count)
 	if mine then
-		afk.status.Text = "Punching-ball n°"
-			.. tostring(mine)
-			.. " : continue !"
-			.. (nextTier and ("  Prochain palier : " .. nextTier[1] .. " → +" .. nextTier[2] .. " gemmes") or "")
+		afk.status.Text = "Sac n°" .. tostring(mine) .. " : continue !" .. (nextTier and ("  Prochain : " .. nextTier[1] .. " coups → +" .. nextTier[2] .. " gemmes") or "")
 	else
 		afk.status.Text = "Prends un punching-ball libre et tape-le avec ton épée !"
 	end
@@ -1645,8 +1748,9 @@ function Quests.init(gui: ScreenGui)
 	Theme.onFrame(trackerRoot, function()
 		stepSwings()
 		local open = window and window.isOpen or false
-		-- bandeaux de suivi cachés pendant que l'écran Défis est ouvert
-		trackerStack.Visible = not open
+		-- bandeaux de suivi cachés pendant que l'écran Défis est ouvert, et dans la zone anti-AFK
+		-- (le panneau compact de la zone suffit, l'écran reste dégagé pour taper)
+		trackerStack.Visible = not open and not (afk.panel and afk.panel.Visible)
 		if not toastFrame or not toastFrame.Parent then
 			toastFrame = gui:FindFirstChild("Toasts", true) :: GuiObject?
 			toastHome = toastFrame and toastFrame.Position or nil

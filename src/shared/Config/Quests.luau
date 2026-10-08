@@ -43,7 +43,7 @@ Quests.Gems = {
 -- (« Village Ninja : tue 200 Kakashu »). Compté avec la clé kill:<idPerso>.
 ------------------------------------------------------------------------
 
-Quests.RivalChance = 0.15 -- part des apparitions d'ennemis remplacées par un rival
+Quests.RivalChance = 0.25 -- part des apparitions d'ennemis remplacées par un rival (≈ 1 sur 4)
 Quests.Rivals = {
 	ninja = { "ninja_kakashu", "ninja_sasuki" },
 	occulte = { "occ_megumo", "occ_toudo" },
@@ -179,7 +179,7 @@ end
 -- Défis permanents
 ------------------------------------------------------------------------
 
-export type Reward = { coins: number?, gems: number?, items: { [string]: number }? }
+export type Reward = { coins: number?, minutes: number?, gems: number?, items: { [string]: number }? }
 export type Tier = { goal: number, reward: Reward }
 export type Quest = {
 	id: string,
@@ -203,10 +203,29 @@ Quests.Categories = {
 Quests.List = {} :: { Quest }
 Quests.ById = {} :: { [string]: Quest }
 
+-- Pièces des récompenses : la valeur affichée est un minimum ; en réalité on gagne
+-- max(minimum, revenu par seconde × minutes × 60) pour que les défis restent intéressants
+-- quand le revenu grimpe (palier 1 = 5 min de revenu, palier 2 = 15 min, palier 3 = 45 min...).
+Quests.TierMinutes = { 5, 15, 45, 90, 180 }
+Quests.DailyMinutes = 10 -- défi du jour
+Quests.BonusMinutes = 30 -- coffre du jour
+
+function Quests.rewardCoins(reward: Reward?, incomePerSec: number?): number
+	if type(reward) ~= "table" then
+		return 0
+	end
+	local base = tonumber(reward.coins) or 0
+	local income = tonumber(incomePerSec) or 0
+	if base > 0 and reward.minutes and income > 0 then
+		return math.max(base, Quests.niceRound(income * 60 * reward.minutes))
+	end
+	return base
+end
+
 local function tiers(goals: { number }, coins: { number }, gems: { number }, items: { [number]: { [string]: number } }?): { Tier }
 	local list = {}
 	for i, goal in goals do
-		local reward: Reward = { coins = coins[i], gems = gems[i] }
+		local reward: Reward = { coins = coins[i], minutes = Quests.TierMinutes[i] or 180, gems = gems[i] }
 		if items and items[i] then
 			reward.items = items[i]
 		end
@@ -232,6 +251,14 @@ Quests.UniverseItems = {
 	ocean = { "oce_bouteille", "oce_coffre", "oce_fruit" },
 	pourfendeur = { "pou_garde", "pou_marque", "pou_lys" },
 }
+-- « au Village Ninja », « sur le Grand Océan »... (titres courts des défis d'univers)
+Quests.UniverseIn = {
+	ninja = "au Village Ninja",
+	occulte = "à l'Académie",
+	saiyan = "sur la Planète",
+	ocean = "sur le Grand Océan",
+	pourfendeur = "chez les Pourfendeurs",
+}
 Quests.ItemFallbackCoins = { 4000, 15000, 60000 } -- pièces à la place d'un objet inconnu (par palier)
 
 -- Défis de chaque univers : ses 3 ennemis (du plus faible au plus fort) et son boss.
@@ -242,7 +269,7 @@ for _, universe in Universes.List do
 		{ goals = { 40, 150, 600 }, coins = { 600, 2500, 12000 }, gems = { 1, 2, 4 }, items = { [3] = items[2] and { [items[2]] = 1 } or nil } },
 		{ goals = { 20, 80, 300 }, coins = { 1500, 6000, 25000 }, gems = { 1, 3, 6 }, items = { [3] = items[2] and { [items[2]] = 2 } or nil } },
 	}
-	-- Rivaux d'abord : « Tue 200 Kakashu » → 1 000 ¥ (premier défi du Village Ninja)
+	-- Rivaux d'abord : « Tue 200 Kakashu » → 1 000 ¥ (2e palier, environ 1 h de jeu dans l'univers)
 	for index, charId in Quests.rivalsFor(universe) do
 		local def = Characters.List[charId]
 		add({
@@ -254,7 +281,7 @@ for _, universe in Universes.List do
 			icon = "skull",
 			color = universe.color,
 			key = "kill:" .. charId,
-			tiers = tiers({ 200, 600, 1500 }, { 1000, 6000, 25000 }, { 2, 4, 8 }, { [3] = items[2] and { [items[2]] = 1 } or nil }),
+			tiers = tiers({ 50, 200, 1000 }, { 400, 1000, 8000 }, { 1, 2, 6 }, { [3] = items[2] and { [items[2]] = 1 } or nil }),
 		})
 	end
 	for tier, enemyId in universe.enemies do
@@ -290,7 +317,7 @@ for _, universe in Universes.List do
 		id = "u_" .. universe.id .. "_all",
 		category = "univers",
 		universe = universe.id,
-		title = "Tue %s ennemis dans l'univers " .. universe.name,
+		title = "Tue %s ennemis " .. (Quests.UniverseIn[universe.id] or ("· " .. universe.name)),
 		icon = "target",
 		color = universe.color,
 		key = "killu:" .. universe.id,
@@ -408,8 +435,9 @@ Quests.DailyPool = {
 Quests.DailyById = {} :: { [string]: Daily }
 for _, daily in Quests.DailyPool do
 	Quests.DailyById[daily.id] = daily
+	daily.reward.minutes = daily.reward.minutes or Quests.DailyMinutes
 end
-Quests.DailyBonus = { coins = 10000, gems = 5 } -- coffre quand les 4 défis du jour sont réclamés
+Quests.DailyBonus = { coins = 10000, minutes = Quests.BonusMinutes, gems = 5 } -- coffre quand les 4 défis du jour sont réclamés
 
 -- Numéro du jour (UTC) et heure du prochain renouvellement.
 function Quests.day(now: number): number

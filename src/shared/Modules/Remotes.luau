@@ -33,7 +33,6 @@ local FUNCTIONS = {
 	"GetShop", -- () -> état de la boutique
 	"AutoEquip", -- () -> équipe les meilleurs persos
 	"RerollTrait", -- (uid) -> ok, message, traitId
-	"BuyTraitCrystal", -- () -> ok, message
 	"BuySword", -- (swordId) -> ok, message
 	"EquipSword", -- (swordId) -> ok, message
 	"BuySkill", -- (nodeId) -> ok, message (arbre de compétences)

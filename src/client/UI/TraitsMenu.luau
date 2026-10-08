@@ -468,9 +468,9 @@ local LIMBS = { "Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg
 local KNEEL = {
 	frontLeg = -90, -- jambe droite à plat derrière (genou à terre)
 	backLeg = 90, -- jambe gauche à plat derrière (genou à terre)
-	torso = 14, -- torse presque droit, légèrement incliné
-	head = 28, -- tête baissée
-	fistLift = 30, -- bras droit vers l'avant : le poing touche le sol
+	torso = 22, -- torse incliné en révérence (lisible de dos)
+	head = 32, -- tête baissée
+	fistLift = 22, -- bras droit vers l'avant : le poing touche le sol
 	fistYaw = 0,
 	leftArm = 10, -- bras gauche le long du corps
 	drop = 1.5, -- le corps descend de la longueur des jambes repliées
@@ -573,15 +573,16 @@ local function smooth(t: number): number
 	return t * t * (3 - 2 * t)
 end
 
--- Couronne d'or (anneau, pointes, gemmes).
-local function buildCrown(parent: Instance): Model
+-- Couronne d'or (anneau, pointes, perles, gemmes), à l'échelle `k` (celle de l'unité).
+local function buildCrown(parent: Instance, k: number?): Model
+	local s = k or 1
 	local crown = Instance.new("Model")
 	crown.Name = "Crown"
 	local function part(name: string, size: Vector3, cf: CFrame, color: Color3, shape: Enum.PartType?)
 		local p = Instance.new("Part")
 		p.Name = name
-		p.Size = size
-		p.CFrame = cf
+		p.Size = size * s
+		p.CFrame = cf.Rotation + cf.Position * s
 		p.Color = color
 		p.Anchored = true
 		p.Material = Enum.Material.Metal
@@ -597,6 +598,7 @@ local function buildCrown(parent: Instance): Model
 	base.Transparency = 1
 	crown.PrimaryPart = base
 	part("Ring", Vector3.new(0.45, 1.7, 1.7), CFrame.Angles(0, 0, math.rad(90)), GOLD, Enum.PartType.Cylinder)
+	part("RingRim", Vector3.new(0.12, 1.84, 1.84), CFrame.new(0, -0.2, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(255, 236, 150), Enum.PartType.Cylinder)
 	for i = 0, 4 do
 		local a = i / 5 * math.pi * 2
 		local pos = Vector3.new(math.cos(a) * 0.72, 0.5, math.sin(a) * 0.72)
@@ -615,6 +617,11 @@ local function buildCrown(parent: Instance): Model
 end
 
 -- Salle du trône (sol, tapis, estrade, trône, piliers, bannières) dans le ViewportFrame.
+-- Un ViewportFrame éclaire à plat (Ambient + LightColor, ni ombres ni PointLight) : la salle est
+-- donc faite de couleurs claires et franches (sol crème, cercle d'or sous l'estrade, murs rosés),
+-- et l'unité ressort grâce au halo doré plein et aux rayons néon derrière elle.
+local DAIS_TOP = 2 -- hauteur du dessus de l'estrade (l'unité y est debout)
+local HERO_SCALE = 1.3
 local function buildThroneRoom(parent: Instance)
 	local function part(name: string, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?, shape: Enum.PartType?)
 		local p = Instance.new("Part")
@@ -631,58 +638,94 @@ local function buildThroneRoom(parent: Instance)
 		return p
 	end
 	local CYL = Enum.PartType.Cylinder
-	part("Floor", Vector3.new(90, 1, 90), CFrame.new(0, -0.5, -20), Color3.fromRGB(46, 38, 52), Enum.Material.Marble)
+	local FLAT = CFrame.Angles(0, 0, math.rad(90)) -- cylindre couché à plat (disque)
+	local FACING = CFrame.Angles(0, math.rad(90), 0) -- disque tourné vers la caméra (-Z)
+	local CREAM = Color3.fromRGB(222, 208, 186)
+	local CRIMSON = Color3.fromRGB(176, 26, 42)
+	part("Floor", Vector3.new(90, 1, 90), CFrame.new(0, -0.5, -20), CREAM, Enum.Material.Marble)
 	for i = -4, 4 do
-		part("FloorLine", Vector3.new(0.12, 0.02, 90), CFrame.new(i * 8, 0.01, -20), Color3.fromRGB(70, 58, 78))
+		part("FloorLine", Vector3.new(0.14, 0.02, 90), CFrame.new(i * 8, 0.01, -20), Color3.fromRGB(184, 164, 136))
 	end
-	part("Carpet", Vector3.new(7, 0.1, 44), CFrame.new(0, 0.05, -22), Color3.fromRGB(150, 18, 32), Enum.Material.Fabric)
+	for i = 0, 10 do
+		part("FloorLine", Vector3.new(90, 0.02, 0.14), CFrame.new(0, 0.01, 6 - i * 8), Color3.fromRGB(184, 164, 136))
+	end
+	-- grand cercle d'or sous l'estrade
+	part("GoldFloor", Vector3.new(0.06, 17, 17), CFrame.new(0, 0.03, 0.5) * FLAT, Color3.fromRGB(236, 196, 104), Enum.Material.SmoothPlastic, CYL)
+	part("GoldFloorRim", Vector3.new(0.05, 17.8, 17.8), CFrame.new(0, 0.025, 0.5) * FLAT, Color3.fromRGB(190, 140, 50), Enum.Material.SmoothPlastic, CYL)
+	part("Carpet", Vector3.new(7, 0.1, 44), CFrame.new(0, 0.07, -27), CRIMSON, Enum.Material.Fabric)
 	for _, x in { -3.7, 3.7 } do
-		part("CarpetTrim", Vector3.new(0.4, 0.12, 44), CFrame.new(x, 0.06, -22), GOLD, Enum.Material.Fabric)
+		part("CarpetTrim", Vector3.new(0.4, 0.12, 44), CFrame.new(x, 0.08, -27), GOLD, Enum.Material.Fabric)
 	end
-	part("DaisLow", Vector3.new(0.6, 11, 11), CFrame.new(0, 0.3, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(240, 234, 222), Enum.Material.Marble, CYL)
-	part("DaisTrim", Vector3.new(0.12, 11.2, 11.2), CFrame.new(0, 0.62, 0) * CFrame.Angles(0, 0, math.rad(90)), GOLD, Enum.Material.Metal, CYL)
-	part("DaisHigh", Vector3.new(0.6, 8, 8), CFrame.new(0, 0.9, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(252, 248, 238), Enum.Material.Marble, CYL)
-	part("DaisGlow", Vector3.new(0.05, 6.4, 6.4), CFrame.new(0, 1.22, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(255, 226, 140), Enum.Material.Neon, CYL).Transparency =
-		0.35
-	-- Le héros ressort : grand disque doré derrière lui, anneau d'or et rayons
-	-- (un ViewportFrame n'affiche pas les PointLight : la lumière est faite de couleurs vives).
-	local halo =
-		part("Halo", Vector3.new(0.1, 6.6, 6.6), CFrame.new(0, 5.4, 1.0) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 206, 84), Enum.Material.SmoothPlastic, CYL)
+	-- Estrade à trois marches : l'unité est debout tout en haut (DAIS_TOP)
+	part("DaisLow", Vector3.new(0.7, 12, 12), CFrame.new(0, 0.35, 0.5) * FLAT, Color3.fromRGB(246, 240, 228), Enum.Material.Marble, CYL)
+	part("DaisTrim", Vector3.new(0.12, 12.2, 12.2), CFrame.new(0, 0.72, 0.5) * FLAT, GOLD, Enum.Material.Metal, CYL)
+	part("DaisMid", Vector3.new(0.7, 9.4, 9.4), CFrame.new(0, 1.05, 0.5) * FLAT, Color3.fromRGB(250, 246, 236), Enum.Material.Marble, CYL)
+	part("DaisHigh", Vector3.new(0.6, 6.8, 6.8), CFrame.new(0, DAIS_TOP - 0.3, 0.5) * FLAT, Color3.fromRGB(255, 252, 244), Enum.Material.Marble, CYL)
+	part("DaisGlow", Vector3.new(0.05, 5.6, 5.6), CFrame.new(0, DAIS_TOP + 0.01, 0.5) * FLAT, Color3.fromRGB(255, 226, 140), Enum.Material.Neon, CYL).Transparency = 0.35
+	-- Le héros ressort : grand disque doré derrière lui, anneau d'or et rayons néon.
+	local haloY = DAIS_TOP + 5.4
+	local halo = part("Halo", Vector3.new(0.1, 7.4, 7.4), CFrame.new(0, haloY, 1.5) * FACING, Color3.fromRGB(255, 210, 92), Enum.Material.SmoothPlastic, CYL)
 	halo.Transparency = 0.05
-	part("HaloRing", Vector3.new(0.12, 7.6, 7.6), CFrame.new(0, 5.4, 1.05) * CFrame.Angles(0, math.rad(90), 0), GOLD, Enum.Material.Metal, CYL)
+	part("HaloRing", Vector3.new(0.12, 8.4, 8.4), CFrame.new(0, haloY, 1.55) * FACING, GOLD, Enum.Material.Metal, CYL)
 	for i = 0, 15 do
 		local a = i / 16 * math.pi * 2
 		local long = i % 2 == 0
+		local r = long and 5.6 or 5.1
 		part(
 			"HaloRay",
-			Vector3.new(0.28, long and 2.2 or 1.3, 0.08),
-			CFrame.new(math.cos(a) * (long and 5 or 4.55), 5.4 + math.sin(a) * (long and 5 or 4.55), 1.85) * CFrame.Angles(0, 0, a - math.pi / 2),
-			Color3.fromRGB(255, 232, 150),
+			Vector3.new(0.3, long and 2.4 or 1.4, 0.08),
+			CFrame.new(math.cos(a) * r, haloY + math.sin(a) * r, 1.7) * CFrame.Angles(0, 0, a - math.pi / 2),
+			Color3.fromRGB(255, 236, 160),
 			Enum.Material.Neon
 		)
 	end
-	-- Trône
-	part("ThroneSeat", Vector3.new(4, 1.2, 3), CFrame.new(0, 1.8, 2.6), Color3.fromRGB(160, 20, 36), Enum.Material.Fabric)
-	part("ThroneBack", Vector3.new(4.4, 8, 0.8), CFrame.new(0, 5.2, 4.1), GOLD, Enum.Material.Metal)
-	part("ThroneCushion", Vector3.new(3.4, 6.4, 0.3), CFrame.new(0, 5, 3.6), Color3.fromRGB(196, 30, 48), Enum.Material.Fabric)
-	part("ThroneTop", Vector3.new(1.4, 1.4, 1.4), CFrame.new(0, 9.6, 4.1), GOLD, Enum.Material.Metal, Enum.PartType.Ball)
+	-- Trône (dossier plus bas que la tête de l'unité debout devant lui)
+	part("ThronePlinth", Vector3.new(5, 0.6, 3.8), CFrame.new(0, DAIS_TOP - 0.3, 3.9), Color3.fromRGB(246, 240, 228), Enum.Material.Marble)
+	part("ThroneSeat", Vector3.new(4, 1.2, 3), CFrame.new(0, DAIS_TOP + 0.6, 3.4), CRIMSON, Enum.Material.Fabric)
+	part("ThroneBack", Vector3.new(4.4, 6, 0.8), CFrame.new(0, DAIS_TOP + 3, 4.9), GOLD, Enum.Material.Metal)
+	part("ThroneCushion", Vector3.new(3.4, 4.6, 0.3), CFrame.new(0, DAIS_TOP + 3, 4.4), Color3.fromRGB(206, 36, 54), Enum.Material.Fabric)
+	part("ThroneTop", Vector3.new(1, 1, 1), CFrame.new(0, DAIS_TOP + 6.4, 4.9), GOLD, Enum.Material.Metal, Enum.PartType.Ball)
 	for _, x in { -2.4, 2.4 } do
-		part("ThroneArm", Vector3.new(0.6, 2.4, 3.2), CFrame.new(x, 2.4, 2.6), GOLD, Enum.Material.Metal)
+		part("ThroneArm", Vector3.new(0.6, 2.2, 3.2), CFrame.new(x, DAIS_TOP + 1.1, 3.4), GOLD, Enum.Material.Metal)
 	end
-	-- Piliers et bannières
-	-- (rangées écartées : la caméra de 3/4 passe entre les piliers sans être masquée)
+	-- Piliers et bannières, loin sur les côtés (jamais entre la caméra et l'unité)
 	for _, z in { -3, -15, -27 } do
 		for _, x in { -27, 27 } do
-			part("Pillar", Vector3.new(18, 2.2, 2.2), CFrame.new(x, 9, z) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(226, 216, 200), Enum.Material.Marble, CYL)
+			part("Pillar", Vector3.new(18, 2.2, 2.2), CFrame.new(x, 9, z) * FLAT, Color3.fromRGB(244, 236, 222), Enum.Material.Marble, CYL)
 			part("PillarCap", Vector3.new(3, 1, 3), CFrame.new(x, 18.2, z), GOLD, Enum.Material.Metal)
-			part("PillarFoot", Vector3.new(3, 1, 3), CFrame.new(x, 0.5, z), Color3.fromRGB(190, 180, 168), Enum.Material.Marble)
-			part("Banner", Vector3.new(0.2, 9, 3), CFrame.new(x + (x > 0 and -1.3 or 1.3), 12, z - 0.2), Color3.fromRGB(150, 18, 32), Enum.Material.Fabric)
+			part("PillarFoot", Vector3.new(3, 1, 3), CFrame.new(x, 0.5, z), Color3.fromRGB(214, 204, 188), Enum.Material.Marble)
+			part("Banner", Vector3.new(0.2, 9, 3), CFrame.new(x + (x > 0 and -1.3 or 1.3), 12, z - 0.2), CRIMSON, Enum.Material.Fabric)
 			part("BannerTrim", Vector3.new(0.22, 0.5, 3.1), CFrame.new(x + (x > 0 and -1.3 or 1.3), 7.6, z - 0.2), GOLD, Enum.Material.Fabric)
 		end
 	end
-	part("BackWall", Vector3.new(60, 30, 1), CFrame.new(0, 15, 8), Color3.fromRGB(60, 34, 50), Enum.Material.Plaster)
-	part("BackBanner", Vector3.new(10, 18, 0.3), CFrame.new(0, 13, 7.3), Color3.fromRGB(130, 16, 30), Enum.Material.Fabric)
-	part("BackEmblem", Vector3.new(0.3, 4, 4), CFrame.new(0, 15, 7.1) * CFrame.Angles(0, math.rad(90), 0), GOLD, Enum.Material.Metal, CYL)
+	part("BackWall", Vector3.new(70, 34, 1), CFrame.new(0, 17, 9), Color3.fromRGB(176, 104, 112), Enum.Material.Plaster)
+	part("WallBase", Vector3.new(70, 1.4, 1.2), CFrame.new(0, 0.7, 8.4), Color3.fromRGB(214, 204, 188), Enum.Material.Marble)
+	for _, x in { -14, 14 } do
+		part("WallBanner", Vector3.new(5, 14, 0.3), CFrame.new(x, 11, 8.3), CRIMSON, Enum.Material.Fabric)
+		part("WallBannerTrim", Vector3.new(5.2, 0.6, 0.35), CFrame.new(x, 4.3, 8.25), GOLD, Enum.Material.Fabric)
+	end
+	part("BackBanner", Vector3.new(10, 20, 0.3), CFrame.new(0, 15, 8.3), CRIMSON, Enum.Material.Fabric)
+	part("BackEmblem", Vector3.new(0.3, 4, 4), CFrame.new(0, 19, 8.1) * FACING, GOLD, Enum.Material.Metal, CYL)
+end
+
+-- Agrandit un modèle d'aperçu (Model:ScaleTo, autour de son pivot) puis pose ses pieds à `floorY`.
+local function standOn(model: Model, scale: number, floorY: number)
+	if scale ~= 1 then
+		pcall(function()
+			model:ScaleTo(scale)
+		end)
+	end
+	local bottom = math.huge
+	for _, name in { "Left Leg", "Right Leg" } do
+		local leg = model:FindFirstChild(name)
+		if leg and leg:IsA("BasePart") then
+			bottom = math.min(bottom, leg.CFrame.Position.Y - leg.Size.Y * 0.5)
+		end
+	end
+	if bottom == math.huge then
+		bottom = 0
+	end
+	model:PivotTo(model:GetPivot() + Vector3.new(0, floorY - bottom, 0))
 end
 
 -- Persos qui s'agenouillent : les autres unités du joueur d'abord, puis des persos au hasard.
@@ -715,18 +758,34 @@ local function kneelerLooks(exceptUid: string?, count: number): { { look: any, i
 	return list
 end
 
+-- Les 6 persos qui s'agenouillent : deux rangées symétriques de part et d'autre du tapis
+-- (3 à gauche, 3 à droite, 5 studs d'écart), tous tournés vers le trône.
+local KNEEL_SPOTS = {
+	Vector3.new(-5.6, 0, -5),
+	Vector3.new(5.6, 0, -5),
+	Vector3.new(-5.6, 0, -10),
+	Vector3.new(5.6, 0, -10),
+	Vector3.new(-5.6, 0, -15),
+	Vector3.new(5.6, 0, -15),
+}
+TraitsMenu.KneelSpots = KNEEL_SPOTS
+local THRONE = Vector3.new(0, 0, 1)
+local MONARCH_FOV = 36
+
 -- Trajet de la caméra de la cinématique MONARQUE : { temps, position, point visé }.
 local function monarchCamera(total: number): { { any } }
 	return {
-		-- arrivée : plan large et haut dans l'axe du tapis (personne n'est coupé par le bord)
-		{ 0, Vector3.new(0, 9, -34), Vector3.new(0, 3.5, -4) },
-		{ 1.6, Vector3.new(10, 9, -28), Vector3.new(0, 3.2, -5) },
-		-- plan final de 3/4 : l'unité de face devant son trône, les 6 persos à genoux de profil
-		{ 3, Vector3.new(18, 8.4, -23.5), Vector3.new(1.5, 3, -9) },
-		{ math.max(total, 3.8), Vector3.new(17, 8, -22.5), Vector3.new(1.5, 3, -9) },
+		-- arrivée : plan large et haut dans l'axe du tapis, les persos sont encore debout
+		{ 0, Vector3.new(0, 15, -44), Vector3.new(0, 3.5, -2) },
+		{ 1.8, Vector3.new(0, 8, -38), Vector3.new(0, 4, 0) },
+		-- plan final : caméra basse dans l'axe du tapis, derrière les rangées, en contre-plongée :
+		-- les dos inclinés forment une haie qui mène à l'unité couronnée devant son trône
+		{ 3.2, Vector3.new(0, 2.5, -31), Vector3.new(0, 4.7, 0) },
+		{ math.max(total, 4), Vector3.new(0, 2.4, -29.5), Vector3.new(0, 4.7, 0) },
 	}
 end
 TraitsMenu.monarchCamera = monarchCamera
+TraitsMenu.MonarchFov = MONARCH_FOV
 
 -- MONARQUE : salle du trône, les persos s'agenouillent, la couronne descend.
 -- `clock` (facultatif, pour les tests) remplace os.clock comme horloge de la scène.
@@ -740,50 +799,44 @@ function TraitsMenu.playMonarch(entry, desc, duration: number?, clock: (() -> nu
 		ZIndex = 1,
 		Parent = root,
 	})
-	Theme.gradient({ Color3.fromRGB(70, 30, 60), Color3.fromRGB(20, 10, 24) }, 90).Parent = backdrop
+	Theme.gradient({ Color3.fromRGB(150, 90, 100), Color3.fromRGB(60, 30, 44) }, 90).Parent = backdrop
 	sunburst(root, GOLD, 9, 2, UDim2.fromScale(0.5, 0.36))
+	-- Éclairage plat du ViewportFrame réglé explicitement (pas d'ombres, pas de PointLight) :
+	-- ambiance chaude assez forte pour que rien ne soit noir, lumière venant de derrière la caméra.
 	local viewport = new("ViewportFrame", {
 		Name = "Scene",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
-		Ambient = Color3.fromRGB(176, 150, 146),
-		LightColor = Color3.fromRGB(255, 232, 186),
-		LightDirection = Vector3.new(-0.5, -1, 0.7),
+		Ambient = Color3.fromRGB(176, 166, 150),
+		LightColor = Color3.fromRGB(150, 140, 122),
+		LightDirection = Vector3.new(-0.35, -1, 0.75),
 		ZIndex = 3,
 		Parent = root,
 	})
-	local camera = new("Camera", { FieldOfView = 50, Parent = viewport })
+	local camera = new("Camera", { FieldOfView = MONARCH_FOV, Parent = viewport })
 	viewport.CurrentCamera = camera
 	buildThroneRoom(viewport)
-	-- L'unité, debout sur l'estrade
+	-- L'unité, debout en haut de l'estrade, plus grande que les autres (échelle 1,3)
 	local hero = Components.characterModel(desc.look, entry and entry.id, entry and entry.stars)
+	hero.Name = "Hero"
 	hero.Parent = viewport
-	local heroPivot = hero:GetPivot()
-	hero:PivotTo(heroPivot + Vector3.new(0, 1.2, 0))
+	standOn(hero, HERO_SCALE, DAIS_TOP)
 	local head = hero:FindFirstChild("Head") :: BasePart?
-	local headTop = head and (head.CFrame.Position.Y + head.Size.Y * 0.5 + 0.55) or 6.9
-	-- Les persos qui s'agenouillent, de part et d'autre du tapis
-	local spots = {
-		Vector3.new(-4.6, 0, -7),
-		Vector3.new(4.6, 0, -7),
-		Vector3.new(-4.6, 0, -11),
-		Vector3.new(4.6, 0, -11),
-		Vector3.new(-4.6, 0, -15),
-		Vector3.new(4.6, 0, -15),
-	}
+	local headTop = head and (head.CFrame.Position.Y + head.Size.Y * 0.5) or (DAIS_TOP + 5 * HERO_SCALE)
 	local kneelers = {}
-	for i, info in kneelerLooks(entry and entry.uid or selected, #spots) do
+	for i, info in kneelerLooks(entry and entry.uid or selected, #KNEEL_SPOTS) do
 		local model = Components.characterModel(info.look, info.id, info.stars)
+		model.Name = "Kneeler" .. i
 		local pose = TraitsMenu.kneelPose(model)
-		local place = CFrame.lookAt(spots[i], Vector3.new(0, 0, spots[i].Z + 12)) -- tournés vers le trône
+		local spot = KNEEL_SPOTS[i]
+		local place = CFrame.lookAt(spot, Vector3.new(THRONE.X, 0, THRONE.Z)) -- tournés vers le trône
 		applyPose(pose, place, 0)
 		model.Parent = viewport
-		table.insert(kneelers, { pose = pose, place = place, delay = 0.7 + i * 0.16 })
+		-- les rangées s'agenouillent l'une après l'autre, du trône vers la caméra
+		table.insert(kneelers, { pose = pose, place = place, delay = 0.8 + math.floor((i - 1) / 2) * 0.28 + (i % 2) * 0.08 })
 	end
-	local crown = buildCrown(viewport)
-	local crownTarget = Vector3.new(0, headTop, 0)
-	-- Caméra : arrivée dans l'axe du tapis (les persos sont debout), puis plan de 3/4 de côté
-	-- qui montre les 6 persos à genou de profil et l'unité en entier devant son trône.
+	local crown = buildCrown(viewport, HERO_SCALE)
+	local crownTarget = Vector3.new(0, headTop + 0.2 * HERO_SCALE, 0)
 	local keys = monarchCamera(total)
 	local now = clock or os.clock
 	local start = now()
@@ -805,7 +858,7 @@ function TraitsMenu.playMonarch(entry, desc, duration: number?, clock: (() -> nu
 		for _, k in kneelers do
 			applyPose(k.pose, k.place, smooth((t - k.delay) / 0.7))
 		end
-		local cf = smooth((t - 2.6) / 1.3)
+		local cf = smooth((t - 2.8) / 1.3)
 		crown:PivotTo(CFrame.new(crownTarget + Vector3.new(0, (1 - cf) * 7, 0)) * CFrame.Angles(0, (1 - cf) * 4 + t * 0.4, 0))
 	end
 	step()
@@ -815,8 +868,8 @@ function TraitsMenu.playMonarch(entry, desc, duration: number?, clock: (() -> nu
 	local name = desc and desc.name or "ton unité"
 	task.delay(3.7, function()
 		if not isDone() and root.Parent then
-			-- titre à droite : le héros (à gauche) et les persos à genou restent visibles
-			bigTitle(root, "MONARQUE", GOLD, "Tous s'inclinent devant " .. name .. " !", 25, 0.22, 0.66)
+			-- titre en haut : l'unité (au centre) et la haie de persos restent visibles dessous
+			bigTitle(root, "MONARQUE", GOLD, "Tous s'inclinent devant " .. name .. " !", 25, 0.17, 0.5)
 			SoundService:PlayLocalSound(rareSound)
 		end
 	end)

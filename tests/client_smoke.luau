@@ -353,7 +353,19 @@ test("Zone anti-AFK : panneau affiché sur place, sac qui se balance", function(
 	task.wait(0.4)
 	local panel = gui:FindFirstChild("AfkPanel", true)
 	assert(panel and panel.Visible, "panneau de la zone anti-AFK non affiché")
+	-- compact, en haut au centre (sous la bannière d'univers), suivi des défis masqué dans la zone
+	assert(panel.Position.Y.Scale == 0 and panel.AnchorPoint.Y == 0 and panel.Size.Y.Offset <= 80, "panneau AFK : en haut, compact")
+	Harness.services.RunService.RenderStepped:Fire(1 / 60)
+	task.wait(0.05)
+	local tracker = gui:FindFirstChild("QuestHUD") and gui.QuestHUD:FindFirstChild("Tracker")
+	assert(tracker and not tracker.Visible, "les cartes de suivi des défis doivent être masquées dans la zone")
 	local station = workspaceService.World.AfkZone.Stations.Station1
+	-- compteur en studs (rapetisse avec la distance) et tableau ligne par ligne, texte fixe
+	local counter = station:FindFirstChild("Counter", true)
+	assert(counter and counter.Size.X.Offset == 0 and counter.Size.X.Scale >= 5, "compteur du sac : taille en studs")
+	local tiersBoard = workspaceService.World.AfkZone:FindFirstChild("TiersBoard", true)
+	local line1 = tiersBoard and tiersBoard:FindFirstChild("Line1", true)
+	assert(line1 and not line1.TextScaled and line1.TextSize >= 22, "tableau PALIERS : une ligne par texte, taille fixe")
 	local bag = station.Bag
 	local pivot = bag:GetPivot()
 	station:SetAttribute("HitDir", Vector3.new(1, 0, 0))
@@ -416,8 +428,9 @@ test("Traits : relance avec une gemme, relance auto, cinématiques Monarque et M
 	end
 	TraitsMenu.skipCinematic()
 	assert(not cine.Parent, "la cinématique ne se passe pas")
-	-- Plan final (horloge simulée) : l'unité et les 6 persos à genou sont entiers dans le champ
-	-- (entre les bandes noires, écran 16/9), aucun pilier entre la caméra et l'unité.
+	-- Plan final (horloge simulée) : caméra basse dans l'axe du tapis, derrière les deux rangées.
+	-- L'unité et les 6 persos à genou sont entiers dans le champ (entre les bandes noires, écran 16/9),
+	-- aucun perso n'en chevauche un autre ni l'unité, et rien ne cache la tête ni le torse de l'unité.
 	local fake = 0
 	local cine2 = TraitsMenu.playMonarch(entry, desc, 7.5, function()
 		return fake
@@ -431,7 +444,33 @@ test("Traits : relance avec une gemme, relance auto, cinématiques Monarque et M
 	local cam = scene2:FindFirstChildOfClass("Camera")
 	local tanV = math.tan(math.rad(cam.FieldOfView) / 2)
 	local tanH = tanV * 16 / 9
-	local heroCenter
+	local function boxOf(model)
+		local lo, hi = Vector3.new(math.huge, math.huge, math.huge), Vector3.new(-math.huge, -math.huge, -math.huge)
+		for _, part in model:GetDescendants() do
+			if part:IsA("BasePart") and part.Transparency < 1 then
+				local half = part.Size * 0.5
+				for _, sx in { -1, 1 } do
+					for _, sy in { -1, 1 } do
+						for _, sz in { -1, 1 } do
+							local c = part.CFrame:PointToWorldSpace(Vector3.new(half.X * sx, half.Y * sy, half.Z * sz))
+							lo = Vector3.new(math.min(lo.X, c.X), math.min(lo.Y, c.Y), math.min(lo.Z, c.Z))
+							hi = Vector3.new(math.max(hi.X, c.X), math.max(hi.Y, c.Y), math.max(hi.Z, c.Z))
+						end
+					end
+				end
+			end
+		end
+		return lo, hi
+	end
+	local hero = scene2:FindFirstChild("Hero")
+	assert(hero, "unité introuvable sur l'estrade")
+	local heroHead, heroTorso = hero:FindFirstChild("Head"), hero:FindFirstChild("Torso")
+	assert(heroHead.Size.Y > 1.2, "l'unité doit être à l'échelle 1,3")
+	local heroLo, heroHi = boxOf(hero)
+	assert(heroLo.Y > 1.7, "l'unité doit être debout sur l'estrade (" .. heroLo.Y .. ")")
+	assert(heroHi.Y > scene2.ThroneBack.CFrame.Position.Y + scene2.ThroneBack.Size.Y * 0.5, "l'unité doit dépasser le dossier du trône")
+	local boxes = { { name = "Hero", lo = heroLo, hi = heroHi } }
+	local kneelerCount = 0
 	for _, child in scene2:GetChildren() do
 		if child:IsA("Model") and child.Name ~= "Crown" then
 			for _, part in child:GetDescendants() do
@@ -442,21 +481,63 @@ test("Traits : relance avec une gemme, relance auto, cinématiques Monarque et M
 					assert(math.abs(v.Y / -v.Z) < tanV * 0.78, "perso coupé par les bandes noires : " .. child.Name)
 				end
 			end
-			local head = child:FindFirstChild("Head")
-			if head and math.abs(head.CFrame.Position.Z) < 1 then
-				heroCenter = head.CFrame.Position
+			if child.Name ~= "Hero" then
+				kneelerCount += 1
+				local lo, hi = boxOf(child)
+				assert(hi.Y < 4.2, "perso pas agenouillé : " .. child.Name)
+				table.insert(boxes, { name = child.Name, lo = lo, hi = hi })
 			end
 		end
 	end
-	assert(heroCenter, "unité introuvable sur l'estrade")
-	local a, b = cam.CFrame.Position, heroCenter
-	for _, part in scene2:GetChildren() do
-		if part.Name == "Pillar" then
-			local p = part.CFrame.Position
-			local ab = b - a
-			local t = math.clamp((p - a):Dot(ab) / ab:Dot(ab), 0, 1)
-			local closest = a + ab * t
-			assert(Vector3.new(closest.X - p.X, 0, closest.Z - p.Z).Magnitude > 2, "un pilier masque l'unité")
+	assert(kneelerCount == 6, "il faut 6 persos agenouillés (" .. kneelerCount .. ")")
+	-- deux rangées symétriques, 3 à gauche et 3 à droite du tapis
+	local left, right = 0, 0
+	for _, spot in TraitsMenu.KneelSpots do
+		if spot.X < -3.7 then
+			left += 1
+		elseif spot.X > 3.7 then
+			right += 1
+		end
+	end
+	assert(left == 3 and right == 3, "les persos doivent former deux rangées de part et d'autre du tapis")
+	for i = 1, #boxes do
+		for j = i + 1, #boxes do
+			local A, B = boxes[i], boxes[j]
+			local overlap = A.lo.X < B.hi.X and B.lo.X < A.hi.X and A.lo.Y < B.hi.Y and B.lo.Y < A.hi.Y and A.lo.Z < B.hi.Z and B.lo.Z < A.hi.Z
+			assert(not overlap, A.name .. " chevauche " .. B.name)
+		end
+	end
+	-- rayon caméra -> tête et torse de l'unité : aucune pièce (perso, pilier, décor) sur le chemin
+	local function segmentHits(part, a, b)
+		local pa, pb = part.CFrame:PointToObjectSpace(a), part.CFrame:PointToObjectSpace(b)
+		local half = part.Size * 0.5
+		local t0, t1 = 0, 1
+		for _, axis in { "X", "Y", "Z" } do
+			local p0, d = pa[axis], pb[axis] - pa[axis]
+			local h = half[axis]
+			if math.abs(d) < 1e-6 then
+				if p0 < -h or p0 > h then
+					return false
+				end
+			else
+				local u0, u1 = (-h - p0) / d, (h - p0) / d
+				if u0 > u1 then
+					u0, u1 = u1, u0
+				end
+				t0, t1 = math.max(t0, u0), math.min(t1, u1)
+				if t0 > t1 then
+					return false
+				end
+			end
+		end
+		return true
+	end
+	for _, target in { heroHead, heroTorso } do
+		local a, b = cam.CFrame.Position, target.CFrame.Position
+		for _, part in scene2:GetDescendants() do
+			if part:IsA("BasePart") and part.Transparency < 0.5 and not part:IsDescendantOf(hero) and not part:IsDescendantOf(scene2.Crown) then
+				assert(not segmentHits(part, a, b), part:GetFullName() .. " cache " .. target.Name .. " de l'unité")
+			end
 		end
 	end
 	TraitsMenu.skipCinematic()
@@ -475,20 +556,10 @@ test("Traits : relance avec une gemme, relance auto, cinématiques Monarque et M
 		assert(math.abs(cf.UpVector.Y) < 0.2, legName .. " doit être repliée à plat")
 		assert(cf.Position.Y - leg.Size.X * 0.5 > -0.3 and cf.Position.Y < 1.2, legName .. " doit reposer au sol")
 	end
-	-- plan final de la cinématique : les 6 persos à genoux et l'unité dans le champ de la caméra
+	-- plan final de la cinématique : caméra basse (contre-plongée) dans l'axe du tapis
 	local keys = TraitsMenu.monarchCamera(7.5)
 	local last = keys[#keys]
-	local fwd = (last[3] - last[2]).Unit
-	local rightV = fwd:Cross(Vector3.new(0, 1, 0)).Unit
-	local upV = rightV:Cross(fwd)
-	for _, p in { Vector3.new(0, 4, 0), Vector3.new(-4.6, 1, -15), Vector3.new(4.6, 1, -15), Vector3.new(4.6, 1, -7) } do
-		local d = p - last[2]
-		local depth = d:Dot(fwd)
-		assert(depth > 0, "point derrière la caméra")
-		local ax = math.deg(math.atan(math.abs(d:Dot(rightV)) / depth))
-		local ay = math.deg(math.atan(math.abs(d:Dot(upV)) / depth))
-		assert(ax < 36 and ay < 20, "un perso sort du cadre final : " .. tostring(p))
-	end
+	assert(math.abs(last[2].X) < 0.5 and last[2].Y < 3 and last[3].Y > last[2].Y, "le plan final doit être bas, dans l'axe du tapis, en contre-plongée")
 	-- Mythique
 	local asc = TraitsMenu.playAscension(entry, desc, Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Traits")).List.celeste, 1)
 	assert(asc and asc:FindFirstChild("Title", true), "ascension sans titre")
