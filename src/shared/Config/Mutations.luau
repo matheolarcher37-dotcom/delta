@@ -22,8 +22,13 @@
 --                shine (reflet balayant), hair (couleur des cheveux/accessoires), mix (0-1),
 --                material, reflectance, body = { color, mix, material, reflectance } (pièces de la
 --                tenue et accessoires), motif ("stars", "petals", "glint" peint sur le torse),
---                particles = { texture, color, rate, size, speed, ... }.
---   Les mutations x3 et plus ont en plus un contour lumineux (Highlight) de leur couleur.
+--                motifOn ("torso", "legs" = jambes + torse, "all" = tout le corps),
+--                particles = { texture, color, rate, size, speed, inward (aspirées), ... },
+--                et le SIGNE propre à la mutation (pièces ajoutées sur le perso) : halo, wings,
+--                bolts = { color }, crystals = { color, material }, wisps, voidDisc,
+--                sparkles = { color }.
+--   Les mutations x3 et plus ont en plus un contour lumineux (Highlight) de leur couleur, posé
+--   côté client sur les persos proches.
 -- Pour équilibrer : changer `chance` ou `multiplier` ici suffit.
 
 local Mutations = {}
@@ -47,13 +52,14 @@ Mutations.List = {
 		chance = 0.02,
 		effect = "lightning",
 		look = {
+			-- ciel d'orage : jaune électrique en haut, bleu nuit en bas ; éclairs Neon cyan
 			tint = rgb(255, 236, 90),
-			veil = { rgb(255, 252, 200), rgb(255, 225, 40), rgb(255, 170, 0) },
-			tintAlpha = 0.4,
-			motif = "glint",
-			hair = rgb(255, 236, 90),
-			mix = 0.5,
-			body = { color = rgb(255, 225, 60), mix = 0.3 },
+			veil = { rgb(255, 245, 150), rgb(120, 150, 255), rgb(30, 30, 90) },
+			tintAlpha = 0.55,
+			hair = rgb(255, 250, 170),
+			mix = 0.6,
+			body = { color = rgb(70, 80, 160), mix = 0.35 },
+			bolts = { color = rgb(130, 240, 255) },
 			particles = { texture = SPARK, color = { rgb(255, 255, 200), rgb(255, 220, 40) }, rate = 6, size = 0.36, speed = 2.2, lifetime = 0.5, rotSpeed = 200 },
 		},
 	},
@@ -67,13 +73,15 @@ Mutations.List = {
 		chance = 0.016,
 		effect = "frost",
 		look = {
-			tint = rgb(170, 230, 255),
-			veil = { rgb(250, 255, 255), rgb(170, 225, 255), rgb(90, 170, 240) },
-			tintAlpha = 0.45,
-			hair = rgb(200, 242, 255),
-			mix = 0.6,
+			-- glace blanche, cristaux sur les épaules et les avant-bras
+			tint = rgb(235, 248, 255),
+			veil = { rgb(255, 255, 255), rgb(225, 245, 255), rgb(150, 205, 240) },
+			tintAlpha = 0.55,
+			hair = rgb(240, 252, 255),
+			mix = 0.75,
 			material = Enum.Material.Ice,
-			body = { color = rgb(180, 230, 255), mix = 0.45, material = Enum.Material.Ice },
+			body = { color = rgb(235, 250, 255), mix = 0.6, material = Enum.Material.Ice },
+			crystals = { color = rgb(215, 245, 255), material = Enum.Material.Ice },
 			particles = {
 				texture = SPARK,
 				color = { rgb(255, 255, 255), rgb(170, 230, 255) },
@@ -98,6 +106,8 @@ Mutations.List = {
 			tint = rgb(255, 120, 40),
 			veil = { rgb(255, 225, 90), rgb(255, 100, 20), rgb(170, 20, 10) },
 			tintAlpha = 0.48,
+			motif = "flames",
+			motifOn = "legs",
 			hair = rgb(255, 110, 30),
 			mix = 0.55,
 			body = { color = rgb(230, 70, 20), mix = 0.35 },
@@ -150,9 +160,11 @@ Mutations.List = {
 		chance = 0.035,
 		effect = "gold",
 		look = {
-			tint = rgb(255, 196, 40),
-			tintAlpha = 0.55,
+			-- or massif : voile doré brillant (reflet animé), étincelles dorées autour du perso
+			tint = rgb(255, 218, 60),
+			tintAlpha = 0.74,
 			shine = true,
+			sparkles = { color = rgb(255, 222, 90) },
 			hair = rgb(255, 196, 56),
 			mix = 0.8,
 			material = Enum.Material.Foil,
@@ -171,9 +183,11 @@ Mutations.List = {
 		chance = 0.015,
 		effect = "none",
 		look = {
+			-- silhouette d'encre + volutes de fumée sombre
 			tint = rgb(22, 10, 38),
-			veil = { rgb(70, 30, 120), rgb(18, 8, 30), rgb(8, 4, 14) },
-			tintAlpha = 0.72,
+			veil = { rgb(40, 20, 60), rgb(14, 6, 22), rgb(4, 2, 8) },
+			tintAlpha = 0.78,
+			wisps = true,
 			hair = rgb(30, 16, 50),
 			mix = 0.88,
 			body = { color = rgb(26, 16, 40), mix = 0.7 },
@@ -199,13 +213,26 @@ Mutations.List = {
 		chance = 0.008,
 		effect = "cubes",
 		look = {
+			-- violet profond fissuré, disque du vide sous les pieds, particules noires aspirées
 			tint = rgb(120, 50, 200),
-			veil = { rgb(210, 140, 255), rgb(120, 40, 220), rgb(40, 10, 90) },
-			tintAlpha = 0.5,
+			veil = { rgb(170, 90, 255), rgb(90, 30, 190), rgb(30, 8, 70) },
+			tintAlpha = 0.55,
+			motif = "cracks",
+			voidDisc = true,
 			hair = rgb(120, 50, 200),
 			mix = 0.6,
 			body = { color = rgb(90, 30, 160), mix = 0.45 },
-			particles = { texture = SPARK, color = { rgb(220, 160, 255), rgb(110, 30, 200) }, rate = 7, size = 0.38, speed = 0.7, lifetime = 1.3, rotSpeed = 140 },
+			particles = {
+				texture = SPARK,
+				color = { rgb(10, 4, 20), rgb(60, 20, 110) },
+				rate = 14,
+				size = 0.45,
+				speed = 3,
+				lifetime = 0.9,
+				transparency = 0.1,
+				lightEmission = 0,
+				inward = true,
+			},
 		},
 	},
 	diamant = {
@@ -225,7 +252,8 @@ Mutations.List = {
 			mix = 0.85,
 			material = Enum.Material.Glass,
 			reflectance = 0.35,
-			motif = "glint",
+			motif = "facets",
+			motifOn = "all",
 			body = { color = rgb(160, 225, 255), mix = 0.55, material = Enum.Material.Glass, reflectance = 0.3 },
 			particles = { texture = SPARK, color = { rgb(255, 255, 255), rgb(150, 235, 255) }, rate = 6, size = 0.5, speed = 0.6, lifetime = 1.1, rotSpeed = 60 },
 		},
@@ -274,6 +302,7 @@ Mutations.List = {
 			hair = rgb(255, 246, 214),
 			mix = 0.7,
 			halo = true,
+			wings = true,
 			body = { color = rgb(255, 252, 240), mix = 0.45 },
 			particles = {
 				texture = SPARK,

@@ -415,12 +415,64 @@ test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement
 		end
 	end
 	assert(farBoards > 0 and hiddenFar == farBoards, "panneaux éloignés encore visibles à la machine : " .. hiddenFar .. "/" .. farBoards)
+	-- Loin de la machine, caméra tournée vers le ciel (aucun panneau à l'écran) : tous visibles.
+	local savedCamera = camera.CFrame
+	camera.CFrame = CFrame.new(0, 400, 0) * CFrame.Angles(math.rad(85), 0, 0)
 	RollPanel.forceNear(false)
+	RollPanel.updateBoards()
 	for _, d in plot.ownerFolder.Pads:GetDescendants() do
 		if d.Name == "PriceGui" then
 			assert(d.Enabled, "panneau d'achat resté caché loin de la machine")
 		end
 	end
+	-- Vue de l'entrée de la base : version compacte au loin, aucun recouvrement à l'écran.
+	do -- (CFrame.lookAt de Lune inverse l'axe Z : on construit le repère à la main)
+		local eye, target = (plot.cf * CFrame.new(0, 14, -82)).Position, (plot.cf * CFrame.new(0, 4, -40)).Position
+		local fw = (target - eye).Unit
+		local right = fw:Cross(Vector3.new(0, 1, 0)).Unit
+		camera.CFrame = CFrame.fromMatrix(eye, right, right:Cross(fw), -fw)
+	end
+	RollPanel.updateBoards()
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared").Modules.Formulas)
+	local view = {
+		eye = camera.CFrame.Position,
+		forward = camera.CFrame.LookVector,
+		right = camera.CFrame.RightVector,
+		up = camera.CFrame.UpVector,
+		focal = 380 / math.tan(math.rad(camera.FieldOfView / 2)),
+		w = 1280,
+		h = 760,
+	}
+	local onScreen, compactFar, nearFull = {}, 0, 0
+	for _, d in plot.ownerFolder.Pads:GetDescendants() do
+		if d.Name == "PriceGui" and d.Enabled then
+			local pos = d.Parent.CFrame.Position + d.StudsOffsetWorldSpace
+			local dist = (pos - view.eye).Magnitude
+			if dist > d:GetAttribute("FarDistance") then
+				assert(d:GetAttribute("Compact") == true and not d.Card.Effect.Visible, "panneau lointain pas en version compacte")
+				compactFar += 1
+			else
+				assert(d:GetAttribute("Compact") == false and d.Card.Effect.Visible, "panneau proche en version compacte")
+				nearFull += 1
+			end
+			local rect = Formulas.boardRect(view, pos, d.Size.X.Scale, d.Size.X.Offset, d.Size.Y.Scale / 2, d.Size.Y.Offset / 2)
+			if rect then
+				table.insert(onScreen, rect)
+			end
+		end
+	end
+	assert(#onScreen >= 3, "trop peu de panneaux lisibles depuis l'entrée : " .. #onScreen)
+	for i = 1, #onScreen do
+		for j = i + 1, #onScreen do
+			local a, b = onScreen[i], onScreen[j]
+			local ox = math.max(0, math.min(a.x1, b.x1) - math.max(a.x0, b.x0))
+			local oy = math.max(0, math.min(a.y1, b.y1) - math.max(a.y0, b.y0))
+			local area = math.min((a.x1 - a.x0) * (a.y1 - a.y0), (b.x1 - b.x0) * (b.y1 - b.y0))
+			assert(ox * oy <= Formulas.BoardMaxOverlap * area + 1e-6, "deux panneaux affichés se recouvrent depuis l'entrée")
+		end
+	end
+	assert(nearFull > 0 and compactFar > 0, "panneaux complets (près) et compacts (loin) attendus : " .. nearFull .. " / " .. compactFar)
+	camera.CFrame = savedCamera
 	RollPanel.forceNear(true)
 	local r = RollPanel.refs()
 	assert(r.multi[2].tag.Visible and r.multi[3].tag.Visible, "prix Robux des passes x2 / x3 absents")
@@ -454,16 +506,35 @@ test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement
 	signalFor(refs.afkButton, "Activated"):Fire()
 	task.wait(0.3)
 	assert(data.AutoRoll == false, "« Arrêter » n'a pas arrêté l'auto-roulage")
-	-- Une ligne Activé / Désactivé enregistre le réglage.
-	local commonRow = refs.leftList:FindFirstChild("Row_Commun")
-	local toggle = commonRow and commonRow:FindFirstChild("Toggle")
-	assert(toggle, "ligne Commun absente")
+	-- Une ligne Activé / Désactivé enregistre le réglage (sur une rareté présente dans l'univers
+	-- actuel ; les raretés sans perso ont un bouton grisé « — » qui ne fait rien).
+	local ThemeUI = Harness.require(Harness.find("StarterPlayer.StarterPlayerScripts.Client").UI.Theme)
+	local toggle, rarityId, greyed = nil, nil, 0
+	for _, id in { "common", "uncommon", "rare", "epic", "legendary", "mythic", "secret" } do
+		local info = ThemeUI.rarity(id)
+		local row = info and refs.leftList:FindFirstChild("Row_" .. info.name)
+		local button = row and row:FindFirstChild("Toggle")
+		if button and button:GetAttribute("Disabled") then
+			greyed += 1
+			assert(button.Label.Text == "—" and button.Selectable == false, "bouton d'une rareté vide pas grisé")
+			local beforeValue = data.AutoRollSettings.pauseRarities[id]
+			signalFor(button, "Activated"):Fire()
+			task.wait(0.1)
+			assert(data.AutoRollSettings.pauseRarities[id] == beforeValue, "bouton grisé encore actif")
+		elseif button and not toggle then
+			toggle, rarityId = button, id
+		end
+	end
+	assert(toggle, "aucune ligne de rareté réglable")
+	-- (l'état de départ est celui affiché par le bouton)
+	local initial = toggle.Label.Text == "Activé"
 	signalFor(toggle, "Activated"):Fire()
 	task.wait(0.6)
-	assert(data.AutoRollSettings.pauseRarities.common == true, "réglage non enregistré")
+	assert((data.AutoRollSettings.pauseRarities[rarityId] == true) == not initial, "réglage non enregistré")
 	signalFor(toggle, "Activated"):Fire()
 	task.wait(0.6)
-	assert(data.AutoRollSettings.pauseRarities.common == false, "réglage non désactivé")
+	assert((data.AutoRollSettings.pauseRarities[rarityId] == true) == initial, "réglage non rétabli")
+	print("   raretés grisées (aucun perso dans l'univers) : " .. greyed)
 	-- Avancé (achat automatique +).
 	setAttr("Pass_AutoRollPlus", true)
 	task.wait(0.1)
@@ -490,8 +561,14 @@ test("Boucle de la base vue par le client : rouler, collecter, poser une unité"
 	local data = services.DataService:Get(alice)
 	local rolls = received.RollResult or 0
 	-- 1) Rouler depuis le panneau du HUD : le serveur répond par RollResult (révélation).
-	RollPanel.roll()
-	task.wait(0.3)
+	-- (la machine du serveur peut encore recharger après le test précédent : on réessaie)
+	for _ = 1, 15 do
+		RollPanel.roll()
+		task.wait(0.3)
+		if (received.RollResult or 0) > rolls then
+			break
+		end
+	end
 	assert((received.RollResult or 0) > rolls, "pas de RollResult reçu après le roulage")
 	assert(#data.RolledQueue >= 1, "rien sur l'estrade")
 	task.wait(0.3)
@@ -828,4 +905,31 @@ test("Rotation d'univers vue par le client", function()
 end)
 
 print(string.format("   %d avertissement(s) au total", #warnings))
+test("Révélation À LA MACHINE : pas de vignettes, la caméra cadre le podium (Légendaire et plus)", function()
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local RollPanel = Harness.require(client.UI.RollPanel)
+	local RollReveal = Harness.require(client.UI.RollReveal)
+	camera.CameraType = roblox.Enum.CameraType.Custom
+	RollPanel.forceNear(true)
+	RollReveal.show({ results = { { id = "ninja_itochi", stars = 1, rarity = "mythic", aura = "diamant", price = 10, dps = 5 } }, count = 1 })
+	task.wait(0.1)
+	local strip = alice.PlayerGui:FindFirstChild("Strip", true)
+	local cards = strip and strip:FindFirstChild("Cards")
+	assert(cards and not cards.Visible and #cards:GetChildren() <= 1, "vignettes affichées à la machine")
+	assert(strip:FindFirstChild("Mutation"), "bandeau MUTATION absent")
+	assert(camera.CameraType == roblox.Enum.CameraType.Scriptable, "la caméra ne cadre pas le podium")
+	local t0 = os.clock()
+	while camera.CameraType == roblox.Enum.CameraType.Scriptable and os.clock() - t0 < 8 do
+		task.wait(0.1)
+	end
+	print(string.format("   caméra rendue après %.2f s", os.clock() - t0))
+	assert(camera.CameraType == roblox.Enum.CameraType.Custom, "caméra non rendue au joueur")
+	-- Un Commun ne bouge pas la caméra.
+	RollReveal.show({ results = { { id = "ninja_rokli", stars = 1, rarity = "common", price = 10, dps = 5 } }, count = 1 })
+	task.wait(0.1)
+	assert(camera.CameraType == roblox.Enum.CameraType.Custom, "caméra déplacée pour un Commun")
+	RollPanel.forceNear(nil)
+	task.wait(3)
+end)
+
 Harness.finish()

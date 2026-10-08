@@ -11,6 +11,7 @@ local find = Harness.find
 local test = Harness.test
 local countParts = Harness.countParts
 local fakeSignal = Harness.newSignal()
+local CollectionService = Harness.CollectionService
 
 local Shared = find("ReplicatedStorage.Shared")
 local Characters = requireModule(Shared.Config.Characters)
@@ -232,9 +233,67 @@ test("Mutations (variétés) : liste, tirage, apparence", function()
 		-- Le visage reste net (pas de voile sur la tête) ; contour lumineux pour x3 et plus.
 		local head = model:FindFirstChild("Head")
 		assert(not (head and head:FindFirstChild("MutationVoile", true)), "voile sur le visage : " .. id)
-		assert((model:FindFirstChild("MutationContour") ~= nil) == (Mutations.get(id).multiplier >= 3), "contour lumineux incohérent : " .. id)
+		-- Contour lumineux : marqué pour le client (x3 et plus), jamais posé par le serveur.
+		local glow = table.find(CollectionService:GetTagged("MutationGlow"), model) ~= nil
+		assert(glow == (Mutations.get(id).multiplier >= 3), "contour lumineux incohérent : " .. id)
+		assert(model:FindFirstChildOfClass("Highlight") == nil, "Highlight posé par le serveur : " .. id)
 		model:Destroy()
 	end
+	-- Chaque mutation a SON signe (en repli, sans CharacterBuilder.applyVariety) : on les
+	-- reconnaît sans légende.
+	if type((CharacterBuilder :: any).applyVariety) ~= "function" then
+		local signs = {
+			["or"] = "MutationEtincelle",
+			foudre = "MutationEclair",
+			givre = "MutationCristal",
+			angelique = "MutationAile",
+			ombre = "MutationFumee",
+			neant = "MutationVide",
+		}
+		for id, name in signs do
+			local model = CharacterBuilder.build(Formulas.describe(entry).look, { name = "Signe" })
+			MutationsFx.apply(model, id)
+			assert(model:FindFirstChild(name, true), "signe " .. name .. " absent : " .. id)
+			for other, otherName in signs do
+				if other ~= id then
+					assert(not model:FindFirstChild(otherName, true), "signe de " .. other .. " sur " .. id)
+				end
+			end
+			model:Destroy()
+		end
+		local angel = CharacterBuilder.build(Formulas.describe(entry).look, { name = "Ange" })
+		MutationsFx.apply(angel, "angelique")
+		assert(angel:FindFirstChild("MutationAureole", true), "auréole absente")
+		angel:Destroy()
+		local function motifs(id)
+			local model = CharacterBuilder.build(Formulas.describe(entry).look, { name = "Motif" })
+			MutationsFx.apply(model, id)
+			local n = 0
+			for _, d in model:GetDescendants() do
+				if d.Name == "MutationMotif" then
+					n += 1
+				end
+			end
+			model:Destroy()
+			return n
+		end
+		assert(motifs("diamant") > motifs("galaxie"), "facettes du Diamant absentes des bras et jambes")
+		assert(motifs("flamme") > 0 and motifs("neant") > 0, "flammes / fissures absentes")
+	end
+	-- Côté client : contours seulement sur les persos proches, 8 au plus.
+	local roblox = Harness.roblox
+	local models = {}
+	for i = 1, 20 do
+		local m = roblox.Instance.new("Model")
+		local root = roblox.Instance.new("Part")
+		root.CFrame = roblox.CFrame.new(i * 3, 0, 0)
+		root.Parent = m
+		m.PrimaryPart = root
+		table.insert(models, m)
+	end
+	local picked = MutationsFx.pickGlows(models, roblox.Vector3.new(0, 0, 0))
+	assert(#picked == MutationsFx.GlowMax, "trop ou pas assez de contours : " .. #picked)
+	assert(picked[1] == models[1], "le plus proche n'a pas son contour")
 	assert(not MutationsFx.apply(CharacterBuilder.build(Formulas.describe(entry).look, { name = "T" }), "inconnue"), "mutation inconnue posée")
 end)
 
@@ -535,8 +594,12 @@ test("Base : panneaux d'achat dégagés, sans chevauchement (entrée, coffre)", 
 			id = upgrade.id,
 			ground = pos,
 			p = pos + roblox.Vector3.new(0, Kit.BoardBottom + Structures.boardLift(upgrade.id), 0),
-			w = { 4.8, 84 },
+			w = { Kit.BoardWidth.studs, Kit.BoardWidth.pixels },
 			h = { Kit.BoardHeight.studs, Kit.BoardHeight.pixels },
+			-- version compacte au-delà de Kit.BoardFar.distance (client)
+			wFar = { Kit.BoardWidth.studs, Kit.BoardFar.widthPixels },
+			hFar = { Kit.BoardHeight.studs, Kit.BoardFar.heightPixels },
+			far = Kit.BoardFar.distance,
 			maxd = Kit.BoardMaxDistance,
 		})
 	end
@@ -556,34 +619,52 @@ test("Base : panneaux d'achat dégagés, sans chevauchement (entrée, coffre)", 
 		local eye, target = view[1], view[2]
 		local fw = (target - eye).Unit
 		local right = fw:Cross(roblox.Vector3.new(0, 1, 0)).Unit
-		local up = right:Cross(fw)
-		local rects = {}
+		local cam = { eye = eye, forward = fw, right = right, up = right:Cross(fw), focal = f, w = W, h = H }
+		local rects, list = {}, {}
 		for _, b in boards do
-			local d = b.p - eye
-			local z = d:Dot(fw)
-			if z > 2 and d.Magnitude <= b.maxd then
-				local sx, sy = W / 2 + d:Dot(right) * f / z, H / 2 - d:Dot(up) * f / z
-				local w, h = b.w[1] * f / z + b.w[2], b.h[1] * f / z + b.h[2]
-				if sx + w / 2 > 0 and sx - w / 2 < W and sy > 0 and sy - h < H then
-					table.insert(rects, { b = b, x0 = sx - w / 2, x1 = sx + w / 2, y0 = sy - h, y1 = sy })
+			local dist = (b.p - eye).Magnitude
+			if dist <= b.maxd then
+				local bw, bh = b.w, b.h
+				if b.far and dist > b.far then
+					bw, bh = b.wFar, b.hFar
+				end
+				local rect = Formulas.boardRect(cam, b.p, bw[1], bw[2], bh[1], bh[2])
+				if rect then
+					if b.id == "COFFRE" then
+						rect.dist = 0 -- la carte du coffre n'est jamais cachée
+					end
+					table.insert(rects, rect)
+					table.insert(list, b)
 				end
 			end
 		end
-		for i = 1, #rects do
-			for j = i + 1, #rects do
-				local a, c = rects[i], rects[j]
-				-- Voisins (moins de 22 studs) qui peuvent être affichés EN MÊME TEMPS.
-				local near = roblox.Vector3.new(a.b.ground.X - c.b.ground.X, 0, a.b.ground.Z - c.b.ground.Z).Magnitude < 22
-				local together = a.b.id == "COFFRE" or c.b.id == "COFFRE" or (a.b.ground ~= c.b.ground and not ancestor(a.b.id, c.b.id) and not ancestor(c.b.id, a.b.id))
-				if near and together then
-					local ox = math.max(0, math.min(a.x1, c.x1) - math.max(a.x0, c.x0))
-					local oy = math.max(0, math.min(a.y1, c.y1) - math.max(a.y0, c.y0))
-					local area = math.min((a.x1 - a.x0) * (a.y1 - a.y0), (c.x1 - c.x0) * (c.y1 - c.y0))
-					if ox * oy > 0.04 * area then
-						table.insert(problems, string.format("%s : %s / %s (%d %%)", name, a.b.id, c.b.id, math.floor(ox * oy / area * 100)))
+		-- Deux panneaux « en conflit » = deux boutons qui peuvent exister EN MÊME TEMPS.
+		local function conflicts(i, j)
+			local a, c = list[i], list[j]
+			return a.id == "COFFRE" or c.id == "COFFRE" or (a.ground ~= c.ground and not ancestor(a.id, c.id) and not ancestor(c.id, a.id))
+		end
+		local shown = Formulas.declutterBoards(rects, nil, conflicts)
+		local count, hidden = 0, {}
+		for i, rect in rects do
+			if shown[i] then
+				count += 1
+			elseif rect.dist < 40 then
+				-- un panneau PROCHE ne doit jamais être caché : les voisins proches sont placés
+				-- pour ne pas se recouvrir
+				local by = {}
+				for j, other in rects do
+					if shown[j] and conflicts(i, j) and math.min(rect.x1, other.x1) > math.max(rect.x0, other.x0) and math.min(rect.y1, other.y1) > math.max(rect.y0, other.y0) then
+						table.insert(by, list[j].id)
 					end
 				end
+				table.insert(problems, string.format("%s : %s caché à %d studs (par %s)", name, list[i].id, math.floor(rect.dist), table.concat(by, ", ")))
+			else
+				table.insert(hidden, list[i].id)
 			end
+		end
+		print(string.format("   %s : %d panneaux affichés, %d cachés au loin (%s)", name, count, #hidden, table.concat(hidden, ", ")))
+		if count < 3 then
+			table.insert(problems, name .. " : trop peu de panneaux lisibles (" .. count .. ")")
 		end
 	end
 	for _, line in problems do

@@ -136,7 +136,7 @@ local S = {}
 -- Palier 1 -------------------------------------------------------------
 
 S.distributeur = {
-	pad = { -39, -40 },
+	pad = { -38, -33 }, -- hors de l'axe entrée-coffre (ne cache pas le coffre)
 	build = function(ctx)
 		dropper(ctx, Spots.droppers[1], "bronze")
 		-- Panneau d'atelier au-dessus du tapis.
@@ -252,7 +252,7 @@ S.aimant = {
 	-- Loin du coffre et des distributeurs ; panneau un cran plus haut que celui des Lanternes
 	-- (vus de l'entrée, les deux panneaux ne se recouvrent pas).
 	pad = { -20, -44 },
-	board = 2.5,
+	board = 4,
 	build = function(ctx)
 		-- Arche aimantée au-dessus du bout du tapis : attire les pièces vers le coffre.
 		local cf = ctx.at(Spots.beltX, 0, -44.5)

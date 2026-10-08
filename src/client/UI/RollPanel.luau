@@ -6,7 +6,9 @@
 --   • x1 / x2 / x3 : persos par roulage (x2 et x3 = passes Robux : le bouton ouvre l'achat) ;
 --   • AUTO : ouvre la fenêtre « Roulement automatique » (UI/AutoRoll.luau) ;
 --   • la pitié du Mythique (la seule du jeu) et la chance actuelle ;
---   • au-dessus : LE perso tiré (rareté, mutation, prix) avec son bouton « Collecter ».
+--   • juste au-dessus de la barre : LE perso tiré (rareté, mutation, prix) et « Collecter ».
+-- Tout tient dans une barre compacte en bas à droite : le centre de l'écran reste libre pour
+-- voir le perso tiré sur le podium.
 -- Loin de la machine, seule une petite pastille rappelle que l'auto-roulage tourne (avec Arrêter).
 
 local Players = game:GetService("Players")
@@ -18,6 +20,7 @@ local Economy = require(Shared.Config.Economy)
 local Layout = require(Shared.Config.Layout)
 local Mutations = require(Shared.Config.Mutations)
 local Formulas = require(Shared.Modules.Formulas)
+local MutationsFx = require(Shared.Modules.Mutations)
 
 local Theme = require(script.Parent.Theme)
 local Icons = require(script.Parent.Icons)
@@ -141,15 +144,18 @@ end
 -- Construction
 ------------------------------------------------------------------------
 
-local PANEL_W, PANEL_H = 660, 146
--- Au-dessus des boutons de voyage rapide et de la barre de conseils (bas du HUD).
-local PANEL_BOTTOM = 142 -- au moins 12 px au-dessus de la barre de navigation du bas
+-- Barre COMPACTE en bas à droite (au-dessus des cartes d'équipe du HUD) : le centre de l'écran
+-- reste libre pour voir le perso tiré sur le podium.
+local PANEL_W, PANEL_H = 440, 132
+local PANEL_RIGHT = 16
+local PANEL_BOTTOM = 96 -- au-dessus de l'équipe (bas droite du HUD, 84 px de haut)
+RollPanel.PanelSize = Vector2.new(PANEL_W, PANEL_H)
 
 local function multiButton(parent: Instance, n: number, x: number)
 	local holder = new("Frame", {
 		Name = "Multi" .. n,
 		Position = UDim2.fromOffset(x, 0),
-		Size = UDim2.fromOffset(78, 66),
+		Size = UDim2.fromOffset(54, 56),
 		BackgroundTransparency = 1,
 		Parent = parent,
 	})
@@ -157,7 +163,7 @@ local function multiButton(parent: Instance, n: number, x: number)
 		Text = "x" .. n,
 		Color = C.Gray,
 		Size = UDim2.fromScale(1, 1),
-		TextSize = 26,
+		TextSize = 22,
 		Parent = holder,
 		OnClick = function()
 			chooseMulti(n)
@@ -166,8 +172,8 @@ local function multiButton(parent: Instance, n: number, x: number)
 	local tag = new("Frame", {
 		Name = "Prix",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 1, -18),
-		Size = UDim2.fromOffset(84, 24),
+		Position = UDim2.new(0.5, 0, 1, -14),
+		Size = UDim2.fromOffset(66, 20),
 		BackgroundColor3 = rgb(20, 160, 80),
 		ZIndex = 6,
 		Parent = holder,
@@ -190,8 +196,8 @@ end
 local function build(root: Frame)
 	local panel = new("Frame", {
 		Name = "MachinePanel",
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -PANEL_BOTTOM),
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -PANEL_RIGHT, 1, -PANEL_BOTTOM),
 		Size = UDim2.fromOffset(PANEL_W, PANEL_H),
 		BackgroundColor3 = WHITE,
 		Visible = false,
@@ -207,14 +213,14 @@ local function build(root: Frame)
 	refs.scale = new("UIScale", { Parent = panel })
 
 	-- En-tête : titre + pitié du Mythique
-	local header = new("Frame", { Name = "Header", Size = UDim2.new(1, -24, 0, 34), Position = UDim2.fromOffset(12, 6), BackgroundTransparency = 1, Parent = panel })
-	local dice = new("Frame", { Position = UDim2.fromOffset(0, 3), Size = UDim2.fromOffset(28, 28), BackgroundTransparency = 1, Parent = header })
-	Icons.make("dice", dice, { px = 28, ink = rgb(110, 40, 200) })
+	local header = new("Frame", { Name = "Header", Size = UDim2.new(1, -24, 0, 34), Position = UDim2.fromOffset(12, 5), BackgroundTransparency = 1, Parent = panel })
+	local dice = new("Frame", { Position = UDim2.fromOffset(0, 1), Size = UDim2.fromOffset(24, 24), BackgroundTransparency = 1, Parent = header })
+	Icons.make("dice", dice, { px = 24, ink = rgb(110, 40, 200) })
 	refs.dice = dice
 	local title = Theme.label({
 		Text = "MACHINE ROULER",
-		Position = UDim2.fromOffset(36, 4),
-		Size = UDim2.fromOffset(220, 26),
+		Position = UDim2.fromOffset(30, 2),
+		Size = UDim2.fromOffset(160, 22),
 		FontFace = Theme.Faces.Title,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		StrokeThickness = 2.5,
@@ -225,8 +231,8 @@ local function build(root: Frame)
 		Name = "Pitie",
 		Text = "",
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, 0, 0, 0),
-		Size = UDim2.fromOffset(330, 18),
+		Position = UDim2.new(1, 0, 0, 4),
+		Size = UDim2.fromOffset(220, 16),
 		FontFace = Theme.Faces.Heavy,
 		TextColor3 = rgb(255, 150, 170),
 		TextXAlignment = Enum.TextXAlignment.Right,
@@ -235,19 +241,19 @@ local function build(root: Frame)
 	})
 	refs.pityBar = Components.progressBar(header, rgb(255, 60, 100), {
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, 0, 0, 22),
-		Size = UDim2.fromOffset(330, 9),
+		Position = UDim2.new(1, 0, 0, 27),
+		Size = UDim2.new(1, 0, 0, 6),
 	})
 
 	-- Rangée de boutons
-	local row = new("Frame", { Name = "Boutons", Position = UDim2.fromOffset(12, 44), Size = UDim2.new(1, -24, 0, 66), BackgroundTransparency = 1, Parent = panel })
+	local row = new("Frame", { Name = "Boutons", Position = UDim2.fromOffset(12, 42), Size = UDim2.new(1, -24, 0, 56), BackgroundTransparency = 1, Parent = panel })
 	refs.rollButton = Components.button({
 		Text = "ROULER",
 		Icon = "dice",
 		Color = rgb(255, 180, 30),
-		Size = UDim2.fromOffset(232, 66),
+		Size = UDim2.fromOffset(150, 56),
 		Hint = "X",
-		TextSize = 32,
+		TextSize = 24,
 		Parent = row,
 		OnClick = RollPanel.roll,
 	})
@@ -265,7 +271,7 @@ local function build(root: Frame)
 	refs.cooldown = cooldown
 	refs.multi = {}
 	for i, n in { 1, 2, 3 } do
-		refs.multi[n] = multiButton(row, n, 244 + (i - 1) * 86)
+		refs.multi[n] = multiButton(row, n, 158 + (i - 1) * 60)
 	end
 	refs.autoButton = Components.button({
 		Text = "AUTO",
@@ -273,8 +279,8 @@ local function build(root: Frame)
 		Color = C.Purple,
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, 0, 0, 0),
-		Size = UDim2.fromOffset(148, 66),
-		TextSize = 24,
+		Size = UDim2.fromOffset(92, 56),
+		TextSize = 18,
 		Parent = row,
 		OnClick = function()
 			AutoRoll.toggle()
@@ -285,8 +291,8 @@ local function build(root: Frame)
 	refs.status = Theme.label({
 		Name = "Etat",
 		Text = "",
-		Position = UDim2.fromOffset(14, 116),
-		Size = UDim2.new(1, -28, 0, 20),
+		Position = UDim2.fromOffset(12, 106),
+		Size = UDim2.new(1, -24, 0, 18),
 		FontFace = Theme.Faces.Bold,
 		TextColor3 = C.TextDim,
 		StrokeThickness = 1.5,
@@ -294,16 +300,18 @@ local function build(root: Frame)
 	})
 
 	-- Perso(s) tiré(s) : cartes au-dessus du panneau
+	-- (une seule ligne collée au-dessus de la barre, alignée à droite : le centre et le bas de
+	-- l'écran — boutons de voyage — restent libres)
 	local pull = new("Frame", {
 		Name = "Tirage",
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -PANEL_BOTTOM - PANEL_H - 10),
-		Size = UDim2.fromOffset(PANEL_W, 86),
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -PANEL_RIGHT, 1, -PANEL_BOTTOM - PANEL_H - 8),
+		Size = UDim2.fromOffset(3 * 212 + 2 * 10, 86),
 		BackgroundTransparency = 1,
 		Visible = false,
 		Parent = root,
 	})
-	local layout = Theme.list(Enum.FillDirection.Horizontal, 10, Enum.HorizontalAlignment.Center)
+	local layout = Theme.list(Enum.FillDirection.Horizontal, 10, Enum.HorizontalAlignment.Right)
 	layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
 	layout.Parent = pull
 	refs.pull = pull
@@ -505,40 +513,126 @@ local function refresh()
 	refs.pull.Visible = near and #queue > 0
 end
 
--- À la machine, les panneaux d'achat éloignés (stands...) ou situés derrière l'estrade (cour) se
--- cachent pour ne pas se dessiner derrière le perso tiré ; ils reviennent dès qu'on s'éloigne.
+-- PANNEAUX D'ACHAT des bases (côté client, 3 fois par seconde) :
+--   • au-delà de `FarDistance` studs (attribut posé par TycoonKit), version compacte (titre +
+--     prix, sans la ligne d'effet) : la base reste lisible de loin sans fouillis ;
+--   • désencombrement à l'écran : du plus proche au plus loin, un panneau qui en recouvrirait
+--     un autre déjà affiché est caché (Formulas.declutterBoards) ; il revient quand on approche ;
+--   • à la machine, les panneaux de SA base éloignés (stands...) ou situés derrière l'estrade
+--     (cour) se cachent pour ne pas se dessiner derrière le perso tiré.
 RollPanel.DeclutterRadius = 20
-local hiddenBoards: { [BillboardGui]: boolean } = {}
-local function declutterBoards(active: boolean)
-	for gui in hiddenBoards do
-		if gui.Parent then
-			gui.Enabled = true
-		end
-	end
-	table.clear(hiddenBoards)
-	local cf = active and RollPanel.machineCFrame()
-	if not cf then
+RollPanel.BoardScanEvery = 2 -- secondes entre deux recherches des panneaux (nouveaux boutons)
+
+-- Mise en page d'une carte (même découpage que TycoonKit.layoutBoard côté serveur).
+function RollPanel.layoutBoard(gui: BillboardGui, compact: boolean)
+	if gui:GetAttribute("Compact") == compact then
 		return
 	end
+	gui:SetAttribute("Compact", compact)
+	local size = gui:GetAttribute(compact and "FarSize" or "NearSize")
+	if typeof(size) == "UDim2" then
+		gui.Size = size
+	end
+	local card = gui:FindFirstChild("Card")
+	if not card then
+		return
+	end
+	local title = card:FindFirstChild("Title") :: TextLabel?
+	local effect = card:FindFirstChild("Effect") :: TextLabel?
+	local pill = card:FindFirstChild("Pill") :: Frame?
+	if title then
+		title.Position = UDim2.fromScale(0.05, compact and 0.06 or 0.05)
+		title.Size = UDim2.fromScale(0.9, compact and 0.46 or 0.36)
+	end
+	if effect then
+		effect.Visible = not compact
+	end
+	if pill then
+		pill.Position = UDim2.fromScale(0.14, compact and 0.56 or 0.63)
+		pill.Size = UDim2.fromScale(0.72, compact and 0.38 or 0.32)
+	end
+end
+
+local boardList: { BillboardGui } = {}
+local boardScanAt = -math.huge
+local function scanBoards()
+	table.clear(boardList)
 	local world = workspace:FindFirstChild("World")
 	local plots = world and world:FindFirstChild("Plots")
-	local plot = plots and plots:FindFirstChild("Plot" .. tostring(player:GetAttribute("PlotIndex")))
-	local owner = plot and plot:FindFirstChild("Owner")
-	local pads = owner and owner:FindFirstChild("Pads")
-	if not pads then
+	if not plots then
 		return
 	end
-	for _, d in pads:GetDescendants() do
-		if d:IsA("BillboardGui") and d.Name == "PriceGui" and d.Enabled then
-			local adornee = d.Adornee or d.Parent
-			-- loin de la machine, ou DERRIÈRE l'estrade (côté cour : il se dessinerait derrière le perso tiré)
-			local localPos = adornee and adornee:IsA("BasePart") and cf:PointToObjectSpace(adornee.CFrame.Position)
-			if localPos and (localPos.Magnitude > RollPanel.DeclutterRadius or localPos.Z > 4) then
-				d.Enabled = false
-				hiddenBoards[d] = true
+	for _, plot in plots:GetChildren() do
+		local owner = plot:FindFirstChild("Owner")
+		local pads = owner and owner:FindFirstChild("Pads")
+		if pads then
+			for _, d in pads:GetDescendants() do
+				if d:IsA("BillboardGui") and d.Name == "PriceGui" then
+					table.insert(boardList, d)
+				end
 			end
 		end
 	end
+end
+
+local function updateBoards()
+	if os.clock() - boardScanAt > RollPanel.BoardScanEvery then
+		boardScanAt = os.clock()
+		scanBoards()
+	end
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return
+	end
+	local camCF = camera.CFrame
+	local viewport = camera.ViewportSize
+	local view = {
+		eye = camCF.Position,
+		forward = camCF.LookVector,
+		right = camCF.RightVector,
+		up = camCF.UpVector,
+		focal = (viewport.Y / 2) / math.tan(math.rad((camera.FieldOfView or 70) / 2)),
+		w = viewport.X,
+		h = viewport.Y,
+	}
+	local machineCF = near and RollPanel.machineCFrame()
+	local myPlot = "Plot" .. tostring(player and player:GetAttribute("PlotIndex"))
+	local rects, guis, atMachine = {}, {}, {}
+	for _, gui in boardList do
+		local adornee = gui.Adornee or gui.Parent
+		if gui.Parent and adornee and adornee:IsA("BasePart") then
+			local pos = adornee.CFrame.Position + gui.StudsOffsetWorldSpace
+			local dist = (pos - view.eye).Magnitude
+			RollPanel.layoutBoard(gui, dist > (gui:GetAttribute("FarDistance") or math.huge))
+			local hidden = false
+			if machineCF and gui:FindFirstAncestor(myPlot) then
+				local localPos = machineCF:PointToObjectSpace(adornee.CFrame.Position)
+				hidden = localPos.Magnitude > RollPanel.DeclutterRadius or localPos.Z > 4
+			end
+			local rect = nil
+			if not hidden and dist <= gui.MaxDistance then
+				local size = gui.Size
+				rect = Formulas.boardRect(view, pos, size.X.Scale, size.X.Offset, size.Y.Scale / 2, size.Y.Offset / 2)
+			end
+			table.insert(guis, gui)
+			table.insert(rects, rect or false)
+			table.insert(atMachine, hidden)
+		end
+	end
+	local shown = Formulas.declutterBoards(rects)
+	for i, gui in guis do
+		-- hors écran ou trop loin : rien à désencombrer (le moteur ne le dessine pas)
+		local visible = if rects[i] then shown[i] == true else not atMachine[i]
+		if gui.Enabled ~= visible then
+			gui.Enabled = visible
+		end
+	end
+end
+
+-- Pour les tests : force une nouvelle recherche des panneaux et une mise à jour immédiate.
+function RollPanel.updateBoards()
+	boardScanAt = -math.huge
+	pcall(updateBoards)
 end
 
 -- Affiche / cache les commandes selon la position du joueur.
@@ -547,7 +641,8 @@ local function setNear(value: boolean)
 		return
 	end
 	near = value
-	pcall(declutterBoards, value)
+	boardScanAt = -math.huge
+	pcall(updateBoards)
 	refs.panel.Visible = value
 	if value then
 		refs.scale.Scale = 0.85
@@ -573,6 +668,8 @@ end
 function RollPanel.init(gui: ScreenGui, hudRoot: Frame?)
 	local root = hudRoot or Theme.scaledRoot(gui, "RollHUD", 1)
 	pcall(AutoRoll.init, gui)
+	-- contours lumineux des persos mutés proches + reflet animé de l'Or (côté client)
+	pcall(MutationsFx.startClient)
 	build(root)
 	refresh()
 	State.onChanged(refresh)
@@ -597,9 +694,9 @@ function RollPanel.init(gui: ScreenGui, hudRoot: Frame?)
 			tick += 1
 			if near and tick % 4 == 0 then
 				refresh()
-				pcall(declutterBoards, true) -- (nouveaux boutons après un achat)
 			end
-			task.wait(0.25)
+			pcall(updateBoards)
+			task.wait(0.3)
 		end
 	end)
 end

@@ -199,6 +199,42 @@ local function flashScreen(color: Color3)
 	end)
 end
 
+-- À la machine : bas du bandeau MUTATION (au-dessus de la barre ROULER et de la carte du perso).
+RollReveal.MachineBannerBottom = 96 + 132 + 8 + 86 + 8
+RollReveal.FocusTime = 1.5 -- durée du cadrage de la caméra sur le podium (Légendaire et plus)
+
+-- Cadre la caméra sur le podium de la machine pendant FocusTime secondes, puis la rend.
+local focusing = false
+function RollReveal.focusPodium(): boolean
+	local camera = workspace.CurrentCamera
+	local okCF, machineCF = pcall(function()
+		return require(script.Parent.RollPanel).machineCFrame()
+	end)
+	if focusing or not camera or not okCF or not machineCF then
+		return false
+	end
+	focusing = true
+	-- podium = centre de l'estrade (repère local de la machine : -Z = côté du joueur)
+	-- (le perso tiré occupe le milieu bas de l'écran : sous la grande annonce, au-dessus des
+	-- boutons de voyage)
+	local target = (machineCF * CFrame.new(0, 8.4, 0)).Position
+	local eye = (machineCF * CFrame.new(3, 8.5, -12)).Position
+	local savedType = camera.CameraType
+	local savedCF = camera.CFrame
+	camera.CameraType = Enum.CameraType.Scriptable
+	Theme.tween(camera, 0.35, { CFrame = CFrame.lookAt(eye, target) }, Enum.EasingStyle.Quad)
+	task.delay(RollReveal.FocusTime, function()
+		pcall(Theme.tween, camera, 0.3, { CFrame = savedCF }, Enum.EasingStyle.Quad)
+		task.delay(0.32, function()
+			if camera.CameraType == Enum.CameraType.Scriptable then
+				camera.CameraType = savedType
+			end
+			focusing = false
+		end)
+	end)
+	return true
+end
+
 function RollReveal.show(payload)
 	if type(payload) ~= "table" or type(payload.results) ~= "table" or #payload.results == 0 then
 		return
@@ -207,16 +243,18 @@ function RollReveal.show(payload)
 	local myBatch = batch
 	Components.clear(strip)
 	strip.Visible = true
-	-- À la machine, les commandes et la carte du perso tiré sont en bas et l'annonce géante au
-	-- centre : les cartes passent à droite (libre depuis la v3.2), un peu plus petites.
+	-- À LA MACHINE, on voit le perso tiré en vrai sur le podium (et sa carte au-dessus de la
+	-- barre ROULER) : pas de vignettes. Seul le bandeau MUTATION s'affiche, au-dessus de la carte,
+	-- et pour un Légendaire ou plus la caméra cadre le podium 1,5 s (focusPodium).
 	local okNear, near = pcall(function()
 		return require(script.Parent.RollPanel).isNear()
 	end)
 	local atMachine = okNear and near == true
-	strip.AnchorPoint = atMachine and Vector2.new(1, 0) or Vector2.new(0.5, 0)
-	strip.Position = atMachine and UDim2.new(1, -16, 0, 150) or UDim2.new(0.5, 0, 0, 232)
-	stripScale.Scale = atMachine and 0.7 or 1
-	-- (à la machine, cartes et bandeau collés au bord droit : loin de l'annonce géante centrée)
+	strip.AnchorPoint = atMachine and Vector2.new(1, 1) or Vector2.new(0.5, 0)
+	strip.Position = atMachine and UDim2.new(1, -16, 1, -RollReveal.MachineBannerBottom) or UDim2.new(0.5, 0, 0, 232)
+	-- (à la machine : hauteur = contenu seul, le bandeau se pose juste au-dessus de la carte)
+	strip.Size = atMachine and UDim2.fromOffset(640, 0) or UDim2.fromOffset(640, 280)
+	stripScale.Scale = 1
 	local stripAlign = atMachine and Enum.HorizontalAlignment.Right or Enum.HorizontalAlignment.Center
 	local stripLayout = strip:FindFirstChildOfClass("UIListLayout")
 	if stripLayout then
@@ -251,14 +289,15 @@ function RollReveal.show(payload)
 	end
 	local cards = new("Frame", {
 		Name = "Cards",
-		Size = UDim2.new(1, 0, 0, 244),
+		Size = UDim2.new(1, 0, 0, atMachine and 0 or 244),
 		BackgroundTransparency = 1,
 		LayoutOrder = 1,
+		Visible = not atMachine,
 		Parent = strip,
 	})
 	local layout = Theme.list(Enum.FillDirection.Horizontal, 14, stripAlign)
 	layout.Parent = cards
-	for i, result in payload.results do
+	for i, result in (if atMachine then {} else payload.results) do
 		local holder, card = buildCard(cards, result, i)
 		local _ = holder
 		local scale = new("UIScale", { Scale = 0.2, Parent = card })
@@ -275,6 +314,9 @@ function RollReveal.show(payload)
 	if best and (rarityOrder(best.rarity) >= rarityOrder("legendary") or bigMutation) then
 		local info = Theme.rarity(best.rarity)
 		local def = Characters.get(best.id or "")
+		if atMachine and rarityOrder(best.rarity) >= rarityOrder("legendary") and not payload.auto then
+			RollReveal.focusPodium()
+		end
 		task.delay(0.25, function()
 			SoundService:PlayLocalSound(rareSound)
 			flashScreen(info.rainbow and WHITE or info.color)

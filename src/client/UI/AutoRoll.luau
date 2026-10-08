@@ -219,7 +219,7 @@ end
 local function listRow(parent: Instance, order: number, name: string, color: Color3, rainbow: boolean?, get: () -> boolean, set: (boolean) -> (), note: string?)
 	local row = new("Frame", {
 		Name = "Row_" .. name,
-		Size = UDim2.new(1, -16, 0, 60),
+		Size = UDim2.new(1, -16, 0, 56),
 		BackgroundColor3 = rgb(26, 26, 30),
 		BackgroundTransparency = 0.05,
 		LayoutOrder = order,
@@ -236,7 +236,7 @@ local function listRow(parent: Instance, order: number, name: string, color: Col
 	local label = text(row, name, {
 		Name = "Name",
 		Size = UDim2.new(1, -170, 0, 34),
-		Position = UDim2.fromOffset(24, 13),
+		Position = UDim2.fromOffset(24, 11),
 		TextColor3 = rainbow and WHITE or color:Lerp(WHITE, 0.1),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 4,
@@ -253,6 +253,9 @@ local function listRow(parent: Instance, order: number, name: string, color: Col
 		TextSize = 22,
 		ZIndex = 4,
 	}, function()
+		if toggle:GetAttribute("Disabled") then
+			return
+		end
 		local value = not get()
 		set(value)
 		setFlat(toggle, value)
@@ -276,7 +279,18 @@ local function listRow(parent: Instance, order: number, name: string, color: Col
 			StrokeThickness = 1,
 			ZIndex = 4,
 		})
-		toggle.BackgroundTransparency = 0.35
+		-- bouton grisé lui aussi (cohérent avec la ligne) : pas de réglage tant que la rareté
+		-- n'a aucun perso dans l'univers actuel
+		toggle.BackgroundColor3 = rgb(92, 92, 100)
+		toggle.Active = false
+		toggle.AutoButtonColor = false
+		toggle.Selectable = false
+		toggle:SetAttribute("Disabled", true)
+		local toggleLabel = toggle:FindFirstChild("Label") :: TextLabel?
+		if toggleLabel then
+			toggleLabel.Text = "—"
+			toggleLabel.TextTransparency = 0.3
+		end
 	end
 	return row, toggle
 end
@@ -484,13 +498,13 @@ local function buildLeft(panel: Frame)
 	Theme.corner(12).Parent = col
 	Theme.gradient({ rgb(30, 30, 34), rgb(52, 52, 58), rgb(40, 40, 44) }, 90).Parent = col
 	refs.left = col
-	text(col, "Roulement automatique", { Position = UDim2.fromOffset(0, 10), Size = UDim2.new(1, 0, 0, 26), ZIndex = 3, StrokeThickness = 1.5 })
-	text(col, "Lancer AFK", { Position = UDim2.fromOffset(0, 42), Size = UDim2.new(1, 0, 0, 40), ZIndex = 3, TextColor3 = rgb(225, 225, 230) })
+	text(col, "Roulement automatique", { Position = UDim2.fromOffset(0, 14), Size = UDim2.new(1, 0, 0, 26), ZIndex = 3, StrokeThickness = 1.5 })
+	text(col, "Lancer AFK", { Position = UDim2.fromOffset(0, 54), Size = UDim2.new(1, 0, 0, 40), ZIndex = 3, TextColor3 = rgb(225, 225, 230) })
 	refs.afkButton = flatButton(col, {
 		Name = "LancerAFK",
 		Size = UDim2.fromOffset(236, 54),
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 92),
+		Position = UDim2.new(0.5, 0, 0, 108),
 		TextSize = 28,
 	}, function()
 		if not (AutoRoll.hasPass("AutoRoll") or AutoRoll.hasPass("AutoRollPlus")) then
@@ -503,8 +517,8 @@ local function buildLeft(panel: Frame)
 			Notifications.toast(message, "error")
 		end
 	end)
-	text(col, "Pause sur la rareté", { Position = UDim2.fromOffset(0, 160), Size = UDim2.new(1, 0, 0, 34), ZIndex = 3, TextColor3 = rgb(225, 225, 230) })
-	refs.leftList = scrollList(col, UDim2.fromOffset(8, 204), UDim2.new(1, -16, 1, -212))
+	text(col, "Pause sur la rareté", { Position = UDim2.fromOffset(0, 186), Size = UDim2.new(1, 0, 0, 34), ZIndex = 3, TextColor3 = rgb(225, 225, 230) })
+	refs.leftList = scrollList(col, UDim2.fromOffset(8, 238), UDim2.new(1, -16, 1, -246))
 	refs.leftCover = lockCover(col, "AutoRoll", 0)
 end
 
@@ -518,12 +532,13 @@ local function buildRight(panel: Frame)
 		Parent = panel,
 	})
 	Theme.corner(12).Parent = col
-	Theme.gradient({ rgb(26, 24, 18), rgb(46, 42, 20), rgb(120, 104, 20) }, 90).Parent = col
+	-- dégradé or-olive comme la capture de référence (sombre en haut, olive doré en bas)
+	Theme.gradient({ rgb(44, 42, 26), rgb(96, 88, 24), rgb(150, 132, 28) }, 90).Parent = col
 	refs.right = col
-	text(col, "Roulement automatique +", { Position = UDim2.fromOffset(0, 10), Size = UDim2.new(1, 0, 0, 26), ZIndex = 3, TextColor3 = rgb(255, 214, 40), StrokeThickness = 1.5 })
-	text(col, "Achat automatique", { Position = UDim2.fromOffset(0, 42), Size = UDim2.new(1, 0, 0, 38), ZIndex = 3, TextColor3 = rgb(225, 225, 230) })
+	text(col, "Roulement automatique +", { Position = UDim2.fromOffset(0, 14), Size = UDim2.new(1, 0, 0, 26), ZIndex = 3, TextColor3 = rgb(255, 214, 40), StrokeThickness = 1.5 })
+	text(col, "Achat automatique", { Position = UDim2.fromOffset(0, 54), Size = UDim2.new(1, 0, 0, 38), ZIndex = 3, TextColor3 = rgb(225, 225, 230) })
 	text(col, "S'arrête si vous ne pouvez pas payer !", {
-		Position = UDim2.fromOffset(0, 82),
+		Position = UDim2.fromOffset(0, 94),
 		Size = UDim2.new(1, 0, 0, 18),
 		ZIndex = 3,
 		FontFace = Theme.Faces.Bold,
@@ -534,7 +549,7 @@ local function buildRight(panel: Frame)
 		Name = "AchatAuto",
 		Size = UDim2.fromOffset(236, 54),
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 106),
+		Position = UDim2.new(0.5, 0, 0, 120),
 		TextSize = 28,
 	}, function()
 		if not AutoRoll.hasPass("AutoRollPlus") then
@@ -547,12 +562,12 @@ local function buildRight(panel: Frame)
 			Notifications.toast(message, "error")
 		end
 	end)
-	text(col, "Achat sur la mutation", { Position = UDim2.fromOffset(0, 168), Size = UDim2.new(1, 0, 0, 30), ZIndex = 3, TextColor3 = rgb(225, 225, 230) })
+	text(col, "Achat sur la mutation", { Position = UDim2.fromOffset(0, 186), Size = UDim2.new(1, 0, 0, 30), ZIndex = 3, TextColor3 = rgb(225, 225, 230) })
 	refs.advancedButton = flatButton(col, {
 		Name = "Avance",
 		Size = UDim2.fromOffset(150, 30),
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 202),
+		Position = UDim2.new(0.5, 0, 0, 220),
 		Color = rgb(196, 196, 204),
 		Text = "Avancé",
 		TextSize = 20,
@@ -560,7 +575,7 @@ local function buildRight(panel: Frame)
 	}, function()
 		AutoRoll.showAdvanced(true)
 	end)
-	refs.rightList = scrollList(col, UDim2.fromOffset(8, 242), UDim2.new(1, -16, 1, -250))
+	refs.rightList = scrollList(col, UDim2.fromOffset(8, 258), UDim2.new(1, -16, 1, -266))
 	refs.rightCover = lockCover(col, "AutoRollPlus", 0)
 end
 
@@ -781,7 +796,7 @@ local function refreshState()
 		local col, cover = pair[1], pair[2]
 		for _, d in col:GetDescendants() do
 			if d:IsA("GuiButton") and not d:IsDescendantOf(cover) then
-				d.Selectable = not cover.Visible
+				d.Selectable = not cover.Visible and not d:GetAttribute("Disabled")
 			end
 		end
 	end
@@ -821,7 +836,7 @@ local function build(gui: ScreenGui)
 		Name = "Window",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.53),
-		Size = UDim2.fromOffset(1000, 590),
+		Size = UDim2.fromOffset(1000, 640),
 		BackgroundTransparency = 1,
 		Parent = root,
 	})

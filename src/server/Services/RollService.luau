@@ -757,6 +757,28 @@ local function itemTagLines(item, def)
 end
 RollService.itemTagLines = itemTagLines
 
+-- Étiquette du perso tiré : hauteur (studs) et décalage au-dessus de la racine, calés sur le
+-- HAUT RÉEL du modèle (cheveux, auréole compris) pour qu'elle flotte juste au-dessus de la tête.
+function RollService.tagPlacement(model: Model, root: BasePart, lineCount: number): (number, number)
+	local height = 2.2 + lineCount * 0.5
+	local scale = model:GetAttribute("BaseScale") or 1
+	local fallback = 4.4 * scale + 1.4 + lineCount * 0.25
+	-- haut des pièces VISIBLES (une sphère invisible d'effet ne compte pas)
+	local maxY = -math.huge
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") and part.Transparency < 0.95 then
+			local cf, size = part.CFrame, part.Size
+			local _, _, _, _, _, _, r10, r11, r12 = cf:GetComponents()
+			maxY = math.max(maxY, cf.Position.Y + (math.abs(r10) * size.X + math.abs(r11) * size.Y + math.abs(r12) * size.Z) / 2)
+		end
+	end
+	local top = maxY - root.CFrame.Position.Y
+	if top <= 0 or top > 12 * scale then
+		return height, fallback
+	end
+	return height, top + 0.5 + height / 2
+end
+
 -- Texte de l'invite « Collecter » d'un perso de l'estrade (prix, ou « offert »).
 function RollService:_collectText(data, item): string
 	if Formulas.rollCollectFree(data, item.rarity) then
@@ -810,8 +832,8 @@ function RollService:RenderStage(player: Player, fresh: { any }?, refreshPrompts
 					root.CanCollide = false
 					local def = Characters.get(item.id)
 					local lines = itemTagLines(item, def)
-					local scale = model:GetAttribute("BaseScale") or 1
-					Kit.unitTag(root, lines, 2.2 + #lines * 0.5, 4.4 * scale + 1.4 + #lines * 0.25, 80, 6)
+					local height, offset = RollService.tagPlacement(model, root, #lines)
+					Kit.unitTag(root, lines, height, offset, 80, 6)
 					local prompt = Props.prompt(root, self:_collectText(data, item), def.name, 10)
 					promptRef = prompt
 					prompt.Triggered:Connect(function(who)

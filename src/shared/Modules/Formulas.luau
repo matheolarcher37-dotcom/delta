@@ -495,4 +495,65 @@ function Formulas.formatTime(seconds: number): string
 	return string.format("%02d:%02d", minutes, secs)
 end
 
+-- PANNEAUX D'ACHAT de la base : place à l'écran et désencombrement (client + tests).
+-- Rectangle à l'écran d'un panneau dont le BORD BAS est en `pos` (il pousse vers le haut) :
+-- taille = studs (rapetissent avec la distance) + pixels (fixes). `view` = { eye, forward, right,
+-- up, focal (pixels), w, h } ; renvoie nil si le panneau est derrière la caméra ou hors écran.
+function Formulas.boardRect(view, pos: Vector3, studsW: number, pixelsW: number, studsH: number, pixelsH: number)
+	local d = pos - view.eye
+	local z = d:Dot(view.forward)
+	if z <= 1 then
+		return nil
+	end
+	local sx = view.w / 2 + d:Dot(view.right) * view.focal / z
+	local sy = view.h / 2 - d:Dot(view.up) * view.focal / z
+	local w = studsW * view.focal / z + pixelsW
+	local h = studsH * view.focal / z + pixelsH
+	if sx + w / 2 < 0 or sx - w / 2 > view.w or sy < 0 or sy - h > view.h then
+		return nil
+	end
+	return { x0 = sx - w / 2, x1 = sx + w / 2, y0 = sy - h, y1 = sy, dist = d.Magnitude }
+end
+
+-- Désencombrement : du plus proche au plus loin, un panneau qui recouvrirait un panneau déjà
+-- affiché (plus de `maxOverlap` de la plus petite surface) est caché ; il réapparaît dès qu'on
+-- s'approche. Renvoie { [index] = true } pour les panneaux à afficher. `conflicts(i, j)`
+-- (facultatif) dit si deux panneaux peuvent être affichés ensemble (tests).
+Formulas.BoardMaxOverlap = 0.04
+function Formulas.declutterBoards(rects: { any }, maxOverlap: number?, conflicts: ((number, number) -> boolean)?): { [number]: boolean }
+	local limit = maxOverlap or Formulas.BoardMaxOverlap
+	local order = {}
+	for i, rect in rects do
+		if rect then
+			table.insert(order, i)
+		end
+	end
+	table.sort(order, function(a, b)
+		return rects[a].dist < rects[b].dist
+	end)
+	local shown, kept = {}, {}
+	for _, i in order do
+		local a = rects[i]
+		local ok = true
+		for _, j in kept do
+			local b = rects[j]
+			if conflicts and not conflicts(i, j) then
+				continue
+			end
+			local ox = math.max(0, math.min(a.x1, b.x1) - math.max(a.x0, b.x0))
+			local oy = math.max(0, math.min(a.y1, b.y1) - math.max(a.y0, b.y0))
+			local area = math.min((a.x1 - a.x0) * (a.y1 - a.y0), (b.x1 - b.x0) * (b.y1 - b.y0))
+			if ox * oy > limit * area then
+				ok = false
+				break
+			end
+		end
+		if ok then
+			shown[i] = true
+			table.insert(kept, i)
+		end
+	end
+	return shown
+end
+
 return Formulas
