@@ -5,7 +5,8 @@
 --   poignée, ornements, fourreau et effet permanent). L'effet s'intensifie avec le rang de l'épée.
 --   blade / bevel = plat et biseau (tranchant) de la lame · guard = garde · hilt = tressage
 --   grip = poignée · accent = ornements · gem = gemme · trail / trail2 = traînée de coup
---   edge = fil lumineux · aura = particules · sheath = fourreau (épée rangée à la hanche ou au dos)
+--   edge = fil du tranchant · aura = particules · sheath = fourreau (épée rangée à la hanche ou au dos)
+--   effectName = nom court de l'effet affiché au Forgeron
 
 local rgb = Color3.fromRGB
 
@@ -23,6 +24,7 @@ Swords.List = {
 		fx = "slash",
 		look = {
 			style = "rusty",
+			effectName = "Entaille",
 			length = 3.2,
 			width = 0.32,
 			blade = rgb(128, 108, 92),
@@ -50,6 +52,7 @@ Swords.List = {
 		fx = "slash",
 		look = {
 			style = "steel",
+			effectName = "Reflets",
 			length = 3.8,
 			width = 0.34,
 			blade = rgb(192, 198, 210),
@@ -78,6 +81,7 @@ Swords.List = {
 		fx = "wind",
 		look = {
 			style = "wind",
+			effectName = "Rafale",
 			length = 4.4,
 			width = 0.24,
 			curve = 2.6,
@@ -107,6 +111,7 @@ Swords.List = {
 		fx = "lightning",
 		look = {
 			style = "thunder",
+			effectName = "Éclairs",
 			length = 4.6,
 			width = 0.26,
 			curve = 2.4,
@@ -136,6 +141,7 @@ Swords.List = {
 		fx = "flame",
 		look = {
 			style = "sun",
+			effectName = "Flammes",
 			length = 4.8,
 			width = 0.28,
 			curve = 2.2,
@@ -165,6 +171,7 @@ Swords.List = {
 		fx = "mist",
 		look = {
 			style = "mist",
+			effectName = "Brume",
 			length = 5.4,
 			width = 1.3,
 			blade = rgb(148, 158, 172),
@@ -192,6 +199,7 @@ Swords.List = {
 		fx = "shadow",
 		look = {
 			style = "abyss",
+			effectName = "Fumée noire",
 			length = 5,
 			width = 0.5,
 			blade = rgb(36, 30, 48),
@@ -220,6 +228,7 @@ Swords.List = {
 		fx = "ice",
 		look = {
 			style = "celestial",
+			effectName = "Étoiles",
 			length = 5.4,
 			width = 0.45,
 			blade = rgb(200, 226, 255),

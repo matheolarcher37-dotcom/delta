@@ -5,9 +5,15 @@
 --   arcs électriques, flammes, brume...) qui s'intensifie avec le rang de l'épée.
 -- Repère : la poignée (Handle) est tenue dans la main ; la lame part vers -Z de la poignée
 -- (prise standard des outils Roblox). Le plat de la lame est le plan XZ (épaisseur selon Y),
--- le tranchant principal est du côté -X.
+-- le tranchant principal est du côté -X. L'outil est tenu avec Grip = rotation de -90° autour de Z :
+-- en main, la lame est donc DE CHANT (plat vers les côtés, tranchant vers le bas, dos et courbure
+-- des katanas vers le haut), comme dans les animés.
 
 local SwordBuilder = {}
+
+-- Prise de l'outil : la lame reste le long de -Z de la poignée, mais tourne de -90° sur elle-même
+-- pour être tenue de chant (tranchant -X vers le bas, dos +X vers le haut).
+SwordBuilder.GRIP = CFrame.Angles(0, 0, math.rad(-90))
 
 local rgb = Color3.fromRGB
 local WHITE = Color3.new(1, 1, 1)
@@ -224,7 +230,8 @@ local function katanaBlade(ctx: Ctx, start: number, length: number, w: number, t
 		table.insert(frames, S)
 		bladeSection(ctx, S, segLen + 0.03, width, t, "left", 0.36)
 		if look.edge then
-			block(ctx, "EdgeGlow", Vector3.new(0.022, 0.028, segLen + 0.02), S * CFrame.new(-width / 2 + 0.011, 0, -segLen / 2), look.edge, Enum.Material.Neon)
+			-- Fil du tranchant poli (Foil coloré, pas de Neon sur toute la longueur).
+			block(ctx, "EdgeLine", Vector3.new(0.022, 0.028, segLen + 0.02), S * CFrame.new(-width / 2 + 0.011, 0, -segLen / 2), look.edge, Enum.Material.Foil)
 		end
 		if decorate then
 			decorate(i, S, segLen, width)
@@ -241,8 +248,16 @@ local function katanaBlade(ctx: Ctx, start: number, length: number, w: number, t
 end
 
 -- Ligne gravée / lumineuse posée sur les deux faces du plat (légèrement plus épaisse que la lame).
+-- Le Neon reste DISCRET : gravure fine (0,03 de large au plus), légèrement transparente.
+local NEON_MAX = 0.03
 local function inlay(ctx: Ctx, name: string, S: CFrame, x: number, z: number, len: number, width: number, t: number, angle: number, color: Color3, mat: Enum.Material?)
-	return block(ctx, name, Vector3.new(width, t + 0.014, len), S * CFrame.new(x, 0, z) * CFrame.Angles(0, math.rad(angle), 0), color, mat or Enum.Material.Neon)
+	local m = mat or Enum.Material.Neon
+	local props = nil
+	if m == Enum.Material.Neon then
+		width = math.min(width, NEON_MAX)
+		props = { Transparency = 0.2 }
+	end
+	return block(ctx, name, Vector3.new(width, t + 0.014, len), S * CFrame.new(x, 0, z) * CFrame.Angles(0, math.rad(angle), 0), color, m, props)
 end
 
 ------------------------------------------------------------------------
@@ -362,8 +377,9 @@ local function glow(holder: Instance, color: Color3, brightness: number, range: 
 	local light = Instance.new("PointLight")
 	light.Name = "Glow"
 	light.Color = color
-	light.Brightness = brightness
-	light.Range = range
+	-- Plafonné pour ne pas noyer la lame dans la lueur (même au rang le plus haut).
+	light.Brightness = math.min(brightness, 1.5)
+	light.Range = math.min(range, 8)
 	light.Shadows = false
 	light.Parent = holder
 	return light
@@ -607,7 +623,7 @@ EFFECTS.celestial = function(ctx, vol, k)
 	})
 	local len = vol.Size.Z
 	arc(vol, "Halo", len * 0.48, -len * 0.5, 0, look.aura, 0.75, 0.9, 0.6, SMOKE)
-	glow(vol, look.aura, 1.2 + 1.5 * k, 10)
+	glow(vol, look.aura, 1.2, 8)
 end
 
 -- Gerbe de particules du coup (activée un court instant par SwordService à chaque coup).
@@ -829,10 +845,17 @@ STYLES.thunder = {
 		local look = ctx.look
 		local back = tsuka(ctx, 1.5, look.grip, look.hilt, look.accent)
 		local z = -0.68
-		disc(ctx, "Tsuba", 0.5, 0.08, CFrame.new(0, 0, z), rgb(30, 30, 40), Enum.Material.Metal)
-		for i = 0, 5 do
-			local frame = CFrame.new(0, 0, z) * CFrame.Angles(0, 0, math.rad(i * 60 + 15)) * CFrame.new(0.16, 0, 0)
-			tri(ctx, "TsubaBolt", 0.34, 0.15, 0.07, frame, look.guard, Enum.Material.Metal)
+		-- Tsuba en étoile de foudre : disque laqué noir cerclé d'or, quatre éclairs en zigzag
+		-- (deux biseaux chacun) sertis d'une petite gemme jaune.
+		disc(ctx, "TsubaRim", 0.56, 0.05, CFrame.new(0, 0, z), look.accent, Enum.Material.Metal)
+		disc(ctx, "Tsuba", 0.5, 0.085, CFrame.new(0, 0, z), rgb(20, 20, 28), Enum.Material.SmoothPlastic, { Reflectance = 0.18 })
+		for i = 0, 3 do
+			local branch = CFrame.new(0, 0, z) * CFrame.Angles(0, 0, math.rad(45 + i * 90))
+			-- Bas de l'éclair (pointe vers le centre) puis haut de l'éclair (pointe vers l'extérieur) :
+			-- les deux biseaux se chevauchent en « Z ».
+			tri(ctx, "TsubaBolt", -0.19, 0.13, 0.12, branch * CFrame.new(0.37, -0.065, 0), look.guard, Enum.Material.Metal)
+			tri(ctx, "TsubaBolt", 0.25, -0.13, 0.12, branch * CFrame.new(0.3, 0.06, 0), look.guard, Enum.Material.Metal)
+			orb(ctx, "BoltGem", Vector3.new(0.075, 0.075, 0.15), branch * CFrame.new(0.335, 0, 0), look.edge, Enum.Material.Neon)
 		end
 		ctx.bladeStart = habakiSeppa(ctx, z, 0.08, look.width, 0.08, look.accent)
 		-- Pompon jaune au kashira.
@@ -843,8 +866,9 @@ STYLES.thunder = {
 	blade = function(ctx)
 		local look = ctx.look
 		local t = 0.08
-		katanaBlade(ctx, ctx.bladeStart, look.length, look.width, t, look.curve or 2.4, function(_i, S, segLen, w)
-			-- Hamon en éclair : zigzag lumineux le long du tranchant.
+		katanaBlade(ctx, ctx.bladeStart, look.length, look.width, t, look.curve or 2.4, function(i, S, segLen, w)
+			-- Hamon en éclair : zigzag doré (Foil) le long du tranchant, avec seulement trois courts
+			-- tronçons lumineux (un par tronçon de lame).
 			local x = -w / 2 + w * 0.36
 			local offsets = { 0.045, -0.04, 0.05, -0.035 }
 			local pieces = #offsets
@@ -857,7 +881,9 @@ STYLES.thunder = {
 				end
 				local dx, dz = nx - px, nz - pz
 				local len = math.sqrt(dx * dx + dz * dz)
-				inlay(ctx, "Lightning", S, (px + nx) / 2, (pz + nz) / 2, len + 0.02, 0.026, t, math.deg(math.atan2(-dx, -dz)), look.edge)
+				local lit = j == ({ 2, 3, 1 })[i]
+				local mat = if lit then Enum.Material.Neon else Enum.Material.Foil
+				inlay(ctx, lit and "LightningGlow" or "Lightning", S, (px + nx) / 2, (pz + nz) / 2, len + 0.02, 0.026, t, math.deg(math.atan2(-dx, -dz)), look.edge, mat)
 				px, pz = nx, nz
 			end
 		end)
@@ -891,8 +917,8 @@ STYLES.sun = {
 			local count = i == 3 and 1 or 2
 			for j = 1, count do
 				local z = -segLen * (j - 0.5) / 2
-				tri(ctx, "Flame", w * 0.42, 0.52, t + 0.014, S * BP(x, z + 0.2), look.edge, Enum.Material.Neon)
-				tri(ctx, "Flame", w * 0.26, -0.16, t + 0.012, S * BP(x, z + 0.2), look.edge, Enum.Material.Neon)
+				tri(ctx, "Flame", w * 0.42, 0.52, t + 0.014, S * BP(x, z + 0.2), look.bevel, Enum.Material.Foil)
+				tri(ctx, "Flame", w * 0.26, -0.16, t + 0.012, S * BP(x, z + 0.2), look.edge, Enum.Material.Foil)
 			end
 			if i == 1 then
 				-- Inscription gravée (« Détruis tous les démons »).
@@ -1027,11 +1053,13 @@ STYLES.abyss = {
 		end
 		local S = CFrame.new(0, 0, start)
 		local span = start - endZ
-		inlay(ctx, "Vein", S, 0, -span * 0.5 - 0.05, span * 0.9, 0.035, t, 0, look.edge)
+		inlay(ctx, "Vein", S, 0, -span * 0.5 - 0.05, span * 0.9, 0.035, t, 0, look.edge, Enum.Material.Foil)
 		for j = 1, 3 do
+			-- Runes gravées ; seule celle du milieu luit.
 			local z = -0.5 - (j - 1) * span * 0.28
-			inlay(ctx, "Rune", S, 0, z, 0.2, 0.03, t + 0.004, 45, look.edge)
-			inlay(ctx, "Rune", S, 0, z, 0.2, 0.03, t + 0.004, -45, look.edge)
+			local mat = if j == 2 then Enum.Material.Neon else Enum.Material.Foil
+			inlay(ctx, "Rune", S, 0, z, 0.2, 0.03, t + 0.004, 45, look.edge, mat)
+			inlay(ctx, "Rune", S, 0, z, 0.2, 0.03, t + 0.004, -45, look.edge, mat)
 		end
 	end,
 }
@@ -1052,30 +1080,36 @@ STYLES.celestial = {
 		block(ctx, "PommelStar", Vector3.new(0.3, 0.13, 0.3), CFrame.new(0, 0, 0.76), gold, Enum.Material.Foil)
 		block(ctx, "PommelStar", Vector3.new(0.3, 0.13, 0.3), CFrame.new(0, 0, 0.76) * CFrame.Angles(0, math.rad(45), 0), gold, Enum.Material.Foil)
 		orb(ctx, "PommelGem", Vector3.new(0.14, 0.2, 0.14), CFrame.new(0, 0, 0.76), look.gem, Enum.Material.Neon)
-		-- Garde : écrin, gemme, ailes.
+		-- Garde lisible en trois plans : la gemme (la « tête ») devant, l'auréole fine juste au-dessus
+		-- et derrière elle, les deux ailes nettement en dessous.
 		local z = -0.68
-		block(ctx, "GemFrame", Vector3.new(0.34, 0.26, 0.34), CFrame.new(0, 0, z) * CFrame.Angles(0, math.rad(45), 0), gold, Enum.Material.Foil)
-		orb(ctx, "Gem", Vector3.new(0.24, 0.34, 0.3), CFrame.new(0, 0, z), look.gem, Enum.Material.Neon)
-		local lengths = { 0.66, 0.58, 0.48, 0.36 }
+		block(ctx, "GemFrame", Vector3.new(0.28, 0.22, 0.28), CFrame.new(0, 0, z) * CFrame.Angles(0, math.rad(45), 0), gold, Enum.Material.Foil)
+		orb(ctx, "Gem", Vector3.new(0.22, 0.3, 0.27), CFrame.new(0, 0, z), look.gem, Enum.Material.Neon)
+		-- Ailes : trois plumes blanches en éventail par côté, bordées d'or, inclinées vers le pommeau.
+		local feathers = { { 0.66, 8 }, { 0.54, 30 }, { 0.4, 52 } }
 		for _, side in { -1, 1 } do
-			for i, len in lengths do
-				local angle = 6 + (i - 1) * 17
-				local frame = BP(side * 0.16, z + 0.04) * CFrame.Angles(0, 0, math.rad(side * angle))
-				tri(ctx, "Feather", side * len, 0.15, 0.07 + i * 0.006, frame, i % 2 == 1 and gold or rgb(250, 248, 240), Enum.Material.Foil)
+			for i, spec in feathers do
+				local len, angle = spec[1], spec[2]
+				local d = 0.05 + i * 0.012
+				local frame = BP(side * 0.12, z + 0.08) * CFrame.Angles(0, 0, math.rad(-side * angle))
+				tri(ctx, "Feather", side * len, 0.13, d, frame, rgb(250, 248, 240), Enum.Material.Foil)
+				block(ctx, "FeatherEdge", Vector3.new(len * 0.94, 0.028, d + 0.012), frame * CFrame.new(side * len * 0.47, 0.014, 0), gold, Enum.Material.Foil)
 			end
 		end
-		-- Auréole dorée derrière la gemme (dans le plan de la lame).
-		local segs = 10
-		local radius = 0.4
+		-- Auréole : un seul anneau fin (8 segments), doré mat, au-dessus de la gemme et derrière elle.
+		local segs = 8
+		local radius = 0.3
+		local hz = z - 0.17
 		for i = 0, segs - 1 do
 			local a = (i + 0.5) / segs * math.pi * 2
 			block(
 				ctx,
 				"Halo",
-				Vector3.new(0.05, 0.05, 2 * radius * math.sin(math.pi / segs) + 0.02),
-				CFrame.new(math.cos(a) * radius, 0, z + math.sin(a) * radius) * CFrame.Angles(0, -a, 0),
+				Vector3.new(0.04, 0.11, 2 * radius * math.sin(math.pi / segs) + 0.015),
+				CFrame.new(math.cos(a) * radius, 0, hz + math.sin(a) * radius) * CFrame.Angles(0, -a, 0),
 				gold,
-				Enum.Material.Neon
+				Enum.Material.SmoothPlastic,
+				{ Reflectance = 0.1 }
 			)
 		end
 		-- Ruban bleu noué sous la garde.
@@ -1093,14 +1127,18 @@ STYLES.celestial = {
 		local endZ = straightBlade(ctx, start, L, w, t, 0.62)
 		local S = CFrame.new(0, 0, start)
 		local span = start - endZ
-		inlay(ctx, "LightChannel", S, 0, -span * 0.46 - 0.12, span * 0.82, 0.085, t - 0.002, 0, look.edge)
+		inlay(ctx, "LightChannel", S, 0, -span * 0.46 - 0.12, span * 0.82, 0.085, t - 0.002, 0, look.edge, Enum.Material.Foil)
 		for j = 1, 3 do
 			local z = -0.55 - (j - 1) * span * 0.3
 			block(ctx, "StarInlay", Vector3.new(0.09, t + 0.02, 0.09), S * CFrame.new(0, 0, z), look.accent, Enum.Material.Foil)
 			block(ctx, "StarInlay", Vector3.new(0.09, t + 0.02, 0.09), S * CFrame.new(0, 0, z) * CFrame.Angles(0, math.rad(45), 0), look.accent, Enum.Material.Foil)
+			if j < 3 then
+				-- Courte gravure lumineuse entre deux étoiles.
+				inlay(ctx, "LightGlow", S, 0, z - span * 0.15, span * 0.12, 0.03, t + 0.004, 0, WHITE)
+			end
 		end
 		for _, side in { -1, 1 } do
-			block(ctx, "EdgeGlow", Vector3.new(0.02, 0.026, span), S * CFrame.new(side * (w / 2 - 0.01), 0, -span / 2), look.edge, Enum.Material.Neon)
+			block(ctx, "EdgeLine", Vector3.new(0.02, 0.026, span), S * CFrame.new(side * (w / 2 - 0.01), 0, -span / 2), look.edge, Enum.Material.Foil)
 			tri(ctx, "Ricasso", side * 0.14, 0.32, t + 0.03, BP(side * w / 2 - side * 0.02, start), look.accent, Enum.Material.Foil)
 		end
 	end,
@@ -1204,7 +1242,8 @@ function SwordBuilder.buildTool(sword, level: number?): Tool
 	tool.ToolTip = sword.name .. " · " .. sword.damage .. " dégâts"
 	tool.RequiresHandle = true
 	tool.CanBeDropped = false
-	tool.Grip = CFrame.new()
+	-- Lame de chant : tranchant vers le bas, plat vers les côtés.
+	tool.Grip = SwordBuilder.GRIP
 	local handle = newHandle(sword, style)
 	handle.Parent = tool
 	local ctx = newCtx(tool, handle, sword, powerOf(sword, level))
@@ -1296,7 +1335,10 @@ function SwordBuilder.buildSheath(sword): Model
 			p:SetAttribute("Hilt", true)
 		end
 	else
+		local mouth = ctx.bladeStart
 		buildScabbard(ctx, style)
+		model:SetAttribute("MouthZ", mouth)
+		model:SetAttribute("TipZ", ctx.tip.Z)
 	end
 	model.PrimaryPart = handle
 	model:SetAttribute("SwordId", sword.id)
@@ -1313,7 +1355,12 @@ function SwordBuilder.setDrawn(sheath: Model, drawn: boolean)
 	end
 end
 
--- Accroche le fourreau au perso (hanche gauche, ou dans le dos pour le Couperet) et le soude.
+-- Accroche le fourreau au perso et le soude.
+--   Hanche : l'épée passe à la ceinture, devant le flanc gauche (hors du bras et de la jambe) :
+--     la poignée sort vers l'avant et le haut (pommeau légèrement vers le ventre), le fourreau
+--     part vers l'arrière et le bas en s'écartant de 15° vers l'extérieur. Tranchant vers le haut
+--     (port traditionnel du katana). L'inclinaison dépend de la longueur pour ne jamais toucher le sol.
+--   Dos : le Couperet entier, en diagonale, plat contre le dos.
 function SwordBuilder.attachSheath(sheath: Model, character: Model, sword, drawn: boolean?): boolean
 	local style = styleOf(sword)
 	local handle = sheath.PrimaryPart
@@ -1333,9 +1380,29 @@ function SwordBuilder.attachSheath(sheath: Model, character: Model, sword, drawn
 		target = upper.CFrame * CFrame.new(0, r6 and -0.6 or -0.2, upper.Size.Z / 2 + 0.12) * back * CFrame.new(0, 0, 3)
 	else
 		anchor = torso
-		local x = -(torso.Size.X / 2 + 0.09)
-		local y = r6 and -0.72 or 0
-		target = torso.CFrame * CFrame.new(x, y, -0.3) * CFrame.Angles(math.rad(-165), 0, 0) * CFrame.Angles(0, 0, math.rad(90)) * CFrame.new(0, 0, 0.66)
+		local mouthZ = sheath:GetAttribute("MouthZ") or -0.75
+		local tipZ = sheath:GetAttribute("TipZ") or (mouthZ - sword.look.length)
+		local length = math.max(mouthZ - tipZ, 1)
+		-- Embouchure du fourreau (repère du torse) : ceinture, coin avant gauche, juste hors du torse.
+		local halfX, halfZ = torso.Size.X / 2, torso.Size.Z / 2
+		local mouth, floorY
+		if r6 then
+			mouth = Vector3.new(-(halfX + 0.2), -0.98, -(halfZ + 0.08))
+			floorY = -3
+		else
+			mouth = Vector3.new(-(halfX + 0.14), -0.1, -(halfZ + 0.08))
+			floorY = -2.1
+		end
+		-- Inclinaison : 38° au plus, moins pour les longues lames (la pointe reste au-dessus du sol).
+		local room = mouth.Y - floorY - 0.55
+		local pitch = math.clamp(math.asin(math.clamp(room / length, 0, 1)), math.rad(14), math.rad(38))
+		local yaw = math.rad(15)
+		local toPommel = Vector3.new(math.sin(yaw) * math.cos(pitch), math.sin(pitch), -math.cos(yaw) * math.cos(pitch))
+		local up = Vector3.new(0, 1, 0)
+		local spine = -(up - toPommel * up:Dot(toPommel)).Unit -- dos (+X) vers le bas : tranchant en haut
+		local side = toPommel:Cross(spine)
+		local center = mouth - toPommel * mouthZ
+		target = torso.CFrame * CFrame.fromMatrix(center, spine, side, toPommel)
 	end
 	local delta = target * handle.CFrame:Inverse()
 	for _, p in sheath:GetDescendants() do

@@ -398,4 +398,82 @@ test("Épées du Forgeron : détaillées, effet propre, fourreau", function()
 	assert(Swords.power(Swords.List[1]) == 0 and Swords.power(Swords.List[#Swords.List]) == 1, "intensité des effets")
 end)
 
+local Vector3 = Harness.roblox.Vector3
+local CFrame = Harness.roblox.CFrame
+local Instance = Harness.roblox.Instance
+local Enum = Harness.roblox.Enum
+
+test("Épées : tenues de chant, Neon discret, lueur plafonnée", function()
+	local Swords = requireModule(Shared.Config.Swords)
+	local SwordBuilder = requireModule(Shared.Modules.SwordBuilder)
+	for _, sword in Swords.List do
+		local tool = SwordBuilder.buildTool(sword)
+		-- La lame reste le long de -Z, mais la prise la tourne de chant (largeur X -> vertical).
+		local grip = tool.Grip
+		assert(math.abs(grip.LookVector:Dot(Vector3.new(0, 0, -1)) - 1) < 1e-3, sword.id .. " : prise : lame plus le long de -Z")
+		assert(math.abs(grip.RightVector.Y) > 0.99, sword.id .. " : lame tenue à plat")
+		for _, part in tool:GetDescendants() do
+			if part:IsA("BasePart") and part.Material == Enum.Material.Neon and not part:FindFirstChildOfClass("SpecialMesh") then
+				local s = part.Size
+				local thin = math.min(s.X, s.Y, s.Z)
+				local mid = s.X + s.Y + s.Z - thin - math.max(s.X, s.Y, s.Z)
+				assert(mid <= 0.2 or thin <= 0.036, sword.id .. " : Neon trop large (" .. part.Name .. ")")
+			end
+		end
+		local light = tool.AuraVolume:FindFirstChild("Glow")
+		if light then
+			assert(light.Brightness <= 1.5 and light.Range <= 8, sword.id .. " : lueur trop forte")
+		end
+		assert(sword.look.effectName and #sword.look.effectName <= 14, sword.id .. " : nom d'effet manquant ou trop long")
+	end
+	assert(SwordBuilder.buildTool(Swords.get("celeste")).AuraVolume.Glow.Brightness <= 1.2, "Céleste : lueur trop forte")
+end)
+
+test("Épées : fourreau à la hanche hors du bras, de la jambe et du sol (R6)", function()
+	local Swords = requireModule(Shared.Config.Swords)
+	local SwordBuilder = requireModule(Shared.Modules.SwordBuilder)
+	-- Boîtes du gabarit R6 dans le repère du torse (centre du torse à 3 studs du sol).
+	local boxes = {
+		{ name = "Left Arm", min = Vector3.new(-2, -1, -0.5), max = Vector3.new(-1, 1, 0.5) },
+		{ name = "Left Leg", min = Vector3.new(-1, -3, -0.5), max = Vector3.new(0, -1, 0.5) },
+		{ name = "Torso", min = Vector3.new(-1, -1, -0.5), max = Vector3.new(1, 1, 0.5) },
+		-- Balancement de la jambe à la marche (elle reste entre x = -1 et 0).
+		{ name = "Left Leg (marche)", min = Vector3.new(-1, -3, -1.1), max = Vector3.new(0, -1, 1.1) },
+	}
+	for _, sword in Swords.List do
+		local character = Instance.new("Model")
+		local torso = Instance.new("Part")
+		torso.Name = "Torso"
+		torso.Size = Vector3.new(2, 2, 1)
+		torso.CFrame = CFrame.new(10, 3, 5) * CFrame.Angles(0, math.rad(30), 0)
+		torso.Parent = character
+		local sheath = SwordBuilder.buildSheath(sword)
+		assert(SwordBuilder.attachSheath(sheath, character, sword, false), sword.id .. " : fourreau non accroché")
+		local lowest = math.huge
+		for _, part in sheath:GetDescendants() do
+			if part:IsA("BasePart") then
+				local rel = torso.CFrame:ToObjectSpace(part.CFrame)
+				local h = part.Size / 2
+				local ext = Vector3.new(
+					math.abs(rel.RightVector.X) * h.X + math.abs(rel.UpVector.X) * h.Y + math.abs(rel.LookVector.X) * h.Z,
+					math.abs(rel.RightVector.Y) * h.X + math.abs(rel.UpVector.Y) * h.Y + math.abs(rel.LookVector.Y) * h.Z,
+					math.abs(rel.RightVector.Z) * h.X + math.abs(rel.UpVector.Z) * h.Y + math.abs(rel.LookVector.Z) * h.Z
+				)
+				local c = rel.Position
+				local lo, hi = c - ext, c + ext
+				lowest = math.min(lowest, lo.Y)
+				if sheath:GetAttribute("Carry") == "hip" then
+					for _, box in boxes do
+						local m = 0.02
+						local hit = lo.X < box.max.X - m and hi.X > box.min.X + m and lo.Y < box.max.Y - m and hi.Y > box.min.Y + m and lo.Z < box.max.Z - m and hi.Z > box.min.Z + m
+						assert(not hit, string.format("%s : %s traverse %s (%.2f %.2f %.2f)", sword.id, part.Name, box.name, c.X, c.Y, c.Z))
+					end
+				end
+			end
+		end
+		assert(lowest > -2.9, sword.id .. " : le fourreau touche le sol (" .. lowest .. ")")
+		print(string.format("   %-22s %s · point le plus bas %.2f", sword.name, sheath:GetAttribute("Carry"), lowest + 3))
+	end
+end)
+
 Harness.finish()
