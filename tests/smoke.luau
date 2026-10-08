@@ -438,7 +438,7 @@ test("Nouveaux persos v3.2, uniformes personnalisés, boss Akaino/Freezo", funct
 		ocean = { "oce_robine", "oce_ase" },
 		pourfendeur = { "pou_shinobo", "pou_giyo" },
 	}
-	local rarities = { common = true, rare = true, epic = true, legendary = true, mythic = true }
+	local rarities = { common = true, rare = true, epic = true, legendary = true, mythic = true, secret = true }
 	for _, universe in Universes.List do
 		assert(#universe.characters >= 10, universe.id .. " : au moins 10 persos attendus (" .. #universe.characters .. ")")
 		for _, id in NEW[universe.id] or {} do
@@ -519,6 +519,66 @@ test("Nouveaux persos v3.2, uniformes personnalisés, boss Akaino/Freezo", funct
 			end
 		end
 		assert(found, id .. " absent de toutes les tables de tirage")
+	end
+end)
+
+test("Roster v3.2 : 15 persos de plus, raretés de base, signatures, noms d'origine", function()
+	local Rarities = requireModule(Shared.Config.Rarities)
+	local AttackFx = requireModule(Shared.Config.AttackFx)
+	local Noms = requireModule(Shared.Config.NomsOriginaux)
+	local ROSTER = {
+		ninja = { ninja_gaaro = "epic", ninja_minatu = "legendary", ninja_radama = "secret" },
+		occulte = { occ_hakaro = "epic", occ_toja = "legendary", occ_yuuto = "legendary" },
+		saiyan = { sai_cel = "legendary", sai_jirene = "mythic", sai_gojita = "secret" },
+		ocean = { oce_inel = "legendary", oce_lao = "legendary", oce_kaydo = "secret" },
+		pourfendeur = { pou_tengan = "legendary", pou_doma = "mythic", pou_muzon = "secret" },
+	}
+	-- La rareté Secret existe et se place entre Mythique et Crossover
+	local secret = Rarities.get("secret")
+	assert(secret.id == "secret" and table.find(Rarities.Order, "secret"), "rareté Secret manquante")
+	assert(secret.basePower > Rarities.get("mythic").basePower and secret.basePower < Rarities.get("crossover").basePower, "puissance Secret mal placée")
+	assert(secret.order > Rarities.get("mythic").order and secret.order < Rarities.get("crossover").order, "ordre Secret mal placé")
+	-- Raretés de base cohérentes (Maruto Épique, Sukana Secret, Goju Mythique)
+	assert(Characters.get("ninja_maruto").rarity == "epic", "Maruto doit être Épique")
+	assert(Characters.get("occ_sukana").rarity == "secret", "Sukana doit être Secret")
+	assert(Characters.get("occ_goju").rarity == "mythic", "Goju doit être Mythique")
+	local named = {}
+	for _, entry in Noms.List do
+		named[entry.id] = true
+	end
+	local total = 0
+	for _, universe in Universes.List do
+		local count = {}
+		for _, id in universe.characters do
+			local r = Characters.get(id).rarity
+			count[r] = (count[r] or 0) + 1
+		end
+		assert(#universe.characters >= 13, universe.id .. " : au moins 13 persos attendus (" .. #universe.characters .. ")")
+		assert((count.secret or 0) >= 1 and (count.mythic or 0) >= 1, universe.id .. " : il faut au moins un Mythique et un Secret")
+		for id, rarity in ROSTER[universe.id] do
+			total += 1
+			local def = Characters.get(id)
+			assert(def and def.universe == universe.id, id .. " : univers")
+			assert(table.find(universe.characters, id), id .. " absent de la table de tirage")
+			assert(def.rarity == rarity, id .. " : rareté de base " .. tostring(def.rarity) .. " (attendu " .. rarity .. ")")
+			assert(def.evolve and def.evolve[2] and def.evolve[3], id .. " : évolutions ★2/★3")
+			assert(def.fusion and def.fusion.prefix and def.fusion.suffix, id .. " : préfixe/suffixe de fusion")
+			assert(def.attack and def.attack.name and def.attack.kind, id .. " : attaque")
+			assert(named[id], id .. " : nom d'origine manquant")
+		end
+	end
+	assert(total == 15, "15 nouveaux persos attendus")
+	-- Chaque perso jouable a une attaque signature valide (plus de repli générique)
+	for id in Characters.List do
+		local sig = AttackFx.Characters[id]
+		assert(sig and AttackFx.Signatures[sig], id .. " : pas d'attaque signature")
+		assert(AttackFx.forCharacter(id, "punch") == sig, id .. " : signature non résolue")
+	end
+	-- Noms proches des originaux, tous différents
+	local names = {}
+	for id, def in Characters.List do
+		assert(not names[def.name], def.name .. " en double (" .. id .. ")")
+		names[def.name] = true
 	end
 end)
 
