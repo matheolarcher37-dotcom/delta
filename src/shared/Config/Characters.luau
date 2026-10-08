@@ -1983,7 +1983,7 @@ Characters.Enemies = {
 		-- Boss de l'Académie Occulte : moine maudit (demi-chignon, kesa en patchwork, couture au front)
 		name = "Kenjakou",
 		look = {
-			skin = rgb(228, 224, 196), -- teinte neutre-chaude (la lumière violette de l'arène rosit la peau)
+			skin = rgb(226, 222, 198), -- pâle, légèrement vert : la lumière violette de l'arène la rosit
 			hair = "half_bun",
 			hairColor = rgb(24, 22, 30),
 			hairShine = rgb(92, 88, 120),

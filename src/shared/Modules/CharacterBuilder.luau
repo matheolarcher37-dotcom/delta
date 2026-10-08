@@ -3805,8 +3805,9 @@ local VARIETIES = {
 		reflectance = 0.25,
 		acc = { color = rgb(232, 181, 48), mix = 0.78, material = Enum.Material.Foil, reflectance = 0.25 },
 		-- Les zones sombres virent au bronze chaud (pas au brun boueux), les encres restent sombres
-		ramp = { rgb(58, 34, 6), rgb(138, 90, 18), rgb(236, 178, 46), rgb(255, 240, 168) },
+		ramp = { rgb(70, 42, 8), rgb(150, 98, 22), rgb(236, 178, 46), rgb(255, 240, 168) },
 		rampMix = 0.82,
+		lift = 0.3,
 		glint = true,
 		edges = rgb(255, 226, 130),
 		fx = { texture = SPARK, colors = { rgb(255, 230, 120), rgb(255, 170, 30) }, size = 0.32, rate = 10, light = rgb(255, 210, 110) },
@@ -3842,7 +3843,7 @@ local VARIETIES = {
 		wings = true,
 		acc = { color = rgb(255, 246, 225), mix = 0.55 },
 		ramp = { rgb(150, 120, 70), rgb(255, 236, 190), rgb(255, 255, 250) },
-		rampMix = 0.42,
+		rampMix = 0.3,
 		fx = { texture = SPARK, colors = { rgb(255, 250, 220), rgb(255, 220, 130) }, size = 0.3, rate = 8, light = rgb(255, 240, 190) },
 	},
 	shadow = {
@@ -3920,6 +3921,11 @@ local function tintColor(c: Color3, spec): Color3
 	if spec.ramp then
 		-- Dégradé à N teintes réparties sur la luminosité (0 = encre, 1 = reflet)
 		local l = math.clamp(luminance(c), 0, 1)
+		if spec.lift and l > 0.14 then
+			-- Couleurs moyennes/sombres de la tenue (ex. manches bleues) remontées vers le doré :
+			-- seules les encres (très sombres) restent sombres, pas de brun boueux
+			l = spec.lift + (1 - spec.lift) * l
+		end
 		local ramp = spec.ramp
 		local t = l * (#ramp - 1)
 		local i = math.min(#ramp - 1, math.floor(t))
@@ -4218,15 +4224,16 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 			for k = 0, 3 do
 				local a = math.rad(50 + k * 22)
 				local len = 2.5 - k * 0.3
-				local width = 0.7 - k * 0.06
+				local width = 0.9 - k * 0.08
 				local dir = Vector3.new(side * math.sin(a), math.cos(a), 0)
 				local center = shoulder + dir * (len * 0.5) + Vector3.new(0, 0, 0.06 + k * 0.05)
 				local cf = CFrame.new(center) * CFrame.Angles(0, 0, -side * a) * B
 				if side > 0 then
 					cf *= CFrame.Angles(0, math.pi, 0)
 				end
-				local tone = rgb(255, 255, 255):Lerp(rgb(220, 230, 255), k * 0.2)
-				attach(torso, "VarietyWing", Vector3.new(0.08, len, width), cf, tone, { wedge = true, Transparency = 0.1 })
+				-- Plumes opaques, d'un blanc nacré qui bleuit vers les rangs bas (lisibles sur le ciel)
+				local tone = rgb(255, 250, 236):Lerp(rgb(196, 210, 246), k * 0.3)
+				attach(torso, "VarietyWing", Vector3.new(0.08, len, width), cf, tone, { wedge = true, Transparency = 0 })
 				attach(torso, "VarietyWingEdge", Vector3.new(0.1, len * 0.96, 0.06), cf * CFrame.new(0, 0, width / 2 - 0.02), rgb(255, 255, 255), {
 					Material = Enum.Material.Neon,
 					Transparency = 0.15,
