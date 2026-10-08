@@ -950,8 +950,22 @@ function Common.dressIsland(folder: Instance, rng: Random, style: DressStyle, ba
 	dress:SetAttribute("Elements", placed)
 	-- 8) semis de remplissage dans l'herbe restée libre : posé par Common.forest, une fois les
 	-- bosquets plantés (rien sous les arbres, déjà garnis de sous-bois)
+	-- (autour des grands repères, le semis s'approche à mi-distance : ils ne flottent plus seuls
+	-- dans la prairie)
+	local function semisFree(p: Vector3, margin: number): boolean
+		if not baseFree(p, margin) then
+			return false
+		end
+		for _, t in taken do
+			local r = t[2] >= 20 and t[2] * 0.55 or t[2]
+			if (Vector3.new(p.X, 0, p.Z) - t[1]).Magnitude < r + margin then
+				return false
+			end
+		end
+		return true
+	end
 	Common.pendingFill = function(trees: { Vector3 })
-		dress:SetAttribute("Semis", fillGrass(dress, rng, style, free, style.fillSpacing or 22, trees))
+		dress:SetAttribute("Semis", fillGrass(dress, rng, style, semisFree, style.fillSpacing or 22, trees))
 	end
 	return free
 end

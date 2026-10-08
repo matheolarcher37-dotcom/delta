@@ -818,7 +818,7 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 	local spiderAt = polar(150, 600)
 	local free = Common.islandFree({ { polar(MOUNT_ANGLE, 650), 110 }, { spiderAt, 26 } })
 	free = Common.dressIsland(island, rng, {
-		fillSpacing = 26,
+		fillSpacing = 28,
 		wood = rgb(110, 76, 54),
 		stone = rgb(160, 156, 150),
 		rock = rgb(120, 118, 114),

@@ -7,25 +7,28 @@
 --        rang du bas  :          Tobirama      Minato         Kakashi        Boruto
 --                         (médaillon de la feuille gravé, en bas à gauche)
 --
--- La roche : des ROCHERS FACETTÉS (taillés en triangles, à moitié enfoncés) et des blocs
--- anguleux calmes (pavés, coins, roulis de 4 à 14°) en trois tailles, avec des joints sombres ;
--- autour des visages, les rochers avancent davantage et forment le cadre en creux du monument.
--- Un médaillon de pierre porte la spirale de la feuille gravée.
+-- Le relief : un DÔME comme le monument (bosse au centre, épaules qui descendent en quart de
+-- cercle jusqu'au sol, pied évasé et éboulis). La roche est un amas de PIERRES ÉMOUSSÉES
+-- (noyau et quatre biseaux, basculées de 4 à 12°) et de rochers taillés en facettes, sans
+-- rangées ni arêtes droites ; une crête de rochers de plus en plus petits dessine le contour.
+-- Derrière, une COUCHE DE RECUL sombre (ardoise 70,72,78) : joints et niches autour des têtes,
+-- qui détachent les visages de loin. Un médaillon de pierre porte la spirale de la feuille.
 --
--- Les VISAGES sont des surfaces taillées en facettes, comme une sculpture dégrossie au ciseau :
--- un maillage de 110 triangles (deux coins par triangle, Hokage.triangle) qui dessine front,
--- arcades, orbites, nez triangulaire, pommettes, bouche réduite à un trait fin, menton carré et
--- mâchoire. Expression calme. Les cheveux : coiffe facettée (épis : masse + épis plats et effilés
--- qui se dressent ; cheveux longs : raie creusée en V, sillons gravés, grands rideaux facettés
--- jusqu'aux épaules), bandeaux plats avec plaque gravée.
+-- Les VISAGES sont des surfaces taillées en facettes (maillage de 110 triangles, deux coins par
+-- triangle, Hokage.triangle), chacun avec son caractère : yeux OUVERTS en amande (globe dans
+-- une orbite sombre, paupière en coin, iris et pupille gravés), sourcils froncés ou doux,
+-- longueur du visage et largeur des pommettes propres, bouche droite, sévère ou souriante,
+-- rides et long bouc (Hiruzen), trois moustaches par joue (Naruto). Cheveux : épis épais en
+-- trois couches décalées et courbées, aux longueurs irrégulières, sur une calotte facettée ;
+-- cheveux longs en rideaux facettés ; bandeaux qui épousent le front.
 --
--- Tout est dans la même pierre gris ardoise (falaise et têtes, écart de teinte faible) : ce sont
--- les ombres qui dessinent les visages. Le modèle est un emplacement remplaçable (DecorSlot
--- "MontagneDesChefs") : un modèle du même nom rangé dans ServerStorage > ModelesDeco le remplace.
+-- Tout est dans la même famille gris ardoise (têtes 6 % plus claires que les rochers). Le modèle
+-- est un emplacement remplaçable (DecorSlot "MontagneDesChefs") : un modèle du même nom rangé
+-- dans ServerStorage > ModelesDeco le remplace.
 --
--- Budget : ≈ 5 600 pièces en tout, dont ≈ 3 100 pour les 8 têtes (360 à 430 chacune) ; arbres du
--- sommet en version lointaine (clones). Le modèle est en LevelOfDetail « StreamingMesh »
--- (simplifié de loin par le moteur).
+-- Budget : ≈ 4 700 pièces, dont ≈ 3 070 pour les 8 têtes ; arbres du sommet en version
+-- lointaine (clones). Seules la paroi, le sommet et le pied gardent une collision. Le modèle est
+-- en LevelOfDetail « StreamingMesh » (simplifié de loin par le moteur).
 
 local Build = require(script.Parent.Parent.Parent.Modules.Build)
 local Core = require(script.Parent.Core)
