@@ -468,8 +468,8 @@ local LIMBS = { "Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg
 local KNEEL = {
 	frontLeg = -90, -- jambe droite à plat derrière (genou à terre)
 	backLeg = 90, -- jambe gauche à plat derrière (genou à terre)
-	torso = 22, -- torse incliné en révérence (lisible de dos)
-	head = 32, -- tête baissée
+	torso = 24, -- torse incliné en révérence
+	head = 10, -- tête un peu plus baissée que le torse
 	fistLift = 22, -- bras droit vers l'avant : le poing touche le sol
 	fistYaw = 0,
 	leftArm = 10, -- bras gauche le long du corps
@@ -698,7 +698,7 @@ local function buildThroneRoom(parent: Instance)
 			part("BannerTrim", Vector3.new(0.22, 0.5, 3.1), CFrame.new(x + (x > 0 and -1.3 or 1.3), 7.6, z - 0.2), GOLD, Enum.Material.Fabric)
 		end
 	end
-	part("BackWall", Vector3.new(70, 34, 1), CFrame.new(0, 17, 9), Color3.fromRGB(176, 104, 112), Enum.Material.Plaster)
+	part("BackWall", Vector3.new(70, 34, 1), CFrame.new(0, 17, 9), Color3.fromRGB(150, 76, 82), Enum.Material.Plaster)
 	part("WallBase", Vector3.new(70, 1.4, 1.2), CFrame.new(0, 0.7, 8.4), Color3.fromRGB(214, 204, 188), Enum.Material.Marble)
 	for _, x in { -14, 14 } do
 		part("WallBanner", Vector3.new(5, 14, 0.3), CFrame.new(x, 11, 8.3), CRIMSON, Enum.Material.Fabric)
@@ -759,29 +759,33 @@ local function kneelerLooks(exceptUid: string?, count: number): { { look: any, i
 end
 
 -- Les 6 persos qui s'agenouillent : deux rangées symétriques de part et d'autre du tapis
--- (3 à gauche, 3 à droite, 5 studs d'écart), tous tournés vers le trône.
+-- (3 à gauche, 3 à droite, 5 studs d'écart). Chacun est tourné vers le tapis et incliné vers le
+-- trône (KNEEL_AIM studs devant lui) : vus depuis l'axe du tapis, on les voit de 3/4, de profil,
+-- et la révérence (torse penché, tête baissée, jambes repliées) se lit bien.
+-- (les rangées s'évasent un peu vers la caméra : vus de l'axe du tapis, les persos ne se
+-- recouvrent pas les uns les autres)
 local KNEEL_SPOTS = {
-	Vector3.new(-5.6, 0, -5),
-	Vector3.new(5.6, 0, -5),
-	Vector3.new(-5.6, 0, -10),
-	Vector3.new(5.6, 0, -10),
-	Vector3.new(-5.6, 0, -15),
-	Vector3.new(5.6, 0, -15),
+	Vector3.new(-5.4, 0, -3.5),
+	Vector3.new(5.4, 0, -3.5),
+	Vector3.new(-6.4, 0, -8.5),
+	Vector3.new(6.4, 0, -8.5),
+	Vector3.new(-7.4, 0, -13.5),
+	Vector3.new(7.4, 0, -13.5),
 }
 TraitsMenu.KneelSpots = KNEEL_SPOTS
-local THRONE = Vector3.new(0, 0, 1)
-local MONARCH_FOV = 36
+local KNEEL_AIM = 4
+local MONARCH_FOV = 33
 
 -- Trajet de la caméra de la cinématique MONARQUE : { temps, position, point visé }.
 local function monarchCamera(total: number): { { any } }
 	return {
 		-- arrivée : plan large et haut dans l'axe du tapis, les persos sont encore debout
-		{ 0, Vector3.new(0, 15, -44), Vector3.new(0, 3.5, -2) },
-		{ 1.8, Vector3.new(0, 8, -38), Vector3.new(0, 4, 0) },
-		-- plan final : caméra basse dans l'axe du tapis, derrière les rangées, en contre-plongée :
-		-- les dos inclinés forment une haie qui mène à l'unité couronnée devant son trône
-		{ 3.2, Vector3.new(0, 2.5, -31), Vector3.new(0, 4.7, 0) },
-		{ math.max(total, 4), Vector3.new(0, 2.4, -29.5), Vector3.new(0, 4.7, 0) },
+		{ 0, Vector3.new(0, 15, -48), Vector3.new(0, 3.5, -2) },
+		{ 1.8, Vector3.new(0, 9, -42), Vector3.new(0, 4.5, 0) },
+		-- plan final : caméra basse (sous les yeux de l'unité) dans l'axe du tapis, derrière les
+		-- rangées : les deux haies de persos inclinés mènent à l'unité couronnée
+		{ 3.2, Vector3.new(0, 5.6, -42), Vector3.new(0, 5.5, 0) },
+		{ math.max(total, 4), Vector3.new(0, 5.4, -40), Vector3.new(0, 5.6, 0) },
 	}
 end
 TraitsMenu.monarchCamera = monarchCamera
@@ -829,7 +833,7 @@ function TraitsMenu.playMonarch(entry, desc, duration: number?, clock: (() -> nu
 		model.Name = "Kneeler" .. i
 		local pose = TraitsMenu.kneelPose(model)
 		local spot = KNEEL_SPOTS[i]
-		local place = CFrame.lookAt(spot, Vector3.new(THRONE.X, 0, THRONE.Z)) -- tournés vers le trône
+		local place = CFrame.lookAt(spot, Vector3.new(0, 0, spot.Z + KNEEL_AIM)) -- vers le tapis et le trône
 		applyPose(pose, place, 0)
 		model.Parent = viewport
 		-- les rangées s'agenouillent l'une après l'autre, du trône vers la caméra
@@ -869,7 +873,7 @@ function TraitsMenu.playMonarch(entry, desc, duration: number?, clock: (() -> nu
 	task.delay(3.7, function()
 		if not isDone() and root.Parent then
 			-- titre en haut : l'unité (au centre) et la haie de persos restent visibles dessous
-			bigTitle(root, "MONARQUE", GOLD, "Tous s'inclinent devant " .. name .. " !", 25, 0.17, 0.5)
+			bigTitle(root, "MONARQUE", GOLD, "Tous s'inclinent devant " .. name .. " !", 25, 0.165, 0.5)
 			SoundService:PlayLocalSound(rareSound)
 		end
 	end)

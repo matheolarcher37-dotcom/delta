@@ -251,13 +251,13 @@ Quests.UniverseItems = {
 	ocean = { "oce_bouteille", "oce_coffre", "oce_fruit" },
 	pourfendeur = { "pou_garde", "pou_marque", "pou_lys" },
 }
--- « au Village Ninja », « sur le Grand Océan »... (titres courts des défis d'univers)
-Quests.UniverseIn = {
-	ninja = "au Village Ninja",
-	occulte = "à l'Académie",
-	saiyan = "sur la Planète",
-	ocean = "sur le Grand Océan",
-	pourfendeur = "chez les Pourfendeurs",
+-- Titres courts des défis « tous les ennemis d'un univers » (≤ 30 caractères : jamais réduits).
+Quests.UniverseKillTitle = {
+	ninja = "Tue %s ennemis au Village",
+	occulte = "Exorcise %s fléaux",
+	saiyan = "Bats %s guerriers ennemis",
+	ocean = "Tue %s ennemis sur l'Océan",
+	pourfendeur = "Pourfends %s démons",
 }
 Quests.ItemFallbackCoins = { 4000, 15000, 60000 } -- pièces à la place d'un objet inconnu (par palier)
 
@@ -306,7 +306,7 @@ for _, universe in Universes.List do
 			id = "u_" .. universe.id .. "_boss",
 			category = "univers",
 			universe = universe.id,
-			title = "Bats " .. bossDef.name .. " %s fois",
+			title = "Bats " .. (string.match(bossDef.name, "^[^,]+") or bossDef.name) .. " %s fois", -- « Kourama », sans le surnom
 			icon = "crown",
 			color = universe.color,
 			key = "boss:" .. universe.boss,
@@ -317,7 +317,7 @@ for _, universe in Universes.List do
 		id = "u_" .. universe.id .. "_all",
 		category = "univers",
 		universe = universe.id,
-		title = "Tue %s ennemis " .. (Quests.UniverseIn[universe.id] or ("· " .. universe.name)),
+		title = Quests.UniverseKillTitle[universe.id] or ("Tue %s ennemis · " .. universe.name),
 		icon = "target",
 		color = universe.color,
 		key = "killu:" .. universe.id,

@@ -295,7 +295,7 @@ test("Défis : configuration cohérente (paliers croissants, ennemis, récompens
 	assert(Quests.rewardCoins(Quests.DailyById.d_kill.reward, 1) == Quests.DailyById.d_kill.reward.coins, "petit revenu : minimum")
 	for _, quest in Quests.List do
 		local title = Quests.title(quest, quest.tiers[#quest.tiers].goal)
-		assert(utf8.len(title) <= 34, "titre trop long : " .. title)
+		assert(utf8.len(title) <= 31, "titre trop long : " .. title)
 	end
 	local firstNinja
 	for _, quest in Quests.List do

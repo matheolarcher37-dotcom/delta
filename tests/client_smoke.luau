@@ -559,7 +559,7 @@ test("Traits : relance avec une gemme, relance auto, cinématiques Monarque et M
 	-- plan final de la cinématique : caméra basse (contre-plongée) dans l'axe du tapis
 	local keys = TraitsMenu.monarchCamera(7.5)
 	local last = keys[#keys]
-	assert(math.abs(last[2].X) < 0.5 and last[2].Y < 3 and last[3].Y > last[2].Y, "le plan final doit être bas, dans l'axe du tapis, en contre-plongée")
+	assert(math.abs(last[2].X) < 0.5 and last[2].Y < 6 and last[3].Y > last[2].Y, "le plan final doit être bas, dans l'axe du tapis, en contre-plongée")
 	-- Mythique
 	local asc = TraitsMenu.playAscension(entry, desc, Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Traits")).List.celeste, 1)
 	assert(asc and asc:FindFirstChild("Title", true), "ascension sans titre")
