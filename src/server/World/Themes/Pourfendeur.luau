@@ -765,7 +765,7 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 	hokora(training, trainingCF * CFrame.new(-17, 0, 12))
 
 	-- 6) Arbres de l'anneau : glycines, bambous, cèdres ; buissons, rochers ; lys araignées.
-	Core.scatter(rng, 24, Vector3.zero, Layout.RingInner + 6, 110, function(p)
+	Core.scatter(rng, 20, Vector3.zero, Layout.RingInner + 6, 110, function(p)
 		return Common.ringFree(p, 6)
 	end, function(p)
 		local roll = rng:NextNumber()
@@ -789,7 +789,8 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 		for _ = 1, rng:NextInteger(3, 6) do
 			local p = center + Vector3.new(rng:NextNumber(-4, 4), 0, rng:NextNumber(-4, 4))
 			if Common.ringFree(p, 2) then
-				Nature.tree("Bambou", ring, p + UP * TOP_RING, { rng = rng, height = rng:NextNumber(24, 34), detail = "normal" })
+				-- touffes serrées : la version allégée suffit (les tiges se cachent les unes les autres)
+				Nature.tree("Bambou", ring, p + UP * TOP_RING, { rng = rng, height = rng:NextNumber(24, 34), detail = "low" })
 			end
 		end
 	end)
@@ -817,6 +818,7 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 	local spiderAt = polar(150, 600)
 	local free = Common.islandFree({ { polar(MOUNT_ANGLE, 650), 110 }, { spiderAt, 26 } })
 	free = Common.dressIsland(island, rng, {
+		fillSpacing = 25,
 		wood = rgb(110, 76, 54),
 		stone = rgb(160, 156, 150),
 		rock = rgb(120, 118, 114),
@@ -830,7 +832,7 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 		stalls = { { rgb(70, 60, 110), "bowls" }, { rgb(150, 60, 60), "masks" } },
 	}, free)
 	Common.forest(island, rng, {
-		groves = 35,
+		groves = 31,
 		rimGroves = 22,
 		perGrove = { 5, 8 },
 		radius = { 20, 38 },
@@ -913,7 +915,7 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 	end
 
 	-- 9) Horizon : montagnes bleu nuit et le Train de l'Infini sur son viaduc.
-	Common.horizon(horizon, rng, 22, {
+	Common.horizon(horizon, rng, 20, {
 		rock = rgb(52, 54, 74),
 		grass = rgb(34, 48, 50),
 		trees = rgb(24, 36, 38),

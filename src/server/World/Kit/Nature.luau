@@ -466,7 +466,9 @@ end
 -- Touffe de bambous : tiges annelées de hauteurs variées et petits bouquets de feuilles. H = 30.
 local function buildBamboo(model: Model, rng: Random, pal: { Color3 }, detail: Detail, _trunkColor: Color3)
 	local H = 30
-	local stalks = detail == "low" and 5 or (detail == "hero" and 10 or 8)
+	-- version lointaine : 4 tiges, un nœud, deux feuilles en tête (≈ 16 pièces au lieu de 35)
+	local far = detail == "far"
+	local stalks = far and 4 or (detail == "low" and 5 or (detail == "hero" and 10 or 8))
 	for i = 1, stalks do
 		local base = hdir(rng:NextNumber(0, 6.28)) * rng:NextNumber(0, 3.2)
 		local h = H * rng:NextNumber(0.7, 1)
@@ -475,7 +477,7 @@ local function buildBamboo(model: Model, rng: Random, pal: { Color3 }, detail: D
 		local d = rng:NextNumber(0.55, 0.85)
 		local stalk = tone(pal, rng:NextNumber(0.35, 0.7), rng)
 		wood(model, "Stalk", base - UP * 0.4, top, d, stalk, i <= 3).Material = Enum.Material.SmoothPlastic
-		local nodes = detail == "low" and 2 or 3
+		local nodes = far and 1 or (detail == "low" and 2 or 3)
 		for k = 1, nodes do
 			local q = base:Lerp(top, k / (nodes + 1))
 			local node = cylinder(
@@ -489,7 +491,7 @@ local function buildBamboo(model: Model, rng: Random, pal: { Color3 }, detail: D
 			)
 			node.CanQuery = false
 		end
-		local leaves = detail == "low" and 1 or 2
+		local leaves = far and 0 or (detail == "low" and 1 or 2)
 		for k = 1, leaves do
 			local q = base:Lerp(top, 0.75 + k * 0.1)
 			local a = rng:NextNumber(0, 6.28)
@@ -503,7 +505,7 @@ local function buildBamboo(model: Model, rng: Random, pal: { Color3 }, detail: D
 				LEAF
 			)
 		end
-		for k = 1, 3 do
+		for k = 1, far and 2 or 3 do
 			local a = rng:NextNumber(0, 6.28) + k * 2.1
 			local pos = top + hdir(a) * 1.5 - UP * 0.4
 			Core.ellipsoid(
@@ -641,8 +643,8 @@ function Nature.tree(species: string, parent: Instance, base: Vector3 | CFrame, 
 	local rng = o.rng or Random.new()
 	local pal, palName = paletteOf(o.palette, spec.palette)
 	local detail: Detail = o.detail or "normal"
-	if detail == "far" and (species == "Bambou" or species == "ArbreMort") then
-		detail = "low" -- silhouettes trop particulières pour la version lointaine
+	if detail == "far" and species == "ArbreMort" then
+		detail = "low" -- silhouette trop particulière pour la version lointaine
 	end
 	local variant = o.variant or rng:NextInteger(1, VARIANTS)
 	local trunkColor = o.trunk or spec.trunk
@@ -654,7 +656,7 @@ function Nature.tree(species: string, parent: Instance, base: Vector3 | CFrame, 
 		model:SetAttribute("Slot", slotName)
 		model:SetAttribute("TargetHeight", spec.height)
 		local mrng = Random.new(variant * 7919 + #species * 131 + #palName)
-		if detail == "far" then
+		if detail == "far" and species ~= "Bambou" then
 			local kind = (spec.build == buildConifer) and "conifer" or (spec.build == buildPalm and "palm" or "round")
 			buildFar(model, mrng, pal, trunkColor, kind, spec.height)
 		else

@@ -264,7 +264,7 @@ test("Décors des 5 univers", function()
 		ocean = "Navire",
 		pourfendeur = "PortePourfendeurs",
 	}
-	local BUDGET = 45000
+	local BUDGET = 40000 -- marge pour les autres domaines (marchand, défis, classements)
 	for _, universe in Universes.List do
 		local decor = UniverseDecor.apply(universe, zone)
 		local parts = countParts(decor)
@@ -321,6 +321,8 @@ test("Lieux réservés dégagés (échanges, marchand, anti-AFK) dans les 5 univ
 		local dress = decor:FindFirstChild("Habillage", true)
 		assert(dress and (dress:GetAttribute("Elements") or 0) >= 30, universe.id .. " : île pas assez habillée")
 		assert((dress:GetAttribute("Landmarks") or 0) >= 8, universe.id .. " : pas assez de grands repères sur l'île")
+		-- semis de remplissage (touffes, fleurs, cailloux...) : plus de grandes pelouses unies
+		assert((dress:GetAttribute("Semis") or 0) >= 400, universe.id .. " : semis de remplissage absent")
 	end
 	-- un sentier pavé mène à chaque coin du marchand
 	local paths = Workspace.World:FindFirstChild("SentiersMarchand")
@@ -356,8 +358,30 @@ test("Montagne des chefs (8 têtes sculptées) et enseignes artisanales", functi
 	local tri = R.Instance.new("Folder")
 	local n = Hokage.triangle(tri, R.Vector3.new(0, 0, 0), R.Vector3.new(10, 0, 0), R.Vector3.new(3, 8, 0), R.Vector3.new(0, 0, -1), 1, R.Color3.new(1, 1, 1))
 	assert(n == 2 and #tri:GetChildren() == 2, "triangle : deux coins attendus")
+	-- chaque visage a son caractère : yeux ouverts (iris gravés), sourcils ; moustaches de Naruto
+	for _, head in heads:GetChildren() do
+		local iris, brows = 0, 0
+		for _, d in head:GetDescendants() do
+			if d.Name == "Iris" then
+				iris += 1
+			elseif d.Name == "Sourcil" then
+				brows += 1
+			end
+		end
+		assert(iris >= 2 and brows >= 1, head.Name .. " : yeux ouverts ou sourcils absents")
+	end
+	local whiskers = 0
+	for _, d in heads.Naruto:GetDescendants() do
+		if d.Name == "Moustache" then
+			whiskers += 1
+		end
+	end
+	assert(whiskers == 6, "Naruto : trois moustaches par joue attendues (" .. whiskers .. ")")
+	-- contour en dôme : bosse au centre, épaules qui descendent jusqu'au sol
+	assert(Hokage.topAt(0) > Hokage.topAt(Hokage.Width / 2) + 30, "sommet plat : pas de dôme")
+	assert(Hokage.topAt(Hokage.Reach - 2) < 40, "épaules : le relief ne descend pas jusqu'au sol")
 	local parts = countParts(model)
-	assert(parts < 7000, "montagne trop lourde : " .. parts)
+	assert(parts < 5200, "montagne trop lourde : " .. parts)
 	print("   montagne : " .. parts .. " pièces dont têtes " .. heads:GetAttribute("Pieces"))
 	folder:Destroy()
 	assert(Archi.stripIcon("🤝 COIN DES ÉCHANGES") == "COIN DES ÉCHANGES", "émoji non retiré")

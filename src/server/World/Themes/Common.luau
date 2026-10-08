@@ -22,6 +22,9 @@ local WorldBuilder = require(script.Parent.Parent.WorldBuilder)
 
 local Common = {}
 
+-- Semis de remplissage en attente (préparé par dressIsland, posé à la fin de forest).
+Common.pendingFill = nil :: ((trees: { Vector3 }) -> ())?
+
 local UP = Vector3.new(0, 1, 0)
 Common.TOP_RING = 0.08
 Common.TOP_PLAZA = 0.13
@@ -148,7 +151,7 @@ function Common.forest(folder: Instance, rng: Random, spec: ForestSpec): number
 				-- lointaine sur le pourtour de l'île (même silhouette et mêmes couleurs, 5 à 7 pièces) :
 				-- on peut ainsi planter des forêts bien plus denses pour le même budget
 				local r = Vector3.new(p.X, 0, p.Z).Magnitude
-				local detail = r < Layout.WalkwayOuter + 60 and "normal" or (r < 545 and "low" or "far")
+				local detail = r < Layout.WalkwayOuter + 32 and "normal" or (r < 535 and "low" or "far")
 				Nature.tree(entry[1], folder, Common.ground(p), { rng = rng, height = h, palette = entry[5], detail = detail })
 				planted += 1
 				n -= 1
@@ -195,6 +198,12 @@ function Common.forest(folder: Instance, rng: Random, spec: ForestSpec): number
 	Core.scatter(rng, spec.rimGroves or math.floor(spec.groves * 0.8), Vector3.zero, 552, Layout.IslandRadius - 14, function(p)
 		return spec.free(p, 10)
 	end, grove)
+	-- semis de remplissage de l'habillage (Common.dressIsland), hors des bosquets
+	local fill = Common.pendingFill
+	if fill then
+		Common.pendingFill = nil
+		fill(taken)
+	end
 	return planted
 end
 
@@ -475,6 +484,7 @@ export type DressStyle = {
 	hill: Color3?, -- herbe des collines
 	arch: Color3?, -- couleur du grand portique (sinon la pierre)
 	archCap: Color3?,
+	fillSpacing: number?, -- écart du semis de remplissage (≈ 22 studs)
 }
 
 -- Ruine : socle de dalles, colonnes brisées (hauteurs différentes, sommets éclatés), une colonne
@@ -618,6 +628,102 @@ local function restSpot(folder: Instance, cf: CFrame, style: DressStyle, rng: Ra
 		style.extra(model, cf * CFrame.new(-1.5, 0, 3.6), rng)
 	end
 end
+
+-- SEMIS DE REMPLISSAGE : de petits groupes peu coûteux (1 à 8 pièces) tous les ≈ 22 studs dans
+-- l'herbe libre (hors chemins, bases, lieux réservés et leurs accès) : hautes touffes d'herbe,
+-- grappes de 5 à 9 fleurs, cailloux, souches, petits buissons. Les grandes pelouses unies
+-- disparaissent sans alourdir la carte. Renvoie le nombre de groupes posés.
+local function fillGrass(folder: Instance, rng: Random, style: DressStyle, free: (Vector3, number) -> boolean, spacing: number, avoid: { Vector3 }?): number
+	local fill = Build.folder(folder, "Semis")
+	local grass = style.hill or Core.shade(style.moss or Color3.fromRGB(86, 126, 60), 0.06)
+	local dark = Core.shade(grass, -0.16)
+	local rock = style.rock or Color3.fromRGB(132, 126, 118)
+	local flowers = style.flowers
+	local leaf = Enum.Material.Grass
+	local groups = 0
+	local r0, r1 = Layout.WalkwayOuter + 10, Layout.IslandRadius - 8
+	local function tuft(p: Vector3, h: number)
+		local yaw = rng:NextNumber(0, math.pi * 2)
+		for k = 0, 2 do
+			local a = yaw + k * 2.1
+			local hh = h * rng:NextNumber(0.75, 1.1)
+			Build.wedge(
+				fill,
+				"Touffe",
+				Vector3.new(0.35, hh, h * 0.32),
+				CFrame.new(p + Vector3.new(0, hh / 2 - 0.1, 0)) * CFrame.Angles(0, a, 0) * CFrame.Angles(rng:NextNumber(-0.25, 0.25), 0, rng:NextNumber(-0.2, 0.2)),
+				Core.shade(k == 1 and dark or grass, rng:NextNumber(-0.05, 0.05)),
+				{ Material = leaf, CanCollide = false, CanQuery = false, CastShadow = false }
+			)
+		end
+	end
+	local x = -r1
+	while x < r1 do
+		local z = -r1
+		while z < r1 do
+			local p = Vector3.new(x + rng:NextNumber(-spacing, spacing) * 0.4, 0, z + rng:NextNumber(-spacing, spacing) * 0.4)
+			local r = Vector3.new(p.X, 0, p.Z).Magnitude
+			local open = r > r0 and r < r1 and free(p, 2) and not WorldBuilder.reserved(p, 3)
+			if open and avoid then
+				-- sous les arbres, le sous-bois de la forêt suffit
+				for _, t in avoid do
+					if math.abs(t.X - p.X) < 8 and math.abs(t.Z - p.Z) < 8 then
+						open = false
+						break
+					end
+				end
+			end
+			if open then
+				local g = Common.ground(p)
+				local roll = rng:NextNumber()
+				if roll < 0.42 then
+					-- haute touffe d'herbe
+					tuft(g, rng:NextNumber(1.8, 3))
+				elseif roll < 0.6 and flowers then
+					-- grappe de fleurs : un coussin de feuilles et 5 corolles
+					local c = flowers[rng:NextInteger(1, #flowers)]
+					Core.ellipsoid(fill, "Feuillage", Vector3.new(3.2, 0.9, 2.6), CFrame.new(g + Vector3.new(0, 0.3, 0)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0), dark, leaf).CastShadow =
+						false
+					for _ = 1, 5 do
+						local q = g + Vector3.new(rng:NextNumber(-1.4, 1.4), rng:NextNumber(0.7, 1.2), rng:NextNumber(-1.2, 1.2))
+						Core.ellipsoid(fill, "Corolle", Vector3.new(0.75, 0.32, 0.75), CFrame.new(q), Core.shade(c, rng:NextNumber(-0.06, 0.08)), Enum.Material.SmoothPlastic).CastShadow =
+							false
+					end
+				elseif roll < 0.78 then
+					-- cailloux
+					for k = 1, 2 do
+						local sz = rng:NextNumber(0.8, 1.9) / k ^ 0.3
+						Build.deco(
+							fill,
+							"Caillou",
+							Vector3.new(sz * 1.3, sz * 0.7, sz),
+							CFrame.new(g + Vector3.new(rng:NextNumber(-1.5, 1.5), sz * 0.2, rng:NextNumber(-1.5, 1.5)))
+								* CFrame.Angles(rng:NextNumber(-0.4, 0.4), rng:NextNumber(0, 3), rng:NextNumber(-0.4, 0.4)),
+							Core.shade(rock, rng:NextNumber(-0.08, 0.06)),
+							{ Material = Enum.Material.Slate }
+						)
+					end
+				elseif roll < 0.94 then
+					-- petit buisson (deux boules de feuillage)
+					local h = rng:NextNumber(1.8, 2.8)
+					Core.ellipsoid(fill, "Buissonnet", Vector3.new(h * 1.6, h, h * 1.4), CFrame.new(g + Vector3.new(0, h * 0.35, 0)), Core.shade(grass, -0.08), leaf)
+					Core.ellipsoid(fill, "Buissonnet", Vector3.new(h * 1.1, h * 0.8, h), CFrame.new(g + Vector3.new(h * 0.5, h * 0.55, h * 0.2)), Core.shade(grass, 0.02), leaf)
+				else
+					-- souche
+					local d = rng:NextNumber(1.4, 2.2)
+					Core.vcyl(fill, "Souche", CFrame.new(g - Vector3.new(0, 0.2, 0)), d * 0.6, d, Color3.fromRGB(104, 76, 52), Enum.Material.Wood)
+					Core.vcyl(fill, "Souche", CFrame.new(g + Vector3.new(0, d * 0.6 - 0.18, 0)), 0.2, d * 0.82, Color3.fromRGB(196, 160, 112), Enum.Material.Wood)
+				end
+				groups += 1
+			end
+			z += spacing
+		end
+		x += spacing
+	end
+	fill:SetAttribute("Groupes", groups)
+	return groups
+end
+Common.fillGrass = fillGrass
 
 -- Habille l'île d'un univers : coins repos et clôtures le long du sentier, amas de rochers,
 -- massifs de fleurs, ruines et petits étals près de la promenade. Tout passe par `free`
@@ -788,6 +894,28 @@ function Common.dressIsland(folder: Instance, rng: Random, style: DressStyle, ba
 				bigArch(dress, face, style.arch or stone, style.archCap or Core.shade(style.arch or stone, -0.35), Core.shade(stone, -0.1))
 				Props.stoneLantern(dress, (face * CFrame.new(-12, 0, -4)).Position, 0.9, style.lanternGlow)
 				Props.stoneLantern(dress, (face * CFrame.new(12, 0, -4)).Position, 0.9, style.lanternGlow)
+				-- petit chemin de dalles qui traverse le portique, et des buissons à ses pieds : il ne
+				-- flotte plus seul dans la prairie
+				for k = -4, 4 do
+					local q = Common.ground((face * CFrame.new(rng:NextNumber(-0.6, 0.6), 0, k * 4.2)).Position)
+					Build.part(
+						dress,
+						"Dalle",
+						Vector3.new(rng:NextNumber(3.4, 4.4), 0.5, rng:NextNumber(2.6, 3.4)),
+						CFrame.new(q + Vector3.new(0, 0.15, 0)) * (face - face.Position) * CFrame.Angles(0, rng:NextNumber(-0.15, 0.15), 0),
+						Core.shade(stone, rng:NextNumber(-0.1, 0.03)),
+						{ Material = Enum.Material.Slate, CanCollide = false }
+					)
+				end
+				for _, side in { -1, 1 } do
+					Nature.bush(dress, Common.ground((face * CFrame.new(side * rng:NextNumber(10, 13), 0, rng:NextNumber(4, 8))).Position), {
+						rng = rng,
+						height = rng:NextNumber(3.5, 5),
+						palette = style.treePalette,
+						flowers = style.flowers and style.flowers[rng:NextInteger(1, #style.flowers)] or nil,
+					})
+				end
+				Nature.rock(dress, Common.ground((face * CFrame.new(-15, 0, 6)).Position), 2.6, { rng = rng, color = rock, moss = moss })
 			elseif kind == "fleurs" then
 				flowerField(dress, pos, 15, style.flowers :: { Color3 }, rng)
 			else
@@ -804,6 +932,11 @@ function Common.dressIsland(folder: Instance, rng: Random, style: DressStyle, ba
 	end
 	dress:SetAttribute("Landmarks", landmarks)
 	dress:SetAttribute("Elements", placed)
+	-- 8) semis de remplissage dans l'herbe restée libre : posé par Common.forest, une fois les
+	-- bosquets plantés (rien sous les arbres, déjà garnis de sous-bois)
+	Common.pendingFill = function(trees: { Vector3 })
+		dress:SetAttribute("Semis", fillGrass(dress, rng, style, free, style.fillSpacing or 22, trees))
+	end
 	return free
 end
 

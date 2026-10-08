@@ -570,7 +570,7 @@ function Ninja.build(decor: Instance, rng: Random, _theme)
 	Core.scatter(rng, 22, Vector3.zero, 234, 245, function(p)
 		return Common.ringFree(p, 8)
 	end, function(p)
-		Nature.tree("ArbreFeuillu", ring, p + UP * TOP_RING, { rng = rng, height = rng:NextNumber(20, 28), detail = "normal" })
+		Nature.tree("ArbreFeuillu", ring, p + UP * TOP_RING, { rng = rng, height = rng:NextNumber(20, 28), detail = "low" })
 	end)
 	Core.scatter(rng, 70, Vector3.zero, Layout.RingInner + 6, Layout.RingOuter - 6, function(p)
 		return Common.ringFree(p, 4)
@@ -602,6 +602,7 @@ function Ninja.build(decor: Instance, rng: Random, _theme)
 	end
 	local free = Common.islandFree({ { polar(MOUNTAIN_ANGLE, 640), 240 }, { shrineAt, 22 } })
 	free = Common.dressIsland(island, rng, {
+		fillSpacing = 23,
 		wood = rgb(140, 98, 64),
 		stone = rgb(178, 170, 156),
 		rock = rgb(132, 126, 118),
@@ -617,7 +618,7 @@ function Ninja.build(decor: Instance, rng: Random, _theme)
 		end,
 	}, free)
 	Common.forest(island, rng, {
-		groves = 34,
+		groves = 31,
 		rimGroves = 22,
 		perGrove = { 5, 9 },
 		radius = { 24, 44 },
