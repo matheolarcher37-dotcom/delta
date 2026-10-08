@@ -10,6 +10,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Universes = require(Shared.Config.Universes)
 local Economy = require(Shared.Config.Economy)
+local EvolutionItems = require(Shared.Config.EvolutionItems)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 
@@ -25,6 +26,7 @@ local HUD = {}
 local C = Theme.Colors
 local new = Theme.new
 local WHITE = Color3.new(1, 1, 1)
+local upperFr = EvolutionItems.upper -- majuscules avec accents (« PLANÈTE »)
 local player = Players.LocalPlayer
 
 local refs: { [string]: any } = {}
@@ -737,7 +739,7 @@ function HUD.init(gui: ScreenGui)
 			local endsAt = state:GetAttribute("UniverseEndsAt") or now
 			local remaining = math.max(0, endsAt - now)
 			local nextUniverse = Universes.get(state:GetAttribute("NextUniverseId") or "")
-			refs.universeName.Text = string.upper(universe.name)
+			refs.universeName.Text = upperFr(universe.name)
 			refs.nameGradient.Color = Theme.sequence({ Theme.light(universe.color, 0.65), Theme.light(universe.color, 0.15) })
 			refs.bannerGradient.Color = Theme.sequence({ Theme.dark(universe.color, 0.35), Theme.dark(universe.color, 0.72), Color3.fromRGB(14, 14, 20) })
 			refs.bannerEdge.Color = Theme.light(universe.color, 0.4)

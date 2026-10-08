@@ -312,20 +312,78 @@ local function renderItemDetail()
 			end
 		end
 		Components.sectionTitle(body, "SERT À FAIRE ÉVOLUER", { LayoutOrder = 20, Size = UDim2.new(1, -24, 0, 24) })
-		local users = EvolutionItems.usedBy(evo.id)
-		Theme.label({
-			Text = #users > 0 and table.concat(users, ", ") or "Les persos venus d'autres mondes",
-			Size = UDim2.new(1, -24, 0, 40),
-			FontFace = Theme.Faces.Bold,
-			TextColor3 = C.TextDim,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextYAlignment = Enum.TextYAlignment.Top,
-			TextWrapped = true,
-			StrokeThickness = 1.2,
-			MaxSize = 16,
-			LayoutOrder = 21,
-			Parent = body,
-		})
+		-- Les persos concernés en 3D (forme visée : ★★ ou ★★★), quatre par rangée.
+		local users = EvolutionItems.usedByIds(evo.id)
+		if #users == 0 then
+			Theme.label({
+				Text = "Les persos venus d'autres mondes",
+				Size = UDim2.new(1, -24, 0, 24),
+				FontFace = Theme.Faces.Bold,
+				TextColor3 = C.TextDim,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				StrokeThickness = 1.2,
+				MaxSize = 16,
+				LayoutOrder = 21,
+				Parent = body,
+			})
+		else
+			local shown = math.min(#users, 8)
+			local rows = math.ceil(shown / 4)
+			local strip = new("Frame", {
+				Name = "UsedBy",
+				Size = UDim2.new(1, -24, 0, rows * 136 + (rows - 1) * 8),
+				BackgroundTransparency = 1,
+				LayoutOrder = 21,
+				Parent = body,
+			})
+			local gridLayout = new("UIGridLayout", {
+				CellSize = UDim2.new(0.25, -6, 0, 136),
+				CellPadding = UDim2.fromOffset(8, 8),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+				Parent = strip,
+			})
+			gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+			for i = 1, shown do
+				local user = users[i]
+				local def = Characters.get(user.id)
+				if def then
+					local info = Theme.rarity(def.rarity)
+					local tint = info.rainbow and C.Cyan or info.color
+					local cell = new("Frame", { Name = "User", BackgroundColor3 = WHITE, ClipsDescendants = true, LayoutOrder = i, Parent = strip })
+					cell:SetAttribute("CharId", user.id)
+					Theme.corner(10).Parent = cell
+					Theme.stroke(tint, 2).Parent = cell
+					Theme.gradient({ Color3.fromRGB(40, 38, 54), Color3.fromRGB(18, 16, 24), Theme.dark(tint, 0.6) }, 90).Parent = cell
+					local holder = new("Frame", { Size = UDim2.new(1, 0, 1, -34), BackgroundTransparency = 1, Parent = cell })
+					local entry = { id = user.id, stars = user.stars, level = 1 }
+					Components.characterViewport(holder, Characters.resolveLook(user.id, user.stars), false, entry, "bust")
+					Theme.label({
+						Text = def.name,
+						AnchorPoint = Vector2.new(0.5, 1),
+						Position = UDim2.new(0.5, 0, 1, -16),
+						Size = UDim2.new(1, -8, 0, 18),
+						FontFace = Theme.Faces.Title,
+						MaxSize = 16,
+						ZIndex = 3,
+						Parent = cell,
+					})
+					Theme.label({
+						Text = string.rep("★", user.stars),
+						AnchorPoint = Vector2.new(0.5, 1),
+						Position = UDim2.new(0.5, 0, 1, -2),
+						Size = UDim2.new(1, -8, 0, 14),
+						FontFace = Theme.Faces.Heavy,
+						TextColor3 = C.Gold,
+						MaxSize = 14,
+						ZIndex = 3,
+						Parent = cell,
+					})
+				end
+			end
+			if #users > shown then
+				Components.hintText(body, "… et " .. (#users - shown) .. " autre(s)", { LayoutOrder = 21, Size = UDim2.new(1, -24, 0, 20) })
+			end
+		end
 		Components.hintText(body, "Fais évoluer tes unités à l'Autel d'Éveil (stand FAIRE ÉVOLUER du hub, ou ta base).", { LayoutOrder = 22, Size = UDim2.new(1, -24, 0, 22) })
 		return
 	end
@@ -424,6 +482,37 @@ local function renderItemDetail()
 	end
 end
 
+-- Noms d'objets lisibles : jamais plus petits que 12 px (sur deux lignes au besoin).
+local function readableCard(card: Instance)
+	local face = card:FindFirstChild("Face")
+	local strip = face and face:FindFirstChild("Strip")
+	if not strip then
+		return
+	end
+	for _, name in { "Title", "Subtitle" } do
+		local label = strip:FindFirstChild(name)
+		if label and label:IsA("TextLabel") then
+			label.TextWrapped = true
+			local constraint = label:FindFirstChildOfClass("UITextSizeConstraint") or new("UITextSizeConstraint", { Parent = label })
+			constraint.MinTextSize = name == "Title" and 12 or 11
+			constraint.MaxTextSize = name == "Title" and 20 or 15
+		end
+	end
+end
+
+-- Onglet Objets : grille plus large (4 colonnes) et fiche plus étroite ; onglet Unités : l'inverse.
+local function applyLayout()
+	local wide = tab == "items"
+	local split = wide and 0.56 or 0.38
+	refs.left.Size = UDim2.new(split, -8, 1, 0)
+	refs.sheet.Size = UDim2.new(1 - split, -8, 1, -14)
+	refs.sheet.Position = UDim2.new(split, 8, 0, 14)
+	local layout = refs.grid:FindFirstChildOfClass("UIGridLayout")
+	if layout then
+		layout.CellSize = wide and UDim2.fromOffset(142, 184) or UDim2.fromOffset(124, 160)
+	end
+end
+
 local function renderItems()
 	local grid = refs.grid
 	Components.clear(grid)
@@ -443,7 +532,7 @@ local function renderItems()
 			order += 1
 			itemCount += owned
 			local universe = evo.universe and Universes.get(evo.universe)
-			local _, preview = Components.itemCard(grid, {
+			local card, preview = Components.itemCard(grid, {
 				title = evo.name,
 				subtitle = universe and universe.name or "Tous les univers",
 				subtitleColor = universe and Theme.light(universe.color, 0.3) or C.Cyan,
@@ -459,6 +548,7 @@ local function renderItems()
 				end,
 			})
 			Components.viewport(preview, EvolutionItems.build(evo.id, 1), Vector3.new(0, 1.35, 0), 7.2, nil, false)
+			readableCard(card)
 		end
 	end
 	for _, universe in Universes.List do
@@ -536,6 +626,7 @@ render = function(force: boolean?)
 	lastKey = key
 	refs.selectedCard = nil
 	refs.autoEquip.Visible = tab == "units"
+	applyLayout()
 	-- La carte choisie à la manette reste sélectionnée après la reconstruction.
 	Components.preserveSelection(window.content, function()
 		if tab == "items" then
@@ -565,6 +656,7 @@ function Inventory.init(gui: ScreenGui)
 
 	-- Colonne de gauche : barre d'outils + grille + pages
 	local left = new("Frame", { Name = "Left", Size = UDim2.new(0.38, -8, 1, 0), BackgroundTransparency = 1, Parent = content })
+	refs.left = left
 	local toolbar = new("Frame", { Name = "Toolbar", Size = UDim2.new(1, 0, 0, 44), BackgroundTransparency = 1, Parent = left })
 	local layout = Theme.list(Enum.FillDirection.Horizontal, 8, Enum.HorizontalAlignment.Left)
 	layout.VerticalAlignment = Enum.VerticalAlignment.Center

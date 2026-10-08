@@ -167,6 +167,7 @@ workspaceService.CurrentCamera = camera
 
 local alice
 local services = {}
+local realIndexAt -- UniverseService.IndexAt d'origine (l'univers est figé pendant les menus)
 local Menus
 
 -- Détection du mode de jeu (clavier / manette) simulée.
@@ -208,6 +209,15 @@ test("Serveur démarré + joueur local connecté", function()
 	alice = makePlayer("Alice", 4242)
 	Players.LocalPlayer = alice
 	Harness.isServer = false
+	-- Univers figé pendant les tests de menus : un changement d'univers en plein test (passage
+	-- d'une demi-heure pile) lance la faille et ses effets, sans rapport avec le menu testé.
+	-- Rétabli avant le test « Rotation d'univers ».
+	local universeService = services.UniverseService
+	local frozen = universeService:IndexAt(universeService:Now())
+	realIndexAt = universeService.IndexAt
+	universeService.IndexAt = function()
+		return frozen
+	end
 end)
 
 test("Client démarré (Main.client)", function()
@@ -311,6 +321,18 @@ test("Marchand : écran, achat sur place, objet requis à l'Évolution, onglet O
 	assert(count("ItemCard", shopWindow) == EvolutionItems.Merchant.Slots, "objets du marchand manquants")
 	local buyButton = find("BuyButton", shopWindow)
 	assert(buyButton, "pas de bouton d'achat")
+	-- Étiquettes UTILE / SIGNATURE en bas de la vignette (jamais sur la pastille × N en haut).
+	for _, d in shopWindow:GetDescendants() do
+		if d.Name == "Tags" and d.Parent and d.Parent.Name == "Face" then
+			assert(d.AnchorPoint.Y == 1 and d.Position.Y.Scale > 0.5, "étiquettes du marchand en haut de la vignette")
+		end
+	end
+	-- Majuscules accentuées : « LÉGENDAIRE », jamais « LéGENDAIRE ».
+	for _, d in gui:GetDescendants() do
+		if d:IsA("TextLabel") and d:IsDescendantOf(shopWindow) then
+			assert(not string.find(d.Text, "LéG") and not string.find(d.Text, "PLANèTE"), "majuscule accentuée cassée : " .. d.Text)
+		end
+	end
 	local Shop = Harness.require(Harness.find("StarterPlayer.StarterPlayerScripts.Client.UI.Shop"))
 	local firstId = Shop._state().items[1].id
 	local owned = data.Items[firstId] or 0
@@ -364,6 +386,9 @@ test("Marchand : écran, achat sur place, objet requis à l'Évolution, onglet O
 	end
 	assert(gokoCard, "carte de Goko absente")
 	assert(gokoCard:FindFirstChild("MissingItem") and not gokoCard:FindFirstChild("Ready"), "Goko marqué PRÊT sans la Boule du Dragon")
+	-- Le ruban est en bas du portrait (le visage reste visible).
+	local ribbon = gokoCard.MissingItem
+	assert(ribbon.AnchorPoint.Y == 1 and ribbon.Position.Y.Scale >= 0.7, "ruban posé sur le visage")
 	local icon = find("ItemIcon", gokoCard)
 	assert(icon and icon:GetAttribute("ItemId") == "sai_dragon", "mini-icône de l'objet manquant")
 	-- L'aperçu « après » montre Goko ★★ en Super Guerrier (cheveux dorés).
@@ -397,9 +422,18 @@ test("Marchand : écran, achat sur place, objet requis à l'Évolution, onglet O
 		end
 	end
 	assert(card, "objet d'évolution absent de l'inventaire")
+	-- Grille des objets en 4 colonnes plus larges, noms lisibles (12 px minimum).
+	local invWindow = find("WindowRoot_UNITÉS")
+	assert(find("Left", invWindow).Size.X.Scale > 0.5, "grille des objets trop étroite")
+	local title = card.Face.Strip.Title
+	local constraint = title:FindFirstChildOfClass("UITextSizeConstraint")
+	assert(constraint and constraint.MinTextSize >= 12, "nom d'objet sans taille minimale")
 	signalFor(card, "Activated"):Fire()
 	task.wait(0.3)
-	assert(find("MerchantButton", find("WindowRoot_UNITÉS")), "fiche de l'objet absente")
+	assert(find("MerchantButton", invWindow), "fiche de l'objet absente")
+	-- Bas de la fiche : les persos concernés en 3D.
+	local usedBy = find("UsedBy", invWindow)
+	assert(usedBy and #usedBy:GetChildren() >= 2, "persos concernés non affichés")
 	Menus.close("Inventory")
 	-- HUD : la pastille du marchand.
 	task.wait(0.4)
@@ -840,6 +874,9 @@ end)
 
 test("Rotation d'univers vue par le client", function()
 	local before = #warnings
+	if realIndexAt then
+		services.UniverseService.IndexAt = realIndexAt
+	end
 	services.UniverseService:Skip()
 	task.wait(2.8)
 	for _ = 1, 5 do

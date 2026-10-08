@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Universes = require(Shared.Config.Universes)
+local Characters = require(Shared.Config.Characters)
 local EvolutionItems = require(Shared.Config.EvolutionItems)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
@@ -256,7 +257,14 @@ local function renderDetail()
 		StrokeThickness = 2.5,
 		Parent = sheet,
 	})
-	Components.rarityTag(sheet, Components.rarityOf(entry, desc), { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 18), Size = UDim2.fromOffset(130, 26) })
+	local rarityTag =
+		Components.rarityTag(sheet, Components.rarityOf(entry, desc), { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 18), Size = UDim2.fromOffset(130, 26) })
+	-- Majuscules accentuées (« LÉGENDAIRE » et pas « LéGENDAIRE »).
+	for _, d in rarityTag:GetDescendants() do
+		if d:IsA("TextLabel") then
+			d.Text = EvolutionItems.upper(d.Text)
+		end
+	end
 
 	-- Avant / après
 	local compare = new("Frame", { Size = UDim2.new(1, -32, 0, 150), Position = UDim2.fromOffset(16, 52), BackgroundTransparency = 1, Parent = sheet })
@@ -305,6 +313,53 @@ local function renderDetail()
 	end
 	local nextEntry = table.clone(entry)
 	nextEntry.stars = cost.stars
+	-- Ce que donne l'éveil (s'il reste de la place sous les conditions).
+	local materialCount = 0
+	for _ in cost.materials do
+		materialCount += 1
+	end
+	local used = 28 * (2 + materialCount) + (need and 78 or 0) + 5 * (1 + materialCount + (need and 1 or 0))
+	if used + 40 <= 230 then
+		local def = not entry.fusion and Characters.get(entry.id)
+		local newLook = entry.fusion ~= nil or (def and def.evolve and def.evolve[cost.stars] ~= nil)
+		local before, after = Formulas.power(entry), Formulas.power(nextEntry)
+		local gains = {}
+		if newLook then
+			table.insert(gains, "Nouveau look")
+		end
+		table.insert(gains, "Niveau max " .. Formulas.levelCap(cost.stars))
+		if before > 0 then
+			local ratio = string.gsub(string.format("%.1f", after / before), "%.", ",")
+			table.insert(gains, "Puissance × " .. ratio)
+		end
+		local row = new("Frame", { Name = "Gains", Size = UDim2.new(1, 0, 0, 34), BackgroundColor3 = WHITE, LayoutOrder = 30, Parent = list })
+		Theme.corner(10).Parent = row
+		Theme.stroke(C.Gold, 2, 0.35).Parent = row
+		Theme.gradient({ Theme.dark(C.Gold, 0.55), Color3.fromRGB(26, 20, 10) }, 0).Parent = row
+		Theme.sparkles(row, 4, 3, 0.7)
+		Theme.label({
+			Text = "L'ÉVEIL DONNE :",
+			Position = UDim2.fromOffset(12, 4),
+			Size = UDim2.new(0, 150, 1, -8),
+			FontFace = Theme.Faces.Title,
+			TextColor3 = C.Gold,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			StrokeThickness = 1.5,
+			MaxSize = 17,
+			Parent = row,
+		})
+		Theme.label({
+			Name = "GainsText",
+			Text = table.concat(gains, "  ✦  "),
+			Position = UDim2.fromOffset(160, 4),
+			Size = UDim2.new(1, -170, 1, -8),
+			FontFace = Theme.Faces.Heavy,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			StrokeThickness = 1.5,
+			MaxSize = 18,
+			Parent = row,
+		})
+	end
 	Components.pill(
 		sheet,
 		"sword",
@@ -350,10 +405,11 @@ local function ribbon(card: Instance, state: string, entry)
 		return
 	end
 	local twoLines = state ~= "ready"
+	-- En bas du portrait, juste au-dessus du nom : le visage reste visible.
 	local frame = new("Frame", {
 		Name = style.name,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 0.73, -3),
 		Size = UDim2.new(1, -12, 0, twoLines and 34 or 24),
 		BackgroundColor3 = WHITE,
 		ZIndex = 6,

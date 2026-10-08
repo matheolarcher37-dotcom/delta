@@ -296,6 +296,15 @@ test("Marchand ambulant : échoppe, rayon, stock, achat sur place", function()
 	assert(head and head.CFrame.Position.Y > counterTop + 1.8, "le vendeur ne dépasse pas du comptoir")
 	local sign = merchant.Etal.SubSign.CFrame.Position.Y - merchant.Etal.SubSign.Size.Y / 2
 	assert(sign > head.CFrame.Position.Y + head.Size.Y, "la sous-enseigne cache la tête du vendeur")
+	-- Silhouette de marchand : plume, joyau, barbe, bourse, lampe chaude au-dessus de lui.
+	for _, name in { "Plume", "Jewel", "Beard", "Moustache", "Purse" } do
+		local piece = merchant.Marchand:FindFirstChild(name, true)
+		assert(piece and not piece.Anchored and piece:FindFirstChildOfClass("WeldConstraint"), "vendeur : " .. name .. " absent ou non soudé")
+	end
+	assert(merchant:FindFirstChild("VendorLight", true), "pas de lumière chaude au-dessus du vendeur")
+	-- La balise est sur le côté de l'échoppe (le rayon ne sort pas de la bâche de la roulotte).
+	local beaconOffset = merchant:GetPivot():PointToObjectSpace(merchant.Balise.CrystalCore.CFrame.Position)
+	assert(math.abs(beaconOffset.X) > 15, "rayon derrière la roulotte")
 	DataService:AddCoins(alice, 1000000)
 	local shop = invoke("Merchant_GetStock", alice)
 	assert(shop and #shop.items == EvolutionItems.Merchant.Slots, "stock invalide")

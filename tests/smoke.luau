@@ -84,6 +84,14 @@ test("Objets d'évolution : chaque perso a son objet, stock et coins du marchand
 		assert(EvolutionItems.requirement({ id = id, stars = 3 }) == nil, "évolution au-delà de ★★★ : " .. id)
 	end
 	assert(EvolutionItems.requirement({ id = "sai_goko", stars = 1 }).item == "sai_dragon", "Goko → Boule du Dragon")
+	-- Majuscules françaises (string.upper laisse « LéGENDAIRE »).
+	assert(EvolutionItems.upper("Légendaire") == "LÉGENDAIRE", "majuscules accentuées")
+	assert(EvolutionItems.upper("Planète des Guerriers · Forêt") == "PLANÈTE DES GUERRIERS · FORÊT", "majuscules accentuées (2)")
+	for _, tier in EvolutionItems.Tiers do
+		assert(tier.label == EvolutionItems.upper(tier.name), "libellé de palier : " .. tier.name)
+	end
+	local users = EvolutionItems.usedByIds("sai_dragon")
+	assert(#users >= 1 and users[1].stars >= 2, "persos qui demandent la Boule du Dragon")
 	assert(EvolutionItems.requirement({ id = "ninja_maruto", stars = 1 }).item == "ninja_ermite", "Maruto → Parchemin d'Ermite")
 	local fusion = EvolutionItems.requirement({ id = "fusion", fusion = { a = "ninja_maruto", b = "occ_goju" }, stars = 1 })
 	assert(fusion and fusion.item == "ninja_secret", "objet d'une fusion")

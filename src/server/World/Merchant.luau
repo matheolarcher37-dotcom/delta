@@ -37,13 +37,17 @@ Merchant.Color = EvolutionItems.Merchant.Color
 Merchant.DeckTop = 1.1
 Merchant.BeamHeight = 900
 Merchant.WagonYaw = 22 -- rotation de la roulotte (degrés)
-Merchant.BeaconZ = 17.6 -- position de la balise, derrière l'échoppe
+-- Position de la balise : sur le côté, en retrait (vue de face, le rayon monte à côté de la
+-- roulotte au lieu de sortir de sa bâche).
+Merchant.BeaconOffset = Vector3.new(-19.5, 0, 9)
+Merchant.VendorStep = 1.6 -- hauteur de l'estrade du vendeur
 local UPRIGHT = CFrame.Angles(0, 0, math.rad(90)) -- cylindre dressé à la verticale
 local DISPLAY_SCALE = 0.75 -- taille des objets exposés sur les étagères
 
 local SIGN_FONT = Font.new("rbxasset://fonts/families/Fondamento.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
 
--- Vendeur : voyageur au turban, longue robe prune, écharpe dorée.
+-- Vendeur : vieux voyageur au turban à plume (joyau violet), lunettes rondes, longue barbe
+-- blanche, robe prune, écharpe et ceinture dorées, bourse à la ceinture.
 Merchant.NpcLook = {
 	skin = rgb(214, 162, 122),
 	hair = "short",
@@ -55,7 +59,8 @@ Merchant.NpcLook = {
 	topAccent = PAINT_TRIM,
 	bottom = rgb(60, 36, 64),
 	shoes = rgb(70, 46, 34),
-	accessories = { "turban", "scarf_long", "sash" },
+	accessories = { "turban", "scarf_long", "sash", "belt", "glasses" },
+	glassesColor = rgb(200, 160, 70),
 	accColor = PAINT_TRIM,
 }
 
@@ -377,8 +382,9 @@ end
 local function buildBeacon(model: Model, cf: CFrame): BasePart
 	local beacon = Build.model(model, "Balise")
 	local color = Merchant.Color
-	local base = cf * CFrame.new(0, 0, Merchant.BeaconZ)
-	-- Socle de pierre gravée et cercle lumineux au sol.
+	local base = cf * CFrame.new(Merchant.BeaconOffset)
+	-- Socle de pierre gravée (avec une semelle qui descend sous le sol en pente) et cercle lumineux.
+	Core.vcyl(beacon, "BeaconFooting", base * CFrame.new(0, -3, 0), 3, 6.8, shade(STONE, -0.15), Enum.Material.Slate)
 	Core.vcyl(beacon, "BeaconBase", base, 1.2, 6.4, STONE, Enum.Material.Slate)
 	Core.vcyl(beacon, "BeaconStep", base * CFrame.new(0, 1.2, 0), 0.8, 4.6, shade(STONE, -0.1), Enum.Material.Slate)
 	local ring = cyl(beacon, "GlowRing", Vector3.new(0.12, 9, 9), base * CFrame.new(0, 0.08, 0) * CFrame.Angles(0, 0, math.rad(90)), color, Enum.Material.Neon)
@@ -658,20 +664,113 @@ local function buildProps(model: Model, cf: CFrame)
 	Props.banner(props, (floorCF * CFrame.new(12.4, 0, -8.2)).Position, 10, CLOTH, nil, yaw)
 end
 
+-- Pièce soudée à un membre du vendeur (elle suit ses animations).
+local function attach(limb: BasePart, name: string, size: Vector3, offset: CFrame, color: Color3, kind: string?, material: Enum.Material?): Part
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.CFrame = limb.CFrame * offset
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Anchored = false
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	p.CastShadow = false
+	if kind == "ball" then
+		p.Shape = Enum.PartType.Ball
+	elseif kind == "ellipsoid" then
+		local mesh = Instance.new("SpecialMesh")
+		mesh.MeshType = Enum.MeshType.Sphere
+		mesh.Parent = p
+	elseif kind == "cylinder" then
+		p.Shape = Enum.PartType.Cylinder
+	end
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = limb
+	weld.Part1 = p
+	weld.Parent = p
+	p.Parent = limb.Parent
+	return p
+end
+
+-- Silhouette de marchand ambulant reconnaissable de loin : plume et joyau sur le turban,
+-- moustache et longue barbe, bourse à la ceinture, main gauche posée sur le comptoir.
+local function dressNpc(npc: Model)
+	local head = npc:FindFirstChild("Head") :: BasePart?
+	local torso = npc:FindFirstChild("Torso") :: BasePart?
+	local beard = rgb(232, 230, 236)
+	if head then
+		-- Plume (deux couches) piquée dans le turban, tenue par un joyau serti d'or.
+		attach(head, "Plume", Vector3.new(0.26, 1.5, 0.12), CFrame.new(0.36, 1.32, -0.42) * CFrame.Angles(-0.25, 0, -0.32), rgb(40, 160, 150), "ellipsoid", Enum.Material.Fabric)
+		attach(head, "PlumeTip", Vector3.new(0.16, 0.8, 0.1), CFrame.new(0.55, 1.85, -0.3) * CFrame.Angles(-0.35, 0, -0.55), rgb(240, 200, 90), "ellipsoid", Enum.Material.Fabric)
+		attach(head, "JewelSetting", Vector3.new(0.5, 0.5, 0.14), CFrame.new(0, 0.55, -0.76), PAINT_TRIM, "ellipsoid", Enum.Material.Metal)
+		attach(head, "Jewel", Vector3.new(0.3, 0.36, 0.12), CFrame.new(0, 0.55, -0.83), Merchant.Color, "ellipsoid", Enum.Material.Neon)
+		-- Moustache en crocs relevés et longue barbe en pointe.
+		for _, side in { -1, 1 } do
+			attach(head, "Moustache", Vector3.new(0.5, 0.17, 0.2), CFrame.new(side * 0.2, -0.2, -0.6) * CFrame.Angles(0, 0, side * 0.3), beard, "ellipsoid")
+			attach(head, "MoustacheCurl", Vector3.new(0.16, 0.16, 0.16), CFrame.new(side * 0.44, -0.1, -0.55), beard, "ball")
+		end
+		attach(head, "Beard", Vector3.new(0.8, 0.75, 0.46), CFrame.new(0, -0.5, -0.36), beard, "ellipsoid")
+		attach(head, "BeardTip", Vector3.new(0.36, 0.55, 0.3), CFrame.new(0, -0.95, -0.4) * CFrame.Angles(0.2, 0, 0), shade(beard, -0.06), "ellipsoid")
+	end
+	if torso then
+		-- Bourse de cuir à la ceinture (fermoir en pièce d'or) et rouleau de parchemin.
+		attach(torso, "Purse", Vector3.new(0.6, 0.7, 0.42), CFrame.new(-0.62, -1.1, -0.56), rgb(120, 76, 44), "ellipsoid", Enum.Material.Fabric)
+		attach(torso, "PurseTie", Vector3.new(0.5, 0.12, 0.3), CFrame.new(-0.62, -0.84, -0.58), rgb(80, 50, 30), "ellipsoid", Enum.Material.Fabric)
+		attach(torso, "PurseCoin", Vector3.new(0.06, 0.24, 0.24), CFrame.new(-0.62, -1.1, -0.79) * CFrame.Angles(0, math.rad(90), 0), GOLD, "cylinder", Enum.Material.Metal)
+		attach(
+			torso,
+			"ScrollCase",
+			Vector3.new(1.2, 0.26, 0.26),
+			CFrame.new(0.72, -1.05, -0.5) * CFrame.Angles(0, 0, math.rad(70)),
+			rgb(150, 50, 40),
+			"cylinder",
+			Enum.Material.Wood
+		)
+		-- Bras gauche avancé : la main repose sur le comptoir (la pose de base est mémorisée dans
+		-- BaseC0, que l'animateur des persos reprend comme position de repos).
+		local shoulder = torso:FindFirstChild("Left Shoulder")
+		if shoulder and shoulder:IsA("Motor6D") then
+			local rest = (shoulder:GetAttribute("BaseC0") or shoulder.C0) * CFrame.Angles(0.15, 0, -math.rad(58))
+			shoulder.C0 = rest
+			shoulder:SetAttribute("BaseC0", rest)
+		end
+	end
+end
+
 local function buildNpc(model: Model, cf: CFrame)
 	local ok, npc = pcall(CharacterBuilder.build, Merchant.NpcLook, { name = "Marchand", anchored = true })
 	if not ok or not npc then
 		warn("[AnimeTycoon] Marchand : vendeur non construit (" .. tostring(npc) .. ")")
 		return nil
 	end
-	-- Debout sur une estrade d'un stud : il dépasse du comptoir jusqu'au buste.
-	local step = Build.part(model, "VendorStep", Vector3.new(4, 1, 2.6), cf * CFrame.new(0, Merchant.DeckTop + 0.5, -0.3), WOOD_OLD, { Material = Enum.Material.WoodPlanks })
-	Build.deco(model, "VendorStepEdge", Vector3.new(4.2, 0.2, 2.8), step.CFrame * CFrame.new(0, 0.45, 0), WOOD_DARK, { Material = Enum.Material.Wood })
-	npc:PivotTo(cf * CFrame.new(0, Merchant.DeckTop + 1 + CharacterBuilder.RootHeight, -0.4))
+	-- Debout sur une estrade : il dépasse du comptoir jusqu'à la taille.
+	local h = Merchant.VendorStep
+	local step = Build.part(model, "VendorStep", Vector3.new(4, h, 2.6), cf * CFrame.new(0, Merchant.DeckTop + h / 2, -0.3), WOOD_OLD, { Material = Enum.Material.WoodPlanks })
+	Build.deco(model, "VendorStepEdge", Vector3.new(4.2, 0.2, 2.8), step.CFrame * CFrame.new(0, h / 2 - 0.05, 0), WOOD_DARK, { Material = Enum.Material.Wood })
+	npc:PivotTo(cf * CFrame.new(0, Merchant.DeckTop + h + CharacterBuilder.RootHeight, -0.4))
+	pcall(dressNpc, npc)
 	npc:SetAttribute("NPC", true)
 	npc:SetAttribute("DisplayName", "Marchand")
 	npc.Parent = model
 	CollectionService:AddTag(npc, "AnimeRig")
+	-- Lampe à huile suspendue au-dessus de lui : lumière chaude sous l'auvent.
+	local lampCF = cf * CFrame.new(1.6, Merchant.DeckTop + 9.4, -1.6)
+	Build.deco(model, "VendorLampChain", Vector3.new(0.08, 1.4, 0.08), lampCF * CFrame.new(0, 0.9, 0), rgb(60, 50, 40), { Material = Enum.Material.Metal })
+	Build.deco(model, "VendorLampCap", Vector3.new(0.7, 0.25, 0.7), lampCF * CFrame.new(0, 0.3, 0), PAINT_TRIM, { Material = Enum.Material.Metal })
+	local glass = Build.deco(model, "VendorLamp", Vector3.new(0.55, 0.7, 0.55), lampCF * CFrame.new(0, -0.2, 0), rgb(255, 210, 140), { Material = Enum.Material.Neon })
+	glass.CastShadow = false
+	local light = Instance.new("PointLight")
+	light.Name = "VendorLight"
+	light.Color = rgb(255, 196, 130)
+	light.Range = 16
+	light.Brightness = 1.6
+	light.Shadows = false
+	light.Parent = glass
 	return npc
 end
 

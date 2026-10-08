@@ -333,10 +333,10 @@ local function itemViewport(parent: Instance, itemId: string, spin: boolean, dis
 	return Components.viewport(parent, model, Vector3.new(0, 1.35, 0), distance or 7.2, nil, spin)
 end
 
-local function smallTag(parent: Instance, text: string, color: Color3, props: { [string]: any })
+local function smallTag(parent: Instance, text: string, color: Color3, props: { [string]: any }, compact: boolean?)
 	local tag = new("Frame", {
 		Name = "Tag",
-		Size = UDim2.fromOffset(0, 22),
+		Size = UDim2.fromOffset(0, compact and 18 or 22),
 		AutomaticSize = Enum.AutomaticSize.X,
 		BackgroundColor3 = WHITE,
 		ZIndex = 6,
@@ -346,18 +346,18 @@ local function smallTag(parent: Instance, text: string, color: Color3, props: { 
 		(tag :: any)[key] = value
 	end
 	Theme.round().Parent = tag
-	Theme.stroke(C.Stroke, 2).Parent = tag
+	Theme.stroke(C.Stroke, compact and 1.5 or 2).Parent = tag
 	Theme.gradient({ Theme.light(color, 0.25), Theme.dark(color, 0.2) }, 90).Parent = tag
-	Theme.padding(8, 0).Parent = tag
+	Theme.padding(compact and 6 or 8, 0).Parent = tag
 	Theme.label({
 		Text = text,
-		Size = UDim2.fromOffset(0, 20),
+		Size = UDim2.fromOffset(0, compact and 16 or 20),
 		AutomaticSize = Enum.AutomaticSize.X,
 		TextScaled = false,
-		TextSize = 14,
+		TextSize = compact and 12 or 14,
 		FontFace = Theme.Faces.Title,
 		ZIndex = 7,
-		StrokeThickness = 1.5,
+		StrokeThickness = compact and 1.2 or 1.5,
 		Parent = tag,
 	})
 	return tag
@@ -394,20 +394,25 @@ local function renderGrid()
 			})
 			itemViewport(preview, entry.id, entry.id == selectedId)
 			local face = card:FindFirstChild("Face")
+			-- Étiquettes en bas à gauche de la vignette (la pastille × N reste seule en haut à droite) :
+			-- UTILE (une de tes unités en a besoin) et/ou SIGNATURE, empilées vers le haut.
 			local tagsHolder = new("Frame", {
 				Name = "Tags",
-				Position = UDim2.fromOffset(6, 34),
-				Size = UDim2.new(1, -12, 0, 24),
+				AnchorPoint = Vector2.new(0, 1),
+				Position = UDim2.new(0, 6, 0.68, -4),
+				Size = UDim2.new(1, -12, 0, 40),
 				BackgroundTransparency = 1,
 				ZIndex = 6,
 				Parent = face,
 			})
 			local list = Theme.list(Enum.FillDirection.Vertical, 3, Enum.HorizontalAlignment.Left)
+			list.VerticalAlignment = Enum.VerticalAlignment.Bottom
 			list.Parent = tagsHolder
 			if #unitsNeeding(entry.id) > 0 then
-				smallTag(tagsHolder, "UTILE", C.Green, { LayoutOrder = 1 })
-			elseif item.signature then
-				smallTag(tagsHolder, "SIGNATURE", C.Orange, { LayoutOrder = 2 })
+				smallTag(tagsHolder, "UTILE", C.Green, { LayoutOrder = 1 }, true)
+			end
+			if item.signature then
+				smallTag(tagsHolder, "SIGNATURE", C.Orange, { LayoutOrder = 2 }, true)
 			end
 			if entry.remaining <= 0 then
 				local soldOut = new("Frame", {
@@ -520,7 +525,7 @@ local function renderDetail()
 	local tags = new("Frame", { Position = UDim2.fromOffset(204, 58), Size = UDim2.new(1, -218, 0, 26), BackgroundTransparency = 1, Parent = sheet })
 	local tagList = Theme.list(Enum.FillDirection.Horizontal, 6, Enum.HorizontalAlignment.Left)
 	tagList.Parent = tags
-	smallTag(tags, string.upper(tier.name), tier.color, { LayoutOrder = 1, Size = UDim2.fromOffset(0, 24) })
+	smallTag(tags, tier.label or EvolutionItems.upper(tier.name), tier.color, { LayoutOrder = 1, Size = UDim2.fromOffset(0, 24) })
 	if item.signature then
 		smallTag(tags, "SIGNATURE", C.Orange, { LayoutOrder = 2, Size = UDim2.fromOffset(0, 24) })
 	end

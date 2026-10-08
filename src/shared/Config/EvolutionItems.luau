@@ -20,10 +20,34 @@ local EvolutionItems = {}
 -- Paliers d'objets : nom, couleur, quantité en stock par passage du marchand (par joueur),
 -- poids dans le tirage du stock.
 EvolutionItems.Tiers = {
-	[1] = { name = "Commun", color = rgb(64, 160, 255), stock = 5, weight = 10 },
-	[2] = { name = "Rare", color = rgb(176, 92, 255), stock = 3, weight = 6 },
-	[3] = { name = "Légendaire", color = rgb(255, 190, 40), stock = 1, weight = 2.6 },
+	[1] = { name = "Commun", label = "COMMUN", color = rgb(64, 160, 255), stock = 5, weight = 10 },
+	[2] = { name = "Rare", label = "RARE", color = rgb(176, 92, 255), stock = 3, weight = 6 },
+	[3] = { name = "Légendaire", label = "LÉGENDAIRE", color = rgb(255, 190, 40), stock = 1, weight = 2.6 },
 }
+
+-- Majuscules françaises : string.upper ne touche pas aux lettres accentuées (« LéGENDAIRE »).
+local ACCENTS = {
+	{ "é", "É" },
+	{ "è", "È" },
+	{ "ê", "Ê" },
+	{ "ë", "Ë" },
+	{ "à", "À" },
+	{ "â", "Â" },
+	{ "î", "Î" },
+	{ "ï", "Ï" },
+	{ "ô", "Ô" },
+	{ "û", "Û" },
+	{ "ù", "Ù" },
+	{ "ç", "Ç" },
+	{ "œ", "Œ" },
+}
+function EvolutionItems.upper(text: string): string
+	local out = string.upper(text)
+	for _, pair in ACCENTS do
+		out = string.gsub(out, pair[1], pair[2])
+	end
+	return out
+end
 
 -- Le marchand ambulant : il change de coin (Layout.MerchantSpots) et renouvelle son stock toutes
 -- les `Period` secondes (identique sur tous les serveurs).
@@ -381,6 +405,28 @@ function EvolutionItems.requirement(entry)
 end
 
 -- Persos (identifiants) qui ont besoin de cet objet, pour l'expliquer dans les menus.
+-- Persos qui demandent cet objet : { { id, stars = étoiles visées } }, triés par nom.
+function EvolutionItems.usedByIds(itemId: string): { { id: string, stars: number } }
+	local out = {}
+	for charId in Characters.List do
+		for star = 2, 3 do
+			local need = EvolutionItems.requirement({ id = charId, stars = star - 1 })
+			if need and need.item == itemId then
+				table.insert(out, { id = charId, stars = star })
+				break
+			end
+		end
+	end
+	table.sort(out, function(a, b)
+		local na, nb = Characters.List[a.id].name, Characters.List[b.id].name
+		if na == nb then
+			return a.id < b.id
+		end
+		return na < nb
+	end)
+	return out
+end
+
 function EvolutionItems.usedBy(itemId: string): { string }
 	local names, seen = {}, {}
 	for charId, def in Characters.List do
