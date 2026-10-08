@@ -294,6 +294,10 @@ local function newContext(model: Model, s: number, paint: string)
 		local full = opts.cross ~= false
 		local depth = opts.depth or (full and width * 0.62 or math.max(width * 0.5, (opts.thickness or 0.16) * 2.2))
 		local dark = opts.dark or shadeOf(color)
+		if ctx.hairDarken then
+			-- Moitié ombrée plus marquée : chaque pointe se détache de ses voisines (contour)
+			dark = dark:Lerp(Color3.new(0.25, 0.18, 0.05), ctx.hairDarken)
+		end
 		if full then
 			ctx.cone(limbName, litFrame(face), length, width, depth, color, dark)
 		else
@@ -343,6 +347,9 @@ local function newContext(model: Model, s: number, paint: string)
 		local half = (outward.Magnitude > 0.05 and back:Dot(outward) < 0) and -1 or 1
 		local depth = (opts.thickness or 0.14) * 2.4
 		local dark = shadeOf(color)
+		if ctx.hairDarken then
+			dark = dark:Lerp(Color3.new(0.25, 0.18, 0.05), ctx.hairDarken)
+		end
 		local lit = frame.RightVector:Dot(LIGHT) >= 0
 		ctx.cone(limbName, frame, length, width, depth, lit and color or dark, lit and dark or color, half, "HairLock")
 		if opts.tip then
@@ -716,13 +723,15 @@ HAIR.spiky = function(ctx, c, look)
 		{ 80, 30, 0.56, 0.46 },
 	}, { scale = L, r = 0.34 })
 	-- Rang arrière : pointes couchées vers l'arrière et vers le bas (dessus du crâne vu de dos)
+	-- (deux rangs réguliers, en quinconce : 4 pointes en haut, 3 en dessous)
 	ctx.burst("Head", Vector3.new(0, base + 0.06, 0.1), Vector3.new(0.6, 0.32, 0.58), c, {
-		{ 90, 55, 0.6 * L, 0.52, nil, 0.05 },
-		{ 55, 62, 0.58 * L, 0.5, under, 0 },
-		{ 125, 62, 0.58 * L, 0.5, under, 0 },
-		{ 20, 72, 0.52 * L, 0.46, nil, 0.05 },
-		{ 160, 72, 0.52 * L, 0.46, nil, 0.05 },
-		{ 90, 85, 0.52 * L, 0.5, under, -0.25 },
+		{ 34, 58, 0.58 * L, 0.5, nil, 0.05 },
+		{ 72, 58, 0.6 * L, 0.52, under, 0.05 },
+		{ 108, 58, 0.6 * L, 0.52, nil, 0.05 },
+		{ 146, 58, 0.58 * L, 0.5, under, 0.05 },
+		{ 53, 82, 0.54 * L, 0.5, nil, -0.22 },
+		{ 90, 82, 0.56 * L, 0.52, under, -0.22 },
+		{ 127, 82, 0.54 * L, 0.5, nil, -0.22 },
 	}, { sink = 0.82 })
 	-- Petites pointes dans la nuque (sous le bandeau) : la nuque n'est jamais nue.
 	for i, a in { 35, 65, 90, 115, 145 } do
@@ -1086,25 +1095,128 @@ HAIR.flame_spiky = function(ctx, c, look)
 end
 
 HAIR.flame = function(ctx, c, look)
-	-- Flamme dressée (prince guerrier) : front dégagé en pointe ("V"), grande flamme en éventail.
+	-- Prince guerrier : front très dégagé avec une pointe en "V" profonde au milieu du front
+	-- (widow's peak), tempes dégarnies, et une flamme VERTICALE étroite et haute (environ 1,6 fois
+	-- la hauteur de la tête), en deux couches serrées : rien ne part sur les côtés.
 	local under, shine = hairTones(c, look)
 	local tip = look.hairTip
-	cap(ctx, c, { color2 = under, backLength = 1.1, height = 0.84 })
-	scales(ctx, c, shine, under, 0.5, 0.5, { lift = 2.2, tip = tip })
-	crown(ctx, c, Vector3.new(0, 0.75, 0.12), {
-		{ 0, 12, 1.15, 0.66, nil, true },
-		{ -20, 8, 1.0, 0.62, shine, true },
-		{ 20, 8, 1.0, 0.62, nil, true },
-		{ -40, 12, 0.85, 0.6 },
-		{ 40, 12, 0.85, 0.6, shine },
-		{ -58, 18, 0.65, 0.56, under },
-		{ 58, 18, 0.65, 0.56, under },
-		{ -10, 40, 0.95, 0.62, under },
-		{ 12, 40, 0.95, 0.62, under },
-		{ 0, -20, 0.8, 0.6, shine },
-	}, { tip = tip, r = 0.22 })
-	-- Pointe de cheveux au milieu du front (racine en "V")
-	ctx.lock("Head", c, Vector3.new(0, 0.62, -0.62), Vector3.new(0, -1, -0.15), 0.32, 0.38)
+	local L = look.hairLength or 1
+	cap(ctx, c, { color2 = under, backLength = 0.95, height = 0.78, lift = 0.04, napeLift = 0.12 })
+	-- Côtés plaqués et relevés vers le haut (pas de mèches qui débordent)
+	for _, side in { -1, 1 } do
+		ctx.spike("Head", c, Vector3.new(side * 0.52, 0.36, -0.16), Vector3.new(side * 0.22, 1, 0.32), 0.62, 0.46, { cross = false, thickness = 0.14 })
+		ctx.spike("Head", under, Vector3.new(side * 0.5, 0.3, 0.26), Vector3.new(side * 0.2, 1, 0.2), 0.66, 0.5, { cross = false, thickness = 0.14 })
+	end
+	-- Flamme : couche avant (dressée, presque verticale), couche arrière un peu reculée
+	crown(ctx, c, Vector3.new(0, 0.72, 0.1), {
+		{ 0, 6, 1.95, 0.8, nil, true },
+		{ -13, 4, 1.66, 0.74, shine, true },
+		{ 13, 4, 1.72, 0.74, nil, true },
+		{ -25, 8, 1.35, 0.7, nil, true },
+		{ 25, 8, 1.4, 0.7, shine, true },
+		{ -36, 12, 0.95, 0.64, under, true },
+		{ 36, 12, 0.98, 0.64, nil, true },
+		{ -5, 26, 1.72, 0.74, under, true },
+		{ 7, 28, 1.6, 0.72, under, true },
+		{ -18, 32, 1.2, 0.66, under },
+		{ 18, 32, 1.2, 0.66, under },
+	}, { tip = tip, r = 0.2, scale = L })
+	-- Pointe en "V" au milieu du front + deux petites pointes de golfes qui la dessinent
+	ctx.lock("Head", c, Vector3.new(0, 0.66, -0.6), Vector3.new(0, -1, -0.2), 0.46, 0.42, { thickness = 0.14 })
+	ctx.lock("Head", shine, Vector3.new(0, 0.66, -0.63), Vector3.new(0, -1, -0.2), 0.32, 0.16, { thickness = 0.06 })
+end
+
+HAIR.goku = function(ctx, c, look)
+	-- Guerrier au grand cœur : 4 mèches de frange qui retombent sur le front (deux au milieu qui
+	-- s'écartent en fourche), 5-6 grosses pointes qui partent vers l'arrière et sur les côtés en
+	-- éventail (silhouette en palmier vue de face), une pointe dressée sur le dessus, nuque courte.
+	local under, shine = hairTones(c, look)
+	local tip = look.hairTip
+	local L = look.hairLength or 1
+	cap(ctx, c, { color2 = under, backLength = 0.85, napeLift = 0.16, grow = 0.04 })
+	scales(ctx, c, shine, under, 0.5, 0.42 * L, { front = false, tip = tip })
+	-- Frange : 4 mèches (gauche-écran longue, fourche au milieu, petite à droite)
+	local bangs = {
+		{ 0.4, 0.6, 0.66, 1.25, shine },
+		{ 0.15, 0.62, 0.74, 0.25, c },
+		{ -0.1, 0.62, 0.66, -0.35, c },
+		{ -0.36, 0.6, 0.54, -1.05, shine },
+	}
+	for _, b in bangs do
+		local x = b[1]
+		local z = -math.sqrt(math.max(0, 0.69 * 0.69 - x * x)) - 0.03
+		ctx.lock("Head", b[5], Vector3.new(x, b[2], z), Vector3.new(b[4] * 0.45, -1, -0.28), b[3] * L, 0.38, { facing = Vector3.new(-x * 0.6, 0, 1), thickness = 0.13, tip = tip })
+	end
+	-- Grosses pointes en éventail : { autour, depuis le haut, longueur, largeur, couleur, levée }
+	ctx.burst("Head", Vector3.new(0, 0.6, 0.08), Vector3.new(0.62, 0.36, 0.62), c, {
+		{ 8, 52, 1.12 * L, 0.68, shine, 0.55 },
+		{ 172, 50, 1.1 * L, 0.68, nil, 0.55 },
+		{ 350, 80, 0.98 * L, 0.62, nil, 0.22 },
+		{ 190, 80, 0.98 * L, 0.62, under, 0.22 },
+		{ 92, 28, 1.08 * L, 0.68, nil, 0.42 },
+		{ 50, 62, 1.0 * L, 0.64, under, 0.12 },
+		{ 132, 62, 1.0 * L, 0.64, under, 0.12 },
+		{ 255, 24, 0.82 * L, 0.6, shine, 0.65 },
+	}, { tip = tip, sink = 0.78 })
+	-- Nuque courte : deux petites pointes vers le bas et l'arrière
+	for _, side in { -1, 1 } do
+		ctx.spike("Head", under, Vector3.new(side * 0.26, 0.12, 0.5), Vector3.new(side * 0.4, -0.7, 1), 0.5 * L, 0.42, { cross = false, thickness = 0.14 })
+	end
+end
+
+HAIR.hedgehog = function(ctx, c, look)
+	-- Hérisson en boule (invocateur des ombres) : grosse touffe ronde, pointes moyennes dans
+	-- TOUS les sens (dessus, côtés, arrière, jusqu'à la nuque), frange de 3 pointes sur le front.
+	local under, shine = hairTones(c, look)
+	local L = look.hairLength or 1
+	cap(ctx, c, { color2 = under, backLength = 1.15, grow = 0.14, height = 0.96 })
+	fringe(ctx, c, { -0.3, -0.04, 0.24 }, { 0.46, 0.54, 0.44 }, 0.38, { alt = shine, y = 0.58, spread = 1.0, out = 0.3 })
+	L *= 1.25
+	ctx.burst("Head", Vector3.new(0, 0.54, 0.12), Vector3.new(0.7, 0.46, 0.7), c, {
+		{ 270, 25, 0.62 * L, 0.52, shine, 0.15 },
+		{ 0, 15, 0.66 * L, 0.54, nil, 0 },
+		{ 220, 50, 0.62 * L, 0.52, nil, 0 },
+		{ 320, 50, 0.62 * L, 0.52, shine, 0 },
+		{ 180, 62, 0.66 * L, 0.54, nil, 0 },
+		{ 0, 62, 0.66 * L, 0.54, under, 0 },
+		{ 135, 45, 0.7 * L, 0.54, nil, 0 },
+		{ 45, 45, 0.7 * L, 0.54, shine, 0 },
+		{ 90, 40, 0.7 * L, 0.56, nil, 0 },
+		{ 150, 95, 0.62 * L, 0.5, under, -0.1 },
+		{ 30, 95, 0.62 * L, 0.5, under, -0.1 },
+		{ 90, 88, 0.66 * L, 0.54, under, -0.15 },
+		{ 195, 100, 0.5 * L, 0.46, nil, -0.2 },
+		{ 345, 100, 0.5 * L, 0.46, nil, -0.2 },
+	}, { sink = 0.8, lift = 0 })
+end
+
+HAIR.wild_long = function(ctx, c, look)
+	-- Mi-long en bataille (guerrier légendaire) : frange à épis qui tombe sur les yeux, quelques
+	-- pointes sur le dessus, et des mèches épaisses qui retombent sur les épaules et le haut du dos.
+	local under, shine = hairTones(c, look)
+	local L = look.hairLength or 1
+	cap(ctx, c, { color2 = under, backLength = 1.5, grow = 0.06 })
+	scales(ctx, c, shine, under, 0.5, 0.42, { front = false })
+	fringe(ctx, c, { -0.42, -0.2, 0.02, 0.24, 0.44 }, { 0.5, 0.62, 0.7, 0.6, 0.48 }, 0.34, { alt = shine, y = 0.58, spread = 0.9, out = 0.22 })
+	ctx.burst("Head", Vector3.new(0, 0.6, 0.08), Vector3.new(0.6, 0.34, 0.62), c, {
+		{ 230, 35, 0.62 * L, 0.54, shine, 0.4 },
+		{ 310, 35, 0.62 * L, 0.54, nil, 0.4 },
+		{ 90, 35, 0.7 * L, 0.56, nil, 0.3 },
+		{ 0, 60, 0.62 * L, 0.54, nil, 0.1 },
+		{ 180, 60, 0.62 * L, 0.54, under, 0.1 },
+	}, { sink = 0.8 })
+	for _, side in { -1, 1 } do
+		-- Mèches des côtés jusqu'aux épaules
+		ctx.spike("Head", c, Vector3.new(side * 0.6, 0.32, -0.05), Vector3.new(side * 0.35, -1, 0.1), 1.05 * L, 0.5, { cross = false, thickness = 0.16 })
+		ctx.spike("Head", under, Vector3.new(side * 0.58, 0.3, 0.3), Vector3.new(side * 0.45, -1, 0.3), 1.2 * L, 0.54, { cross = false, thickness = 0.16 })
+	end
+	-- Dos : deux rangs de mèches en pointe vers le bas
+	for row = 0, 1 do
+		for i, x in { -0.4, -0.13, 0.13, 0.4 } do
+			local tone = (i + row) % 3 == 0 and shine or ((i + row) % 3 == 1 and c or under)
+			ctx.spike("Head", tone, Vector3.new(x, 0.35 - row * 0.3, 0.52 + row * 0.06), Vector3.new(x * 0.5, -1, 0.35), (1.0 + row * 0.35) * L, 0.56, { cross = false, thickness = 0.16 })
+		end
+	end
 end
 
 HAIR.curly = function(ctx, c, look)
@@ -3006,6 +3118,7 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 	model.Name = opts.name or "Character"
 
 	local ctx = newContext(model, s, opts.paint or "gui")
+	ctx.hairDarken = look.hairDarken
 	Painter.scale = s
 	buildBody(ctx, look)
 

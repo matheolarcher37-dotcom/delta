@@ -234,6 +234,7 @@ Characters.List = {
 			hairColor = rgb(242, 227, 58),
 			hairUnder = rgb(201, 181, 32),
 			hairShine = rgb(250, 244, 135),
+			hairDarken = 0.3,
 			earLocks = true,
 			browColor = rgb(200, 182, 40),
 			top = rgb(206, 122, 56),
@@ -253,10 +254,11 @@ Characters.List = {
 			headbandHeight = 0.42,
 			plateColor = rgb(176, 192, 208),
 			eyes = rgb(22, 70, 190),
-			eyeX = 0.285,
-			eyeY = -0.075,
-			eyeWidth = 0.34,
-			eyeHeight = 0.215,
+			-- Yeux grands comme sur la référence (~40 % de la largeur du visage), un peu plus bas
+			eyeX = 0.3,
+			eyeY = -0.105,
+			eyeWidth = 0.39,
+			eyeHeight = 0.247,
 			browY = 0.135,
 			browThin = true,
 			face = "fierce",
@@ -267,8 +269,8 @@ Characters.List = {
 			accessories = { "headband", "whiskers" },
 			whiskerColor = rgb(200, 150, 120),
 			mouthWidth = 0.13,
-			mouthY = -0.4,
-			noseY = -0.27,
+			mouthY = -0.42,
+			noseY = -0.29,
 		},
 		attack = { kind = "orb", color = rgb(90, 190, 255), name = "Orbe Spirale" },
 		evolve = {
@@ -413,7 +415,7 @@ Characters.List = {
 		rarity = "rare",
 		look = {
 			skin = SKIN,
-			hair = "wild",
+			hair = "hedgehog",
 			hairColor = rgb(22, 24, 40),
 			top = rgb(27, 31, 51),
 			bottom = rgb(27, 31, 51),
@@ -694,7 +696,7 @@ Characters.List = {
 		rarity = "legendary",
 		look = {
 			skin = SKIN,
-			hair = "wild",
+			hair = "goku",
 			hairColor = rgb(22, 22, 32),
 			top = rgb(255, 125, 25),
 			topAccent = rgb(35, 60, 170),
@@ -718,7 +720,8 @@ Characters.List = {
 		},
 		attack = { kind = "beam", color = rgb(70, 170, 255), name = "Vague Déferlante" },
 		evolve = {
-			[2] = { hairColor = rgb(255, 220, 60), eyes = rgb(60, 200, 160) },
+			-- ★★ : Super Saiyan (mèches dressées vers le haut, une seule mèche de frange)
+			[2] = { hair = "wild", hairColor = rgb(255, 220, 60), eyes = rgb(60, 200, 160) },
 			-- ★★★ : Super Saiyan 3 (crinière jusqu'au bas du dos, sans sourcils, aura dorée)
 			[3] = {
 				hair = "ssj3",
@@ -1333,7 +1336,7 @@ Characters.List = {
 		rarity = "legendary",
 		look = {
 			skin = SKIN_TAN,
-			hair = "wild",
+			hair = "wild_long",
 			hairColor = rgb(25, 25, 30),
 			hairLength = 1.25,
 			top = SKIN_TAN,
