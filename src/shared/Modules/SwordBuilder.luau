@@ -1355,11 +1355,43 @@ function SwordBuilder.setDrawn(sheath: Model, drawn: boolean)
 	end
 end
 
+-- Port à la hanche (repère du torse R6 : centre du torse, x vers la droite du perso, -z devant).
+-- Positions calculées pour ne toucher ni le torse, ni le bras gauche, ni la jambe gauche au repos,
+-- et pour rester presque hors d'eux pendant le balancement de la marche : l'embouchure du fourreau
+-- est sous le bras (y < -1) et à gauche de la jambe (x < -1), la poignée sort en avant et vers le
+-- haut, le fourreau descend vers l'arrière le long de la cuisse.
+--   mouth : embouchure du fourreau · pitch : inclinaison maximale (degrés, poignée vers le haut)
+--   yaw : pommeau tourné vers le ventre (degrés) · roll : rotation sur l'axe de la lame (degrés)
+local HIP_CARRY = {
+	-- Katanas : tranchant vers le haut, tourné de 40° vers le corps (port traditionnel).
+	saya = { mouth = Vector3.new(-1.3, -1.2, -0.9), pitch = 20, yaw = 4, roll = 40 },
+	-- Épées droites : fourreau de cuir pendu à plat contre la cuisse, garde à l'horizontale.
+	scabbard = { mouth = Vector3.new(-1.4, -1.0, -1.0), pitch = 22, yaw = 0, roll = 90 },
+}
+SwordBuilder.HIP_CARRY = HIP_CARRY
+
+-- Repère de la poignée (dans le repère du torse) pour une épée rangée à la hanche.
+local function hipFrame(carry, mouth: Vector3, floorY: number, mouthZ: number, length: number): CFrame
+	-- La pointe reste au-dessus du sol : on réduit l'inclinaison pour les longues lames.
+	local room = mouth.Y - floorY - 0.6
+	local pitch = math.clamp(math.asin(math.clamp(room / length, 0, 1)), math.rad(12), math.rad(carry.pitch))
+	local yaw = math.rad(carry.yaw)
+	local toPommel = Vector3.new(math.sin(yaw) * math.cos(pitch), math.sin(pitch), -math.cos(yaw) * math.cos(pitch))
+	local up = Vector3.new(0, 1, 0)
+	-- Dos de la lame (+X de la poignée) vers le bas, puis tourné vers l'extérieur de `roll`.
+	local spine = -(up - toPommel * up:Dot(toPommel)).Unit
+	local side = toPommel:Cross(spine)
+	local r = math.rad(carry.roll)
+	local spineRolled = spine * math.cos(r) + side * math.sin(r)
+	if spineRolled.X > spine.X then
+		spineRolled = spine * math.cos(r) - side * math.sin(r)
+	end
+	local sideRolled = toPommel:Cross(spineRolled)
+	return CFrame.fromMatrix(mouth - toPommel * mouthZ, spineRolled, sideRolled, toPommel)
+end
+
 -- Accroche le fourreau au perso et le soude.
---   Hanche : l'épée passe à la ceinture, devant le flanc gauche (hors du bras et de la jambe) :
---     la poignée sort vers l'avant et le haut (pommeau légèrement vers le ventre), le fourreau
---     part vers l'arrière et le bas en s'écartant de 15° vers l'extérieur. Tranchant vers le haut
---     (port traditionnel du katana). L'inclinaison dépend de la longueur pour ne jamais toucher le sol.
+--   Hanche : voir HIP_CARRY (katana tranchant en haut, épées droites à plat contre la cuisse).
 --   Dos : le Couperet entier, en diagonale, plat contre le dos.
 function SwordBuilder.attachSheath(sheath: Model, character: Model, sword, drawn: boolean?): boolean
 	local style = styleOf(sword)
@@ -1387,26 +1419,14 @@ function SwordBuilder.attachSheath(sheath: Model, character: Model, sword, drawn
 		local mouthZ = sheath:GetAttribute("MouthZ") or -0.75
 		local tipZ = sheath:GetAttribute("TipZ") or (mouthZ - sword.look.length)
 		local length = math.max(mouthZ - tipZ, 1)
-		-- Embouchure du fourreau (repère du torse) : ceinture, coin avant gauche, juste hors du torse.
-		local halfX, halfZ = torso.Size.X / 2, torso.Size.Z / 2
-		local mouth, floorY
-		if r6 then
-			mouth = Vector3.new(-halfX, -0.98, -(halfZ + 0.5))
-			floorY = -3
-		else
-			mouth = Vector3.new(-(halfX + 0.14), -0.1, -(halfZ + 0.08))
-			floorY = -2.1
+		local carry = HIP_CARRY[style.sheath] or HIP_CARRY.scabbard
+		local mouth, floorY = carry.mouth, -3
+		if not r6 then
+			-- R15 : le LowerTorso est centré environ 0,8 plus bas que le Torso R6.
+			mouth += Vector3.new(0, 0.8, 0)
+			floorY = -2.2
 		end
-		-- Inclinaison : 38° au plus, moins pour les longues lames (la pointe reste au-dessus du sol).
-		local room = mouth.Y - floorY - 0.55
-		local pitch = math.clamp(math.asin(math.clamp(room / length, 0, 1)), math.rad(14), math.rad(38))
-		local yaw = math.rad(30)
-		local toPommel = Vector3.new(math.sin(yaw) * math.cos(pitch), math.sin(pitch), -math.cos(yaw) * math.cos(pitch))
-		local up = Vector3.new(0, 1, 0)
-		local spine = -(up - toPommel * up:Dot(toPommel)).Unit -- dos (+X) vers le bas : tranchant en haut
-		local side = toPommel:Cross(spine)
-		local center = mouth - toPommel * mouthZ
-		target = torso.CFrame * CFrame.fromMatrix(center, spine, side, toPommel)
+		target = torso.CFrame * hipFrame(carry, mouth, floorY, mouthZ, length)
 	end
 	local delta = target * handle.CFrame:Inverse()
 	for _, p in sheath:GetDescendants() do

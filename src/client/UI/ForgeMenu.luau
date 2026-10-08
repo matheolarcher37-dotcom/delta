@@ -1,7 +1,8 @@
 -- FORGERON (stand du hub) : acheter et équiper des épées pour combattre soi-même.
 -- À gauche les épées (prix bien visible), à droite la fiche de l'épée : aperçu 3D, tuiles de
 -- statistiques (dégâts, vitesse), portée, effet (avec son rang d'éclat), détails de forge et
--- bouton ACHETER / ÉQUIPER. L'aperçu tourne et laisse monter des étincelles de la couleur de l'effet.
+-- bouton ACHETER / ÉQUIPER. L'aperçu tourne lentement et laisse monter des étincelles de la
+-- couleur de l'effet. Dans la grille, chaque épée est inclinée à 45° pour remplir sa vignette.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -30,25 +31,73 @@ local refs: { [string]: any } = {}
 local selected: string = Swords.Starter
 local render: (boolean?) -> ()
 
+-- Noms courts des effets (repli si l'apparence de l'épée n'a pas de `effectName`).
 local FX_NAMES = {
 	slash = "Entaille",
-	wind = "Rafale de vent",
-	lightning = "Éclair",
+	wind = "Rafale",
+	lightning = "Éclairs",
 	flame = "Flammes",
-	mist = "Brume tranchante",
+	mist = "Brume",
 	shadow = "Fumée noire",
-	ice = "Cristaux de glace",
+	ice = "Étoiles",
 }
 
--- Aperçu 3D : cadré sur toute l'épée (de la pointe au pommeau, ruban et chaîne compris).
-local function swordViewport(parent: Instance, sword, spin: boolean?)
+local function effectName(sword): string
+	return sword.look.effectName or FX_NAMES[sword.fx] or tostring(sword.fx)
+end
+
+-- Aperçu 3D de l'épée dans un ViewportFrame.
+--   Vignette (spin = false) : épée inclinée à 45°, de la pointe (en haut à droite) au pommeau
+--     (en bas à gauche), pour qu'elle remplisse la vignette d'un coin à l'autre.
+--   Grand aperçu (spin = true) : épée debout qui tourne lentement sur elle-même (20° par seconde)
+--     pour montrer la garde et la poignée de profil.
+local THUMB_FOV = 30
+local BIG_FOV = 32
+local SPIN_SPEED = math.rad(20)
+local function swordViewport(parent: Instance, sword, spin: boolean?): ViewportFrame
 	local model = SwordBuilder.buildModel(sword)
 	local top = model:GetAttribute("Top") or sword.look.length + 0.8
 	local bottom = model:GetAttribute("Bottom") or -0.7
 	local height = math.max(top - bottom, 2)
-	local wide = math.max(sword.look.width * 2.4, 1.6)
-	local span = math.max(height, wide)
-	return Components.viewport(parent, model, Vector3.new(0, (top + bottom) / 2, 0), span * 1.85, nil, spin)
+	local wide = math.max(sword.look.width * 2.4, 1.2)
+	local center = Vector3.new(0, (top + bottom) / 2, 0)
+	local base = model:GetPivot()
+	local viewport = Instance.new("ViewportFrame")
+	viewport.Name = "Viewport"
+	viewport.Size = UDim2.fromScale(1, 1)
+	viewport.BackgroundTransparency = 1
+	viewport.Ambient = Color3.fromRGB(190, 190, 205)
+	viewport.LightColor = Color3.fromRGB(255, 248, 235)
+	viewport.LightDirection = Vector3.new(-0.5, -0.9, -0.9)
+	local camera = Instance.new("Camera")
+	camera.Parent = viewport
+	viewport.CurrentCamera = camera
+	if spin then
+		camera.FieldOfView = BIG_FOV
+		local distance = math.max(height, wide) * 1.85
+		camera.CFrame = CFrame.lookAt(center + Vector3.new(distance * 0.12, distance * 0.08, -distance), center)
+		-- Rotation lente autour de l'axe de la lame (centre de l'épée).
+		local around = CFrame.new(center)
+		local rest = around:Inverse() * base
+		Theme.onFrame(viewport, function(_dt, t)
+			if viewport.Visible then
+				model:PivotTo(around * CFrame.Angles(0, t * SPIN_SPEED, 0) * rest)
+			end
+		end)
+	else
+		camera.FieldOfView = THUMB_FOV
+		-- Inclinaison de 45° autour du centre de l'épée (vers la caméra) : pointe en haut à droite.
+		local tilt = CFrame.new(center) * CFrame.Angles(0, 0, math.rad(45)) * CFrame.new(-center)
+		model:PivotTo(tilt * base)
+		-- La diagonale occupe height·cos 45° en hauteur comme en largeur ; on ajoute la largeur de
+		-- la garde et une petite marge, puis on recule la caméra pour que tout tienne dans le FOV.
+		local half = height * 0.7071 / 2 + wide * 0.3
+		local distance = half * 1.08 / math.tan(math.rad(THUMB_FOV / 2))
+		camera.CFrame = CFrame.lookAt(center + Vector3.new(distance * 0.08, distance * 0.05, -distance), center)
+	end
+	model.Parent = viewport
+	viewport.Parent = parent
+	return viewport
 end
 
 -- Rang d'éclat de l'effet (1 à 5 étoiles selon le rang de l'épée).
@@ -166,7 +215,7 @@ local function renderDetail()
 	Theme.list(Enum.FillDirection.Vertical, 6, Enum.HorizontalAlignment.Center).Parent = infos
 	Components.pill(infos, "star", "Dégâts / s : " .. Formulas.formatNumber(math.floor(sword.damage / sword.cooldown)), C.Red, { Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 1 })
 	Components.pill(infos, "target", "Portée : " .. tostring(sword.range) .. " studs", C.Blue, { Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 2 })
-	Components.pill(infos, "bolt", "Effet : " .. (FX_NAMES[sword.fx] or tostring(sword.fx)) .. "  " .. glowStars(sword), tint, { Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 3 })
+	Components.pill(infos, "bolt", "Effet : " .. effectName(sword) .. "  " .. glowStars(sword), tint, { Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 3 })
 
 	-- Détails de forge : ce qui rend cette épée unique.
 	local details = new("Frame", {

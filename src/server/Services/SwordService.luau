@@ -64,7 +64,8 @@ function SwordService:GiveTool(player: Player)
 		if sheath and sheath.Parent then
 			SwordBuilder.setDrawn(sheath, true)
 		end
-		self:Flash(tool, 0.35)
+		-- Sortie de l'épée : gerbe et traînées seulement (la lueur ne s'intensifie qu'au coup).
+		self:Flash(tool, 0.35, false)
 	end)
 	tool.Unequipped:Connect(function()
 		if sheath and sheath.Parent then
@@ -101,8 +102,9 @@ function SwordService:AttachSheath(player: Player, sword): Model?
 	return sheath
 end
 
--- Fait jaillir l'effet de l'épée un court instant : gerbe de particules, traînées et lueur.
-function SwordService:Flash(tool: Tool, duration: number)
+-- Fait jaillir l'effet de l'épée un court instant : gerbe de particules, traînées et, pour un
+-- coup (`boostLight` différent de false), éclat de la lueur (×2,2 le temps du coup).
+function SwordService:Flash(tool: Tool, duration: number, boostLight: boolean?)
 	local handle = tool:FindFirstChild("Handle")
 	local volume = tool:FindFirstChild("AuraVolume")
 	local switched: { Instance } = {}
@@ -118,6 +120,9 @@ function SwordService:Flash(tool: Tool, duration: number)
 	end
 	local light = volume and volume:FindFirstChild("Glow") :: PointLight?
 	local base = light and (light:GetAttribute("BaseBrightness") or light.Brightness)
+	if boostLight == false then
+		light = nil
+	end
 	if light and base then
 		light:SetAttribute("BaseBrightness", base)
 		light.Brightness = base * 2.2

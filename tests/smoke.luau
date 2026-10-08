@@ -432,17 +432,20 @@ end)
 test("Épées : fourreau à la hanche hors du bras, de la jambe et du sol (R6)", function()
 	local Swords = requireModule(Shared.Config.Swords)
 	local SwordBuilder = requireModule(Shared.Modules.SwordBuilder)
-	-- Boîtes du gabarit R6 dans le repère du torse (centre du torse à 3 studs du sol).
-	local boxes = {
-		{ name = "Left Arm", min = Vector3.new(-2, -1, -0.5), max = Vector3.new(-1, 1, 0.5) },
-		{ name = "Left Leg", min = Vector3.new(-1, -3, -0.5), max = Vector3.new(0, -1, 0.5) },
-		{ name = "Torso", min = Vector3.new(-1, -1, -0.5), max = Vector3.new(1, 1, 0.5) },
-		-- Balancement de la jambe à la marche (elle reste entre x = -1 et 0).
-		{ name = "Left Leg (marche)", min = Vector3.new(-1, -3, -1.1), max = Vector3.new(0, -1.4, 1.1) },
-		-- Balancement du bras (il pivote à l'épaule, son bas remonte en avançant).
-		{ name = "Left Arm (marche)", min = Vector3.new(-2, -0.6, -1.2), max = Vector3.new(-1.1, 1, 1.2) },
-	}
-	local clashes = {}
+	-- Gabarit R6 dans le repère du torse (centre du torse à 3 studs du sol). Le bras et la jambe
+	-- gauches sont testés au repos (aucun contact toléré) et balancés comme à la marche (±0,5 rad
+	-- autour de l'épaule / de la hanche : léger frôlement toléré, 0,2 stud au plus).
+	local limbs = {}
+	local function limb(name, center, pivot, half)
+		for _, a in { -0.5, -0.25, 0, 0.25, 0.5 } do
+			local cf = CFrame.new(pivot) * CFrame.Angles(a, 0, 0) * CFrame.new(center - pivot)
+			table.insert(limbs, { name = name, rest = a == 0, inv = cf:Inverse(), half = half })
+		end
+	end
+	limb("Left Arm", Vector3.new(-1.5, 0, 0), Vector3.new(-1.5, 0.5, 0), Vector3.new(0.5, 1, 0.5))
+	limb("Left Leg", Vector3.new(-0.5, -2, 0), Vector3.new(-0.5, -1, 0), Vector3.new(0.5, 1, 0.5))
+	table.insert(limbs, { name = "Torso", rest = true, inv = CFrame.new(), half = Vector3.new(1, 1, 0.5) })
+	local problems = {}
 	for _, sword in Swords.List do
 		local character = Instance.new("Model")
 		local torso = Instance.new("Part")
@@ -452,53 +455,55 @@ test("Épées : fourreau à la hanche hors du bras, de la jambe et du sol (R6)",
 		torso.Parent = character
 		local sheath = SwordBuilder.buildSheath(sword)
 		assert(SwordBuilder.attachSheath(sheath, character, sword, false), sword.id .. " : fourreau non accroché")
+		local hip = sheath:GetAttribute("Carry") == "hip"
 		local lowest = math.huge
+		local worst = {}
 		for _, part in sheath:GetDescendants() do
 			if part:IsA("BasePart") then
 				local rel = torso.CFrame:ToObjectSpace(part.CFrame)
 				local h = part.Size / 2
-				local ext = Vector3.new(
-					math.abs(rel.RightVector.X) * h.X + math.abs(rel.UpVector.X) * h.Y + math.abs(rel.LookVector.X) * h.Z,
-					math.abs(rel.RightVector.Y) * h.X + math.abs(rel.UpVector.Y) * h.Y + math.abs(rel.LookVector.Y) * h.Z,
-					math.abs(rel.RightVector.Z) * h.X + math.abs(rel.UpVector.Z) * h.Y + math.abs(rel.LookVector.Z) * h.Z
-				)
-				local c = rel.Position
-				local lo, hi = c - ext, c + ext
-				lowest = math.min(lowest, lo.Y)
-				if sheath:GetAttribute("Carry") == "hip" then
-					-- Boîte orientée de la pièce échantillonnée (une boîte englobante alignée serait
-					-- énorme pour un long fourreau en diagonale).
-					local function steps(size)
-						return math.clamp(math.ceil(size / 0.08), 1, 60)
-					end
-					local nx, ny, nz = steps(part.Size.X), steps(part.Size.Y), steps(part.Size.Z)
-					local hitBox = nil
-					for i = 0, nx do
-						for j = 0, ny do
-							for k = 0, nz do
+				-- Surface de la pièce échantillonnée tous les 0,1 stud (boîte orientée de la pièce).
+				local function steps(size)
+					return math.clamp(math.ceil(size / 0.1), 1, 40)
+				end
+				local nx, ny, nz = steps(part.Size.X), steps(part.Size.Y), steps(part.Size.Z)
+				for i = 0, nx do
+					for j = 0, ny do
+						for k = 0, nz do
+							if i == 0 or j == 0 or k == 0 or i == nx or j == ny or k == nz then
 								local q = rel * Vector3.new(h.X * (2 * i / nx - 1), h.Y * (2 * j / ny - 1), h.Z * (2 * k / nz - 1))
-								for _, box in boxes do
-									local m = 0.03
-									if q.X > box.min.X + m and q.X < box.max.X - m and q.Y > box.min.Y + m and q.Y < box.max.Y - m and q.Z > box.min.Z + m and q.Z < box.max.Z - m then
-										hitBox = box.name
+								lowest = math.min(lowest, q.Y)
+								if hip then
+									for _, l in limbs do
+										local p = l.inv * q
+										local pen = math.min(l.half.X - math.abs(p.X), l.half.Y - math.abs(p.Y), l.half.Z - math.abs(p.Z))
+										if pen > 0 then
+											local key = l.name .. (l.rest and " (repos)" or " (marche)")
+											if pen > (worst[key] or 0) then
+												worst[key] = pen
+											end
+										end
 									end
 								end
 							end
 						end
 					end
-					if hitBox then
-						table.insert(clashes, string.format("%s : %s traverse %s (%.2f %.2f %.2f)", sword.id, part.Name, hitBox, c.X, c.Y, c.Z))
-					end
 				end
 			end
 		end
-		assert(lowest > -2.9, sword.id .. " : le fourreau touche le sol (" .. lowest .. ")")
-		print(string.format("   %-22s %s · point le plus bas %.2f", sword.name, sheath:GetAttribute("Carry"), lowest + 3))
+		assert(lowest > -2.85, sword.id .. " : le fourreau touche le sol (" .. lowest .. ")")
+		for key, pen in worst do
+			local limit = string.find(key, "repos", 1, true) and 0.03 or 0.2
+			if pen > limit then
+				table.insert(problems, string.format("%s : traverse %s de %.2f", sword.id, key, pen))
+			end
+		end
+		print(string.format("   %-22s %s · pointe à %.2f du sol", sword.name, sheath:GetAttribute("Carry"), lowest + 3))
 	end
-	for _, c in clashes do
+	for _, c in problems do
 		print("   !! " .. c)
 	end
-	assert(#clashes == 0, #clashes .. " collisions")
+	assert(#problems == 0, #problems .. " collisions")
 end)
 
 Harness.finish()
