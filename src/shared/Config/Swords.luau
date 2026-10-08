@@ -281,4 +281,14 @@ function Swords.power(sword): number
 	return (sword.index - 1) / (count - 1)
 end
 
+-- Maîtrise : plus le joueur a vaincu d'ennemis, plus l'effet de son épée est fort (traînée,
+-- particules, lueur). Niveau 1 au départ, +1 tous les MasteryStep ennemis, jusqu'à MasteryMax.
+-- Calculé depuis la statistique existante « ennemis vaincus » (aucune donnée en plus).
+Swords.MasteryStep = 500
+Swords.MasteryMax = 4
+
+function Swords.mastery(kills: number?): number
+	return math.clamp(1 + math.floor((kills or 0) / Swords.MasteryStep), 1, Swords.MasteryMax)
+end
+
 return Swords

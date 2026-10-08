@@ -29,6 +29,12 @@ function SwordService:GetEquipped(player: Player)
 	return Swords.get(data and data.equippedSword) or Swords.get(Swords.Starter)
 end
 
+-- Niveau de maîtrise de l'épée (1 à Swords.MasteryMax), tiré du nombre d'ennemis vaincus.
+function SwordService:GetMastery(player: Player): number
+	local data = self.services.DataService:Get(player)
+	return Swords.mastery(data and data.stats and data.stats.kills)
+end
+
 -- Donne (ou remplace) l'épée équipée dans le sac à dos du joueur.
 function SwordService:GiveTool(player: Player)
 	local sword = self:GetEquipped(player)
@@ -50,7 +56,11 @@ function SwordService:GiveTool(player: Player)
 			end
 		end
 	end
-	local tool = SwordBuilder.buildTool(sword)
+	-- L'effet de l'épée s'intensifie avec la maîtrise du joueur.
+	local mastery = self:GetMastery(player)
+	local tool = SwordBuilder.buildTool(sword, mastery)
+	tool:SetAttribute("Mastery", mastery)
+	tool.ToolTip = sword.name .. " · " .. sword.damage .. " dégâts · maîtrise " .. mastery
 	tool.Parent = backpack
 	local sheath = self:AttachSheath(player, sword)
 	tool.Activated:Connect(function()
@@ -201,6 +211,14 @@ function SwordService:Swing(player: Player, tool: Tool)
 					})
 				end
 			end
+		end
+		-- Palier de maîtrise franchi : l'épée est reforgée (effet plus fort), toujours en main.
+		if self:GetMastery(player) > (tool:GetAttribute("Mastery") or 1) then
+			task.delay(sword.cooldown, function()
+				if tool.Parent == player.Character and (tool:GetAttribute("Mastery") or 1) < self:GetMastery(player) then
+					self:GiveTool(player)
+				end
+			end)
 		end
 	end)
 end

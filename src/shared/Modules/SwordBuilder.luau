@@ -440,14 +440,14 @@ end
 -- Effet propre à chaque style. `k` = intensité (rang de l'épée).
 local EFFECTS: { [string]: (Ctx, BasePart, number) -> () } = {}
 
-EFFECTS.rusty = function(ctx, vol, _k)
+EFFECTS.rusty = function(ctx, vol, k)
 	emitter(vol, {
 		color = ctx.look.aura,
 		color2 = rgb(90, 60, 40),
 		size = { 0.1, 0.06 },
 		transparency = { 0.2, 1 },
 		life = { 1, 1.6 },
-		rate = 1.5,
+		rate = 1.5 + 4 * k, -- k > 0 seulement avec la maîtrise (épée de rang 1)
 		speed = { 0.1, 0.4 },
 		accel = Vector3.new(0, -3, 0),
 		rot = 200,
@@ -1340,6 +1340,7 @@ function SwordBuilder.buildTool(sword, level: number?): Tool
 	tool:SetAttribute("SwordTip", ctx.tip.Z)
 	tool:SetAttribute("SwordBack", ctx.back)
 	tool:SetAttribute("SwordParts", ctx.count)
+	tool:SetAttribute("Power", ctx.k)
 	local equip = Instance.new("Sound")
 	equip.Name = "Unsheath"
 	equip.SoundId = "rbxasset://sounds/unsheath.wav"

@@ -238,8 +238,13 @@ local function renderDetail()
 		MaxSize = 16,
 		Parent = details,
 	})
+	-- Maîtrise (ennemis vaincus) : l'effet de l'épée grandit avec elle.
+	local kills = data and data.stats and data.stats.kills or 0
+	local mastery = Swords.mastery(kills)
+	local masteryText = mastery >= Swords.MasteryMax and string.format("Maîtrise %d/%d (max) : effet au plus fort.", mastery, Swords.MasteryMax)
+		or string.format("Maîtrise %d/%d : effet plus fort dans %s ennemis vaincus.", mastery, Swords.MasteryMax, Formulas.formatNumber(mastery * Swords.MasteryStep - kills))
 	Theme.label({
-		Text = sword.look.features or sword.description,
+		Text = (sword.look.features or sword.description) .. "\n" .. masteryText,
 		Position = UDim2.fromOffset(12, 28),
 		Size = UDim2.new(1, -24, 1, -34),
 		FontFace = Theme.Faces.Bold,

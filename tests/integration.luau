@@ -903,6 +903,12 @@ test("Épées : épée rouillée de départ, Forgeron, coup d'épée", function(
 	-- Présentoir du hub : modèle ancré, effet adouci, sans lueur.
 	local display = SwordBuilderModule.buildDisplay(SwordsConfig.get("foudre"))
 	assert(display.Name == "DisplaySword" and display.PrimaryPart.Anchored and not display.AuraVolume.Glow.Enabled, "épée d'exposition")
+	-- Maîtrise : tirée des ennemis vaincus, l'épée est reforgée avec un effet plus fort.
+	assert(SwordsConfig.mastery(0) == 1 and SwordsConfig.mastery(SwordsConfig.MasteryStep) == 2 and SwordsConfig.mastery(1e9) == SwordsConfig.MasteryMax, "paliers de maîtrise")
+	local strong = SwordBuilderModule.buildTool(SwordsConfig.get("rouillee"), SwordsConfig.MasteryMax)
+	local weak = SwordBuilderModule.buildTool(SwordsConfig.get("rouillee"), 1)
+	assert(strong:GetAttribute("Power") > weak:GetAttribute("Power"), "maîtrise : effet pas plus fort")
+	assert(services.SwordService:GetMastery(alice) >= 1, "maîtrise du joueur")
 	-- Épée rangée sur le perso : réduite (WORN_SCALE).
 	local worn = alice.Character:FindFirstChild("SwordSheath")
 	assert(worn and worn:GetAttribute("WornScale") == SwordBuilderModule.WORN_SCALE, "épée portée non réduite")
