@@ -1033,9 +1033,9 @@ STYLES.mist = {
 			{ z = s - 3.1, x = mid - 0.02, len = 0.85, turn = 1 },
 		}
 		for _, wisp in wisps do
-			-- Une volute : un trait qui part le long de la lame puis s'enroule en crosse.
-			local lens = { 0.36, 0.24, 0.16, 0.12, 0.1 }
-			local turns = { 8, 30, 70, 115, 165 }
+			-- Une volute de nuage : un trait ondulé le long de la lame qui s'enroule en spirale.
+			local lens = { 0.3, 0.26, 0.2, 0.15, 0.12, 0.1, 0.08, 0.07 }
+			local turns = { -25, -5, 20, 50, 95, 145, 200, 255 }
 			local cf = CFrame.new(wisp.x, 0, wisp.z)
 			for j = 1, #lens do
 				local len = lens[j] * wisp.len
