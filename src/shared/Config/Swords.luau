@@ -220,7 +220,7 @@ Swords.List = {
 	{
 		id = "celeste",
 		name = "Épée Céleste",
-		description = "L'arme des légendes : elle gèle le temps lui-même.",
+		description = "L'arme des légendes, forgée dans la lumière des étoiles.",
 		price = 12000000,
 		damage = 8000,
 		cooldown = 0.42,

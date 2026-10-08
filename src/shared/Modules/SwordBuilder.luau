@@ -1085,28 +1085,29 @@ STYLES.celestial = {
 		local z = -0.68
 		block(ctx, "GemFrame", Vector3.new(0.28, 0.22, 0.28), CFrame.new(0, 0, z) * CFrame.Angles(0, math.rad(45), 0), gold, Enum.Material.Foil)
 		orb(ctx, "Gem", Vector3.new(0.22, 0.3, 0.27), CFrame.new(0, 0, z), look.gem, Enum.Material.Neon)
-		-- Ailes : trois plumes blanches en éventail par côté, bordées d'or, inclinées vers le pommeau.
+		-- Ailes : trois plumes blanches (laquées) en éventail par côté, bordées d'or, inclinées vers le pommeau.
 		local feathers = { { 0.66, 8 }, { 0.54, 30 }, { 0.4, 52 } }
 		for _, side in { -1, 1 } do
 			for i, spec in feathers do
 				local len, angle = spec[1], spec[2]
 				local d = 0.05 + i * 0.012
 				local frame = BP(side * 0.12, z + 0.08) * CFrame.Angles(0, 0, math.rad(-side * angle))
-				tri(ctx, "Feather", side * len, 0.13, d, frame, rgb(250, 248, 240), Enum.Material.Foil)
+				tri(ctx, "Feather", side * len, 0.17, d, frame, rgb(238, 236, 230), Enum.Material.SmoothPlastic, { Reflectance = 0.12 })
 				block(ctx, "FeatherEdge", Vector3.new(len * 0.94, 0.028, d + 0.012), frame * CFrame.new(side * len * 0.47, 0.014, 0), gold, Enum.Material.Foil)
 			end
 		end
 		-- Auréole : un seul anneau fin (8 segments), doré mat, au-dessus de la gemme et derrière elle.
 		local segs = 8
 		local radius = 0.3
-		local hz = z - 0.17
+		local hz = z - 0.12
 		for i = 0, segs - 1 do
 			local a = (i + 0.5) / segs * math.pi * 2
 			block(
 				ctx,
 				"Halo",
-				Vector3.new(0.04, 0.11, 2 * radius * math.sin(math.pi / segs) + 0.015),
-				CFrame.new(math.cos(a) * radius, 0, hz + math.sin(a) * radius) * CFrame.Angles(0, -a, 0),
+				Vector3.new(0.04, 0.06, 2 * radius * math.sin(math.pi / segs) + 0.015),
+				-- Décalée derrière le plat de la lame (+Y) : la gemme reste devant, comme une tête auréolée.
+				CFrame.new(math.cos(a) * radius, 0.1, hz + math.sin(a) * radius) * CFrame.Angles(0, -a, 0),
 				gold,
 				Enum.Material.SmoothPlastic,
 				{ Reflectance = 0.1 }

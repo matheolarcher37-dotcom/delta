@@ -894,6 +894,20 @@ test("Épées : épée rouillée de départ, Forgeron, coup d'épée", function(
 	task.wait()
 	assert(sheath.PrimaryPart.Transparency == 0, "poignée rangée invisible")
 	assert(lastEvent("CombatFX") ~= nil, "pas d'effet de coup")
+	-- Lueur : inchangée quand on sort l'épée, ×2,2 seulement le temps d'un coup.
+	local SwordBuilderModule = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.SwordBuilder"))
+	local SwordsConfig = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Swords"))
+	local bright = SwordBuilderModule.buildTool(SwordsConfig.get("celeste"))
+	assert(bright.Grip.RightVector:Dot(SwordBuilderModule.GRIP.RightVector) > 0.999 and math.abs(bright.Grip.RightVector.Y) > 0.99, "prise de l'épée (lame de chant)")
+	local glow = bright.AuraVolume.Glow
+	local base = glow.Brightness
+	services.SwordService:Flash(bright, 0.1, false)
+	assert(glow.Brightness == base, "la lueur s'intensifie en sortant l'épée")
+	services.SwordService:Flash(bright, 0.1)
+	assert(math.abs(glow.Brightness - base * 2.2) < 1e-6, "pas d'éclat de lueur au coup")
+	task.wait(0.2)
+	assert(glow.Brightness == base, "lueur non rétablie après le coup")
+	bright:Destroy()
 	local okExpensive = invoke("BuySword", alice, "celeste")
 	assert(not okExpensive, "épée achetée sans assez d'argent")
 	assert(invoke("EquipSword", alice, "rouillee"), "rééquiper l'épée rouillée")
