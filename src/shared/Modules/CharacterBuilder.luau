@@ -1813,14 +1813,10 @@ ACC.cape = function(ctx, look)
 	end
 end
 
+-- Manteau de la marine : même coupe que le manteau de la justice (posé sur les épaules, cape
+-- jusqu'aux mollets, épaulettes à franges), défini plus bas.
 ACC.marine_coat = function(ctx, look)
-	local white = WHITE
-	ctx.add("Torso", "Coat", Vector3.new(2.4, 3.4, 0.12), CFrame.new(0, -0.55, 0.62) * CFrame.Angles(0.08, 0, 0), white)
-	for _, side in { -1, 1 } do
-		ctx.add("Torso", "CoatShoulder", Vector3.new(1.3, 0.3, 1.3), CFrame.new(side * 1.5, 1.05, 0.05), white)
-		ctx.add("Torso", "CoatSleeve", Vector3.new(0.12, 2.6, 1.1), CFrame.new(side * 2.1, -0.4, 0.15), white)
-	end
-	local _ = look
+	ACC.justice_coat(ctx, look)
 end
 
 ACC.cloak_skirt = function(ctx, look)
@@ -2501,7 +2497,7 @@ ACC.kesa = function(ctx, look)
 			if r < #rows then
 				S:rect(0.5, y, 1, S:dy(0.035), darken(base, 0.5), { z = 3 })
 				if front then
-					dotted(S, x0, y + S:dy(0.03), x1, y + S:dy(0.03), thread, 5, 4)
+					dotted(S, x0, y + S:dy(0.03), x1, y + S:dy(0.03), thread, 3, 4)
 				end
 			end
 		end
@@ -2574,6 +2570,20 @@ ACC.stitch_crown = function(ctx, look)
 			{ CastShadow = false }
 		)
 	end
+end
+
+-- Carrure massive (brutes, formes ultimes) : deltoïdes et trapèzes en relief, avant-bras épaissis
+-- (couleur de la peau ou de la manche selon la tenue).
+ACC.bulk = function(ctx, look)
+	local c = Painter.palette(look)
+	local upper = c.sleeves == "skin" and c.skin or c.sleeve
+	local lower = c.sleeves == "long" and c.sleeve or c.skin
+	for _, limb in { "Left Arm", "Right Arm" } do
+		local out = limb == "Left Arm" and -1 or 1
+		ctx.ball(limb, "Deltoid", Vector3.new(1.3, 1.05, 1.22), CFrame.new(out * 0.1, 0.62, 0), upper)
+		ctx.ball(limb, "Forearm", Vector3.new(1.16, 0.8, 1.14), CFrame.new(out * 0.04, -0.42, 0), lower)
+	end
+	ctx.wedge("Torso", "Trapezius", Vector3.new(1.3, 0.34, 0.5), CFrame.new(0, 1.12, 0.22) * CFrame.Angles(0, math.pi, 0), c.top)
 end
 
 -- Grosses boucles d'oreilles (écarteurs noirs cerclés de bronze).
@@ -2665,11 +2675,11 @@ ACC.magma_fist = function(ctx, look)
 		local top = 0.38
 		S:rect(0.5, (top + 1) / 2, 1, 1 - top, lava, { gradient = { Color3.fromRGB(230, 70, 14), lava, core }, gradientRotation = 90, z = 1 })
 		-- Bord irrégulier de la lave (dents) et croûte sombre au-dessus
-		for i = 0, 4 do
-			local x = (i + 0.5) / 5
+		for i = 0, 2 do
+			local x = (i + 0.5) / 3
 			local h = 0.06 + ((i + fi) % 3) * 0.035
-			S:rect(x, top - h / 2 + 0.01, 0.2, h, lava, { z = 1 })
-			S:rect(x + 0.1, top - 0.02, 0.06, 0.08, rock, { rotation = 35 + i * 20, z = 2 })
+			S:rect(x, top - h / 2 + 0.01, 0.34, h, lava, { z = 1 })
+			S:rect(x + 0.17, top - 0.02, 0.08, 0.09, rock, { rotation = 35 + i * 20, z = 2 })
 		end
 		-- Fissures sombres dans la lave
 		S:line(0.2, 0.5, 0.45, 0.62, 0.05, rock, { z = 2 })

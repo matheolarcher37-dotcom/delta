@@ -858,7 +858,20 @@ local function faceMarks(T, look, skin: Color3, eyeX: number, eyeY: number)
 			T.line(x - 0.075, y + 0.03 - s * 0.005, x + 0.075, y + 0.03 + s * 0.005, 0.02, INK, { z = 9 })
 		end
 	end
-	if has(look, "curse_mark") then
+	if look.curseSpread then
+		-- Marque maudite déployée : flammes noires qui envahissent la moitié du visage
+		local x0 = eyeX + 0.05
+		for i, e in { { 0.12, 0.3, 0.16 }, { -0.1, 0.24, 0.12 }, { 0.16, 0.06, 0.15 }, { -0.04, -0.12, 0.13 }, { 0.12, -0.32, 0.14 } } do
+			local x, y = x0 + e[1], eyeY + e[2]
+			T.line(x, y, x + 0.12, y + 0.12, e[3] * 0.45, INK, { z = 9 })
+			T.line(x, y, x - 0.08, y + 0.1, e[3] * 0.3, INK, { z = 9 })
+			T.oval(x, y, e[3], e[3] * 0.7, INK, { z = 9 })
+			if i % 2 == 0 then
+				T.line(x - 0.05, y - 0.02, x - 0.16, y + 0.06, 0.02, INK, { z = 9 })
+			end
+		end
+	end
+	if has(look, "curse_mark") and not look.curseSpread then
 		-- Marque maudite : virgules noires en flammes sur la joue et la tempe gauches
 		local x0 = eyeX + 0.12
 		for i, e in { { 0.0, 0.18, 0.13 }, { 0.06, -0.02, 0.11 }, { -0.02, -0.22, 0.12 } } do
@@ -1330,6 +1343,7 @@ local function palette(look)
 		footwear = look.footwear or "shoes",
 		haori = haoriOf(look), -- veste ouverte portée par-dessus (cache le dos et le haut des bras)
 		carapace = look.carapace,
+		nails = look.nails,
 	}
 end
 Painter.palette = palette
@@ -1347,6 +1361,12 @@ local function hand(S, c, side: string, isLeft: boolean, top: number)
 	local skin = c.skin
 	S:rect(0.5, (top + 1) / 2, 1, 1 - top, skin, { gradient = { skin, shade(skin, 0.18) }, z = 7 })
 	S:rect(0.5, top + S:dy(0.03), 1, S:dy(0.06), shade(skin, 0.4), { fade = { 0.35, 1 }, gradientRotation = 90, z = 8, fine = true })
+	if c.nails then
+		-- Ongles noirs (possession) : quatre petits ongles au bout des doigts
+		for i = 0, 3 do
+			S:rect(0.2 + i * 0.2, 0.975, 0.11, S:dy(0.05), c.nails, { corner = 0.3, z = 9 })
+		end
+	end
 	if side == "front" then
 		-- Pouce (côté du torse)
 		local x = isLeft and 0.22 or 0.78
@@ -1712,6 +1732,13 @@ local function paintArm(S, look, c, side: string, isLeft: boolean)
 	if has(look, "tattoos") then
 		for _, y in { 0.6, 0.68 } do
 			S:rect(0.5, y, 1, S:dy(0.055), INK, { z = 9 })
+		end
+	end
+	if look.curseSpread and side ~= "in" and isLeft then
+		-- Flammes noires de la marque maudite qui descendent le bras
+		for i, y in { 0.12, 0.3, 0.5 } do
+			S:line(0.3 + i * 0.1, y, 0.62, y + 0.14, 0.08, INK, { z = 9 })
+			S:line(0.62, y + 0.14, 0.5, y + 0.22, 0.04, INK, { z = 9 })
 		end
 	end
 	if look.armVeins and side ~= "in" then
@@ -2844,7 +2871,7 @@ function Painter.lods(model: Instance)
 	end
 	for _, gui in guis do
 		-- Couche peinte par-dessus la tenue (lave du poing de magma...) : ZOffset plus haut
-		gui.ZOffset = gui:GetAttribute("ZTop") and 2 or 1
+		gui.ZOffset = gui:GetAttribute("ZTop") and 1.5 or 1
 		Painter.lod(gui)
 	end
 end
