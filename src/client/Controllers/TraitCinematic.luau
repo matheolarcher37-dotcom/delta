@@ -79,12 +79,6 @@ local function smooth(t: number): number
 	return t * t * (3 - 2 * t)
 end
 
-local function easeOutBack(t: number): number
-	t = math.clamp(t, 0, 1)
-	local c1, c3 = 1.4, 2.4
-	return 1 + c3 * (t - 1) ^ 3 + c1 * (t - 1) ^ 2
-end
-
 local function setting(name: string): boolean
 	local player = Players.LocalPlayer
 	return not (player and player:GetAttribute(name) == false)
@@ -367,10 +361,7 @@ local function hideLocal(scene, part: BasePart)
 			part.LocalTransparencyModifier = 1
 		end)
 		for _, d in part:GetChildren() do
-			if (d:IsA("SurfaceGui") or d:IsA("BillboardGui")) and d.Enabled then
-				d.Enabled = false
-				table.insert(scene.guis, d)
-			elseif d:IsA("ParticleEmitter") and d.Enabled then
+			if (d:IsA("SurfaceGui") or d:IsA("BillboardGui") or d:IsA("ParticleEmitter")) and d.Enabled then
 				d.Enabled = false
 				table.insert(scene.guis, d)
 			end
@@ -1059,7 +1050,14 @@ local function buildCrown(scene, k: number): Model
 		)
 	end
 	local top = piece("Orb", Vector3.new(0.34, 0.34, 0.34), CFrame.new(0, 0.62, 0), GOLD, Enum.PartType.Ball)
-	emitter(top, { Color = ColorSequence.new(GOLD), Size = NumberSequence.new(0.5, 0), Rate = 14, Lifetime = NumberRange.new(0.5, 0.9), Speed = NumberRange.new(1, 2), SpreadAngle = Vector2.new(180, 180) })
+	emitter(top, {
+		Color = ColorSequence.new(GOLD),
+		Size = NumberSequence.new(0.5, 0),
+		Rate = 14,
+		Lifetime = NumberRange.new(0.5, 0.9),
+		Speed = NumberRange.new(1, 2),
+		SpreadAngle = Vector2.new(180, 180),
+	})
 	light(top, GOLD, 2, 10)
 	crown.Parent = scene.folder
 	scene.crownParts = list
@@ -1070,7 +1068,7 @@ end
 -- MONARQUE
 ------------------------------------------------------------------------
 
-local MONARCH_RADIUS = 7.6 -- cercle des persos agenouillés autour de l'unité
+local MONARCH_RADIUS = 8.6 -- cercle des persos agenouillés autour de l'unité
 local MONARCH_COUNT = 8
 local DAIS_TOP = 1.2 -- l'unité se tient sur une estrade (2 marches)
 local HERO_SCALE = 1.3
@@ -1078,25 +1076,29 @@ TraitCinematic.MonarchRadius = MONARCH_RADIUS
 TraitCinematic.MonarchCount = MONARCH_COUNT
 TraitCinematic.HeroScale = HERO_SCALE
 
--- Places des persos (repère de la scène) : cercle complet décalé d'un demi-pas, pour qu'aucun ne
--- soit pile entre la caméra (devant) et l'unité.
+-- Places des persos (repère de la scène) : un cercle autour de l'unité, ouvert du côté de la
+-- caméra (devant, -Z) pour qu'aucun perso ne se tienne entre la caméra et l'unité. Angles mesurés
+-- depuis l'avant : 4 de chaque côté, du flanc avant jusque derrière l'unité.
+local MONARCH_ANGLES = { 54, 90, 124, 158 }
 function TraitCinematic.monarchSpots(): { Vector3 }
 	local spots = {}
-	for i = 0, MONARCH_COUNT - 1 do
-		local a = (i + 0.5) / MONARCH_COUNT * math.pi * 2
-		table.insert(spots, Vector3.new(math.sin(a) * MONARCH_RADIUS, 0, -math.cos(a) * MONARCH_RADIUS))
+	for _, a in MONARCH_ANGLES do
+		for _, side in { -1, 1 } do
+			local r = math.rad(a * side)
+			table.insert(spots, Vector3.new(math.sin(r) * MONARCH_RADIUS, 0, -math.cos(r) * MONARCH_RADIUS))
+		end
 	end
 	return spots
 end
 
--- Trajet de la caméra : vue large qui tourne au-dessus du cercle, puis plan bas devant l'unité
--- (contre-plongée : les persos inclinés au premier plan, l'unité couronnée au centre).
+-- Trajet de la caméra : vue large qui tourne au-dessus du cercle, puis plan de face un peu
+-- au-dessus des persos inclinés (le cercle entier, l'unité couronnée au centre, plein cadre).
 function TraitCinematic.monarchCamera(total: number): { { any } }
 	return {
 		{ 0, Vector3.new(16, 15, -20), Vector3.new(0, 2.5, 0), 55 },
-		{ 2.2, Vector3.new(-9, 11, -19), Vector3.new(0, 3, 0), 52 },
-		{ 3.6, Vector3.new(-2.5, 4.4, -17), Vector3.new(0, 4.8, 0), 46 },
-		{ math.max(total, 4), Vector3.new(0, 4.2, -14.5), Vector3.new(0, 5.2, 0), 44 },
+		{ 2.2, Vector3.new(-10, 10, -18), Vector3.new(0, 3, 0), 52 },
+		{ 3.6, Vector3.new(-2.5, 7.5, -20.5), Vector3.new(0, 4, 0), 50 },
+		{ math.max(total, 4), Vector3.new(0, 7, -20), Vector3.new(0, 4, 0), 50 },
 	}
 end
 
@@ -1141,7 +1143,8 @@ local function monarchScene(scene)
 	local headTop = scene.heroHeadTop or (DAIS_TOP + 6.5)
 	-- Halo et rayons dorés derrière l'unité (apparaissent avec la couronne)
 	local haloY = headTop - 1.4
-	local halo = part(scene, "Halo", Vector3.new(0.1, 6.4, 6.4), CFrame.new(0, haloY, 1.6) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 214, 100), Enum.Material.Neon, CYL, 1)
+	local halo =
+		part(scene, "Halo", Vector3.new(0.1, 6.4, 6.4), CFrame.new(0, haloY, 1.6) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 214, 100), Enum.Material.Neon, CYL, 1)
 	local rays = {}
 	for i = 0, 15 do
 		local long = i % 2 == 0
@@ -1161,7 +1164,8 @@ local function monarchScene(scene)
 			local spot = TraitCinematic.monarchSpots()[i]
 			local place = scene.stage * CFrame.lookAt(spot, Vector3.new(0, 0, 0))
 			applyPose(pose, place, 0)
-			local pillar = part(scene, "SpawnPillar", Vector3.new(14, 2.6, 2.6), CFrame.new(spot + Vector3.new(0, 7, 0)) * UPRIGHT, Color3.fromRGB(255, 226, 130), Enum.Material.Neon, CYL, 1)
+			local pillar =
+				part(scene, "SpawnPillar", Vector3.new(14, 2.6, 2.6), CFrame.new(spot + Vector3.new(0, 7, 0)) * UPRIGHT, Color3.fromRGB(255, 226, 130), Enum.Material.Neon, CYL, 1)
 			local spark = emitter(pillar, {
 				Color = ColorSequence.new(GOLD),
 				Size = NumberSequence.new(0.6, 0),

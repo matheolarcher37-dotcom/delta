@@ -35,6 +35,7 @@ local AuraController = require(Controllers.AuraController)
 local NameTags = require(Controllers.NameTags)
 local WorldInteraction = require(Controllers.WorldInteraction)
 local CoinConveyor = require(Controllers.CoinConveyor)
+local TraitCinematic = require(Controllers.TraitCinematic)
 
 local gui = Theme.new("ScreenGui", {
 	Name = "AnimeTycoonUI",
@@ -147,6 +148,8 @@ safeInit("AuraController", AuraController.init)
 safeInit("NameTags", NameTags.init)
 safeInit("WorldInteraction", WorldInteraction.init)
 safeInit("CoinConveyor", CoinConveyor.init)
+-- cinématiques des traits très rares (Monarque, Céleste, Midas, Vampire), vues seulement par ce joueur
+safeInit("TraitCinematic", TraitCinematic.init)
 
 updateScale()
 

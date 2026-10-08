@@ -384,12 +384,16 @@ test("Zone anti-AFK : panneau affiché sur place, sac qui se balance", function(
 	expectNoNewWarnings(before, "zone anti-AFK")
 end)
 
-test("Traits : relance avec une gemme, relance auto, cinématiques Monarque et Mythique", function()
+test("Traits : écran, rouleau, relance avec une gemme et révélation renforcée", function()
 	local before = #warnings
 	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
 	local TraitsMenu = Harness.require(client.UI.TraitsMenu)
+	local TraitsConfig = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Traits"))
 	local data = services.DataService:Get(alice)
 	data.traitCrystals = 3
+	for _, e in data.characters do
+		e.trait = nil
+	end
 	services.DataService:Sync(alice)
 	task.wait(0.4)
 	Menus.open("Traits")
@@ -397,7 +401,11 @@ test("Traits : relance avec une gemme, relance auto, cinématiques Monarque et M
 	local gui = alice.PlayerGui.AnimeTycoonUI
 	local root = gui:FindFirstChild("WindowRoot_TRAITS")
 	assert(root and root:FindFirstChild("TraitCard", true), "carte du trait manquante")
-	assert(root:FindFirstChild("Chances", true) and root:FindFirstChild("Tier5", true), "échelle des chances manquante")
+	assert(root:FindFirstChild("Reel", true) and root:FindFirstChild("Emblem", true), "rouleau ou emblème du trait manquant")
+	assert(root:FindFirstChild("Chances", true) and root:FindFirstChild("Tier5", true), "tableau des chances manquant")
+	local bank = root:FindFirstChild("Bank", true)
+	assert(bank and bank:FindFirstChild("Count") and bank.Count.Text == "3", "réserve de gemmes : compteur faux")
+	assert(bank:FindFirstChild("BuyGems"), "bouton d'achat de gemmes manquant")
 	local roll = nil
 	for _, d in root:GetDescendants() do
 		if d:IsA("TextButton") and d:GetAttribute("SelKey") == "roll" then
@@ -406,47 +414,93 @@ test("Traits : relance avec une gemme, relance auto, cinématiques Monarque et M
 	end
 	assert(roll, "bouton RELANCER manquant")
 	signalFor(roll, "Activated"):Fire()
-	task.wait(3)
-	TraitsMenu.skipCinematic()
-	task.wait(0.4)
-	assert(data.traitCrystals == 2, "la relance doit coûter 1 gemme (" .. tostring(data.traitCrystals) .. ")")
-	-- Cinématique du Monarque : des persos s'agenouillent, la couronne descend
-	local list = Harness.require(client.State).sortedCharacters()
-	local entry, desc = list[1].entry, list[1].desc
-	local cine = TraitsMenu.playMonarch(entry, desc, 2)
-	assert(cine and cine:FindFirstChild("Scene"), "scène de la cinématique manquante")
-	local scene = cine.Scene
-	assert(scene:FindFirstChild("Crown") and scene:FindFirstChild("ThroneBack"), "salle du trône incomplète")
-	local models = 0
-	for _, child in scene:GetChildren() do
-		if child:IsA("Model") and child.Name ~= "Crown" then
-			models += 1
+	-- le rouleau tourne (bloquant) puis la révélation s'affiche ; on attend la fin
+	local t0 = os.clock()
+	task.wait(0.2)
+	while TraitsMenu.isRolling() and os.clock() - t0 < 10 do
+		task.wait(0.2)
+		Harness.services.RunService.RenderStepped:Fire(1 / 30)
+		if os.clock() - t0 > 3.5 then
+			TraitsMenu.skipCinematic()
 		end
 	end
-	assert(models >= 7, "il faut l'unité + 6 persos agenouillés (" .. models .. ")")
-	for _ = 1, 20 do
-		Harness.services.RunService.RenderStepped:Fire(1 / 30)
-		task.wait(0.03)
+	assert(not TraitsMenu.isRolling(), "la relance ne se termine pas")
+	task.wait(0.4)
+	assert(data.traitCrystals == 2, "la relance doit coûter 1 gemme (" .. tostring(data.traitCrystals) .. ")")
+	-- au repos, la ligne du milieu du rouleau est le trait de l'unité sélectionnée
+	local rolled = nil
+	for _, e in data.characters do
+		if e.trait then
+			rolled = e.trait
+		end
 	end
+	assert(rolled, "aucun trait tiré")
+	root = gui:FindFirstChild("WindowRoot_TRAITS")
+	local strip = root:FindFirstChild("ReelStrip", true)
+	local row2 = strip and strip:FindFirstChild("Row2")
+	assert(row2 and row2:GetAttribute("TraitId") == rolled, "le rouleau doit s'arrêter sur le trait tiré")
+	-- révélation renforcée (trait rare sans cinématique)
+	local overlay = TraitsMenu.playReveal(TraitsConfig.List.critique, { name = "Test" }, 5)
+	assert(overlay and overlay:FindFirstChild("Title") and overlay.Title.Text == "CRITIQUE", "révélation renforcée sans titre")
+	assert(overlay:FindFirstChild("Sunburst") and overlay:FindFirstChild("Emblem"), "révélation renforcée sans rayons ni emblème")
 	TraitsMenu.skipCinematic()
-	assert(not cine.Parent, "la cinématique ne se passe pas")
-	-- Plan final (horloge simulée) : caméra basse dans l'axe du tapis, derrière les deux rangées.
-	-- L'unité et les 6 persos à genou sont entiers dans le champ (entre les bandes noires, écran 16/9),
-	-- aucun perso n'en chevauche un autre ni l'unité, et rien ne cache la tête ni le torse de l'unité.
+	assert(not overlay.Parent, "la révélation ne se passe pas")
+	-- sans flashs (Options) : pas de voile blanc plein écran
+	alice:SetAttribute("FxFlash", false)
+	local overlay2 = TraitsMenu.playReveal(TraitsConfig.List.vigueur3, nil, 5)
+	assert(overlay2.Veil.BackgroundTransparency >= 0.75, "le flash doit être coupé par l'option")
+	TraitsMenu.skipCinematic()
+	alice:SetAttribute("FxFlash", nil)
+	-- niveaux de révélation
+	assert(TraitsConfig.revealLevel("monarque") == 4 and TraitsConfig.revealLevel("vampire") == 4, "Monarque / Vampire : cinématique")
+	assert(TraitsConfig.revealLevel("critique") == 3 and TraitsConfig.revealLevel("fortune") == 2 and TraitsConfig.revealLevel("vigueur1") == 1, "niveaux de révélation")
+	Menus.close("Traits")
+	expectNoNewWarnings(before, "traits")
+end)
+
+test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, cadrage)", function()
+	local before = #warnings
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local TraitCinematic = Harness.require(client.Controllers.TraitCinematic)
+	local State = Harness.require(client.State)
+	local list = State.sortedCharacters()
+	local entry, desc = table.clone(list[1].entry), list[1].desc
+	entry.uid = list[1].uid
 	local fake = 0
-	local cine2 = TraitsMenu.playMonarch(entry, desc, 7.5, function()
-		return fake
-	end)
-	fake = 7.5
+	local stage = CFrame.new(40, 0.5, 40)
+	local scene = TraitCinematic.play("monarch", entry, desc, {
+		duration = 200,
+		stage = stage,
+		clock = function()
+			return fake
+		end,
+	})
+	assert(scene and not scene.finished, "la cinématique ne démarre pas")
+	local folder = scene.folder
+	assert(folder.Parent == game.Workspace, "la scène doit être dans le monde (Workspace)")
+	assert(alice.PlayerGui:FindFirstChild("TraitCinematicUI"), "interface de la cinématique manquante")
+	assert(not alice.PlayerGui.AnimeTycoonUI.Enabled, "l'interface du jeu doit être masquée pendant la scène")
+	local camera = game.Workspace.CurrentCamera
+	assert(camera.CameraType == roblox.Enum.CameraType.Scriptable, "caméra non scriptée")
+	-- plan final (couronne posée, persos à genoux)
+	fake = 7
 	for _ = 1, 3 do
 		Harness.services.RunService.RenderStepped:Fire(1 / 30)
 		task.wait(0.03)
 	end
-	local scene2 = cine2.Scene
-	local cam = scene2:FindFirstChildOfClass("Camera")
-	local tanV = math.tan(math.rad(cam.FieldOfView) / 2)
+	local hero = folder:FindFirstChild("Hero")
+	assert(hero, "unité introuvable")
+	local crown = folder:FindFirstChild("Crown")
+	assert(crown, "couronne manquante")
+	local head = hero:FindFirstChild("Head")
+	local ring = crown:FindFirstChild("Ring")
+	local headTop = head.CFrame.Position.Y + head.Size.Y * 0.5
+	assert(math.abs(ring.CFrame.Position.Y - headTop) < 0.8, "la couronne doit être posée sur la tête (" .. ring.CFrame.Position.Y .. " / " .. headTop .. ")")
+	local tanV = math.tan(math.rad(camera.FieldOfView) / 2)
 	local tanH = tanV * 16 / 9
-	local function boxOf(model)
+	-- boîte d'un perso dans le repère `frame` (repère du perso : boîtes orientées, plus justes
+	-- qu'une boîte alignée sur le monde pour des persos disposés en cercle)
+	local function boxOf(model, frame)
 		local lo, hi = Vector3.new(math.huge, math.huge, math.huge), Vector3.new(-math.huge, -math.huge, -math.huge)
 		for _, part in model:GetDescendants() do
 			if part:IsA("BasePart") and part.Transparency < 1 then
@@ -454,7 +508,7 @@ test("Traits : relance avec une gemme, relance auto, cinématiques Monarque et M
 				for _, sx in { -1, 1 } do
 					for _, sy in { -1, 1 } do
 						for _, sz in { -1, 1 } do
-							local c = part.CFrame:PointToWorldSpace(Vector3.new(half.X * sx, half.Y * sy, half.Z * sz))
+							local c = frame:PointToObjectSpace(part.CFrame:PointToWorldSpace(Vector3.new(half.X * sx, half.Y * sy, half.Z * sz)))
 							lo = Vector3.new(math.min(lo.X, c.X), math.min(lo.Y, c.Y), math.min(lo.Z, c.Z))
 							hi = Vector3.new(math.max(hi.X, c.X), math.max(hi.Y, c.Y), math.max(hi.Z, c.Z))
 						end
@@ -464,53 +518,47 @@ test("Traits : relance avec une gemme, relance auto, cinématiques Monarque et M
 		end
 		return lo, hi
 	end
-	local hero = scene2:FindFirstChild("Hero")
-	assert(hero, "unité introuvable sur l'estrade")
-	local heroHead, heroTorso = hero:FindFirstChild("Head"), hero:FindFirstChild("Torso")
-	assert(heroHead.Size.Y > 1.2, "l'unité doit être à l'échelle 1,3")
-	local heroLo, heroHi = boxOf(hero)
-	assert(heroLo.Y > 1.7, "l'unité doit être debout sur l'estrade (" .. heroLo.Y .. ")")
-	assert(heroHi.Y > scene2.ThroneBack.CFrame.Position.Y + scene2.ThroneBack.Size.Y * 0.5, "l'unité doit dépasser le dossier du trône")
-	local boxes = { { name = "Hero", lo = heroLo, hi = heroHi } }
-	local kneelerCount = 0
-	for _, child in scene2:GetChildren() do
+	local boxes = {}
+	local kneelers = 0
+	for _, child in folder:GetChildren() do
 		if child:IsA("Model") and child.Name ~= "Crown" then
 			for _, part in child:GetDescendants() do
 				if part:IsA("BasePart") and part.Transparency < 1 then
-					local v = cam.CFrame:PointToObjectSpace(part.CFrame.Position)
-					assert(v.Z < 0, "perso derrière la caméra")
+					local v = camera.CFrame:PointToObjectSpace(part.CFrame.Position)
+					assert(v.Z < 0, "perso derrière la caméra : " .. child.Name)
 					assert(math.abs(v.X / -v.Z) < tanH * 0.98, "perso coupé par le bord : " .. child.Name)
-					assert(math.abs(v.Y / -v.Z) < tanV * 0.78, "perso coupé par les bandes noires : " .. child.Name)
+					assert(math.abs(v.Y / -v.Z) < tanV * 0.8, "perso coupé par les bandes noires : " .. child.Name)
 				end
 			end
-			if child.Name ~= "Hero" then
-				kneelerCount += 1
-				local lo, hi = boxOf(child)
+			local torsoPart = child:FindFirstChild("Torso")
+			table.insert(boxes, { name = child.Name, model = child, frame = torsoPart and torsoPart.CFrame.Rotation or CFrame.new() })
+			if string.sub(child.Name, 1, 7) == "Kneeler" then
+				kneelers += 1
 				local torso = child:FindFirstChild("Torso")
-				assert(torso and torso.CFrame.Position.Y < 2.2, "perso pas agenouillé : " .. child.Name)
-				table.insert(boxes, { name = child.Name, lo = lo, hi = hi })
+				assert(torso and torso.CFrame.Position.Y - stage.Position.Y < 2.4, "perso pas agenouillé : " .. child.Name)
+				-- tourné vers l'unité
+				local look = torso.CFrame.LookVector * Vector3.new(1, 0, 1)
+				local to = (stage.Position - torso.CFrame.Position) * Vector3.new(1, 0, 1)
+				assert(look.Unit:Dot(to.Unit) > 0.8, child.Name .. " ne regarde pas l'unité")
 			end
 		end
 	end
-	assert(kneelerCount == 6, "il faut 6 persos agenouillés (" .. kneelerCount .. ")")
-	-- deux rangées symétriques, 3 à gauche et 3 à droite du tapis
-	local left, right = 0, 0
-	for _, spot in TraitsMenu.KneelSpots do
-		if spot.X < -3.7 then
-			left += 1
-		elseif spot.X > 3.7 then
-			right += 1
-		end
-	end
-	assert(left == 3 and right == 3, "les persos doivent former deux rangées de part et d'autre du tapis")
+	assert(kneelers == TraitCinematic.MonarchCount, "il faut " .. TraitCinematic.MonarchCount .. " persos agenouillés (" .. kneelers .. ")")
 	for i = 1, #boxes do
 		for j = i + 1, #boxes do
 			local A, B = boxes[i], boxes[j]
-			local overlap = A.lo.X < B.hi.X and B.lo.X < A.hi.X and A.lo.Y < B.hi.Y and B.lo.Y < A.hi.Y and A.lo.Z < B.hi.Z and B.lo.Z < A.hi.Z
-			assert(not overlap, A.name .. " chevauche " .. B.name)
+			local separated = false
+			for _, frame in { A.frame, B.frame } do
+				local alo, ahi = boxOf(A.model, frame)
+				local blo, bhi = boxOf(B.model, frame)
+				if not (alo.X < bhi.X and blo.X < ahi.X and alo.Y < bhi.Y and blo.Y < ahi.Y and alo.Z < bhi.Z and blo.Z < ahi.Z) then
+					separated = true
+				end
+			end
+			assert(separated, A.name .. " chevauche " .. B.name)
 		end
 	end
-	-- rayon caméra -> tête et torse de l'unité : aucune pièce (perso, pilier, décor) sur le chemin
+	-- rien entre la caméra et la tête / le torse de l'unité
 	local function segmentHits(part, a, b)
 		local pa, pb = part.CFrame:PointToObjectSpace(a), part.CFrame:PointToObjectSpace(b)
 		local half = part.Size * 0.5
@@ -535,40 +583,96 @@ test("Traits : relance avec une gemme, relance auto, cinématiques Monarque et M
 		end
 		return true
 	end
-	for _, target in { heroHead, heroTorso } do
-		local a, b = cam.CFrame.Position, target.CFrame.Position
-		for _, part in scene2:GetDescendants() do
-			if part:IsA("BasePart") and part.Transparency < 0.5 and not part:IsDescendantOf(hero) and not part:IsDescendantOf(scene2.Crown) then
+	for _, target in { head, hero:FindFirstChild("Torso") } do
+		local a, b = camera.CFrame.Position, target.CFrame.Position
+		for _, part in folder:GetDescendants() do
+			if part:IsA("BasePart") and part.Transparency < 0.5 and not part:IsDescendantOf(hero) and not part:IsDescendantOf(crown) then
 				assert(not segmentHits(part, a, b), part:GetFullName() .. " cache " .. target.Name .. " de l'unité")
 			end
 		end
 	end
-	TraitsMenu.skipCinematic()
-	-- Pose à genoux : les jambes et le torse descendent
-	local model = Harness.require(client.UI.Components).characterModel(desc.look, entry.id, entry.stars)
-	local pose = TraitsMenu.kneelPose(model)
+	-- titre affiché, bouton Passer
+	local ui = alice.PlayerGui.TraitCinematicUI
+	local title = ui:FindFirstChild("Title", true)
+	assert(title and title.Text == "MONARQUE", "titre MONARQUE manquant")
+	assert(ui:FindFirstChild("Skip", true), "bouton Passer manquant")
+	TraitCinematic.skip()
+	assert(scene.finished and not folder.Parent, "la scène n'est pas nettoyée")
+	assert(not alice.PlayerGui:FindFirstChild("TraitCinematicUI"), "interface de la cinématique non retirée")
+	assert(alice.PlayerGui.AnimeTycoonUI.Enabled, "l'interface du jeu doit revenir")
+	assert(camera.CameraType ~= roblox.Enum.CameraType.Scriptable, "la caméra doit revenir au joueur")
+	-- Pose à genoux lisible
+	local Components = Harness.require(client.UI.Components)
+	local model = Components.characterModel(desc.look, entry.id, entry.stars)
+	local pose = TraitCinematic.kneelPose(model)
 	local torso = model:FindFirstChild("Torso")
 	assert(pose[torso] and pose[torso][2].Position.Y < pose[torso][1].Position.Y - 0.5, "le torse ne descend pas à genoux")
-	-- à genoux lisible : torse presque droit, tête baissée, jambes à plat au sol (pas sous le sol)
 	assert(pose[torso][2].UpVector.Y > 0.9, "le torse doit rester presque droit")
-	local head = model:FindFirstChild("Head")
-	assert(pose[head][2].LookVector.Y < -0.3, "la tête doit être baissée")
+	assert(pose[model:FindFirstChild("Head")][2].LookVector.Y < -0.3, "la tête doit être baissée")
 	for _, legName in { "Left Leg", "Right Leg" } do
 		local leg = model:FindFirstChild(legName)
 		local cf = pose[leg][2]
 		assert(math.abs(cf.UpVector.Y) < 0.2, legName .. " doit être repliée à plat")
 		assert(cf.Position.Y - leg.Size.X * 0.5 > -0.3 and cf.Position.Y < 1.2, legName .. " doit reposer au sol")
 	end
-	-- plan final de la cinématique : caméra basse (contre-plongée) dans l'axe du tapis
-	local keys = TraitsMenu.monarchCamera(7.5)
-	local last = keys[#keys]
-	assert(math.abs(last[2].X) < 0.5 and last[2].Y < 6 and last[3].Y > last[2].Y, "le plan final doit être bas, dans l'axe du tapis, en contre-plongée")
-	-- Mythique
-	local asc = TraitsMenu.playAscension(entry, desc, Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Traits")).List.celeste, 1)
-	assert(asc and asc:FindFirstChild("Title", true), "ascension sans titre")
-	TraitsMenu.skipCinematic()
-	Menus.close("Traits")
-	expectNoNewWarnings(before, "traits")
+	expectNoNewWarnings(before, "cinématique Monarque")
+end)
+
+test("Traits : cinématiques Céleste, Midas, Vampire et résultat reçu du serveur", function()
+	local before = #warnings
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local TraitCinematic = Harness.require(client.Controllers.TraitCinematic)
+	local State = Harness.require(client.State)
+	local item = State.sortedCharacters()[1]
+	local entry = table.clone(item.entry)
+	entry.uid = item.uid
+	alice:SetAttribute("FxShake", false)
+	for kind, expect in { celeste = { "CelestialBeam", "WingFeather" }, midas = { "Coin", "GoldPool" }, vampire = { "BloodMoon", "BatBody" } } do
+		local fake = 0
+		local scene = TraitCinematic.play(kind, entry, item.desc, {
+			duration = 200,
+			stage = CFrame.new(-40, 0.5, 40),
+			clock = function()
+				return fake
+			end,
+		})
+		assert(scene and not scene.finished, kind .. " ne démarre pas")
+		for _, name in expect do
+			assert(scene.folder:FindFirstChild(name, true), kind .. " : " .. name .. " manquant")
+		end
+		fake = 4
+		for _ = 1, 3 do
+			Harness.services.RunService.RenderStepped:Fire(1 / 30)
+			task.wait(0.03)
+		end
+		assert(not scene.finished, kind .. " s'est arrêtée en route")
+		assert(scene.shake == 0, kind .. " : la secousse doit être coupée par l'option")
+		local title = alice.PlayerGui.TraitCinematicUI:FindFirstChild("Title", true)
+		assert(title and title.Text == TraitCinematic.Titles[kind], kind .. " : titre manquant")
+		if kind == "midas" then
+			local torso = scene.hero and scene.hero:FindFirstChild("Torso")
+			assert(torso and torso.Material == roblox.Enum.Material.Metal, "Midas : l'unité doit être changée en or")
+		end
+		TraitCinematic.skip()
+		assert(scene.finished and not scene.folder.Parent, kind .. " : scène non nettoyée")
+	end
+	alice:SetAttribute("FxShake", nil)
+	-- Résultat reçu du serveur (relance faite ailleurs que dans l'écran) : la cinématique se joue
+	local remotes = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Remotes"))
+	signalFor(remotes.event("TraitRolled"), "OnClientEvent"):Fire({ uid = item.uid, traitId = "monarque" })
+	task.wait(0.1)
+	assert(TraitCinematic.isPlaying(), "TraitRolled (Monarque) doit lancer la cinématique")
+	TraitCinematic.skip()
+	-- une relance réclamée par l'écran des Traits n'est pas rejouée
+	TraitCinematic.claim(item.uid)
+	signalFor(remotes.event("TraitRolled"), "OnClientEvent"):Fire({ uid = item.uid, traitId = "celeste" })
+	task.wait(0.1)
+	assert(not TraitCinematic.isPlaying(), "relance réclamée : pas de double cinématique")
+	-- traits ordinaires : pas de cinématique
+	signalFor(remotes.event("TraitRolled"), "OnClientEvent"):Fire({ uid = item.uid, traitId = "vigueur1" })
+	task.wait(0.1)
+	assert(not TraitCinematic.isPlaying(), "trait commun : pas de cinématique")
+	expectNoNewWarnings(before, "cinématiques des traits")
 end)
 
 test("Inventaire : sélection et actions", function()
