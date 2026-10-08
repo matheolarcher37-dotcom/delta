@@ -495,6 +495,10 @@ local BROW_STYLES = {
 	raised = { th = 0.03, half = 0.115, arch = 0.018, tilt = -0.05, lift = 0.035 },
 	short = { th = 0.05, half = 0.075, arch = 0, tilt = 0.035 },
 	thin = { th = 0.026, half = 0.12, arch = 0.012, tilt = 0.035 },
+	-- Épais, très froncés et bas sur les yeux (regard noir des boss : amiral, brutes)
+	glower = { th = 0.085, half = 0.15, arch = -0.012, tilt = 0.15, lift = -0.03 },
+	-- Fins mais bas et froncés (menace froide : moine maudit)
+	low = { th = 0.034, half = 0.13, arch = -0.006, tilt = 0.09, lift = -0.035 },
 }
 local MOOD_BROWS = { angry = "frown", fierce = "bold", happy = "bold", calm = "flat", smirk = "bold", sad = "raised" }
 local MOOD_MOUTHS = { angry = "frown", fierce = "smile", happy = "smile", calm = "line", smirk = "smirk", sad = "sad" }
@@ -685,7 +689,13 @@ local function brows(T, look, skin: Color3, eyeX: number, eyeY: number, k: numbe
 		T.line(mx, my, ox, oy, thick * 0.62, color, { z = 8 })
 		if name == "thick" then
 			T.line(ix, iy - thick * 0.25, ox, oy - thick * 0.2, thick * 0.8, color, { z = 8 })
-		elseif name == "frown" and not T.lite then
+		elseif name == "glower" then
+			-- Masse du sourcil (deux couches) qui écrase l'œil
+			T.line(ix, iy - thick * 0.3, ox, oy - thick * 0.25, thick * 0.75, color, { z = 8 })
+			if not T.lite then
+				T.line(s * 0.035, by - 0.02, s * 0.055, by - 0.09, 0.014 * k, Painter.shade(skin, 0.5), { transparency = 0.15, z = 7, fine = true })
+			end
+		elseif (name == "frown" or name == "low") and not T.lite then
 			-- Ride du froncement entre les sourcils
 			T.line(s * 0.035, by - 0.01, s * 0.05, by - 0.07, 0.012 * k, Painter.shade(skin, 0.45), { transparency = 0.25, z = 7, fine = true })
 		end
@@ -749,6 +759,17 @@ local function mouth(T, look, skin: Color3, y: number)
 		T.line(w * 0.25, y + 0.002, w * 0.5, y + 0.045, 0.016, INK, { z = 2 })
 		T.line(w * 0.5, y + 0.045, w * 0.55, y + 0.03, 0.01, INK, { z = 2, fine = true })
 		T.box(w * 0.05, y - 0.03, w * 0.3, 0.012, lip, { corner = 0.5, transparency = 0.4, z = 2, fine = true })
+	elseif style == "sneer" then
+		-- Demi-sourire en coin, cruel : un seul coin relevé et creusé, l'autre tombe, lèvre fine
+		T.line(-w * 0.5, y - 0.02, -w * 0.1, y - 0.002, th, INK, { z = 2 })
+		T.line(-w * 0.1, y - 0.002, w * 0.38, y + 0.012, th, INK, { z = 2 })
+		T.line(w * 0.38, y + 0.012, w * 0.6, y + 0.06, 0.018, INK, { z = 2 })
+		T.line(w * 0.56, y + 0.07, w * 0.64, y + 0.035, 0.012, INK, { z = 2, fine = true })
+		if not T.lite then
+			-- Fossette du rictus et ombre de la lèvre inférieure
+			T.line(w * 0.66, y + 0.08, w * 0.7, y - 0.01, 0.012, Painter.shade(skin, 0.45), { transparency = 0.25, z = 2, fine = true })
+		end
+		T.box(-w * 0.05, y - 0.032, w * 0.38, 0.012, lip, { corner = 0.5, transparency = 0.35, z = 2, fine = true })
 	elseif style == "frown" then
 		-- Bouche fermée, coins tombants
 		T.curve(-w * 0.42, y - 0.022, w * 0.42, y - 0.022, 0.022, th, INK, { z = 2 })
@@ -964,6 +985,44 @@ function Painter.face(plates, look, mode: string?, geom)
 		end
 		T.box(0, shadowY, 1.3, 0.12, Painter.shade(skin, 0.4), { fade = { 0.55, 1 }, gradientRotation = 90, z = 1, fine = true })
 	end
+	if look.visorShadow then
+		-- Ombre portée de la visière (casquette, chapeau) : le haut du visage dans l'ombre
+		local v = look.visorShadow
+		T.box(0, 0.32, 1.3, 0.3, Painter.shade(skin, 0.5), { fade = { 0.1, 0.45, 1 }, gradientRotation = 90, z = 1 })
+		T.box(0, 0.42, 1.3, 0.1, Painter.shade(skin, 0.65), { transparency = 1 - v, z = 1 })
+	end
+	if look.sideburns then
+		-- Pattes : bande de cheveux devant l'oreille, qui s'effile vers la mâchoire
+		for _, sx in { -1, 1 } do
+			T.box(sx * 0.565, 0.16, 0.12, 0.3, look.sideburns, { corner = 0.25, z = 3 })
+			T.line(sx * 0.56, 0.02, sx * 0.53, -0.12, 0.07, look.sideburns, { z = 3 })
+			if not T.lite then
+				T.line(sx * 0.505, 0.28, sx * 0.495, -0.08, 0.012, darken(look.sideburns, 0.5), { transparency = 0.3, z = 3, fine = true })
+			end
+		end
+	end
+	if look.headShade then
+		-- Ombrage des côtés de la tête (le volume se lit même sur une peau très claire)
+		T.box(-0.53, -0.02, 0.2, 1.0, look.headShade, { fade = { 0.15, 1 }, gradientRotation = 0, z = 1 })
+		T.box(0.53, -0.02, 0.2, 1.0, look.headShade, { fade = { 1, 0.15 }, gradientRotation = 0, z = 1 })
+		T.box(0, -0.46, 1.2, 0.12, look.headShade, { fade = { 1, 0.3 }, gradientRotation = 90, z = 1 })
+	end
+	if look.cheekShade then
+		-- Joues creusées / pommettes sombres (sous les yeux, vers l'extérieur)
+		for _, sx in { -1, 1 } do
+			T.oval(sx * 0.4, eyeY - 0.2, 0.2, 0.28, look.cheekShade, { transparency = 0.35, fade = { 0.2, 0.8 }, gradientRotation = sx > 0 and 0 or 180, z = 1 })
+			T.line(sx * 0.3, eyeY - 0.14, sx * 0.4, eyeY - 0.34, 0.016, darken(look.cheekShade, 0.3), { transparency = 0.2, z = 2, fine = true })
+		end
+	end
+	if look.jawShade then
+		-- Mâchoire carrée : ombre sous les pommettes et ligne de mâchoire marquée
+		local jc = Painter.shade(skin, 0.42)
+		for _, sx in { -1, 1 } do
+			T.line(sx * 0.5, -0.08, sx * 0.32, -0.42, 0.05, jc, { transparency = 0.45, z = 1 })
+			T.line(sx * 0.32, -0.42, sx * 0.12, -0.47, 0.04, jc, { transparency = 0.5, z = 1 })
+		end
+		T.box(0, -0.43, 0.22, 0.05, jc, { corner = 0.5, transparency = 0.6, z = 1, fine = true })
+	end
 	if not hideEyes then
 		if has(look, "cyclops") then
 			eye(T, look, 0, eyeY, 1, 1.6)
@@ -986,7 +1045,8 @@ function Painter.face(plates, look, mode: string?, geom)
 	if look.lipColor then
 		-- Lèvres colorées (empereur du froid : lèvres violettes)
 		local my = look.mouthY or (eyeY - 0.46)
-		T.box(0.01, my - 0.012, 0.15, 0.03, look.lipColor, { corner = 0.5, z = 1 })
+		T.box(0.01, my - 0.016, 0.17, 0.045, look.lipColor, { corner = 0.5, gradient = { lighten(look.lipColor, 0.2), look.lipColor, darken(look.lipColor, 0.3) }, z = 1 })
+		T.line(-0.085, my + 0.004, 0.09, my + 0.006, 0.014, darken(look.lipColor, 0.55), { z = 3 })
 	end
 	if look.eyeMarks then
 		-- Marques sous les yeux (traits qui prolongent le coin extérieur vers la joue)
@@ -2300,8 +2360,11 @@ OUTFITS.biosuit = function(S, look, c)
 	local body = c.top
 	local gem = c.accent
 	torsoEdges(S, body)
-	S:rect(0.08, 0.6, 0.16, 0.8, body:Lerp(gem, 0.18), { fade = { 0.2, 1 }, gradientRotation = 0, z = 1, fine = true })
-	S:rect(0.92, 0.6, 0.16, 0.8, body:Lerp(gem, 0.18), { fade = { 1, 0.2 }, gradientRotation = 0, z = 1, fine = true })
+	-- Flancs gris-lavande en dégradé (volume du torse sur un corps blanc)
+	local flank = body:Lerp(Color3.fromRGB(150, 138, 190), 0.55)
+	S:rect(0.11, 0.55, 0.22, 0.9, flank, { fade = { 0.05, 0.4, 1 }, gradientRotation = 0, z = 1 })
+	S:rect(0.89, 0.55, 0.22, 0.9, flank, { fade = { 1, 0.4, 0.05 }, gradientRotation = 0, z = 1 })
+	S:rect(0.5, 0.95, 1, 0.1, flank, { fade = { 1, 0.3 }, gradientRotation = 90, z = 1, fine = true })
 	biosuitPlate(S, gem, 0.2, 0.62)
 	-- Ventre en segments (abdominaux de l'armure organique)
 	for i = 0, 3 do
@@ -2780,7 +2843,8 @@ function Painter.lods(model: Instance)
 		end
 	end
 	for _, gui in guis do
-		gui.ZOffset = 1
+		-- Couche peinte par-dessus la tenue (lave du poing de magma...) : ZOffset plus haut
+		gui.ZOffset = gui:GetAttribute("ZTop") and 2 or 1
 		Painter.lod(gui)
 	end
 end

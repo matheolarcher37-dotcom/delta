@@ -2435,8 +2435,8 @@ end
 
 -- Kesa (étole de moine en patchwork) en travers du torse, de l'épaule gauche à la hanche droite
 -- (Kenjakou) : vrais carreaux de tissus différents (ocre, brun, olive...) de tailles inégales,
--- coutures en pointillés, bord clair tout autour, et l'anneau de métal doré en relief (avec une
--- lueur violette discrète).
+-- coutures en pointillés, bord clair tout autour, peints sur une bande fine, et un petit nœud de
+-- cordon sur l'épaule.
 local KESA_TONES = {
 	Color3.fromRGB(196, 146, 62), -- ocre
 	Color3.fromRGB(126, 82, 46), -- brun
@@ -2456,7 +2456,8 @@ ACC.kesa = function(ctx, look)
 	local trim = look.kesaTrim or Color3.fromRGB(232, 206, 140)
 	local thread = Color3.fromRGB(246, 226, 170)
 	local cf = CFrame.Angles(0, 0, 0.74)
-	local band = ctx.add("Torso", "Kesa", Vector3.new(0.96, 2.9, 1.1), cf, base, { Material = Enum.Material.Fabric })
+	-- Bande FINE (0,5) en travers du torse : le patchwork est peint, pas construit
+	local band = ctx.add("Torso", "Kesa", Vector3.new(0.5, 2.86, 1.06), cf, base, { Material = Enum.Material.Fabric })
 	local mode = ctx.paint == "parts" and "parts" or nil
 	-- Carreaux : rangées de hauteurs inégales, 2 ou 3 colonnes décalées (motif fixe, pas aléatoire)
 	local rows = {
@@ -2511,18 +2512,14 @@ ACC.kesa = function(ctx, look)
 			S:rect(side == 0 and S:dx(0.075) or 1 - S:dx(0.075), 0.5, S:dx(0.014), 1, darken(trim, 0.6), { z = 6 })
 		end
 	end
-	-- Galons en relief sur la tranche (lisibles de loin, même de nuit)
-	for _, side in { -1, 1 } do
-		ctx.add("Torso", "KesaTrim", Vector3.new(0.06, 2.92, 1.13), cf * CFrame.new(side * 0.47, 0, 0), trim, { Material = Enum.Material.Fabric })
+	-- Petit nœud de cordon sur l'épaule (au lieu d'un grand anneau) : nœud + deux bouts qui pendent
+	local cord = Color3.fromRGB(120, 70, 40)
+	local knot = cf * CFrame.new(0, 0.82, -0.56)
+	ctx.ball("Torso", "KesaKnot", Vector3.new(0.2, 0.16, 0.12), knot, cord)
+	ctx.ball("Torso", "KesaKnotLoop", Vector3.new(0.14, 0.12, 0.08), knot * CFrame.new(-0.1, 0.06, -0.02), lighten(cord, 0.15))
+	for i, dx in { -0.05, 0.06 } do
+		ctx.strand("Torso", i == 1 and cord or darken(cord, 0.2), (knot * CFrame.new(dx, -0.06, -0.02)).Position, Vector3.new(dx, -1, -0.15), 0.4 - i * 0.06, 0.05)
 	end
-	-- Anneau (kan) doré en relief sur la poitrine + lueur violette au centre
-	local ring = cf * CFrame.new(0, 0.6, -0.6) * CFrame.Angles(0, math.pi / 2, 0)
-	local gold = Color3.fromRGB(214, 172, 82)
-	ctx.cyl("Torso", "KesaRing", 0.12, 0.5, ring, gold, { Material = Enum.Material.Metal, Reflectance = 0.25 })
-	ctx.cyl("Torso", "KesaRingHole", 0.13, 0.3, ring, Color3.fromRGB(40, 26, 48))
-	ctx.cyl("Torso", "KesaRingGlow", 0.14, 0.2, ring, look.glowColor or Color3.fromRGB(170, 90, 255), { Material = Enum.Material.Neon, Transparency = 0.25 })
-	-- Attache de l'anneau (petite boucle de cordon)
-	ctx.ball("Torso", "KesaRingTie", Vector3.new(0.16, 0.22, 0.14), cf * CFrame.new(0, 0.94, -0.6), darken(gold, 0.35))
 end
 
 -- Larges manches de kimono : manche droite jusqu'au poignet, qui s'évase en bas (coins en Wedge
@@ -2561,16 +2558,18 @@ end
 ACC.stitch_crown = function(ctx, look)
 	local y = (look.eyeY or 0.03) + 0.33
 	local glow = look.glowColor or Color3.fromRGB(170, 90, 255)
-	ctx.vcyl("Head", "StitchGlow", 0.022, 1.312, CFrame.new(0, y, 0), glow, { Material = Enum.Material.Neon, Transparency = 0.35, CastShadow = false })
-	ctx.vcyl("Head", "StitchLine", 0.012, 1.318, CFrame.new(0, y, 0), Color3.fromRGB(46, 30, 44), { CastShadow = false })
+	-- Couture bien marquée : bourrelet de peau, lueur (Neon) de part et d'autre du fil sombre
+	ctx.vcyl("Head", "StitchWelt", 0.07, 1.306, CFrame.new(0, y, 0), Color3.fromRGB(196, 150, 160), { CastShadow = false })
+	ctx.vcyl("Head", "StitchGlow", 0.04, 1.314, CFrame.new(0, y, 0), glow, { Material = Enum.Material.Neon, Transparency = 0.1, CastShadow = false })
+	ctx.vcyl("Head", "StitchLine", 0.018, 1.322, CFrame.new(0, y, 0), Color3.fromRGB(46, 30, 44), { CastShadow = false })
 	for i = -4, 4 do
 		local a = math.rad(i * 15)
 		local r = 0.664
 		ctx.add(
 			"Head",
 			"StitchPoint",
-			Vector3.new(0.026, 0.1, 0.03),
-			CFrame.new(-math.sin(a) * r, y, -math.cos(a) * r) * CFrame.Angles(0, a, math.rad(i % 2 == 0 and 12 or -12)),
+			Vector3.new(0.032, 0.15, 0.035),
+			CFrame.new(-math.sin(a) * r, y, -math.cos(a) * r) * CFrame.Angles(0, a, math.rad(i % 2 == 0 and 14 or -14)),
 			Color3.fromRGB(40, 26, 38),
 			{ CastShadow = false }
 		)
@@ -2601,34 +2600,47 @@ ACC.freezo_gems = function(ctx, look)
 	ctx.ball("Head", "GemDomeShine", Vector3.new(0.36, 0.1, 0.24), CFrame.new(-0.22, 0.72, -0.24) * CFrame.Angles(0.5, 0, 0.2), lighten(gem, 0.6))
 	for _, side in { -1, 1 } do
 		ctx.ball("Head", "EarHole", Vector3.new(0.04, 0.13, 0.1), CFrame.new(side * 0.6, 0.02, 0.08), darken(gem, 0.45))
+		-- Front en V : arcade osseuse qui plonge vers le nez (regard dur, sans sourcils)
+		local a = math.rad(side * 24)
+		local x = side * 0.17
+		ctx.add(
+			"Head",
+			"BrowRidge",
+			Vector3.new(0.3, 0.07, 0.08),
+			CFrame.new(x, 0.21, -math.sqrt(0.64 * 0.64 - x * x) + 0.005) * CFrame.Angles(0, side * math.rad(16), 0) * CFrame.Angles(0, 0, a),
+			darken(skin, 0.06),
+			{ CastShadow = false }
+		)
 	end
-	-- Épaulières : plateau central + 4 biseaux (coins) qui descendent, reflet
+	-- Menton pointu (lame triangulaire sous la bouche) et ombre sous le menton
+	ctx.blade("Head", darken(skin, 0.03), CFrame.new(0, -0.47, -0.585) * CFrame.Angles(math.rad(-8), 0, math.pi), 0.26, 0.4, 0.1, "Chin")
+	ctx.ball("Head", "ChinShadow", Vector3.new(0.5, 0.06, 0.3), CFrame.new(0, -0.62, -0.42), darken(skin, 0.3), { CastShadow = false })
+	-- Épaulières : dômes bombés (armure organique), bord plus sombre, reflet
 	for _, limb in { "Left Arm", "Right Arm" } do
-		local x = limb == "Left Arm" and -0.06 or 0.06
-		local top = CFrame.new(x, 1.12, 0)
-		ctx.add(limb, "GemShoulder", Vector3.new(0.64, 0.24, 0.64), top, gem, shine)
-		for k = 0, 3 do
-			local yaw = k * math.pi / 2
-			local cf = top * CFrame.Angles(0, yaw, 0) * CFrame.new(0, -0.04, -0.46)
-			ctx.wedge(limb, "GemShoulderBevel", Vector3.new(0.64, 0.32, 0.28), cf, darken(gem, k % 2 == 0 and 0 or 0.12))
-		end
-		ctx.ball(limb, "GemShoulderShine", Vector3.new(0.3, 0.06, 0.22), top * CFrame.new(-0.08, 0.13, -0.12), lighten(gem, 0.6))
+		local x = limb == "Left Arm" and -0.05 or 0.05
+		local top = CFrame.new(x, 0.92, 0)
+		ctx.ball(limb, "GemShoulderRim", Vector3.new(1.2, 0.34, 1.2), top * CFrame.new(0, -0.08, 0), darken(gem, 0.3), shine)
+		ctx.ball(limb, "GemShoulder", Vector3.new(1.16, 0.6, 1.16), top, gem, shine)
+		ctx.ball(limb, "GemShoulderShine", Vector3.new(0.34, 0.1, 0.26), top * CFrame.new(-0.1, 0.25, -0.18) * CFrame.Angles(0.3, 0, 0), lighten(gem, 0.6))
 	end
 end
 
--- Longue queue blanche qui s'enroule au sol, bout violet.
+-- Longue queue blanche, ÉPAISSE, qui s'enroule au sol (5 segments qui s'affinent), bout violet.
 ACC.freezo_tail = function(ctx, look)
 	local skin = look.skin or WHITE
 	local gem = look.gemColor or look.topAccent or Color3.fromRGB(140, 60, 190)
+	local shadeSkin = skin:Lerp(Color3.fromRGB(176, 166, 206), 0.35)
 	local pts = {
 		Vector3.new(0, -0.75, 0.42),
-		Vector3.new(0.15, -1.25, 1.05),
-		Vector3.new(0.55, -2.0, 1.55),
-		Vector3.new(1.2, -2.7, 1.55),
-		Vector3.new(1.75, -2.85, 0.95),
-		Vector3.new(1.85, -2.7, 0.35),
+		Vector3.new(0.1, -1.4, 1.15),
+		Vector3.new(0.7, -2.3, 1.75),
+		Vector3.new(1.65, -2.75, 1.5),
+		Vector3.new(2.0, -2.8, 0.6),
+		Vector3.new(1.45, -2.75, -0.05),
 	}
-	chain(ctx, "Torso", pts, { 0.5, 0.46, 0.4, 0.34, 0.28 }, { skin, skin, skin, skin, gem })
+	chain(ctx, "Torso", pts, { 0.72, 0.66, 0.58, 0.48, 0.38 }, { skin, skin, skin, shadeSkin, gem })
+	-- Pointe effilée violette au bout
+	ctx.ball("Torso", "TailTip", Vector3.new(0.28, 0.5, 0.28), alongY(Vector3.new(1.2, -2.72, -0.3), Vector3.new(-0.7, 0.15, -0.7)), gem, { Reflectance = 0.15 })
 end
 
 -- Poing de magma (amiral) : poing en lave incandescente, roche sombre, fumée et braises.
@@ -2643,25 +2655,56 @@ ACC.magma_fist = function(ctx, look)
 	local arm = "Right Arm"
 	local s = ctx.s
 	local neon = { Material = Enum.Material.Neon }
-	-- Avant-bras : lave qui monte jusqu'au coude, puis le poing (un peu plus massif)
-	ctx.rounded(arm, "MagmaSleeve", Vector3.new(1.06, 0.9, 1.06), CFrame.new(0, -0.32, 0), lava, 0.22, neon)
-	local fist = ctx.rounded(arm, "MagmaFist", Vector3.new(1.12, 0.72, 1.12), CFrame.new(0, -0.98, 0), lava, 0.26, neon)
-	-- Jointures plus claires (cœur de la lave) sur l'avant du poing
-	ctx.ball(arm, "MagmaCore", Vector3.new(0.78, 0.2, 0.1), CFrame.new(0, -0.86, -0.57), core, neon)
-	-- Croûtes de roche refroidie, plaquées sur la coque
-	for i, e in { { -0.5, -0.45, -0.2, 0.42 }, { 0.5, -0.62, 0.2, 0.38 }, { -0.3, -0.12, 0.5, 0.4 }, { 0.36, -1.12, -0.4, 0.3 } } do
-		ctx.ball(
+	local limb = ctx.limbs[arm]
+	local mode = ctx.paint == "parts" and "parts" or nil
+	-- Lave PEINTE sur l'avant-bras (aucun volume en plus) : dégradé orange -> jaune vers le
+	-- poing, fissures de basalte au bord, lumineuse (LightInfluence 0) par-dessus la manche.
+	local faces = { Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right }
+	for fi, face in faces do
+		local S = Painter.sheet(limb, face, mode, "MagmaPaint" .. face.Name, 50)
+		local top = 0.38
+		S:rect(0.5, (top + 1) / 2, 1, 1 - top, lava, { gradient = { Color3.fromRGB(230, 70, 14), lava, core }, gradientRotation = 90, z = 1 })
+		-- Bord irrégulier de la lave (dents) et croûte sombre au-dessus
+		for i = 0, 4 do
+			local x = (i + 0.5) / 5
+			local h = 0.06 + ((i + fi) % 3) * 0.035
+			S:rect(x, top - h / 2 + 0.01, 0.2, h, lava, { z = 1 })
+			S:rect(x + 0.1, top - 0.02, 0.06, 0.08, rock, { rotation = 35 + i * 20, z = 2 })
+		end
+		-- Fissures sombres dans la lave
+		S:line(0.2, 0.5, 0.45, 0.62, 0.05, rock, { z = 2 })
+		S:line(0.45, 0.62, 0.38, 0.8, 0.04, rock, { z = 2 })
+		S:line(0.7, 0.48, 0.82, 0.7, 0.045, rock, { z = 2 })
+		local gui = (S.g :: any)
+		if typeof(gui) == "Instance" and gui:IsA("SurfaceGui") then
+			gui.LightInfluence = 0
+			gui.Brightness = 1.4
+			gui:SetAttribute("ZTop", true)
+		end
+	end
+	-- Poing : sphère de lave écrasée, ajustée au poing (bras + 0,2 au plus), cœur plus clair
+	local fist = ctx.ball(arm, "MagmaFist", Vector3.new(1.2, 0.66, 1.2), CFrame.new(0, -0.74, 0), lava, neon)
+	ctx.ball(arm, "MagmaCore", Vector3.new(0.7, 0.3, 0.12), CFrame.new(0, -0.7, -0.56), core, neon)
+	-- Croûtes de basalte noir (CornerWedge) plaquées sur la lave, sans dépasser de plus de 0,1
+	for i, e in {
+		{ -0.38, -0.2, -0.47, 0 },
+		{ 0.4, -0.45, 0.47, math.pi },
+		{ 0.47, -0.05, -0.2, math.pi / 2 },
+		{ -0.47, -0.6, 0.2, -math.pi / 2 },
+		{ 0.15, -0.95, -0.5, math.pi * 0.25 },
+	} do
+		ctx.cornerWedge(
 			arm,
 			"MagmaRock",
-			Vector3.new(e[4], e[4] * 0.5, e[4]),
-			CFrame.new(e[1], e[2], e[3]) * CFrame.Angles(i * 0.4, i * 0.7, 0),
-			rock,
-			{ Material = Enum.Material.Basalt }
-		)
+			Vector3.new(0.34, 0.28 + (i % 2) * 0.08, 0.16),
+			CFrame.new(e[1], e[2], e[3]) * CFrame.Angles(0, e[4], 0),
+			i % 2 == 0 and rock or Color3.fromRGB(28, 22, 24)
+		).Material =
+			Enum.Material.Basalt
 	end
-	-- Coulures : cônes pointés vers le bas sous le poing
-	for _, e in { { 0.22, -0.1, 0.5, 0.26, lava }, { -0.24, 0.18, 0.38, 0.2, lava }, { 0.0, -0.28, 0.28, 0.16, core } } do
-		ctx.cone(arm, CFrame.new(e[1], -1.3, e[2]) * CFrame.Angles(math.pi, 0, 0), e[3], e[4], e[4], e[5], lava, nil, "MagmaDrip")
+	-- Deux coulures fines sous le poing
+	for _, e in { { 0.22, -0.1, 0.3, 0.16, lava }, { -0.2, 0.16, 0.22, 0.12, core } } do
+		ctx.cone(arm, CFrame.new(e[1], -1.02, e[2]) * CFrame.Angles(math.pi, 0, 0), e[3], e[4], e[4], e[5], lava, nil, "MagmaDrip")
 	end
 	for _, d in ctx.model:GetChildren() do
 		if d.Name == "MagmaDrip" then
@@ -2744,30 +2787,30 @@ ACC.justice_coat = function(ctx, look)
 		end, { folds = false, edges = false })
 	end
 	for _, side in { -1, 1 } do
-		-- Épaulette : plateau blanc, liseré doré, franges dorées qui pendent sur le bras
-		ctx.add("Torso", "CoatShoulder", Vector3.new(1.24, 0.18, 1.24), CFrame.new(side * 1.5, 1.1, 0.04), white)
-		ctx.add("Torso", "Epaulette", Vector3.new(0.98, 0.1, 0.98), CFrame.new(side * 1.54, 1.22, 0.02), gold, { Material = Enum.Material.Metal, Reflectance = 0.15 })
-		ctx.ball("Torso", "EpauletteKnob", Vector3.new(0.26, 0.16, 0.26), CFrame.new(side * 1.2, 1.28, -0.02), gold, { Material = Enum.Material.Metal })
-		for i = -2, 2 do
-			ctx.cyl("Torso", "EpauletteFringe", 0.3, 0.1, CFrame.new(side * 2.16, 0.98, i * 0.2) * CFrame.Angles(0, 0, math.pi / 2), gold, { Material = Enum.Material.Metal })
-		end
-	end
-	-- Manches : coques ouvertes (avant, arrière, côté extérieur) autour des bras, bord doré en bas.
-	-- Le bras du poing de magma a une manche courte (la lave monte jusqu'au coude).
-	for _, arm in { "Left Arm", "Right Arm" } do
-		local out = arm == "Left Arm" and -1 or 1
-		local len = (arm == "Right Arm" and has(look, "magma_fist")) and 0.95 or 1.55
-		local y = 1.02 - len / 2
-		local shells = {
-			{ "CoatSleeveShell", Vector3.new(1.18, len, 0.09), CFrame.new(out * 0.04, y, -0.56), Enum.NormalId.Front },
-			{ "CoatSleeveShell", Vector3.new(1.18, len, 0.09), CFrame.new(out * 0.04, y, 0.56), Enum.NormalId.Back },
-			{ "CoatSleeveShell", Vector3.new(0.09, len, 1.2), CFrame.new(out * 0.6, y, 0), out > 0 and Enum.NormalId.Right or Enum.NormalId.Left },
-		}
-		for _, e in shells do
-			local shell = ctx.add(arm, e[1], e[2], e[3], white)
-			Painter.panel(shell, e[4], mode, white, function(S)
-				S:rect(0.5, 1 - S:dy(0.07), 1, S:dy(0.14), gold, { z = 3 })
-			end, { folds = len > 1.2, edges = true })
+		-- Manteau POSÉ sur les épaules (porté en cape, bras libres dans le costume rouge) : un
+		-- pan fin incliné de la base du cou jusqu'au bord de l'épaule, qui ne déborde que de 0,1,
+		-- terminé par un coin (WedgePart) qui retombe ; liseré doré peint sur le bord.
+		local slope = math.rad(4)
+		local drape = CFrame.new(side * 1.28, 1.12, 0.04) * CFrame.Angles(0, 0, -side * slope)
+		local plate = ctx.add("Torso", "CoatDrape", Vector3.new(1.62, 0.15, 1.2), drape, white)
+		Painter.panel(plate, Enum.NormalId.Top, mode, white, function(S)
+			S:rect(side > 0 and 1 - S:dx(0.05) or S:dx(0.05), 0.5, S:dx(0.1), 1, gold, { z = 3 })
+			S:rect(0.5, S:dy(0.04), 1, S:dy(0.08), gold, { z = 3 })
+			S:rect(0.5, 1 - S:dy(0.04), 1, S:dy(0.08), gold, { z = 3 })
+		end, { folds = false, edges = false })
+		-- Retombée au bord de l'épaule : coin dont la pente part vers l'extérieur
+		local fall = CFrame.new(side * 2.06, 0.86, 0.04) * CFrame.Angles(0, -side * math.pi / 2, 0) * CFrame.Angles(math.pi, 0, 0)
+		ctx.wedge("Torso", "CoatDrapeFall", Vector3.new(1.2, 0.3, 0.14), fall, white)
+		ctx.add("Torso", "CoatDrapeTrim", Vector3.new(0.05, 0.05, 1.22), drape * CFrame.new(side * 0.81, -0.06, 0), gold, { Material = Enum.Material.Metal, Reflectance = 0.15 })
+		-- Épaulette : fine plaque dorée + 6 franges fines qui pendent au bord de l'épaule
+		local ep = drape * CFrame.new(side * 0.32, 0.1, 0)
+		ctx.add("Torso", "Epaulette", Vector3.new(0.9, 0.05, 0.8), ep, gold, { Material = Enum.Material.Metal, Reflectance = 0.2 })
+		ctx.add("Torso", "EpauletteRim", Vector3.new(0.92, 0.03, 0.82), ep * CFrame.new(0, -0.035, 0), darken(gold, 0.3), { Material = Enum.Material.Metal })
+		ctx.ball("Torso", "EpauletteKnob", Vector3.new(0.16, 0.08, 0.16), ep * CFrame.new(-side * 0.38, 0.04, 0), gold, { Material = Enum.Material.Metal })
+		for i = 0, 5 do
+			local z = -0.32 + i * 0.128
+			local top = ep * CFrame.new(side * 0.47, -0.02, z)
+			ctx.vcyl("Torso", "EpauletteFringe", 0.34, 0.08, CFrame.new(top.Position + Vector3.new(0, -0.17, 0)), i % 2 == 0 and gold or darken(gold, 0.15), { Material = Enum.Material.Metal })
 		end
 	end
 end
@@ -3282,7 +3325,7 @@ bossKit = function(ctx, look)
 		shell.Name = "BossAura"
 	end
 	for _, d in model:GetDescendants() do
-		if d:IsA("SurfaceGui") then
+		if d:IsA("SurfaceGui") and not d:GetAttribute("ZTop") then
 			d.LightInfluence = spec.paintLight or 0.45
 			d.Brightness = 1.15
 		end
@@ -3302,6 +3345,61 @@ export type BuildOptions = {
 	collisionGroup: string?,
 	paint: string?, -- "gui" (par défaut) ou "parts" (aperçus des menus)
 }
+
+-- Forme de la tête propre au perso : `look.headScale` = nombre (tête plus grande, ex. 1.12 pour un
+-- boss trop « petite tête ») ou Vector3 (largeur, hauteur, profondeur : mâchoire large des brutes,
+-- visage étroit des persos fins). Tout ce qui est soudé à la tête (cheveux, visage peint,
+-- chapeau...) suit : positions et tailles mises à l'échelle autour du centre de la tête, et la
+-- tête monte pour que le cou reste en place.
+local function reshapeHead(ctx, k: Vector3)
+	local head = ctx.limbs.Head
+	local torso = ctx.limbs.Torso
+	local hcf = head.CFrame
+	local lift = (k.Y - 1) * TOP * ctx.s
+	local welds = {}
+	for _, d in ctx.model:GetDescendants() do
+		if d:IsA("Weld") then
+			table.insert(welds, d)
+		end
+	end
+	local group = { [head] = true }
+	local grew = true
+	while grew do
+		grew = false
+		for _, w in welds do
+			if w.Part0 and group[w.Part0] and w.Part1 and not group[w.Part1] then
+				group[w.Part1] = true
+				grew = true
+			end
+		end
+	end
+	local target = hcf * CFrame.new(0, lift, 0)
+	for part in group do
+		local rel = hcf:ToObjectSpace(part.CFrame)
+		local p = rel.Position
+		local rot = rel.Rotation
+		if part ~= head then
+			local fx = (rot.RightVector * k).Magnitude
+			local fy = (rot.UpVector * k).Magnitude
+			local fz = (rot.LookVector * k).Magnitude
+			part.Size = Vector3.new(part.Size.X * fx, part.Size.Y * fy, part.Size.Z * fz)
+		end
+		part.CFrame = target * CFrame.new(p.X * k.X, p.Y * k.Y, p.Z * k.Z) * rot
+	end
+	local mesh = head:FindFirstChild("Mesh") :: SpecialMesh?
+	if mesh then
+		mesh.Scale = HEAD_MESH_SCALE * k
+	end
+	for _, w in welds do
+		if w.Part1 and group[w.Part1] and w.Part0 then
+			w.C0 = w.Part0.CFrame:Inverse() * w.Part1.CFrame
+		end
+	end
+	local neck = torso:FindFirstChild("Neck") :: Motor6D?
+	if neck then
+		neck.C1 = head.CFrame:Inverse() * torso.CFrame * neck.C0
+	end
+end
 
 local HATS = { "boar_head", "hood_full", "straw_hat", "volcano", "dome", "turban", "cap", "bandana", "cowboy_hat" }
 
@@ -3333,7 +3431,10 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 		cap(ctx, under, { height = 0.7, lift = -0.06, backLength = 1.3 })
 		fringe(ctx, hairColor, { -0.4, -0.15, 0.12, 0.38 }, { 0.2, 0.24, 0.2, 0.22 }, 0.28, { alt = shine, y = 0.34, spread = 0.6, out = 0.04, thickness = 0.1 })
 		for _, side in { -1, 1 } do
-			ctx.lock("Head", hairColor, Vector3.new(side * 0.6, 0.3, -0.1), Vector3.new(side * 0.15, -1, 0), 0.4, 0.36, { facing = Vector3.new(side, 0, 0.2), thickness = 0.12 })
+			-- Cheveux courts sous la casquette (`sideburns`) : pattes peintes, pas de mèches longues
+			if not look.sideburns then
+				ctx.lock("Head", hairColor, Vector3.new(side * 0.6, 0.3, -0.1), Vector3.new(side * 0.15, -1, 0), 0.4, 0.36, { facing = Vector3.new(side, 0, 0.2), thickness = 0.12 })
+			end
 			ctx.spike("Head", under, Vector3.new(side * 0.3, 0.05, 0.55), Vector3.new(side * 0.3, -0.8, 0.8), 0.36, 0.42, { cross = false })
 		end
 	end
@@ -3347,6 +3448,10 @@ function CharacterBuilder.build(look, options: BuildOptions?): Model
 
 	if look.boss then
 		bossKit(ctx, look)
+	end
+	if look.headScale then
+		local k = look.headScale
+		reshapeHead(ctx, typeof(k) == "Vector3" and k or Vector3.new(k, k, k))
 	end
 	Painter.scale = 1
 	model:SetAttribute("BaseScale", s)
