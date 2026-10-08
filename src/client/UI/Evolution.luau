@@ -340,7 +340,7 @@ local function renderDetail()
 		Theme.label({
 			Text = "L'ÉVEIL DONNE :",
 			Position = UDim2.fromOffset(12, 4),
-			Size = UDim2.new(0, 150, 1, -8),
+			Size = UDim2.new(0, 170, 1, -8),
 			FontFace = Theme.Faces.Title,
 			TextColor3 = C.Gold,
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -351,8 +351,8 @@ local function renderDetail()
 		Theme.label({
 			Name = "GainsText",
 			Text = table.concat(gains, "  ✦  "),
-			Position = UDim2.fromOffset(160, 4),
-			Size = UDim2.new(1, -170, 1, -8),
+			Position = UDim2.fromOffset(190, 4),
+			Size = UDim2.new(1, -200, 1, -8),
 			FontFace = Theme.Faces.Heavy,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			StrokeThickness = 1.5,

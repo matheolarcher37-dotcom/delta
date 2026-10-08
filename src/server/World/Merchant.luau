@@ -47,7 +47,7 @@ local DISPLAY_SCALE = 0.75 -- taille des objets exposés sur les étagères
 local SIGN_FONT = Font.new("rbxasset://fonts/families/Fondamento.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
 
 -- Vendeur : vieux voyageur au turban à plume (joyau violet), lunettes rondes, longue barbe
--- blanche, robe prune, écharpe et ceinture dorées, bourse à la ceinture.
+-- blanche, robe prune, ceinture dorée, bourse à la ceinture.
 Merchant.NpcLook = {
 	skin = rgb(214, 162, 122),
 	hair = "short",
@@ -59,7 +59,7 @@ Merchant.NpcLook = {
 	topAccent = PAINT_TRIM,
 	bottom = rgb(60, 36, 64),
 	shoes = rgb(70, 46, 34),
-	accessories = { "turban", "scarf_long", "sash", "belt", "glasses" },
+	accessories = { "turban", "belt", "glasses" },
 	glassesColor = rgb(200, 160, 70),
 	accColor = PAINT_TRIM,
 }
@@ -735,12 +735,14 @@ local function dressNpc(npc: Model)
 		-- BaseC0, que l'animateur des persos reprend comme position de repos).
 		local shoulder = torso:FindFirstChild("Left Shoulder")
 		if shoulder and shoulder:IsA("Motor6D") then
-			local rest = (shoulder:GetAttribute("BaseC0") or shoulder.C0) * CFrame.Angles(0.15, 0, -math.rad(58))
+			local rest = (shoulder:GetAttribute("BaseC0") or shoulder.C0) * CFrame.Angles(0.15, 0, -math.rad(40))
 			shoulder.C0 = rest
 			shoulder:SetAttribute("BaseC0", rest)
 		end
 	end
 end
+
+Merchant.dressNpc = dressNpc
 
 local function buildNpc(model: Model, cf: CFrame)
 	local ok, npc = pcall(CharacterBuilder.build, Merchant.NpcLook, { name = "Marchand", anchored = true })

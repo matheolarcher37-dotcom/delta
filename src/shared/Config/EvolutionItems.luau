@@ -191,7 +191,7 @@ EvolutionItems.List = {
 	-- PLANÈTE DES GUERRIERS
 	{
 		id = "sai_capsule",
-		name = "Petite Capsule",
+		name = "Capsule d'Entraînement",
 		universe = "saiyan",
 		tier = 1,
 		price = 1200,
