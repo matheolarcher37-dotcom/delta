@@ -385,8 +385,9 @@ function AfkZone.build(world: Instance): Model
 		gui.Parent = panel
 		local label = Instance.new("TextLabel")
 		label.Name = "Lines"
-		label.Size = UDim2.new(1, -40, 1, -30)
-		label.Position = UDim2.fromOffset(20, 15)
+		-- marges en proportion : les ferrures des coins ne mordent pas sur le texte
+		label.Size = UDim2.fromScale(0.86, 0.8)
+		label.Position = UDim2.fromScale(0.07, 0.1)
 		label.BackgroundTransparency = 1
 		label.Text = lines
 		label.TextColor3 = rgb(60, 36, 24)
@@ -413,7 +414,7 @@ function AfkZone.build(world: Instance): Model
 		"HowToBoard",
 		100,
 		"COMMENT ÇA MARCHE",
-		"1. Prends un punching-ball libre.\n2. Sors ton épée et tape-le\n    (ou l'invite « Frapper »).\n3. 1000 coups = 20 gemmes de trait.\nLes sacs ne t'attaquent jamais !"
+		"1. Prends un sac libre.\n2. Sors ton épée et tape !\n    (ou l'invite « Frapper »)\n3. 1000 coups = 20 gemmes.\nLe sac ne t'attaque jamais."
 	)
 
 	-- Décor paisible : lanternes suspendues, bancs, plantes
