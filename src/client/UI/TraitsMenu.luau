@@ -1026,10 +1026,23 @@ local function rerollOnce(uid: string, fast: boolean): string?
 	TraitCinematic.claim(uid)
 	local before = State.data and State.data.characters[uid]
 	local fromId = before and before.trait
+	local stock = gems()
+	-- pendant le rouleau : bouton RELANCER grisé (« ... ») et gemme décomptée tout de suite
+	if refs.rollButton and refs.rollButton.Parent then
+		Components.setButtonText(refs.rollButton, "...")
+		Components.setButtonColor(refs.rollButton, C.Gray)
+	end
 	local ok, message, traitId = State.invoke("RerollTrait", uid)
 	if not ok then
 		Notifications.toast(message or "Impossible pour l'instant.", "error")
+		if refs.rollButton and refs.rollButton.Parent then
+			Components.setButtonText(refs.rollButton, "RELANCER")
+			Components.setButtonColor(refs.rollButton, C.Purple)
+		end
 		return nil
+	end
+	if refs.bankCount and refs.bankCount.Parent then
+		refs.bankCount.Text = Formulas.formatNumber(math.max(0, math.min(stock - 1, gems())))
 	end
 	spinReel(traitId, fast, fromId)
 	local entry = State.data and State.data.characters[uid]

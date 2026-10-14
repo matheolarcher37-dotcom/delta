@@ -25,6 +25,7 @@ local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
 local SoundService = game:GetService("SoundService")
 local Workspace = game:GetService("Workspace")
 
@@ -493,11 +494,48 @@ local function partsNear(scene, center: Vector3, radius: number): { BasePart }
 end
 
 -- Masque (pour ce joueur) ce qui dépasse dans le cercle de la scène : arbres, poteaux, autres persos.
+-- Les persos (unités posées, ennemis, autres joueurs) sont masqués plus loin encore : seuls ceux
+-- de la scène restent autour de l'unité.
+local RIG_CLEAR = 1.9 -- rayon des persos masqués = rayon de la scène x 1,9
 local function clearArea(scene, radius: number)
 	local center = scene.stage.Position
 	for _, part in partsNear(scene, center + Vector3.new(0, 7, 0), radius) do
 		if part:IsA("BasePart") then
 			hideObstacle(scene, part, center.Y)
+		end
+	end
+	local reach = radius * RIG_CLEAR
+	local rigs: { Instance } = CollectionService:GetTagged("AnimeRig")
+	for _, player in Players:GetPlayers() do
+		if player.Character then
+			table.insert(rigs, player.Character)
+		end
+	end
+	for _, model in rigs do
+		if model:IsA("Model") and model:IsDescendantOf(Workspace) and not model:IsDescendantOf(scene.folder) then
+			local ok, pivot = pcall(function()
+				return model:GetPivot()
+			end)
+			if ok and (pivot.Position - center).Magnitude < reach then
+				hideModel(scene, model)
+			end
+		end
+	end
+end
+
+-- Effets de combat du client (dossier ClientFX : sorts, auras, chiffres de dégâts) : masqués le
+-- temps de la scène (ils sont recréés sans cesse, d'où l'appel à chaque rafraîchissement).
+local function hideClientFx(scene)
+	local fx = Workspace:FindFirstChild("ClientFX")
+	if not fx then
+		return
+	end
+	for _, d in fx:GetDescendants() do
+		if d:IsA("BasePart") then
+			hideLocal(scene, d)
+		elseif (d:IsA("ParticleEmitter") or d:IsA("Beam") or d:IsA("Trail") or d:IsA("BillboardGui") or d:IsA("Light")) and d.Enabled then
+			d.Enabled = false
+			table.insert(scene.guis, d)
 		end
 	end
 end
@@ -671,7 +709,8 @@ local function begin(kind: string, entry, desc, options)
 	if player and player.Character then
 		hideModel(scene, player.Character)
 	end
-	clearArea(scene, opts.radius or 14)
+	scene.radius = opts.radius or 14
+	clearArea(scene, scene.radius)
 	-- interface : on cache les autres écrans le temps de la scène
 	local playerGui = player and player:FindFirstChildOfClass("PlayerGui")
 	if playerGui then
@@ -782,9 +821,11 @@ end
 local function run(scene, clock: (() -> number)?)
 	local now = clock or os.clock
 	clearSightlines(scene)
+	hideClientFx(scene)
 	local start = now()
 	local last = start
 	local rng = Random.new(7)
+	local nextClear = 0.3
 	local function frame()
 		if scene.finished then
 			return
@@ -792,6 +833,12 @@ local function run(scene, clock: (() -> number)?)
 		local t = now() - start
 		local dt = math.clamp(t - (last - start), 0, 0.1)
 		last = now()
+		-- ce qui arrive pendant la scène (ennemis, autres joueurs, effets) est masqué aussi
+		if t >= nextClear then
+			nextClear = t + 0.3
+			clearArea(scene, scene.radius)
+			hideClientFx(scene)
+		end
 		if t >= scene.total then
 			finishScene(scene)
 			return
@@ -865,7 +912,8 @@ local function shake(scene, amount: number)
 	end
 end
 
--- Grand titre doré (dégradé qui ondule) + sous-titre + badge de rareté.
+-- Grand titre doré (dégradé qui ondule) juste sous la bande noire du haut ; sous-titre et badge
+-- de rareté en bas de l'image (sur la bande du bas) : l'unité, au centre, n'est jamais cachée.
 local function title(scene, text: string, color: Color3, subtitle: string, badge: string?, y: number?)
 	local root = scene.root
 	if not root or not root.Parent then
@@ -873,9 +921,9 @@ local function title(scene, text: string, color: Color3, subtitle: string, badge
 	end
 	local holder = new("Frame", {
 		Name = "TitleBlock",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, y or 0.2),
-		Size = UDim2.fromOffset(980, 190),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, y or 0.108),
+		Size = UDim2.fromOffset(980, 116),
 		BackgroundTransparency = 1,
 		ZIndex = 25,
 		Parent = root,
@@ -901,17 +949,27 @@ local function title(scene, text: string, color: Color3, subtitle: string, badge
 	label.TextTransparency = 1
 	Theme.tween(scale, 0.45, { Scale = 1 }, Enum.EasingStyle.Back)
 	Theme.tween(label, 0.25, { TextTransparency = 0 })
-	-- trait fin de part et d'autre du sous-titre
+	Theme.sparkles(holder, 12, #text, 0.3, 27)
+	-- légende du bas : sous-titre entre deux traits fins, puis le badge de rareté
+	local caption = new("Frame", {
+		Name = "Caption",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -14),
+		Size = UDim2.fromOffset(980, 80),
+		BackgroundTransparency = 1,
+		ZIndex = 25,
+		Parent = root,
+	})
 	for _, side in { -1, 1 } do
 		local line = new("Frame", {
 			Name = "Rule",
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, side * 330, 0, 136),
+			Position = UDim2.new(0.5, side * 340, 0, 18),
 			Size = UDim2.fromOffset(0, 3),
 			BackgroundColor3 = color,
 			BorderSizePixel = 0,
 			ZIndex = 26,
-			Parent = holder,
+			Parent = caption,
 		})
 		Theme.gradient({ color, color }, 0, side < 0 and { 1, 0 } or { 0, 1 }).Parent = line
 		Theme.tween(line, 0.6, { Size = UDim2.fromOffset(200, 3) })
@@ -920,13 +978,13 @@ local function title(scene, text: string, color: Color3, subtitle: string, badge
 		Name = "Subtitle",
 		Text = subtitle,
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0, 136),
-		Size = UDim2.fromOffset(440, 34),
+		Position = UDim2.new(0.5, 0, 0, 18),
+		Size = UDim2.fromOffset(460, 34),
 		FontFace = Theme.Faces.Heavy,
 		TextColor3 = WHITE,
 		StrokeThickness = 2.5,
 		ZIndex = 26,
-		Parent = holder,
+		Parent = caption,
 	})
 	sub.TextTransparency = 1
 	task.delay(0.3, function()
@@ -938,12 +996,12 @@ local function title(scene, text: string, color: Color3, subtitle: string, badge
 		local pill = new("Frame", {
 			Name = "Badge",
 			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.new(0.5, 0, 0, 160),
-			Size = UDim2.fromOffset(250, 28),
+			Position = UDim2.new(0.5, 0, 0, 44),
+			Size = UDim2.fromOffset(270, 30),
 			BackgroundColor3 = BLACK,
-			BackgroundTransparency = 0.35,
+			BackgroundTransparency = 0.25,
 			ZIndex = 26,
-			Parent = holder,
+			Parent = caption,
 		})
 		Theme.round().Parent = pill
 		Theme.stroke(color, 2).Parent = pill
@@ -958,7 +1016,6 @@ local function title(scene, text: string, color: Color3, subtitle: string, badge
 			Parent = pill,
 		})
 	end
-	Theme.sparkles(holder, 12, #text, 0.3, 27)
 	return holder
 end
 
@@ -967,7 +1024,7 @@ local function traitTitle(scene, kind: string)
 	local visual = trait and Traits.Visual[trait.id]
 	local name = scene.desc and scene.desc.name or "ton unité"
 	local tierName = trait and Traits.TierNames[trait.tier] or ""
-	local badge = trait and (string.upper(tierName) .. " · " .. string.format("%.1f %%", Traits.chance(trait.id)) .. " de chance") or nil
+	local badge = trait and (string.upper(tierName) .. " · " .. (string.gsub(string.format("%.1f %%", Traits.chance(trait.id)), "%.", ",")) .. " de chance") or nil
 	local subtitle = (visual and visual.motto or "") .. "  —  " .. name
 	return title(scene, TraitCinematic.Titles[kind], trait and trait.color or GOLD, subtitle, badge)
 end
@@ -1063,6 +1120,27 @@ local function spawnHero(scene, scale: number, height: number)
 	model.Parent = scene.folder
 	local head = model:FindFirstChild("Head") :: BasePart?
 	scene.heroHeadTop = head and (head.CFrame.Position.Y - scene.stage.Position.Y + head.Size.Y * 0.5) or (height + 5 * scale)
+	-- coiffure : sommet et largeur des pièces au-dessus de la tête (cheveux en pointes, chapeaux...)
+	scene.heroHairTop = scene.heroHeadTop
+	scene.heroHairRadius = head and math.max(head.Size.X, head.Size.Z) * 0.5 or scale
+	if head then
+		local center = head.CFrame.Position
+		for _, d in model:GetDescendants() do
+			if d:IsA("BasePart") and d ~= head and d.Transparency < 0.9 then
+				local offset = d.CFrame.Position - center
+				if offset.Y > -0.2 * scale and Vector2.new(offset.X, offset.Z).Magnitude < 2.5 * scale then
+					local half = d.Size * 0.5
+					for _, corner in { Vector3.new(1, 1, 1), Vector3.new(-1, 1, 1), Vector3.new(1, 1, -1), Vector3.new(-1, 1, -1), Vector3.new(1, -1, 1), Vector3.new(-1, -1, -1) } do
+						local c = d.CFrame:PointToWorldSpace(half * corner) - center
+						scene.heroHairTop = math.max(scene.heroHairTop, c.Y + center.Y - scene.stage.Position.Y)
+						if c.Y > 0 then
+							scene.heroHairRadius = math.max(scene.heroHairRadius, Vector2.new(c.X, c.Z).Magnitude)
+						end
+					end
+				end
+			end
+		end
+	end
 	return model
 end
 
@@ -1158,8 +1236,8 @@ function TraitCinematic.monarchCamera(total: number): { { any } }
 	return {
 		{ 0, Vector3.new(16, 15, -20), Vector3.new(0, 2.5, 0), 55 },
 		{ 2.2, Vector3.new(-10, 10, -18), Vector3.new(0, 3, 0), 52 },
-		{ 3.6, Vector3.new(-2.5, 7.4, -20), Vector3.new(0, 4.6, 0), 52 },
-		{ math.max(total, 4), Vector3.new(0, 7.2, -20.5), Vector3.new(0, 4.6, 0), 50 },
+		{ 3.6, Vector3.new(-2.5, 6.8, -20), Vector3.new(0, 4.7, 0), 52 },
+		{ math.max(total, 4), Vector3.new(0, 6.5, -20.5), Vector3.new(0, 4.7, 0), 50 },
 	}
 end
 
@@ -1248,9 +1326,13 @@ local function monarchScene(scene)
 		end
 	end
 	-- Couronne
-	local crown = buildCrown(scene, HERO_SCALE)
+	-- la couronne coiffe les cheveux (une coiffure haute ou large ne la cache pas) : elle grandit
+	-- avec la coiffure et se pose dans le haut des cheveux, jamais sous le sommet du crâne
+	local crownScale = math.clamp((scene.heroHairRadius or 1) / 0.85, HERO_SCALE, 2.6)
+	local crown = buildCrown(scene, crownScale)
 	local crownBase = scene.crownParts
-	local crownTarget = headTop + 0.15 * HERO_SCALE
+	local crownTarget = math.max(headTop + 0.15 * crownScale, (scene.heroHairTop or headTop) - 0.55 * crownScale)
+	scene.crownY = crownTarget
 	-- Étincelles dorées qui montent du sol
 	local motes = part(scene, "Motes", Vector3.new(0.2, 20, 20), CFrame.new(0, 0.4, 0) * FLAT, GOLD, Enum.Material.Neon, CYL, 1)
 	emitter(motes, {
@@ -1623,9 +1705,75 @@ end
 
 local BLOOD = Color3.fromRGB(150, 12, 32)
 
+-- Nuit locale (seulement chez ce joueur : un changement d'éclairage fait par le client ne se
+-- réplique pas). Rendue à la fin, sauf si le serveur a changé l'éclairage entre-temps (nouvel univers).
+local NIGHT_PROPS = { "ClockTime", "OutdoorAmbient", "Ambient", "FogColor" }
+local function localNight(scene)
+	local saved = {}
+	for _, name in NIGHT_PROPS do
+		local ok, value = pcall(function()
+			return (Lighting :: any)[name]
+		end)
+		if ok then
+			saved[name] = value
+		end
+	end
+	local applied = {}
+	local function set(name: string, value: any)
+		if saved[name] == nil then
+			return
+		end
+		local ok = pcall(function()
+			(Lighting :: any)[name] = value
+		end)
+		if ok then
+			applied[name] = value
+		end
+	end
+	-- valeurs relues avec la précision du moteur (flottants 32 bits) : comparaison tolérante
+	local function same(a: any, b: any): boolean
+		if typeof(a) == "number" and typeof(b) == "number" then
+			return math.abs(a - b) < 1e-3
+		elseif typeof(a) == "Color3" and typeof(b) == "Color3" then
+			return math.abs(a.R - b.R) + math.abs(a.G - b.G) + math.abs(a.B - b.B) < 0.01
+		end
+		return a == b
+	end
+	table.insert(scene.onDone, function()
+		for name, value in saved do
+			pcall(function()
+				if applied[name] == nil or same((Lighting :: any)[name], applied[name]) then
+					(Lighting :: any)[name] = value
+				end
+			end)
+		end
+	end)
+	return function(night: number)
+		if saved.ClockTime then
+			-- vers minuit en passant par le soir (sans repasser par le plein jour)
+			local from = saved.ClockTime
+			local target = from > 12 and 24.2 or 0.2
+			local clock = from + (target - from) * night
+			set("ClockTime", clock % 24)
+		end
+		local red = Color3.fromRGB(70, 22, 34)
+		if typeof(saved.OutdoorAmbient) == "Color3" then
+			set("OutdoorAmbient", saved.OutdoorAmbient:Lerp(red, night))
+		end
+		if typeof(saved.Ambient) == "Color3" then
+			set("Ambient", saved.Ambient:Lerp(Color3.fromRGB(60, 24, 32), night))
+		end
+		if typeof(saved.FogColor) == "Color3" then
+			set("FogColor", saved.FogColor:Lerp(Color3.fromRGB(40, 8, 16), night))
+		end
+	end
+end
+TraitCinematic.localNight = localNight
+
 local function vampireScene(scene)
 	local total = scene.total
 	local s = scene.low and 0.5 or 1
+	local setNight = localNight(scene)
 	spawnHero(scene, 1.2, 0)
 	local headTop = scene.heroHeadTop or 6
 	-- La lune rouge se lève derrière l'unité (loin dans le ciel)
@@ -1685,7 +1833,8 @@ local function vampireScene(scene)
 	table.insert(scene.steps, function(t)
 		-- la nuit tombe (0 -> 1,2 s) : image plus sombre et rouge
 		local night = smooth(t / 1.2)
-		grade.Brightness = -0.16 * night
+		setNight(night)
+		grade.Brightness = -0.08 * night
 		grade.Contrast = 0.18 * night
 		grade.Saturation = -0.25 * night
 		grade.TintColor = WHITE:Lerp(Color3.fromRGB(255, 176, 176), night)

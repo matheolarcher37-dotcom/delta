@@ -495,7 +495,12 @@ test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, 
 	local head = hero:FindFirstChild("Head")
 	local ring = crown:FindFirstChild("Ring")
 	local headTop = head.CFrame.Position.Y + head.Size.Y * 0.5
-	assert(math.abs(ring.CFrame.Position.Y - headTop) < 0.8, "la couronne doit être posée sur la tête (" .. ring.CFrame.Position.Y .. " / " .. headTop .. ")")
+	local ringY = ring.CFrame.Position.Y
+	assert(math.abs(ringY - (stage.Position.Y + scene.crownY)) < 0.05, "la couronne n'est pas arrivée à sa place")
+	assert(ringY > headTop - 0.05 and ringY < headTop + 3, "la couronne doit être posée sur la tête (" .. ringY .. " / " .. headTop .. ")")
+	-- elle coiffe les cheveux : son anneau entoure la coiffure et n'est pas noyé dedans
+	assert(ringY >= stage.Position.Y + scene.heroHairTop - 0.6 * 2.6, "la couronne est cachée dans les cheveux")
+	assert(ring.Size.Y * 0.5 >= scene.heroHairRadius * 0.95 or ring.Size.Y >= 2.6 * 1.7, "la couronne est plus étroite que la coiffure")
 	local tanV = math.tan(math.rad(camera.FieldOfView) / 2)
 	local tanH = tanV * 16 / 9
 	-- boîte d'un perso dans le repère `frame` (repère du perso : boîtes orientées, plus justes
@@ -627,6 +632,7 @@ test("Traits : cinématiques Céleste, Midas, Vampire et résultat reçu du serv
 	local entry = table.clone(item.entry)
 	entry.uid = item.uid
 	alice:SetAttribute("FxShake", false)
+	local clockBefore = game:GetService("Lighting").ClockTime
 	for kind, expect in { celeste = { "CelestialBeam", "WingFeather" }, midas = { "Coin", "GoldPool" }, vampire = { "BloodMoon", "BatBody" } } do
 		local fake = 0
 		local scene = TraitCinematic.play(kind, entry, item.desc, {
@@ -653,8 +659,17 @@ test("Traits : cinématiques Céleste, Midas, Vampire et résultat reçu du serv
 			local torso = scene.hero and scene.hero:FindFirstChild("Torso")
 			assert(torso and torso.Material == roblox.Enum.Material.Metal, "Midas : l'unité doit être changée en or")
 		end
+		local lighting = game:GetService("Lighting")
+		if kind == "vampire" then
+			-- la nuit tombe chez ce joueur seulement (éclairage local), puis le jour revient
+			assert(lighting.ClockTime < 1 or lighting.ClockTime > 23.5, "Vampire : la nuit doit tomber (" .. lighting.ClockTime .. ")")
+		end
 		TraitCinematic.skip()
 		assert(scene.finished and not scene.folder.Parent, kind .. " : scène non nettoyée")
+		if kind == "vampire" then
+			task.wait(0.05)
+			assert(lighting.ClockTime == clockBefore, "Vampire : l'heure du jour doit revenir (" .. lighting.ClockTime .. ")")
+		end
 	end
 	alice:SetAttribute("FxShake", nil)
 	-- Résultat reçu du serveur (relance faite ailleurs que dans l'écran) : la cinématique se joue
