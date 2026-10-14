@@ -1129,7 +1129,7 @@ end
 -- MONARQUE
 ------------------------------------------------------------------------
 
-local MONARCH_RADIUS = 8.6 -- cercle des persos agenouillés autour de l'unité
+local MONARCH_RADIUS = 9.4 -- cercle des persos agenouillés autour de l'unité
 local MONARCH_COUNT = 8
 local DAIS_TOP = 1.2 -- l'unité se tient sur une estrade (2 marches)
 local HERO_SCALE = 1.3
@@ -1140,7 +1140,7 @@ TraitCinematic.HeroScale = HERO_SCALE
 -- Places des persos (repère de la scène) : un cercle autour de l'unité, ouvert du côté de la
 -- caméra (devant, -Z) pour qu'aucun perso ne se tienne entre la caméra et l'unité. Angles mesurés
 -- depuis l'avant : 4 de chaque côté, du flanc avant jusque derrière l'unité.
-local MONARCH_ANGLES = { 70, 99, 128, 157 }
+local MONARCH_ANGLES = { 66, 98, 130, 162 }
 function TraitCinematic.monarchSpots(): { Vector3 }
 	local spots = {}
 	for _, a in MONARCH_ANGLES do
@@ -1158,8 +1158,8 @@ function TraitCinematic.monarchCamera(total: number): { { any } }
 	return {
 		{ 0, Vector3.new(16, 15, -20), Vector3.new(0, 2.5, 0), 55 },
 		{ 2.2, Vector3.new(-10, 10, -18), Vector3.new(0, 3, 0), 52 },
-		{ 3.6, Vector3.new(-2.5, 6.4, -19.5), Vector3.new(0, 6.3, 0), 52 },
-		{ math.max(total, 4), Vector3.new(0, 6.2, -20), Vector3.new(0, 6.4, 0), 50 },
+		{ 3.6, Vector3.new(-2.5, 7.4, -20), Vector3.new(0, 4.6, 0), 52 },
+		{ math.max(total, 4), Vector3.new(0, 7.2, -20.5), Vector3.new(0, 4.6, 0), 50 },
 	}
 end
 
