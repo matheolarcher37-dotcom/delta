@@ -3607,6 +3607,71 @@ end
 
 local HATS = { "boar_head", "hood_full", "straw_hat", "volcano", "dome", "turban", "cap", "bandana", "cowboy_hat" }
 
+-- Pièces sur mesure décrites dans la config du perso (`look.props`), pour les objets propres à un
+-- seul perso (gourde, éventail de guerre, tambours, massue à piques...) sans créer un accessoire.
+-- Chaque entrée : { shape = forme, limb = membre, at = position (studs, repère du membre, avant = -Z),
+--   rot = angles en degrés (X, Y, Z), size = Vector3, color, material? (nom d'Enum.Material),
+--   transparency?, name?, dir? (pièce allongée qui part de `at` dans cette direction : axe Y du
+--   bloc ou de l'ellipsoïde, axe du cylindre, axe de la pointe) }. Formes : "block", "ball", "cyl" (axe X), "wedge", "corner",
+--   "rounded" (radius), "cone" (length, width, depth, dark?), "spike" (dir, length, width : pointe
+--   pleine, comme une mèche), "strand" (dir, length, width : ellipsoïde allongé).
+-- Remplacée en entier par une évolution qui donne `props` (voir Characters.resolveLook).
+local PROP_SHAPES = { wedge = "wedge", corner = "cornerWedge" }
+
+local function buildProps(ctx, props)
+	for _, p in props do
+		local shape = p[1] or p.shape or "block"
+		local limb = p.limb or "Torso"
+		local color = p.color or Color3.fromRGB(200, 200, 200)
+		local at = p.at or Vector3.zero
+		local r = p.rot or Vector3.zero
+		local turn = CFrame.Angles(math.rad(r.X), math.rad(r.Y), math.rad(r.Z))
+		local cf = CFrame.new(at) * turn
+		local name = p.name or "Prop"
+		if p.dir and shape ~= "spike" and shape ~= "strand" then
+			-- Pièce allongée de `at` dans la direction `dir` (axe Y de la pièce ; axe X du cylindre)
+			local size = p.size or Vector3.one
+			local length = shape == "cyl" and size.X or size.Y
+			if shape == "cone" then
+				cf = alongY(at, p.dir) * turn
+			elseif shape == "cyl" then
+				cf = alongY(at + p.dir.Unit * (length / 2), p.dir) * turn * CFrame.Angles(0, 0, math.pi / 2)
+			else
+				cf = alongY(at + p.dir.Unit * (length / 2), p.dir) * turn
+			end
+		end
+		local extra = nil
+		if p.material or p.transparency then
+			extra = {
+				Material = p.material and (Enum.Material :: any)[p.material] or Enum.Material.SmoothPlastic,
+				Transparency = p.transparency or 0,
+			}
+		end
+		if shape == "spike" then
+			ctx.spike(limb, color, at, p.dir or Vector3.new(0, 1, 0), p.length or 1, p.width or 0.3, { root = false, dark = p.dark })
+		elseif shape == "strand" then
+			ctx.strand(limb, color, at, p.dir or Vector3.new(0, -1, 0), p.length or 1, p.width or 0.3, p.depth)
+		elseif shape == "cone" then
+			ctx.cone(limb, cf, p.length or 1, p.width or 0.3, p.depth or p.width or 0.3, color, p.dark, p.half, name)
+		elseif shape == "cyl" then
+			local size = p.size or Vector3.new(1, 0.4, 0.4)
+			ctx.cyl(limb, name, size.X, size.Y, cf, color, extra)
+		elseif shape == "rounded" then
+			ctx.rounded(limb, name, p.size or Vector3.one, cf, color, p.radius or 0.1, extra)
+		elseif shape == "ball" then
+			ctx.ball(limb, name, p.size or Vector3.one, cf, color, extra)
+		elseif PROP_SHAPES[shape] then
+			local part = ctx[PROP_SHAPES[shape]](limb, name, p.size or Vector3.one, cf, color)
+			if extra then
+				part.Material = extra.Material
+				part.Transparency = extra.Transparency
+			end
+		else
+			ctx.add(limb, name, p.size or Vector3.one, cf, color, extra)
+		end
+	end
+end
+
 local MAX_PARTS = 178
 local MAX_PREVIEW_PARTS = 396
 local buildOnce
@@ -3694,6 +3759,9 @@ function buildOnce(look, options: BuildOptions?, roots: number, withRelief: bool
 		if builder then
 			builder(ctx, look)
 		end
+	end
+	if look.props then
+		buildProps(ctx, look.props)
 	end
 
 	if withRelief then

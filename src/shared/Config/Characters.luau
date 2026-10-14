@@ -39,6 +39,586 @@ local SKIN_TAN = rgb(226, 178, 138)
 
 local Characters = {}
 
+------------------------------------------------------------------------
+-- Objets sur mesure des persos (look.props, voir CharacterBuilder : buildProps)
+-- Repères : chaque membre a son centre en (0, 0, 0) ; l'avant du perso est -Z, le dos +Z ;
+-- torse 2 x 2 x 1 (dos en z = 0.5), tête de rayon 0.6, main au bout du bras en y = -1.
+------------------------------------------------------------------------
+
+local V = Vector3.new
+local METAL_DARK = rgb(58, 56, 66)
+local GOLD = rgb(236, 190, 70)
+
+-- Concatène plusieurs listes de pièces.
+local function join(...)
+	local out = {}
+	for _, list in { ... } do
+		for _, p in list do
+			table.insert(out, p)
+		end
+	end
+	return out
+end
+
+-- Chaîne de segments arrondis passant par des points (queue, fouet, chaîne).
+local function chain(limb: string, points, widths, colors, extra)
+	local out = {}
+	for i = 1, #points - 1 do
+		local a, b = points[i], points[i + 1]
+		local w = widths[i] or widths[#widths]
+		local d = (b - a).Unit
+		local color = typeof(colors) == "Color3" and colors or (colors[i] or colors[#colors])
+		table.insert(out, {
+			shape = "ball",
+			limb = limb,
+			at = a - d * (w * 0.25),
+			dir = d,
+			size = V(w, (b - a).Magnitude + w * 0.5, w * ((extra and extra.flat) or 1)),
+			color = color,
+			material = extra and extra.material,
+			transparency = extra and extra.transparency,
+		})
+	end
+	return out
+end
+
+-- Deux vecteurs perpendiculaires à `d`.
+local function across(d: Vector3)
+	local ref = math.abs(d.Unit.Y) < 0.9 and V(0, 1, 0) or V(1, 0, 0)
+	local a = d.Unit:Cross(ref).Unit
+	return a, d.Unit:Cross(a).Unit
+end
+
+-- Massue à piques (kanabo) tenue en main : poignée, fût épais cerclé d'or, clous en losange.
+local function kanabo(limb: string, from: Vector3, dir: Vector3, length: number, thick: number)
+	local d = dir.Unit
+	local out = {
+		{ shape = "cyl", limb = limb, at = from - d * 0.3, dir = d, size = V(1.0, thick * 0.42, 0), color = rgb(92, 62, 40) },
+		{ shape = "cyl", limb = limb, at = from + d * 0.6, dir = d, size = V(length - 0.6, thick, 0), color = METAL_DARK, material = "Metal" },
+		{ shape = "ball", limb = limb, at = from + d * (length - 0.25), dir = d, size = V(thick * 1.02, 0.5, thick * 1.02), color = METAL_DARK, material = "Metal" },
+	}
+	for _, t in { 0.66, length - 0.05 } do
+		table.insert(out, { shape = "cyl", limb = limb, at = from + d * t, dir = d, size = V(0.14, thick * 1.08, 0), color = GOLD, material = "Metal" })
+	end
+	local a, b = across(d)
+	for i, t in { 1.2, 2.05, 2.9 } do
+		if t < length - 0.3 then
+			for k, side in { a, b, -a, -b } do
+				local off = (i % 2 == 0) and (side + (k % 2 == 0 and a or b)).Unit or side
+				table.insert(out, {
+					shape = "block",
+					limb = limb,
+					at = from + d * t + off * (thick * 0.5),
+					dir = off,
+					rot = V(0, 45, 0),
+					size = V(0.17, 0.2, 0.17),
+					color = rgb(196, 192, 200),
+					material = "Metal",
+				})
+			end
+		end
+	end
+	return out
+end
+
+-- Grand éventail de guerre rond (gunbai) : disque crème cerclé de rouge, trois virgules noires.
+local function gunbai(limb: string, center: Vector3, handleFrom: Vector3, facing: number?)
+	local yaw = facing or 0
+	local out = {
+		{ shape = "cyl", limb = limb, at = handleFrom, dir = center - handleFrom, size = V((center - handleFrom).Magnitude - 0.7, 0.15, 0), color = rgb(70, 46, 34) },
+		{ shape = "cyl", limb = limb, at = center, rot = V(0, 90 + yaw, 0), size = V(0.09, 1.95, 0), color = rgb(132, 34, 36) },
+		{ shape = "cyl", limb = limb, at = center, rot = V(0, 90 + yaw, 0), size = V(0.12, 1.7, 0), color = rgb(236, 226, 200) },
+		{ shape = "cyl", limb = limb, at = center, rot = V(0, 90 + yaw, 0), size = V(0.14, 0.34, 0), color = rgb(132, 34, 36) },
+	}
+	local back = CFrame.Angles(0, math.rad(yaw), 0):VectorToWorldSpace(V(0, 0, 1))
+	for k = 0, 2 do
+		local ang = math.rad(90 + k * 120)
+		local side = CFrame.Angles(0, math.rad(yaw), 0):VectorToWorldSpace(V(math.cos(ang), math.sin(ang), 0))
+		for _, s in { 1, -1 } do
+			table.insert(out, {
+				shape = "ball",
+				limb = limb,
+				at = center + side * 0.5 + back * (0.07 * s),
+				size = V(0.3, 0.3, 0.03),
+				color = rgb(26, 22, 28),
+			})
+		end
+	end
+	return out
+end
+
+-- Gourde de sable dans le dos (beige, deux renflements, bouchon), sangle portée en bandoulière.
+local function gourd(color: Color3)
+	return {
+		{ shape = "ball", limb = "Torso", at = V(0.15, -0.3, 1.02), size = V(1.55, 1.45, 1.1), color = color },
+		{ shape = "ball", limb = "Torso", at = V(0.22, 0.78, 0.94), size = V(1.0, 0.9, 0.82), color = color },
+		{ shape = "cyl", limb = "Torso", at = V(0.26, 0.48, 0.96), rot = V(0, 0, 90), size = V(0.12, 0.92, 0), color = rgb(150, 70, 52) },
+		{ shape = "cyl", limb = "Torso", at = V(0.27, 1.3, 0.92), rot = V(0, 0, 90), size = V(0.3, 0.36, 0), color = color },
+		{ shape = "ball", limb = "Torso", at = V(0.27, 1.5, 0.92), size = V(0.42, 0.24, 0.42), color = rgb(120, 70, 46) },
+		{ shape = "ball", limb = "Torso", at = V(-0.18, -0.1, 1.5), size = V(0.34, 0.24, 0.1), color = rgb(150, 70, 52) },
+	}
+end
+
+-- Chapeau mou (fedora) : bord large, calotte pincée, ruban.
+local function fedora(color: Color3, band: Color3)
+	return {
+		{ shape = "cyl", limb = "Head", at = V(0, 0.66, 0.04), rot = V(6, 0, 90), size = V(0.07, 2.05, 0), color = color },
+		{ shape = "cyl", limb = "Head", at = V(0, 0.95, 0.07), rot = V(6, 0, 90), size = V(0.56, 1.34, 0), color = color },
+		{ shape = "ball", limb = "Head", at = V(0, 1.22, 0.1), rot = V(6, 0, 0), size = V(1.34, 0.32, 1.34), color = color },
+		{ shape = "block", limb = "Head", at = V(0, 1.34, 0.1), rot = V(6, 0, 0), size = V(0.16, 0.1, 0.86), color = color:Lerp(rgb(0, 0, 0), 0.18) },
+		{ shape = "cyl", limb = "Head", at = V(0, 0.76, 0.05), rot = V(6, 0, 90), size = V(0.15, 1.37, 0), color = band },
+	}
+end
+
+-- Bonnet tacheté du chirurgien : calotte blanche duveteuse, bord épais, taches brunes.
+local function spottedHat()
+	local white, spot = rgb(242, 240, 232), rgb(96, 72, 52)
+	local out = {
+		{ shape = "strand", limb = "Head", at = V(-0.6, 0.3, -0.12), dir = V(-0.1, -1, 0), length = 0.5, width = 0.16, depth = 0.1, color = rgb(26, 24, 30) },
+		{ shape = "strand", limb = "Head", at = V(0.6, 0.3, -0.12), dir = V(0.1, -1, 0), length = 0.5, width = 0.16, depth = 0.1, color = rgb(26, 24, 30) },
+		{ shape = "ball", limb = "Head", at = V(0, 0.2, 0.42), size = V(1.1, 0.5, 0.4), color = rgb(26, 24, 30) },
+		{ shape = "ball", limb = "Head", at = V(0, 0.62, 0.03), size = V(1.42, 1.06, 1.44), color = white },
+		{ shape = "cyl", limb = "Head", at = V(0, 0.36, 0.03), rot = V(0, 0, 90), size = V(0.3, 1.5, 0), color = white:Lerp(rgb(0, 0, 0), 0.06) },
+	}
+	for _, s in { { 0.0, 0.93, -0.42 }, { -0.42, 0.78, -0.34 }, { 0.44, 0.74, -0.3 }, { 0.2, 1.06, 0.1 }, { -0.5, 0.66, 0.36 }, { 0.36, 0.7, 0.5 } } do
+		table.insert(out, { shape = "ball", limb = "Head", at = V(s[1], s[2], s[3]), size = V(0.26, 0.2, 0.26), color = spot })
+	end
+	for _, x in { -0.5, 0, 0.5 } do
+		table.insert(out, { shape = "ball", limb = "Head", at = V(x, 0.36, -0.72), size = V(0.2, 0.2, 0.08), color = spot })
+	end
+	return out
+end
+
+-- Jolly Roger souriant (équipage du chirurgien) sur la poitrine : disque, os croisés, sourire.
+local function smileyRoger(face: Color3)
+	local ink = rgb(22, 20, 24)
+	local z = -0.5
+	return {
+		{ shape = "block", limb = "Torso", at = V(0, 0.25, z - 0.02), rot = V(0, 0, 40), size = V(0.12, 1.3, 0.03), color = ink },
+		{ shape = "block", limb = "Torso", at = V(0, 0.25, z - 0.02), rot = V(0, 0, -40), size = V(0.12, 1.3, 0.03), color = ink },
+		{ shape = "cyl", limb = "Torso", at = V(0, 0.25, z - 0.03), rot = V(0, 90, 0), size = V(0.05, 0.8, 0), color = ink },
+		{ shape = "cyl", limb = "Torso", at = V(0, 0.25, z - 0.05), rot = V(0, 90, 0), size = V(0.05, 0.62, 0), color = face },
+		{ shape = "ball", limb = "Torso", at = V(-0.11, 0.33, z - 0.08), size = V(0.07, 0.12, 0.03), color = ink },
+		{ shape = "ball", limb = "Torso", at = V(0.11, 0.33, z - 0.08), size = V(0.07, 0.12, 0.03), color = ink },
+		{ shape = "ball", limb = "Torso", at = V(0, 0.15, z - 0.08), size = V(0.34, 0.12, 0.03), color = ink },
+		{ shape = "ball", limb = "Torso", at = V(0, 0.19, z - 0.09), size = V(0.3, 0.07, 0.03), color = face },
+	}
+end
+
+-- Tambours du dieu de la foudre : anneau doré dans le dos portant quatre tambours.
+local function drumRing()
+	local out = {}
+	local center, r = V(0, 0.35, 0.95), 1.25
+	for k = 0, 7 do
+		local a0, a1 = k * math.pi / 4, (k + 1) * math.pi / 4
+		local p0 = center + V(math.cos(a0) * r, math.sin(a0) * r, 0)
+		local p1 = center + V(math.cos(a1) * r, math.sin(a1) * r, 0)
+		table.insert(out, { shape = "cyl", limb = "Torso", at = p0, dir = p1 - p0, size = V((p1 - p0).Magnitude + 0.08, 0.12, 0), color = rgb(240, 180, 60), material = "Metal" })
+	end
+	for k = 0, 3 do
+		local a = math.pi / 4 + k * math.pi / 2
+		local at = center + V(math.cos(a) * r, math.sin(a) * r, 0.05)
+		table.insert(out, { shape = "cyl", limb = "Torso", at = at, rot = V(0, 90, 0), size = V(0.36, 0.66, 0), color = rgb(226, 120, 40) })
+		table.insert(out, { shape = "cyl", limb = "Torso", at = at + V(0, 0, 0.12), rot = V(0, 90, 0), size = V(0.14, 0.5, 0), color = rgb(250, 236, 200) })
+	end
+	return out
+end
+
+-- Couperet du pilier du son : lame large, garde, poignée bandée, anneau au pommeau.
+local function cleaver(limb: string, guard: Vector3, dir: Vector3, roll: number?)
+	local d = dir.Unit
+	return {
+		{ shape = "block", limb = limb, at = guard, dir = d, rot = V(0, roll or 0, 0), size = V(0.66, 2.3, 0.07), color = rgb(176, 178, 188), material = "Metal" },
+		{ shape = "block", limb = limb, at = guard + d * 2.1, dir = d, rot = V(0, roll or 0, 0), size = V(0.66, 0.2, 0.08), color = rgb(120, 122, 134), material = "Metal" },
+		{ shape = "cyl", limb = limb, at = guard - d * 0.06, dir = d, size = V(0.12, 0.62, 0), color = GOLD, material = "Metal" },
+		{ shape = "cyl", limb = limb, at = guard - d * 0.8, dir = d, size = V(0.75, 0.2, 0), color = rgb(236, 232, 222) },
+		{ shape = "cyl", limb = limb, at = guard - d * 0.98, rot = V(0, 0, 0), dir = d, size = V(0.16, 0.3, 0), color = GOLD, material = "Metal" },
+	}
+end
+
+-- Les deux couperets croisés dans le dos, reliés par une chaîne entre les pommeaux.
+local function crossedCleavers()
+	local ga, gb = V(0.52, 0.55, 0.62), V(-0.52, 0.55, 0.62)
+	local da, db = V(-0.55, -1, 0.05), V(0.55, -1, 0.05)
+	local pa, pb = ga - da.Unit * 1.05, gb - db.Unit * 1.05
+	local mid = (pa + pb) / 2 + V(0, -0.35, 0.12)
+	return join(
+		cleaver("Torso", ga, da),
+		cleaver("Torso", gb, db),
+		chain("Torso", { pa, (pa + mid) / 2 + V(0, -0.08, 0), mid, (pb + mid) / 2 + V(0, -0.08, 0), pb }, { 0.13 }, rgb(196, 170, 90), { material = "Metal" })
+	)
+end
+
+-- Bandeau à gemmes (pilier du son) : bande argentée, gemmes rouges et bleues.
+local function gemHeadband()
+	local out = {
+		{ shape = "cyl", limb = "Head", at = V(0, 0.42, 0.02), rot = V(0, 0, 90), size = V(0.2, 1.42, 0), color = rgb(206, 206, 216), material = "Metal" },
+	}
+	for i, g in
+		{
+			{ 0, -0.72, rgb(220, 40, 70) },
+			{ -0.42, -0.58, rgb(60, 140, 240) },
+			{ 0.42, -0.58, rgb(60, 140, 240) },
+			{ -0.66, -0.2, rgb(240, 200, 60) },
+			{ 0.66, -0.2, rgb(240, 200, 60) },
+		}
+	do
+		table.insert(out, {
+			shape = "ball",
+			limb = "Head",
+			at = V(g[1], 0.42, g[2]),
+			size = i == 1 and V(0.24, 0.3, 0.12) or V(0.16, 0.2, 0.1),
+			rot = V(0, math.deg(math.atan2(g[1], -g[2])), 0),
+			color = g[3],
+			material = "Glass",
+		})
+	end
+	return out
+end
+
+-- Éventail doré (ouvert : baleines en éventail ; fermé : simple latte) tenu dans la main.
+local function fan(limb: string, open: boolean, tint: Color3?)
+	if not open then
+		return { { shape = "block", limb = limb, at = V(0, -1.0, -0.35), rot = V(-60, 0, 0), size = V(0.16, 0.95, 0.2), color = GOLD, material = "Metal" } }
+	end
+	local out = {}
+	local pivot = V(0, -1.15, -0.6)
+	for k = -3, 3 do
+		local a = math.rad(k * 20)
+		table.insert(out, {
+			shape = "block",
+			limb = limb,
+			at = pivot,
+			dir = V(math.sin(a), math.cos(a), -0.15),
+			size = V(0.4, 1.35, 0.04),
+			color = k % 2 == 0 and GOLD or (tint or rgb(250, 220, 120)),
+			material = k % 2 == 0 and "Metal" or "SmoothPlastic",
+		})
+	end
+	return out
+end
+
+-- Kunai à trois branches (éclair jaune) tenu dans la main.
+local function kunai3(limb: string)
+	local at, d = V(0, -1.05, -0.2), V(0, -0.15, -1).Unit
+	return {
+		{ shape = "cyl", limb = limb, at = at - d * 0.35, dir = d, size = V(0.42, 0.12, 0), color = rgb(30, 30, 34) },
+		{ shape = "cyl", limb = limb, at = at - d * 0.42, dir = d, size = V(0.05, 0.22, 0), color = rgb(190, 190, 200), material = "Metal" },
+		{ shape = "block", limb = limb, at = at + d * 0.05, dir = d, size = V(0.18, 0.7, 0.05), color = rgb(200, 200, 210), material = "Metal" },
+		{ shape = "block", limb = limb, at = at + d * 0.08, dir = (d + V(0.55, 0.1, 0)), size = V(0.1, 0.42, 0.04), color = rgb(200, 200, 210), material = "Metal" },
+		{ shape = "block", limb = limb, at = at + d * 0.08, dir = (d + V(-0.55, 0.1, 0)), size = V(0.1, 0.42, 0.04), color = rgb(200, 200, 210), material = "Metal" },
+	}
+end
+
+-- Katana dégainé tenu dans la main (lame, garde ronde, poignée tressée).
+local function katanaInHand(limb: string, dir: Vector3, blade: Color3?, glow: boolean?)
+	local at, d = V(0, -1.05, -0.15), dir.Unit
+	return {
+		{ shape = "cyl", limb = limb, at = at - d * 0.5, dir = d, size = V(0.62, 0.17, 0), color = rgb(30, 28, 34) },
+		{ shape = "cyl", limb = limb, at = at + d * 0.1, dir = d, size = V(0.06, 0.4, 0), color = rgb(190, 170, 110), material = "Metal" },
+		{
+			shape = "block",
+			limb = limb,
+			at = at + d * 0.14,
+			dir = d,
+			size = V(0.05, 2.6, 0.16),
+			color = blade or rgb(214, 220, 232),
+			material = glow and "Neon" or "Metal",
+		},
+	}
+end
+
+-- Gants blancs épais (main entière) ou gros poignets.
+local function cuffs(color: Color3, height: number, y: number)
+	return {
+		{ shape = "cyl", limb = "Left Arm", at = V(0, y, 0), rot = V(0, 0, 90), size = V(height, 1.14, 0), color = color },
+		{ shape = "cyl", limb = "Right Arm", at = V(0, y, 0), rot = V(0, 0, 90), size = V(height, 1.14, 0), color = color },
+	}
+end
+
+-- Pièces propres à chaque nouveau perso v3.2 ------------------------------------------------
+
+-- Radama : crinière immense (longues pointes jusqu'au milieu du dos et sur les épaules)
+local RADAMA_MANE = {}
+for i, x in { -0.5, -0.25, 0, 0.25, 0.5 } do
+	table.insert(RADAMA_MANE, {
+		shape = "spike",
+		limb = "Head",
+		at = V(x, 0.05, 0.52),
+		dir = V(x * 0.8, -1, 0.32),
+		length = 2.4 - math.abs(x) * 0.6,
+		width = 0.64,
+		color = i % 2 == 0 and rgb(52, 50, 68) or rgb(24, 22, 30),
+	})
+end
+for _, s in { -1, 1 } do
+	table.insert(RADAMA_MANE, { shape = "spike", limb = "Head", at = V(s * 0.62, 0.25, 0.22), dir = V(s * 0.75, -1, 0.35), length = 1.9, width = 0.6, color = rgb(24, 22, 30) })
+end
+
+-- Radama ★2 : cage thoracique spectrale bleue autour de lui (Susanoo)
+local SPECTRAL = { material = "Neon", transparency = 0.35 }
+local SUSANOO_RIBS = chain("Torso", { V(0, 1.6, 1.05), V(0, -1.3, 1.15) }, { 0.26 }, rgb(90, 130, 255), SPECTRAL)
+for _, s in { -1, 1 } do
+	for _, y in { 1.0, 0.4, -0.2 } do
+		for _, p in chain("Torso", { V(s * 0.2, y, 1.15), V(s * 2.2, y - 0.15, 1.05), V(s * 2.85, y - 0.35, 0), V(s * 2.3, y - 0.55, -1.0) }, { 0.22 }, rgb(90, 130, 255), SPECTRAL) do
+			table.insert(SUSANOO_RIBS, p)
+		end
+	end
+end
+
+-- Radama ★3 : orbes noirs en couronne dans le dos
+local TRUTH_ORBS = {}
+for k = 0, 5 do
+	local a = math.rad(90 + k * 60)
+	table.insert(TRUTH_ORBS, { shape = "ball", limb = "Torso", at = V(math.cos(a) * 1.55, 0.5 + math.sin(a) * 1.55, 1.2), size = V(0.5, 0.5, 0.5), color = rgb(18, 16, 24) })
+end
+
+-- Gaaro ★2/★3 : sable qui sort de la gourde et passe par-dessus l'épaule, mottes en lévitation
+local SAND = rgb(222, 196, 140)
+local SAND_SHIELD = {}
+for i, e in
+	{
+		{ V(0.35, 1.75, 0.95), 0.62 },
+		{ V(0.8, 2.25, 0.6), 0.56 },
+		{ V(1.35, 2.35, 0.05), 0.5 },
+		{ V(1.85, 2.0, -0.55), 0.44 },
+		{ V(2.15, 1.35, -0.95), 0.38 },
+		{ V(2.2, 0.7, -1.15), 0.3 },
+		{ V(-2.0, -0.6, -0.5), 0.5 },
+		{ V(-1.7, 0.9, 0.9), 0.4 },
+		{ V(1.9, -1.0, 0.7), 0.45 },
+	}
+do
+	local r = e[2]
+	table.insert(SAND_SHIELD, {
+		shape = "ball",
+		limb = "Torso",
+		at = e[1],
+		rot = V(i * 23, i * 41, 0),
+		size = V(r * 1.3, r, r * 1.15),
+		color = i % 2 == 0 and SAND or rgb(206, 176, 120),
+	})
+end
+-- Gaaro : cernes noirs épais autour des yeux (sous le décalque du visage)
+local GAARO_RINGS = {}
+for _, s in { -1, 1 } do
+	table.insert(GAARO_RINGS, { shape = "ball", limb = "Head", at = V(s * 0.25, -0.17, -0.6), rot = V(0, s * 22, s * 6), size = V(0.3, 0.06, 0.03), color = rgb(34, 18, 28) })
+	table.insert(GAARO_RINGS, { shape = "ball", limb = "Head", at = V(s * 0.38, -0.08, -0.55), rot = V(0, s * 40, s * 70), size = V(0.2, 0.05, 0.03), color = rgb(34, 18, 28) })
+end
+
+-- Yuuto ★2/★3 : l'énorme main pâle de l'esprit maudit derrière l'épaule
+local function rikaHand(s: number)
+	local pale, patch = rgb(222, 218, 230), rgb(150, 140, 160)
+	local out = chain("Torso", { V(s * 0.9, 0.6, 0.95), V(s * 1.7, 1.35, 0.85), V(s * 2.25, 1.95, 0.35) }, { 0.8, 0.7 }, { pale, patch })
+	table.insert(out, { shape = "ball", limb = "Torso", at = V(s * 2.35, 2.45, 0.1), size = V(1.2, 1.25, 0.6), color = pale })
+	for i, x in { -0.42, -0.14, 0.14, 0.42 } do
+		table.insert(out, {
+			shape = "strand",
+			limb = "Torso",
+			at = V(s * 2.35 + x, 2.9, 0.05),
+			dir = V(x * 0.4, 1, -0.7),
+			length = 0.85 - math.abs(x) * 0.3,
+			width = 0.27,
+			color = i % 2 == 0 and pale or rgb(206, 200, 216),
+		})
+	end
+	table.insert(out, { shape = "strand", limb = "Torso", at = V(s * 1.85, 2.35, 0.0), dir = V(-s, 0.5, -0.6), length = 0.65, width = 0.28, color = pale })
+	return out
+end
+local RIKA_HAND = rikaHand(1)
+local RIKA_HAND_LEFT = rikaHand(-1)
+
+-- Hakaro ★2 : liserés vert fluo du jackpot sur la veste ouverte et aux poignets
+local JACKPOT = rgb(90, 255, 140)
+local JACKPOT_TRIM = {
+	{ shape = "block", limb = "Torso", at = V(-0.34, -0.05, -0.53), size = V(0.07, 1.9, 0.03), color = JACKPOT, material = "Neon" },
+	{ shape = "block", limb = "Torso", at = V(0.34, -0.05, -0.53), size = V(0.07, 1.9, 0.03), color = JACKPOT, material = "Neon" },
+	{ shape = "cyl", limb = "Left Arm", at = V(0, -0.55, 0), rot = V(0, 0, 90), size = V(0.08, 1.06, 0), color = JACKPOT, material = "Neon" },
+	{ shape = "cyl", limb = "Right Arm", at = V(0, -0.55, 0), rot = V(0, 0, 90), size = V(0.08, 1.06, 0), color = JACKPOT, material = "Neon" },
+}
+-- Hakaro ★3 : billes de jackpot en orbite
+local JACKPOT_BALLS = {}
+for k = 0, 6 do
+	local a = math.rad(k * 360 / 7)
+	table.insert(JACKPOT_BALLS, {
+		shape = "ball",
+		limb = "Torso",
+		at = V(math.cos(a) * 2.1, 0.6 + math.sin(a * 2) * 0.35, math.sin(a) * 1.5),
+		size = V(0.32, 0.32, 0.32),
+		color = k % 2 == 0 and rgb(220, 224, 236) or JACKPOT,
+		material = k % 2 == 0 and "Metal" or "Neon",
+	})
+end
+
+-- Gojita : bords orange du gilet, épaulettes jaunes, épaisse ceinture bleue nouée, gros poignets
+local GOJITA_KIT = join({
+	{ shape = "block", limb = "Torso", at = V(-0.5, 0, -0.52), size = V(0.11, 2.02, 0.03), color = rgb(240, 136, 36) },
+	{ shape = "block", limb = "Torso", at = V(0.5, 0, -0.52), size = V(0.11, 2.02, 0.03), color = rgb(240, 136, 36) },
+	{ shape = "block", limb = "Torso", at = V(-0.66, 1.03, 0), size = V(0.66, 0.16, 1.1), color = rgb(250, 196, 50) },
+	{ shape = "block", limb = "Torso", at = V(0.66, 1.03, 0), size = V(0.66, 0.16, 1.1), color = rgb(250, 196, 50) },
+	{ shape = "block", limb = "Torso", at = V(0, 1.0, 0.52), size = V(1.1, 0.24, 0.1), color = rgb(240, 136, 36) },
+	{ shape = "block", limb = "Torso", at = V(0, -0.8, 0), size = V(2.1, 0.42, 1.12), color = rgb(64, 112, 214) },
+	{ shape = "ball", limb = "Torso", at = V(-0.5, -0.82, -0.6), size = V(0.44, 0.36, 0.26), color = rgb(52, 96, 196) },
+	{ shape = "block", limb = "Torso", at = V(-0.44, -1.25, -0.6), rot = V(0, 0, 8), size = V(0.22, 0.6, 0.05), color = rgb(64, 112, 214) },
+	{ shape = "block", limb = "Torso", at = V(-0.64, -1.2, -0.59), rot = V(0, 0, -14), size = V(0.2, 0.5, 0.05), color = rgb(52, 96, 196) },
+}, cuffs(rgb(244, 244, 240), 0.62, -0.62))
+
+-- Cel : crête verte haute et large tachée de noir ; ★1 longue queue à dard
+local function CEL_CREST(color: Color3)
+	local spot = rgb(14, 22, 16)
+	local out = {
+		{ shape = "ball", limb = "Head", at = V(0, 0.95, 0.15), rot = V(-25, 0, 0), size = V(0.5, 0.9, 0.9), color = color },
+		{ shape = "spike", limb = "Head", at = V(0, 0.62, -0.52), dir = V(0, -1, -0.2), length = 0.42, width = 0.5, color = color },
+	}
+	for _, s in { -1, 1 } do
+		table.insert(out, { shape = "spike", limb = "Head", at = V(s * 0.3, 0.82, 0.12), dir = V(s * 0.38, 1, 0.75), length = 1.35, width = 0.78, color = color })
+		table.insert(out, { shape = "ball", limb = "Head", at = V(s * 0.52, 1.28, 0.42), size = V(0.18, 0.16, 0.14), color = spot })
+		table.insert(out, { shape = "ball", limb = "Head", at = V(s * 0.4, 1.0, 0.0), size = V(0.16, 0.14, 0.12), color = spot })
+		table.insert(out, { shape = "ball", limb = "Head", at = V(s * 0.66, 1.62, 0.7), size = V(0.14, 0.12, 0.12), color = spot })
+	end
+	return out
+end
+local CEL_TAIL = join(
+	chain(
+		"Torso",
+		{ V(0, -0.7, 0.5), V(0, -1.45, 1.3), V(0.2, -2.05, 2.05), V(0.55, -2.0, 2.75), V(0.75, -1.35, 3.15) },
+		{ 0.52, 0.46, 0.4, 0.32 },
+		{ rgb(44, 70, 40), rgb(98, 120, 70) }
+	),
+	{ { shape = "spike", limb = "Torso", at = V(0.78, -1.15, 3.2), dir = V(0.25, 1, 0.3), length = 0.75, width = 0.36, color = rgb(230, 220, 200) } }
+)
+
+-- Jirène : grand crâne lisse, arcades massives, oreilles pointues
+local JIRENE_HEAD = {}
+for _, s in { -1, 1 } do
+	table.insert(JIRENE_HEAD, { shape = "ball", limb = "Head", at = V(s * 0.66, 0.0, 0.05), size = V(0.16, 0.5, 0.32), color = rgb(150, 160, 178) })
+	table.insert(JIRENE_HEAD, { shape = "spike", limb = "Head", at = V(s * 0.68, 0.18, 0.06), dir = V(s * 0.5, 1, 0.15), length = 0.36, width = 0.2, color = rgb(150, 160, 178) })
+end
+
+-- Inel : long bâton doré (chargé de foudre au ★3)
+local function INEL_STAFF(glow: boolean)
+	return {
+		{
+			shape = "cyl",
+			limb = "Right Arm",
+			at = V(0, -2.75, -0.42),
+			dir = V(0, 1, 0.04),
+			size = V(4.7, 0.16, 0),
+			color = glow and rgb(190, 230, 255) or GOLD,
+			material = glow and "Neon" or "Metal",
+		},
+		{ shape = "ball", limb = "Right Arm", at = V(0, 1.98, -0.24), size = V(0.32, 0.32, 0.32), color = GOLD, material = "Metal" },
+		{ shape = "cyl", limb = "Right Arm", at = V(0, 1.6, -0.25), rot = V(0, 0, 90), size = V(0.1, 0.26, 0), color = rgb(226, 120, 40) },
+	}
+end
+
+-- Lao ★2/★3 : salle d'opération (dôme bleu translucide) autour de la main gauche
+local ROOM_DOME = {
+	{ shape = "ball", limb = "Left Arm", at = V(0, -1.05, -0.2), size = V(1.6, 1.6, 1.6), color = rgb(110, 190, 255), material = "Neon", transparency = 0.65 },
+}
+
+-- Kaydo : cornes (taille selon l'évolution), moustache, moustaches de dragon, grande queue
+local function KAYDO_HORNS(k: number, color: Color3?)
+	local c = color or rgb(238, 230, 210)
+	local out = {}
+	for _, s in { -1, 1 } do
+		table.insert(out, { shape = "ball", limb = "Head", at = V(s * 0.38, 0.6, -0.2), size = V(0.34, 0.2, 0.34) * k, color = c:Lerp(rgb(90, 70, 50), 0.35) })
+		table.insert(out, { shape = "spike", limb = "Head", at = V(s * 0.38, 0.62, -0.2), dir = V(s * 0.45, 1, 0.32), length = 1.0 * k, width = 0.4 * k, color = c })
+	end
+	return out
+end
+local KAYDO_FACE = {}
+for _, s in { -1, 1 } do
+	table.insert(
+		KAYDO_FACE,
+		{ shape = "strand", limb = "Head", at = V(s * 0.08, -0.2, -0.66), dir = V(s, -0.3, -0.1), length = 0.55, width = 0.09, depth = 0.09, color = rgb(26, 24, 30) }
+	)
+	table.insert(
+		KAYDO_FACE,
+		{ shape = "strand", limb = "Head", at = V(s * 0.52, -0.33, -0.6), dir = V(s * 0.3, -1, -0.1), length = 0.6, width = 0.08, depth = 0.08, color = rgb(26, 24, 30) }
+	)
+end
+local KAYDO_WHISKERS = {}
+for _, s in { -1, 1 } do
+	table.insert(
+		KAYDO_WHISKERS,
+		{ shape = "strand", limb = "Head", at = V(s * 0.5, 0.05, -0.5), dir = V(s, 0.25, -0.35), length = 1.5, width = 0.08, depth = 0.08, color = rgb(240, 200, 90) }
+	)
+end
+local KAYDO_TAIL = join(
+	chain(
+		"Torso",
+		{ V(0, -0.8, 0.5), V(0.1, -1.5, 1.4), V(0.4, -2.0, 2.4), V(0.9, -1.9, 3.3), V(1.4, -1.2, 3.85) },
+		{ 0.8, 0.68, 0.54, 0.38 },
+		{ rgb(80, 140, 210), rgb(64, 116, 186) }
+	),
+	{
+		{ shape = "spike", limb = "Torso", at = V(0.1, -1.1, 1.05), dir = V(0, 1, 0.5), length = 0.55, width = 0.3, color = rgb(240, 236, 224) },
+		{ shape = "spike", limb = "Torso", at = V(0.35, -1.65, 2.0), dir = V(0, 1, 0.3), length = 0.5, width = 0.28, color = rgb(240, 236, 224) },
+		{ shape = "spike", limb = "Torso", at = V(0.8, -1.6, 3.0), dir = V(0, 1, 0.1), length = 0.45, width = 0.26, color = rgb(240, 236, 224) },
+	}
+)
+
+-- Muzon : cravate rouge ; fouets de chair dans le dos (★2/★3)
+local MUZON_TIE = {
+	{ shape = "block", limb = "Torso", at = V(0, 0.42, -0.515), size = V(0.17, 0.82, 0.03), color = rgb(176, 20, 38) },
+	{ shape = "block", limb = "Torso", at = V(0, 0.86, -0.52), size = V(0.22, 0.14, 0.05), color = rgb(150, 16, 32) },
+}
+local function MUZON_WHIPS(n: number)
+	local out = {}
+	for k = 1, n do
+		local s = k % 2 == 0 and 1 or -1
+		local lift = math.floor((k - 1) / 2) * 0.55
+		for _, p in
+			chain("Torso", {
+				V(s * 0.3, 0.5 - lift * 0.4, 0.55),
+				V(s * 1.0, 1.3 + lift, 1.35),
+				V(s * 1.9, 1.7 + lift, 1.6),
+				V(s * 2.7, 1.2 + lift * 1.2, 1.15),
+			}, { 0.32, 0.26, 0.2 }, { rgb(120, 18, 40), rgb(168, 36, 60) })
+		do
+			table.insert(out, p)
+		end
+	end
+	return out
+end
+
+-- Doma : sang sur le dessus des cheveux
+local DOMA_BLOOD = {
+	{ shape = "ball", limb = "Head", at = V(0.05, 0.98, -0.12), rot = V(-8, 0, 6), size = V(0.66, 0.14, 0.62), color = rgb(176, 22, 34) },
+	{ shape = "strand", limb = "Head", at = V(0.25, 0.9, -0.42), dir = V(0.1, -1, -0.3), length = 0.4, width = 0.09, depth = 0.06, color = rgb(176, 22, 34) },
+	{ shape = "strand", limb = "Head", at = V(-0.22, 0.9, -0.4), dir = V(-0.1, -1, -0.3), length = 0.3, width = 0.08, depth = 0.06, color = rgb(176, 22, 34) },
+}
+-- Doma ★3 : cristaux de glace sur les épaules
+local ICE_CRYSTALS = {}
+for _, s in { -1, 1 } do
+	table.insert(ICE_CRYSTALS, { shape = "spike", limb = "Torso", at = V(s * 1.1, 1.0, 0.1), dir = V(s * 0.5, 1, 0.25), length = 1.0, width = 0.36, color = rgb(200, 236, 255) })
+	table.insert(ICE_CRYSTALS, { shape = "spike", limb = "Torso", at = V(s * 1.35, 0.85, 0.35), dir = V(s * 1, 0.7, 0.5), length = 0.7, width = 0.28, color = rgb(170, 220, 255) })
+end
+
+-- Tengan ★2 : un couperet dans chaque main, chaîne entre les pommeaux
+local TENGAN_DUAL = {}
+do
+	local gr, dr = V(0, -1.05, -0.2), V(0.18, -0.25, -1)
+	local gl, dl = V(0, -1.05, -0.2), V(-0.18, -0.25, -1)
+	TENGAN_DUAL = join(cleaver("Right Arm", gr, dr, 90), cleaver("Left Arm", gl, dl, 90))
+	local pr = V(1.5, 0, 0) + gr - dr.Unit * 1.05
+	local pl = V(-1.5, 0, 0) + gl - dl.Unit * 1.05
+	local mid = (pr + pl) / 2 + V(0, -0.6, 0.15)
+	for _, p in chain("Torso", { pr, (pr + mid) / 2 + V(0, -0.15, 0), mid, (pl + mid) / 2 + V(0, -0.15, 0), pl }, { 0.13 }, rgb(196, 170, 90), { material = "Metal" }) do
+		table.insert(TENGAN_DUAL, p)
+	end
+end
+-- Tengan ★3 : perles explosives en suspension
+local BEADS = {}
+for k = 0, 4 do
+	local a = math.rad(-40 + k * 20)
+	table.insert(
+		BEADS,
+		{ shape = "ball", limb = "Torso", at = V(math.sin(a) * 2.2, 1.6 + (k % 2) * 0.3, -math.cos(a) * 1.4), size = V(0.3, 0.3, 0.3), color = rgb(255, 150, 60), material = "Neon" }
+	)
+end
+
 Characters.List = {
 	------------------------------------------------------------------
 	-- VILLAGE NINJA (inspiré de Naruto)
@@ -859,7 +1439,7 @@ Characters.List = {
 	sai_goko = {
 		name = "Goko",
 		universe = "saiyan",
-		rarity = "legendary",
+		rarity = "mythic",
 		look = {
 			eyes = rgb(34, 32, 44),
 			skin = SKIN,
@@ -1842,10 +2422,13 @@ Characters.List = {
 
 	------------------------------------------------------------------
 	-- NOUVEAUX PERSOS v3.2 (roster élargi : 3 de plus par univers)
+	-- Chaque étoile change la silhouette ou les couleurs (pas seulement l'aura) ; objets propres
+	-- à chaque perso dans `props` (voir les fonctions en haut du fichier).
 	------------------------------------------------------------------
 	-- Village Ninja ---------------------------------------------------
 	ninja_radama = {
-		-- Le fantôme du clan à l'éventail : armure rouge sombre, longue crinière noire en pointes
+		-- Le fantôme du clan à l'éventail : armure rouge sombre, immense crinière noire en pointes
+		-- jusqu'au milieu du dos, éventail de guerre rond dans le dos
 		name = "Radama",
 		universe = "ninja",
 		rarity = "secret",
@@ -1855,7 +2438,7 @@ Characters.List = {
 			hair = "wild_long",
 			hairColor = rgb(24, 22, 30),
 			hairShine = rgb(70, 70, 96),
-			hairLength = 1.25,
+			hairLength = 1.75,
 			top = rgb(36, 30, 40),
 			topAccent = rgb(150, 34, 40),
 			bottom = rgb(36, 30, 40),
@@ -1878,17 +2461,19 @@ Characters.List = {
 			skirtLength = 0.9,
 			collarColor = rgb(36, 30, 40),
 			collarLining = rgb(150, 34, 40),
+			props = join(RADAMA_MANE, gunbai("Torso", V(-0.72, 1.45, 0.86), V(0.45, -0.85, 0.66))),
 		},
 		evolve = {
-			-- ★★ : yeux éternels et colosse spectral bleu (énergie bleue dans les mains, aura)
+			-- ★★ : yeux éternels, éventail en main et cage thoracique spectrale bleue (Susanoo)
 			[2] = {
 				pupil = "ring",
+				eyes = rgb(170, 60, 220),
 				eyeGlow = true,
-				accessories = { "shoulder_pads", "cloak_skirt", "energy_fists", "energy_aura" },
-				energyColor = rgb(80, 110, 255),
+				accessories = { "shoulder_pads", "cloak_skirt", "energy_aura" },
 				auraColor = rgb(80, 110, 255),
+				props = join(RADAMA_MANE, gunbai("Right Arm", V(0, -0.2, -2.2), V(0, -1.0, -0.2), 0), SUSANOO_RIBS),
 			},
-			-- ★★★ : sage des six chemins (cheveux blancs, yeux à anneaux, orbes noirs, aura)
+			-- ★★★ : sage des six chemins (cheveux blancs, robe blanche, orbes noirs en couronne)
 			[3] = {
 				hairColor = rgb(232, 232, 240),
 				hairShine = rgb(255, 255, 255),
@@ -1899,11 +2484,14 @@ Characters.List = {
 				eyes = rgb(176, 150, 230),
 				pupil = "ring",
 				eyeGlow = true,
-				accessories = { "cloak_skirt", "energy_fists", "ssj_aura" },
+				accessories = { "cloak_skirt", "ssj_aura" },
 				collarColor = rgb(236, 234, 238),
 				skirtColor = rgb(236, 234, 238),
-				energyColor = rgb(20, 18, 28),
 				auraColor = rgb(170, 150, 255),
+				props = join(RADAMA_MANE, TRUTH_ORBS, {
+					{ shape = "cyl", limb = "Right Arm", at = V(0, -2.7, -0.4), dir = V(0, 1, -0.05), size = V(4.6, 0.12, 0), color = rgb(30, 26, 36) },
+					{ shape = "ball", limb = "Right Arm", at = V(0, 1.85, -0.62), size = V(0.4, 0.4, 0.4), color = rgb(30, 26, 36) },
+				}),
 			},
 		},
 		attack = { kind = "orb", color = rgb(255, 110, 40), name = "Météore Céleste" },
@@ -1942,8 +2530,12 @@ Characters.List = {
 			accColor = rgb(240, 238, 232),
 		},
 		evolve = {
-			-- ★★ : orbe spirale dans la main
-			[2] = { accessories = { "headband", "haori_flame", "energy_fists" }, energyColor = rgb(90, 190, 255) },
+			-- ★★ : kunai à trois branches dans la main droite, orbe spirale dans la gauche
+			[2] = {
+				accessories = { "headband", "haori_flame", "energy_fists" },
+				energyColor = rgb(90, 190, 255),
+				props = kunai3("Right Arm"),
+			},
 			-- ★★★ : mode chakra du renard (corps doré à motifs noirs, cape)
 			[3] = {
 				top = rgb(255, 200, 50),
@@ -1957,22 +2549,25 @@ Characters.List = {
 				capeColor = rgb(255, 196, 60),
 				energyColor = rgb(90, 190, 255),
 				auraColor = rgb(255, 210, 90),
+				props = kunai3("Right Arm"),
 			},
 		},
 		attack = { kind = "lightning", color = rgb(255, 230, 80), name = "Dieu de l'Éclair" },
 		fusion = { prefix = "Fulgurant", suffix = "de l'Éclair Jaune" },
 	},
 	ninja_gaaro = {
-		-- Le maître du sable : cheveux roux, cernes noirs, marque rouge au front, gourde dans le dos
+		-- Le maître du sable : cheveux roux courts (front dégagé, marque rouge), cernes noirs épais,
+		-- grosse gourde de sable dans le dos
 		name = "Gaaro",
 		universe = "ninja",
 		rarity = "epic",
 		look = {
 			headScale = Vector3.new(0.95, 1.0, 0.97),
 			skin = rgb(250, 224, 200),
-			hair = "spiky_back",
+			hair = "slick_up",
 			hairColor = rgb(176, 44, 38),
 			hairUnder = rgb(120, 26, 26),
+			eyeY = -0.05,
 			top = rgb(126, 42, 44),
 			topAccent = rgb(196, 176, 140),
 			bottom = rgb(110, 36, 40),
@@ -1981,30 +2576,39 @@ Characters.List = {
 			footwear = "sandals",
 			shoes = rgb(60, 40, 40),
 			eyes = rgb(120, 196, 150),
-			eyeShadow = rgb(40, 28, 36),
-			lashColor = rgb(26, 18, 24),
-			lashThickness = 0.07,
+			eyeShadow = rgb(18, 10, 16),
+			lashColor = rgb(14, 8, 12),
+			lashThickness = 0.11,
 			face = "calm",
 			eyeStyle = "narrow",
 			mouthStyle = "line",
 			browStyle = "none",
-			accessories = { "forehead_mark", "sash", "scroll_back" },
+			accessories = { "forehead_mark", "sash" },
 			sashColor = rgb(196, 176, 140),
 			accColor = rgb(214, 186, 132),
-			scrollCap = rgb(140, 70, 50),
+			props = join(gourd(rgb(214, 186, 136)), GAARO_RINGS),
 		},
 		evolve = {
-			-- ★★ : sable qui tourbillonne (aura et poings de sable)
-			[2] = { accessories = { "forehead_mark", "sash", "scroll_back", "energy_fists", "energy_aura" }, energyColor = rgb(222, 190, 120), auraColor = rgb(232, 200, 130) },
+			-- ★★ : tenue de l'après-guerre (gilet gris, manches rouges) et bouclier de sable
+			[2] = {
+				top = rgb(120, 112, 100),
+				topAccent = rgb(90, 84, 76),
+				sleeveColor = rgb(126, 42, 44),
+				outfit = "flakvest",
+				accessories = { "forehead_mark", "sash", "energy_fists" },
+				energyColor = rgb(222, 190, 120),
+				props = join(gourd(rgb(214, 186, 136)), GAARO_RINGS, SAND_SHIELD),
+			},
 			-- ★★★ : robe blanche et bleue du chef du village du sable
 			[3] = {
 				top = rgb(236, 234, 228),
 				topAccent = rgb(60, 110, 200),
 				bottom = rgb(236, 234, 228),
 				outfit = "robe",
-				accessories = { "forehead_mark", "scroll_back", "energy_fists", "ssj_aura" },
+				accessories = { "forehead_mark", "energy_fists", "ssj_aura" },
 				energyColor = rgb(222, 190, 120),
 				auraColor = rgb(240, 210, 140),
+				props = join(gourd(rgb(214, 186, 136)), GAARO_RINGS, SAND_SHIELD),
 			},
 		},
 		attack = { kind = "shadow", color = rgb(222, 190, 120), name = "Cercueil de Sable" },
@@ -2088,22 +2692,31 @@ Characters.List = {
 			accColor = rgb(30, 28, 34),
 		},
 		evolve = {
-			-- ★★ : l'esprit maudit veille sur lui (énergie rose dans les mains, aura)
-			[2] = { accessories = { "sword_back", "energy_fists", "energy_aura" }, energyColor = rgb(255, 150, 210), auraColor = rgb(255, 200, 236) },
-			-- ★★★ : manifestation complète (sabre tiré chargé d'énergie, yeux brillants, aura)
+			-- ★★ : katana dégainé, et l'esprit maudit sort son énorme main derrière son épaule
+			[2] = {
+				accessories = { "energy_fists" },
+				energyColor = rgb(255, 170, 220),
+				props = join(katanaInHand("Right Arm", V(0, 0.35, -1)), RIKA_HAND),
+			},
+			-- ★★★ : manifestation complète (manteau noir ouvert, lame chargée, deux bras de l'esprit)
 			[3] = {
+				top = rgb(26, 24, 30),
+				topAccent = rgb(26, 24, 30),
+				underColor = rgb(236, 236, 232),
+				outfit = "openjacket",
 				eyeGlow = true,
 				eyes = rgb(255, 120, 190),
-				accessories = { "water_blade", "ssj_aura" },
+				accessories = { "energy_fists", "ssj_aura" },
 				energyColor = rgb(255, 150, 210),
 				auraColor = rgb(255, 210, 240),
+				props = join(katanaInHand("Right Arm", V(0, 0.35, -1), rgb(255, 170, 220), true), RIKA_HAND, RIKA_HAND_LEFT),
 			},
 		},
 		attack = { kind = "beam", color = rgb(255, 170, 220), name = "Amour Pur" },
 		fusion = { prefix = "Maudit", suffix = "de l'Amour Pur" },
 	},
 	occ_hakaro = {
-		-- Le flambeur : banane gris-vert, veste au col de fourrure, boucles d'oreilles
+		-- Le flambeur : banane gris-vert, uniforme fermé gris-vert, boucles d'oreilles
 		name = "Hakaro",
 		universe = "occulte",
 		rarity = "epic",
@@ -2112,13 +2725,11 @@ Characters.List = {
 			hair = "slick_up",
 			hairColor = rgb(120, 134, 112),
 			hairUnder = rgb(76, 88, 70),
-			top = rgb(52, 58, 50),
-			topAccent = rgb(230, 226, 214),
-			underColor = rgb(230, 226, 214),
-			collar = "fur",
-			collarColor = rgb(214, 196, 160),
+			top = rgb(70, 78, 66),
+			topAccent = rgb(54, 60, 50),
 			bottom = rgb(38, 40, 44),
-			outfit = "openjacket",
+			outfit = "uniform",
+			uniformStyle = "zip",
 			pantsStyle = "plain",
 			footwear = "shoes",
 			shoes = rgb(236, 236, 236),
@@ -2130,25 +2741,30 @@ Characters.List = {
 			accessories = { "earrings_gold" },
 		},
 		evolve = {
-			-- ★★ : jackpot ! (énergie verte dans les mains, vapeur, aura)
+			-- ★★ : jackpot ! (veste ouverte au col de fourrure, liserés vert fluo, billes de jackpot)
 			[2] = {
-				accessories = { "earrings_gold", "steam", "energy_fists", "energy_aura" },
+				top = rgb(52, 58, 50),
+				topAccent = rgb(230, 226, 214),
+				underColor = rgb(230, 226, 214),
+				collar = "fur",
+				collarColor = rgb(214, 196, 160),
+				outfit = "openjacket",
+				accessories = { "earrings_gold", "steam" },
 				steamColor = rgb(140, 255, 170),
-				energyColor = rgb(110, 255, 150),
-				auraColor = rgb(110, 255, 150),
+				props = JACKPOT_TRIM,
 			},
 			-- ★★★ : jackpot infini (veste tombée, yeux verts, aura flamboyante)
 			[3] = {
 				outfit = "shirtless",
 				shirtless = true,
 				top = rgb(244, 210, 176),
-				collar = false,
 				eyeGlow = true,
 				eyes = rgb(80, 220, 120),
 				accessories = { "earrings_gold", "steam", "energy_fists", "ssj_aura" },
 				steamColor = rgb(140, 255, 170),
 				energyColor = rgb(110, 255, 150),
 				auraColor = rgb(150, 255, 170),
+				props = JACKPOT_BALLS,
 			},
 		},
 		attack = { kind = "punch", color = rgb(110, 255, 150), name = "Jackpot Fiévreux" },
@@ -2156,7 +2772,8 @@ Characters.List = {
 	},
 	-- Planète des Guerriers ---------------------------------------------
 	sai_gojita = {
-		-- La fusion parfaite : gilet noir à doublure orange, ceinture bleue, pantalon blanc
+		-- La fusion parfaite : gilet noir bordé d'orange et de jaune, épaisse ceinture bleue,
+		-- pantalon blanc, gros poignets blancs
 		name = "Gojita",
 		universe = "saiyan",
 		rarity = "secret",
@@ -2169,7 +2786,6 @@ Characters.List = {
 			noButtons = true,
 			bottom = rgb(240, 240, 236),
 			outfit = "openvest",
-			waistband = rgb(70, 130, 220),
 			pantsStyle = "plain",
 			footwear = "boots",
 			shoes = rgb(30, 30, 36),
@@ -2179,18 +2795,19 @@ Characters.List = {
 			eyeStyle = "sharp",
 			mouthStyle = "smirk",
 			browStyle = "frown",
-			accessories = { "wristbands" },
+			accessories = {},
 			accColor = rgb(240, 240, 236),
+			props = GOJITA_KIT,
 		},
 		evolve = {
 			-- ★★ : super guerrier doré
-			[2] = { hairColor = rgb(252, 222, 70), eyes = rgb(60, 170, 190), accessories = { "wristbands", "ssj_aura" }, auraColor = rgb(255, 226, 90) },
+			[2] = { hairColor = rgb(252, 222, 70), eyes = rgb(60, 170, 190), accessories = { "ssj_aura" }, auraColor = rgb(255, 226, 90) },
 			-- ★★★ : super guerrier divin bleu
 			[3] = {
 				hairColor = rgb(70, 176, 255),
 				eyes = rgb(70, 176, 255),
 				eyeGlow = true,
-				accessories = { "wristbands", "ssj_aura", "energy_aura" },
+				accessories = { "ssj_aura", "energy_aura" },
 				auraColor = rgb(90, 190, 255),
 			},
 		},
@@ -2198,64 +2815,93 @@ Characters.List = {
 		fusion = { prefix = "Fusionné", suffix = "de la Fusion Parfaite" },
 	},
 	sai_cel = {
-		-- La créature parfaite (adulte) : carapace verte tachetée, crête et ailes, visage pâle
+		-- La créature parfaite : ★1 forme imparfaite (carapace sombre, longue queue à dard),
+		-- ★2 forme parfaite (crête haute, visage blanc rosé), ★3 super parfait (éclairs bleus)
 		name = "Cel",
 		universe = "saiyan",
 		rarity = "legendary",
 		look = {
 			headScale = Vector3.new(0.98, 1.04, 0.98),
-			skin = rgb(236, 226, 232),
+			skin = rgb(176, 196, 150),
 			hair = "none",
-			hairColor = rgb(60, 140, 80),
-			top = rgb(116, 184, 112),
-			bottom = rgb(116, 184, 112),
+			hairColor = rgb(50, 110, 64),
+			top = rgb(98, 120, 70),
+			bottom = rgb(98, 120, 70),
 			outfit = "creature",
-			carapace = rgb(56, 128, 74),
-			limbPlates = rgb(56, 128, 74),
-			spots = rgb(22, 32, 24),
+			carapace = rgb(44, 70, 40),
+			limbPlates = rgb(44, 70, 40),
+			spots = rgb(14, 22, 16),
 			sleeves = "long",
-			sleeveColor = rgb(116, 184, 112),
+			sleeveColor = rgb(98, 120, 70),
 			footwear = "barefoot",
-			eyes = rgb(200, 60, 170),
-			cheekShade = rgb(170, 110, 170),
-			lipColor = rgb(150, 90, 150),
-			face = "smirk",
+			eyes = rgb(150, 40, 60),
+			face = "angry",
 			eyeStyle = "sharp",
-			mouthStyle = "smirk",
+			mouthStyle = "snarl",
 			browStyle = "none",
 			accessories = { "cell_crest", "claws" },
-			accColor = rgb(70, 150, 90),
+			accColor = rgb(50, 110, 64),
+			props = join(CEL_CREST(rgb(44, 70, 40)), CEL_TAIL),
 		},
 		evolve = {
-			-- ★★ : forme parfaite chargée (boule d'énergie, aura dorée)
-			[2] = { accessories = { "cell_crest", "claws", "energy_fists", "energy_aura" }, energyColor = rgb(110, 190, 255), auraColor = rgb(255, 220, 90) },
-			-- ★★★ : super parfait (carrure massive, aura dorée flamboyante)
+			-- ★★ : forme parfaite (corps clair, visage blanc rosé aux joues violettes, crête haute)
+			[2] = {
+				skin = rgb(240, 226, 232),
+				top = rgb(140, 214, 120),
+				bottom = rgb(140, 214, 120),
+				sleeveColor = rgb(140, 214, 120),
+				carapace = rgb(84, 170, 92),
+				limbPlates = rgb(84, 170, 92),
+				spots = rgb(20, 30, 22),
+				eyes = rgb(200, 60, 170),
+				cheekShade = rgb(160, 90, 180),
+				lipColor = rgb(150, 90, 160),
+				face = "smirk",
+				mouthStyle = "smirk",
+				accessories = { "cell_crest", "claws" },
+				accColor = rgb(70, 150, 90),
+				props = CEL_CREST(rgb(84, 170, 92)),
+			},
+			-- ★★★ : super parfait (carrure massive, éclairs et aura bleus)
 			[3] = {
+				skin = rgb(240, 226, 232),
+				top = rgb(140, 214, 120),
+				bottom = rgb(140, 214, 120),
+				sleeveColor = rgb(140, 214, 120),
+				carapace = rgb(84, 170, 92),
+				limbPlates = rgb(84, 170, 92),
+				eyes = rgb(200, 60, 170),
+				cheekShade = rgb(160, 90, 180),
+				lipColor = rgb(150, 90, 160),
+				face = "smirk",
+				mouthStyle = "smirk",
 				eyeGlow = true,
-				accessories = { "cell_crest", "claws", "bulk", "ssj_aura", "energy_fists" },
-				energyColor = rgb(110, 190, 255),
-				auraColor = rgb(255, 226, 90),
+				accessories = { "cell_crest", "claws", "bulk", "ssj_aura", "chidori" },
+				energyColor = rgb(120, 200, 255),
+				auraColor = rgb(90, 170, 255),
+				props = CEL_CREST(rgb(84, 170, 92)),
 			},
 		},
 		attack = { kind = "beam", color = rgb(110, 190, 255), name = "Kaméha Parfait" },
 		fusion = { prefix = "Parfait", suffix = "Parfait" },
 	},
 	sai_jirene = {
-		-- Le guerrier de la fierté : peau grise, crâne lisse, yeux noirs à pupilles rouges, combinaison rouge et noire
+		-- Le guerrier de la fierté : peau grise, crâne lisse et massif, oreilles pointues, yeux noirs
+		-- à pupilles rouges, uniforme rouge et noir des troupes de la fierté, gants blancs
 		name = "Jirène",
 		universe = "saiyan",
-		rarity = "mythic",
+		rarity = "legendary",
 		look = {
-			headScale = Vector3.new(1.06, 1.06, 1.02),
+			headScale = Vector3.new(1.08, 1.06, 1.04),
 			skin = rgb(156, 166, 184),
 			hair = "bald",
 			hairColor = rgb(156, 166, 184),
-			top = rgb(30, 30, 36),
-			topAccent = rgb(200, 30, 40),
+			top = rgb(200, 30, 40),
+			topAccent = rgb(30, 30, 36),
+			sleeveColor = rgb(30, 30, 36),
 			bottom = rgb(30, 30, 36),
-			outfit = "tank",
-			waistband = rgb(200, 30, 40),
-			hemBottom = rgb(200, 30, 40),
+			outfit = "jumpsuit",
+			waistband = rgb(30, 30, 36),
 			footwear = "boots",
 			shoes = rgb(240, 240, 240),
 			eyes = rgb(220, 36, 40),
@@ -2265,25 +2911,31 @@ Characters.List = {
 			mouthStyle = "frown",
 			browStyle = "none",
 			jawShade = true,
-			accessories = { "bulk", "wristbands" },
+			accessories = { "bulk", "brow_ridge" },
 			accColor = rgb(240, 240, 240),
+			props = join(JIRENE_HEAD, cuffs(rgb(244, 244, 244), 0.62, -0.68)),
 		},
 		evolve = {
-			-- ★★ : puissance libérée (veines rouges, poings chargés, aura rouge)
+			-- ★★ : haut d'uniforme arraché (débardeur noir et rouge), veines rouges, poings chargés
 			[2] = {
+				top = rgb(30, 30, 36),
+				topAccent = rgb(200, 30, 40),
+				outfit = "tank",
+				waistband = rgb(200, 30, 40),
+				hemBottom = rgb(200, 30, 40),
 				armVeins = rgb(220, 40, 40),
-				accessories = { "bulk", "wristbands", "energy_fists", "energy_aura" },
+				accessories = { "bulk", "brow_ridge", "energy_fists" },
 				energyColor = rgb(255, 60, 50),
-				auraColor = rgb(255, 60, 50),
 			},
-			-- ★★★ : pleine puissance (combinaison déchirée, torse nu, yeux brillants, aura flamboyante)
+			-- ★★★ : pleine puissance (torse nu, yeux brillants, aura flamboyante)
 			[3] = {
 				outfit = "shirtless",
 				shirtless = true,
 				top = rgb(156, 166, 184),
+				waistband = rgb(200, 30, 40),
 				armVeins = rgb(220, 40, 40),
 				eyeGlow = true,
-				accessories = { "bulk", "wristbands", "ssj_aura", "steam" },
+				accessories = { "bulk", "brow_ridge", "ssj_aura", "steam" },
 				auraColor = rgb(255, 70, 50),
 				steamColor = rgb(255, 180, 170),
 			},
@@ -2293,7 +2945,8 @@ Characters.List = {
 	},
 	-- Grand Océan --------------------------------------------------------
 	oce_inel = {
-		-- Le dieu de la foudre : bandana blanc, lobes d'oreille dorés, torse nu, pantalon orange, ceinture de corde
+		-- Le dieu de la foudre : bandana blanc, lobes d'oreille dorés, torse nu, pantalon orange,
+		-- ceinture de corde, long bâton doré
 		name = "Inel",
 		universe = "ocean",
 		rarity = "legendary",
@@ -2317,78 +2970,80 @@ Characters.List = {
 			accessories = { "bandana", "earrings_gold", "rope_belt" },
 			accColor = rgb(244, 244, 240),
 			beltColor = rgb(70, 130, 220),
+			props = INEL_STAFF(false),
 		},
 		evolve = {
-			-- ★★ : décharge électrique (veines de foudre, poings chargés, aura)
+			-- ★★ : anneau de tambours dans le dos, veines de foudre
 			[2] = {
 				armVeins = rgb(120, 190, 255),
-				accessories = { "bandana", "earrings_gold", "rope_belt", "energy_fists", "energy_aura" },
-				energyColor = rgb(150, 210, 255),
+				accessories = { "bandana", "earrings_gold", "rope_belt", "energy_aura" },
 				auraColor = rgb(170, 220, 255),
+				props = join(INEL_STAFF(false), drumRing()),
 			},
-			-- ★★★ : corps de foudre (peau bleu électrique, yeux brillants, aura)
+			-- ★★★ : corps de foudre (peau bleu électrique, bâton chargé, yeux brillants)
 			[3] = {
 				skin = rgb(176, 214, 255),
 				top = rgb(176, 214, 255),
 				eyeGlow = true,
 				eyes = rgb(230, 245, 255),
-				accessories = { "bandana", "earrings_gold", "rope_belt", "energy_fists", "ssj_aura" },
-				energyColor = rgb(150, 210, 255),
+				accessories = { "bandana", "earrings_gold", "rope_belt", "ssj_aura" },
 				auraColor = rgb(170, 220, 255),
+				props = join(INEL_STAFF(true), drumRing()),
 			},
 		},
 		attack = { kind = "lightning", color = rgb(150, 210, 255), name = "Jugement Divin" },
 		fusion = { prefix = "Divin", suffix = "de la Foudre" },
 	},
 	oce_lao = {
-		-- Le chirurgien de la mort : bonnet blanc, sweat noir et jaune, cernes, long sabre dans le dos
+		-- Le chirurgien de la mort : bonnet blanc tacheté, sweat jaune aux manches noires frappé du
+		-- Jolly Roger souriant, cernes, long sabre dans le dos
 		name = "Lao",
 		universe = "ocean",
 		rarity = "legendary",
 		look = {
 			skin = rgb(232, 196, 160),
-			hair = "short",
+			hair = "none",
 			hairColor = rgb(26, 24, 30),
-			top = rgb(30, 30, 36),
-			topAccent = rgb(242, 200, 40),
-			sleeveColor = rgb(242, 200, 40),
-			logo = { kind = "circle", color = rgb(242, 200, 40), back = true },
+			top = rgb(244, 204, 44),
+			topAccent = rgb(30, 30, 36),
+			sleeveColor = rgb(30, 30, 36),
 			bottom = rgb(196, 176, 140),
 			outfit = "shirt",
 			pantsStyle = "plain",
 			footwear = "shoes",
 			shoes = rgb(40, 34, 30),
 			eyes = rgb(150, 120, 60),
-			eyeShadow = rgb(110, 80, 70),
+			eyeShadow = rgb(90, 60, 56),
 			face = "calm",
 			eyeStyle = "sleepy",
 			mouthStyle = "smirk",
 			browStyle = "low",
-			accessories = { "dome", "earrings_gold", "sword_back" },
-			accColor = rgb(236, 232, 220),
+			accessories = { "earrings_gold", "sword_back" },
 			katana = { handle = rgb(30, 30, 34), sheath = rgb(24, 22, 26), cord = rgb(236, 236, 236), tsuba = rgb(230, 200, 60), guard = "square" },
+			props = join(spottedHat(), smileyRoger(rgb(244, 204, 44))),
 		},
 		evolve = {
-			-- ★★ : long manteau noir du pays des samouraïs et salle d'opération (aura bleue)
+			-- ★★ : long manteau noir à col, salle d'opération (dôme bleu) autour de la main
 			[2] = {
-				accessories = { "dome", "earrings_gold", "sword_back", "cape", "energy_aura" },
+				accessories = { "earrings_gold", "sword_back", "cape" },
 				capeColor = rgb(30, 30, 36),
-				auraColor = rgb(110, 190, 255),
+				props = join(spottedHat(), smileyRoger(rgb(244, 204, 44)), ROOM_DOME),
 			},
-			-- ★★★ : sabre tiré chargé de la salle d'opération (lame bleue, yeux brillants)
+			-- ★★★ : sabre tiré chargé (lame bleue, yeux brillants)
 			[3] = {
 				eyeGlow = true,
-				accessories = { "dome", "earrings_gold", "cape", "water_blade", "ssj_aura" },
+				accessories = { "earrings_gold", "cape", "ssj_aura" },
 				capeColor = rgb(30, 30, 36),
-				energyColor = rgb(110, 190, 255),
 				auraColor = rgb(130, 200, 255),
+				props = join(spottedHat(), smileyRoger(rgb(244, 204, 44)), ROOM_DOME, katanaInHand("Right Arm", V(0, 0.5, -1), rgb(140, 210, 255), true)),
 			},
 		},
 		attack = { kind = "slash", color = rgb(110, 190, 255), name = "Salle d'Opération : Shambles" },
 		fusion = { prefix = "Chirurgien", suffix = "de la Mort" },
 	},
 	oce_kaydo = {
-		-- La créature la plus forte : cornes, longue crinière noire, torse massif, corde sacrée, massue
+		-- La créature la plus forte : grandes cornes, longue crinière noire, moustache, torse massif,
+		-- corde sacrée, manteau violet, énorme massue à piques
 		name = "Kaydo",
 		universe = "ocean",
 		rarity = "secret",
@@ -2397,7 +3052,7 @@ Characters.List = {
 			skin = rgb(230, 186, 148),
 			hair = "heavy_long",
 			hairColor = rgb(26, 24, 30),
-			hairLength = 1.35,
+			hairLength = 1.7,
 			top = rgb(230, 186, 148),
 			bottom = rgb(232, 228, 216),
 			outfit = "shirtless",
@@ -2413,29 +3068,29 @@ Characters.List = {
 			mouthStyle = "snarl",
 			browStyle = "frown",
 			bigBrows = true,
-			accessories = { "horns", "bulk", "rope_belt", "cape", "hammer" },
+			accessories = { "bulk", "rope_belt", "cape" },
 			accColor = rgb(232, 226, 210),
 			beltColor = rgb(222, 200, 150),
-			capeColor = rgb(80, 70, 120),
+			capeColor = rgb(96, 70, 140),
+			props = join(KAYDO_HORNS(1), KAYDO_FACE, kanabo("Right Arm", V(0.1, -1.0, -0.3), V(0.1, -0.42, -1), 3.6, 0.56)),
 		},
 		evolve = {
-			-- ★★ : forme hybride du dragon (queue et écailles bleues, aura)
+			-- ★★ : forme hybride du dragon (cornes plus grandes, grande queue et écailles bleues)
 			[2] = {
 				armPlates = rgb(80, 140, 210),
-				accessories = { "horns", "bulk", "rope_belt", "cape", "hammer", "tail", "energy_aura" },
-				tailColor = rgb(80, 140, 210),
-				auraColor = rgb(110, 180, 255),
+				accessories = { "bulk", "rope_belt", "cape" },
+				props = join(KAYDO_HORNS(1.45), KAYDO_FACE, KAYDO_TAIL, kanabo("Right Arm", V(0.1, -1.0, -0.3), V(0.1, -0.42, -1), 3.6, 0.56)),
 			},
-			-- ★★★ : haki du conquérant (griffes, yeux rouges brillants, éclairs noirs et rouges)
+			-- ★★★ : haki du conquérant (cornes dorées, griffes, yeux rouges, éclairs noirs et rouges)
 			[3] = {
 				armPlates = rgb(80, 140, 210),
 				eyeGlow = true,
 				eyes = rgb(230, 40, 40),
-				accessories = { "horns", "bulk", "rope_belt", "cape", "hammer", "tail", "claws", "ssj_aura", "steam" },
-				tailColor = rgb(80, 140, 210),
+				accessories = { "bulk", "rope_belt", "cape", "claws", "ssj_aura", "steam" },
 				clawColor = rgb(236, 230, 214),
 				auraColor = rgb(230, 40, 50),
 				steamColor = rgb(80, 40, 60),
+				props = join(KAYDO_HORNS(1.7, rgb(240, 200, 90)), KAYDO_FACE, KAYDO_WHISKERS, KAYDO_TAIL, kanabo("Right Arm", V(0.1, -1.0, -0.3), V(0.1, -0.42, -1), 3.6, 0.56)),
 			},
 		},
 		attack = { kind = "flame", color = rgb(255, 100, 40), name = "Souffle du Dragon" },
@@ -2443,51 +3098,60 @@ Characters.List = {
 	},
 	-- Ère des Pourfendeurs -----------------------------------------------
 	pou_muzon = {
-		-- Le roi des démons : chapeau blanc, costume noir, peau pâle, yeux rouges fendus
+		-- Le roi des démons : chapeau mou blanc, costume noir, chemise blanche et cravate rouge,
+		-- peau pâle, yeux rouges fendus et luisants
 		name = "Muzon",
 		universe = "pourfendeur",
 		rarity = "secret",
 		look = {
 			headScale = Vector3.new(0.94, 1.03, 0.96),
-			skin = rgb(250, 230, 220),
-			hair = "messy",
+			skin = rgb(250, 232, 224),
+			hair = "short",
 			hairColor = rgb(20, 18, 24),
-			top = rgb(26, 26, 32),
-			topAccent = rgb(238, 236, 232),
-			bottom = rgb(26, 26, 32),
+			top = rgb(24, 24, 30),
+			topAccent = rgb(242, 240, 236),
+			bottom = rgb(24, 24, 30),
 			outfit = "suit",
 			pantsStyle = "plain",
 			footwear = "shoes",
 			shoes = rgb(20, 20, 24),
-			eyes = rgb(214, 28, 40),
+			eyes = rgb(220, 30, 44),
 			pupil = "slit",
+			eyeGlow = true,
 			face = "calm",
 			eyeStyle = "narrow",
 			mouthStyle = "sneer",
 			browStyle = "flat",
 			accessories = { "earrings_stud" },
 			accColor = rgb(214, 28, 40),
+			props = join(fedora(rgb(244, 242, 236), rgb(30, 28, 34)), MUZON_TIE, cuffs(rgb(244, 242, 236), 0.4, -0.8)),
 		},
 		evolve = {
-			-- ★★ : griffes et aura de sang
-			[2] = { accessories = { "earrings_stud", "claws", "energy_aura" }, clawColor = rgb(180, 20, 40), auraColor = rgb(170, 20, 40) },
-			-- ★★★ : forme démoniaque ultime (longs cheveux blancs, veines rouges, aura)
+			-- ★★ : chapeau ôté, cheveux ondulés, fouets de chair dans le dos, griffes
+			[2] = {
+				hair = "curly",
+				accessories = { "earrings_stud", "claws" },
+				clawColor = rgb(180, 20, 40),
+				props = join(MUZON_TIE, MUZON_WHIPS(4)),
+			},
+			-- ★★★ : forme démoniaque ultime (longs cheveux blancs, veines rouges, six fouets)
 			[3] = {
 				hair = "wild_long",
 				hairColor = rgb(240, 238, 244),
-				eyeGlow = true,
 				armVeins = rgb(180, 30, 50),
 				accessories = { "claws", "ssj_aura", "steam" },
 				clawColor = rgb(180, 20, 40),
 				auraColor = rgb(200, 20, 50),
 				steamColor = rgb(120, 20, 40),
+				props = join(MUZON_TIE, MUZON_WHIPS(6)),
 			},
 		},
 		attack = { kind = "shadow", color = rgb(170, 20, 40), name = "Fouets de Chair" },
 		fusion = { prefix = "Démoniaque", suffix = "des Démons" },
 	},
 	pou_doma = {
-		-- La deuxième lune : cheveux clairs tachés de sang, yeux arc-en-ciel gravés, sourire figé, haori
+		-- La deuxième lune : cheveux clairs tachés de sang sur le dessus, yeux arc-en-ciel gravés,
+		-- sourire figé, haori, éventails dorés
 		name = "Doma",
 		universe = "pourfendeur",
 		rarity = "mythic",
@@ -2495,7 +3159,6 @@ Characters.List = {
 			skin = rgb(250, 234, 224),
 			hair = "tousled",
 			hairColor = rgb(238, 230, 210),
-			hairTip = rgb(170, 30, 40),
 			top = rgb(34, 30, 36),
 			topAccent = rgb(170, 30, 40),
 			bottom = rgb(34, 30, 36),
@@ -2512,25 +3175,32 @@ Characters.List = {
 			browStyle = "raised",
 			accessories = { "haori" },
 			accColor = rgb(236, 232, 226),
+			props = join(DOMA_BLOOD, fan("Right Arm", false), fan("Left Arm", false)),
 		},
 		evolve = {
-			-- ★★ : éventails de glace (glace dans les mains, aura glacée)
-			[2] = { accessories = { "haori", "energy_fists", "energy_aura" }, energyColor = rgb(170, 220, 255), auraColor = rgb(170, 220, 255) },
-			-- ★★★ : bodhisattva de glace (peau givrée, lame de glace, yeux brillants)
+			-- ★★ : éventails ouverts, chargés de glace (glace bleue dans les mains)
+			[2] = {
+				accessories = { "haori", "energy_fists" },
+				energyColor = rgb(170, 220, 255),
+				props = join(DOMA_BLOOD, fan("Right Arm", true, rgb(170, 220, 255)), fan("Left Arm", true, rgb(170, 220, 255))),
+			},
+			-- ★★★ : bodhisattva de glace (peau givrée, cristaux de glace sur les épaules)
 			[3] = {
 				skin = rgb(226, 238, 250),
 				hairColor = rgb(236, 244, 255),
 				eyeGlow = true,
-				accessories = { "haori", "water_blade", "ssj_aura" },
+				accessories = { "haori", "energy_fists", "ssj_aura" },
 				energyColor = rgb(170, 220, 255),
 				auraColor = rgb(190, 230, 255),
+				props = join(DOMA_BLOOD, fan("Right Arm", true, rgb(170, 220, 255)), fan("Left Arm", true, rgb(170, 220, 255)), ICE_CRYSTALS),
 			},
 		},
 		attack = { kind = "ice", color = rgb(170, 220, 255), name = "Lotus de Glace" },
 		fusion = { prefix = "Glacial", suffix = "de la Deuxième Lune" },
 	},
 	pou_tengan = {
-		-- Le pilier du son : cheveux blancs, bandeau orné, maquillage rouge à l'œil, sans manches, couperets dans le dos
+		-- Le pilier du son : cheveux blancs, bandeau à gemmes, maquillage rouge à l'œil, sans manches,
+		-- deux couperets croisés dans le dos reliés par une chaîne
 		name = "Tengan",
 		universe = "pourfendeur",
 		rarity = "legendary",
@@ -2553,23 +3223,24 @@ Characters.List = {
 			eyeStyle = "sharp",
 			mouthStyle = "grin",
 			browStyle = "bold",
-			accessories = { "earrings_gold", "big_sword", "wristbands" },
+			accessories = { "earrings_gold", "wristbands" },
 			accColor = rgb(160, 160, 170),
+			props = join(gemHeadband(), crossedCleavers()),
 		},
 		evolve = {
-			-- ★★ : souffle du son (perles explosives dans les mains, aura)
+			-- ★★ : partition de combat : un couperet dans chaque main, chaîne tendue
 			[2] = {
-				accessories = { "earrings_gold", "big_sword", "wristbands", "energy_fists", "energy_aura" },
-				energyColor = rgb(255, 150, 80),
+				accessories = { "earrings_gold", "wristbands", "energy_aura" },
 				auraColor = rgb(255, 150, 80),
+				props = join(gemHeadband(), TENGAN_DUAL),
 			},
-			-- ★★★ : partition de combat (cheveux lâchés, œil balafré, aura flamboyante)
+			-- ★★★ : cheveux lâchés, œil balafré, perles explosives
 			[3] = {
 				hair = "wild_long",
 				eyeGlow = true,
-				accessories = { "earrings_gold", "big_sword", "wristbands", "scar_eye", "energy_fists", "ssj_aura" },
-				energyColor = rgb(255, 150, 80),
+				accessories = { "earrings_gold", "wristbands", "scar_eye", "ssj_aura" },
 				auraColor = rgb(255, 160, 90),
+				props = join(gemHeadband(), TENGAN_DUAL, BEADS),
 			},
 		},
 		attack = { kind = "flame", color = rgb(255, 140, 80), name = "Souffle du Son : Explosion" },
