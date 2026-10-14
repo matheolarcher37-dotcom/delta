@@ -3684,7 +3684,7 @@ local function paintProp(ctx, part: BasePart, color: Color3, paint)
 					S:rect(0.5, y1 - (y1 - y0) * 0.16, 1, (y1 - y0) * 0.3, Painter.celShadow(color), { z = 2 })
 					S:rect(0.5, y1 - 0.012, 1, S:dy(0.06), ink, { z = 4 })
 					-- Aperçus des menus (peinture en pièces) : bandes seules, sans lacets ni rivets
-					local n = lite and 0 or math.max(2, math.floor(S.w / 0.42 + 0.5))
+					local n = lite and 0 or math.max(2, math.floor(S.w / 0.6 + 0.5))
 					if not lite then
 						S:rect(0.5, y0 + (y1 - y0) * 0.3, 1, (y1 - y0) * 0.38, Painter.lighten(color, 0.12), { z = 2 })
 					end

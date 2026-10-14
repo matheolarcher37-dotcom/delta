@@ -479,7 +479,8 @@ local RADAMA_ARMOR = {
 }
 for _, side in { { "Left Arm", -1 }, { "Right Arm", 1 } } do
 	local limb, s = side[1], side[2]
-	-- épaulière : un seul bloc incliné peint de 3 rangées de lamelles (face, dos, côté extérieur)
+	-- épaulière : un seul bloc incliné peint de 3 rangées de lamelles (face et côté extérieur ;
+	-- le dos, sous la crinière, reste uni : budget de peinture)
 	table.insert(RADAMA_ARMOR, {
 		shape = "block",
 		limb = limb,
@@ -487,7 +488,7 @@ for _, side in { { "Left Arm", -1 }, { "Right Arm", 1 } } do
 		rot = V(0, 0, -s * 12),
 		size = V(1.18, 0.66, 1.22),
 		color = RADAMA_RED,
-		paint = lamellar(3, { "Front", "Back", s < 0 and "Left" or "Right" }, { rivet = false }),
+		paint = lamellar(3, { "Front", s < 0 and "Left" or "Right" }, { rivet = false }),
 	})
 	-- Protège-avant-bras rouge (le coude reste noir)
 	table.insert(RADAMA_ARMOR, { shape = "block", limb = limb, at = V(0, -0.5, 0), size = V(1.08, 0.72, 1.08), color = RADAMA_RED })
@@ -530,10 +531,20 @@ for _, s in { -1, 1 } do
 			p.noPreview = i <= 2
 			table.insert(SUSANOO_RIBS, p)
 		end
-		-- boules de raccord sur le flanc (là où la côte tourne le plus : pas de jour entre les segments)
+		-- boules de raccord sur le flanc (là où la côte tourne le plus : pas de jour entre les segments ;
+		-- omises dans les aperçus des menus)
 		for i = 3, 4 do
 			local d = diameters[i] * 1.05
-			table.insert(SUSANOO_RIBS, { shape = "ball", limb = "Torso", at = points[i], size = V(d, d, d), color = SUSANOO_BLUE, material = "Neon", transparency = 0.35 })
+			table.insert(SUSANOO_RIBS, {
+				shape = "ball",
+				limb = "Torso",
+				at = points[i],
+				size = V(d, d, d),
+				color = SUSANOO_BLUE,
+				material = "Neon",
+				transparency = 0.35,
+				noPreview = true, -- aperçus des menus : budget de pièces
+			})
 		end
 	end
 end
@@ -687,9 +698,9 @@ local function HAKARO_HAIR(c: Color3)
 		-- dessus plaqué vers l'arrière : calotte basse et étroite (les côtés restent rasés)
 		{ shape = "ball", limb = "Head", at = V(0, 0.5, 0.16), size = V(1.08, 0.66, 1.3), color = c, name = "HairCap" },
 		-- banane : haut mur de cheveux qui monte du front en penchant vers l'avant...
-		{ shape = "strand", limb = "Head", at = V(0, 0.55, -0.4), dir = V(0, 1, -0.55), length = 0.95, width = 0.98, depth = 0.55, color = c },
+		{ shape = "strand", limb = "Head", at = V(0, 0.55, -0.4), dir = V(0, 1, -0.55), length = 0.95, width = 0.82, depth = 0.55, color = c },
 		-- ... et s'enroule vers l'avant au sommet (vague)
-		{ shape = "strand", limb = "Head", at = V(0, 1.12, -0.5), dir = V(0, -0.15, -1), length = 0.62, width = 0.86, depth = 0.4, color = c },
+		{ shape = "strand", limb = "Head", at = V(0, 1.12, -0.5), dir = V(0, -0.15, -1), length = 0.62, width = 0.74, depth = 0.4, color = c },
 		{ shape = "strand", limb = "Head", at = V(0.18, 1.2, -0.45), dir = V(0.05, -0.1, -1), length = 0.5, width = 0.3, depth = 0.18, color = shine },
 		-- pointe qui retombe au-dessus du front
 		{ shape = "spike", limb = "Head", at = V(0.04, 1.06, -0.98), dir = V(0.05, -0.85, -0.45), length = 0.38, width = 0.32, color = c },
@@ -709,7 +720,7 @@ local function HAKARO_HAIR(c: Color3)
 	end
 	-- côtés de la banane lissés vers l'arrière (raccord avec la calotte)
 	for _, sx in { -1, 1 } do
-		table.insert(out, { shape = "strand", limb = "Head", at = V(sx * 0.4, 0.82, -0.4), dir = V(sx * 0.1, -0.3, 1), length = 0.9, width = 0.22, depth = 0.3, color = deep })
+		table.insert(out, { shape = "strand", limb = "Head", at = V(sx * 0.36, 0.84, -0.38), dir = V(sx * 0.08, -0.3, 1), length = 0.72, width = 0.22, depth = 0.3, color = deep })
 	end
 	-- tempes et arrière rasés : duvet gris foncé à grain court sous la calotte
 	table.insert(out, { shape = "ball", limb = "Head", at = V(0, 0.22, 0.1), size = V(1.24, 0.5, 1.26), color = rgb(84, 88, 82), name = "Shaved" })
@@ -782,6 +793,7 @@ table.insert(MINATU_KCM, {
 	size = V(2.2, 2.4, 0.08),
 	color = rgb(255, 160, 40),
 	paint = { kind = "strokes", faces = { "Back" }, ink = KCM_INK, lines = KCM_COAT_LINES, dots = { { 0.5, 0.3, 0.5, 0.5, rgb(255, 214, 90) } } },
+	noPreview = true, -- dos du manteau : invisible dans les aperçus des menus (vus de face)
 })
 for i, x in { -0.81, -0.27, 0.27, 0.81 } do
 	local h = (i % 2 == 0) and 0.95 or 0.7
@@ -938,14 +950,11 @@ local function CEL_BODY(plate: Color3, wing: Color3?)
 end
 -- Queue à dard (forme imparfaite) : 3 segments coniques qui s'affinent et se recourbent vers le
 -- haut, joints arrondis, dard blanc au bout.
-local CEL_TAIL = join(
-	rods("Torso", { V(0, -0.85, 0.5), V(0, -1.65, 1.35), V(0.15, -1.9, 2.35), V(0.35, -1.3, 3.05) }, { 0.5, 0.38, 0.26 }, rgb(54, 84, 46)),
-	{
-		{ shape = "ball", limb = "Torso", at = V(0, -1.65, 1.35), size = V(0.46, 0.46, 0.46), color = rgb(54, 84, 46) },
-		{ shape = "ball", limb = "Torso", at = V(0.15, -1.9, 2.35), size = V(0.34, 0.34, 0.34), color = CEL_SPOT },
-		{ shape = "spike", limb = "Torso", at = V(0.38, -1.25, 3.08), dir = V(0.15, 1, 0.45), length = 0.8, width = 0.3, color = rgb(236, 226, 206) },
-	}
-)
+local CEL_TAIL = join(rods("Torso", { V(0, -0.85, 0.5), V(0, -1.65, 1.35), V(0.15, -1.9, 2.35), V(0.35, -1.3, 3.05) }, { 0.5, 0.38, 0.26 }, rgb(54, 84, 46)), {
+	{ shape = "ball", limb = "Torso", at = V(0, -1.65, 1.35), size = V(0.46, 0.46, 0.46), color = rgb(54, 84, 46) },
+	{ shape = "ball", limb = "Torso", at = V(0.15, -1.9, 2.35), size = V(0.34, 0.34, 0.34), color = CEL_SPOT },
+	{ shape = "spike", limb = "Torso", at = V(0.38, -1.25, 3.08), dir = V(0.15, 1, 0.45), length = 0.8, width = 0.3, color = rgb(236, 226, 206) },
+})
 -- Cel ★3 : arcs électriques bleus (zigzags néon) autour des bras et du torse
 local CEL_SPARKS = {}
 for _, arc in
@@ -3046,9 +3055,8 @@ Characters.List = {
 			bottom = rgb(36, 30, 40),
 			outfit = "armor",
 			sleeveColor = rgb(36, 30, 40),
-			armband = rgb(150, 34, 40),
 			sleeves = "long",
-			pantsStyle = "ninja",
+			pantsStyle = "plain", -- jambes à moitié cachées par les tassettes (budget de peinture)
 			legWraps = rgb(58, 52, 64),
 			footwear = "sandals",
 			shoes = rgb(30, 28, 36),
