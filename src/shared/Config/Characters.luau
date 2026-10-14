@@ -299,8 +299,8 @@ local function fan(limb: string, open: boolean, tint: Color3?)
 end
 
 -- Kunai à trois branches (éclair jaune) tenu dans la main.
-local function kunai3(limb: string)
-	local at, d = V(0, -1.05, -0.2), V(0, -0.15, -1).Unit
+local function kunai3(limb: string, pos: Vector3?, dir: Vector3?)
+	local at, d = pos or V(0, -1.05, -0.2), (dir or V(0, -0.15, -1)).Unit
 	return {
 		{ shape = "cyl", limb = limb, at = at - d * 0.35, dir = d, size = V(0.42, 0.12, 0), color = rgb(30, 30, 34) },
 		{ shape = "cyl", limb = limb, at = at - d * 0.42, dir = d, size = V(0.05, 0.22, 0), color = rgb(190, 190, 200), material = "Metal" },
@@ -308,6 +308,15 @@ local function kunai3(limb: string)
 		{ shape = "block", limb = limb, at = at + d * 0.08, dir = (d + V(0.55, 0.1, 0)), size = V(0.1, 0.42, 0.04), color = rgb(200, 200, 210), material = "Metal" },
 		{ shape = "block", limb = limb, at = at + d * 0.08, dir = (d + V(-0.55, 0.1, 0)), size = V(0.1, 0.42, 0.04), color = rgb(200, 200, 210), material = "Metal" },
 	}
+end
+
+-- Kunais marqués lancés autour du perso (téléportation de l'éclair jaune), pointe vers le bas
+local MINATU_KUNAIS = {}
+for _, k in { { -2.3, 1.2, -0.6, 25 }, { 2.7, 1.5, -0.8, -20 }, { -1.9, -1.6, -1.1, 10 } } do
+	local a = math.rad(k[4])
+	for _, piece in kunai3("Torso", V(k[1], k[2], k[3]), V(math.sin(a), -1, 0)) do
+		table.insert(MINATU_KUNAIS, piece)
+	end
 end
 
 -- Katana dégainé tenu dans la main (lame, garde ronde, poignée tressée).
@@ -2545,11 +2554,12 @@ Characters.List = {
 			accColor = rgb(240, 238, 232),
 		},
 		evolve = {
-			-- ★★ : kunai à trois branches dans la main droite, orbe spirale dans la gauche
+			-- ★★ : kunai à trois branches dans la main droite, orbe spirale dans la gauche, kunais marqués
+			-- lancés tout autour de lui (bien visibles de face)
 			[2] = {
 				accessories = { "headband", "haori_flame", "energy_fists" },
 				energyColor = rgb(90, 190, 255),
-				props = kunai3("Right Arm"),
+				props = join(kunai3("Right Arm"), MINATU_KUNAIS),
 			},
 			-- ★★★ : mode chakra du renard (corps doré à motifs noirs, cape)
 			[3] = {
