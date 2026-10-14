@@ -65,7 +65,7 @@ local ENUM_TO_FACE = {
 ------------------------------------------------------------------------
 -- Raretés (communes à tout le jeu)
 -- Commun gris · Peu commun vert · Rare bleu · Épique violet · Légendaire or · Mythique rouge
--- · Secret noir/arc-en-ciel · Crossover (fusions) turquoise/arc-en-ciel.
+-- · Secret blanc nacré/arc-en-ciel · Crossover (fusions) turquoise/arc-en-ciel.
 ------------------------------------------------------------------------
 
 local RARITY = {
@@ -75,7 +75,7 @@ local RARITY = {
 	epic = { name = "Épique", order = 4, color = rgb(176, 92, 255), dark = rgb(70, 26, 140) },
 	legendary = { name = "Légendaire", order = 5, color = rgb(255, 190, 40), dark = rgb(150, 86, 6) },
 	mythic = { name = "Mythique", order = 6, color = rgb(255, 52, 64), dark = rgb(130, 10, 26) },
-	secret = { name = "Secret", order = 7, color = rgb(28, 24, 36), dark = rgb(6, 6, 10), rainbow = true },
+	secret = { name = "Secret", order = 7, color = rgb(246, 240, 255), dark = rgb(40, 30, 64), rainbow = true },
 	crossover = { name = "Crossover", order = 8, color = rgb(80, 255, 220), dark = rgb(20, 90, 110), rainbow = true },
 }
 Theme.RarityOrder = { "common", "uncommon", "rare", "epic", "legendary", "mythic", "secret", "crossover" }

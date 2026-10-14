@@ -492,13 +492,44 @@ test("Pitié : Légendaire, Mythique et Secret garantis au seuil", function()
 		assert(got >= Economy.RollRarities[tier].order, tier .. " non garanti (obtenu " .. results[1].rarity .. ")")
 		assert(data.Pity[tier] == 0, "compteur de pitié non remis à zéro : " .. tier)
 	end
-	-- Le Secret = le Mythique de l'univers avec l'aura Arc-en-ciel.
+	-- Le Secret = le perso Secret de l'univers (rareté de base « secret ») avec l'aura Arc-en-ciel.
 	local secret = data.RolledQueue[1]
 	assert(secret.aura == "arcenciel" and secret.trait, "Secret sans aura ni trait")
+	local SECRETS = { "ninja_radama", "occ_sukana", "sai_gojita", "oce_kaydo", "pou_muzon" }
+	assert(table.find(SECRETS, secret.id), "le palier Secret a tiré " .. tostring(secret.id) .. " (pas un perso Secret)")
 	local panel = services.PlotService:GetPlot(alice).machine.pityLines.legendary
 	assert(panel.Text:find("rouleaux") or panel.Text:find("PROCHAIN"), "panneau de pitié non mis à jour")
 	table.clear(data.RolledQueue)
 	services.RollService:RenderStage(alice)
+end)
+
+test("Palier Secret : tire le perso Secret de chaque univers, jamais un autre", function()
+	local Universes = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Universes"))
+	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
+	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	assert(Economy.RollRarities.secret.charRarity == "secret", "le palier Secret ne tire pas la rareté secret")
+	assert((Economy.EvolutionRarityMult.secret or 0) >= Economy.EvolutionRarityMult.mythic, "évolution d'un Secret trop bon marché")
+	local stats = Formulas.playerStats(DataService:Get(alice))
+	local SECRETS = { "ninja_radama", "occ_sukana", "sai_gojita", "oce_kaydo", "pou_muzon" }
+	local seen = {}
+	for _, universe in Universes.List do
+		for _ = 1, 6 do
+			local item = services.RollService:MakeItem(universe, "secret", stats)
+			assert(table.find(SECRETS, item.id), universe.id .. " : palier Secret -> " .. tostring(item.id))
+			assert(Characters.get(item.id).rarity == "secret", item.id .. " n'est pas de rareté secret")
+			assert(table.find(universe.characters, item.id), item.id .. " hors du pool de " .. universe.id)
+			seen[item.id] = true
+		end
+		-- Le palier Mythique ne donne jamais un Secret.
+		for _ = 1, 6 do
+			local item = services.RollService:MakeItem(universe, "mythic", stats)
+			assert(Characters.get(item.id).rarity == "mythic", universe.id .. " : palier Mythique -> " .. item.id)
+		end
+	end
+	for _, id in SECRETS do
+		assert(seen[id], "Secret jamais tiré : " .. id)
+	end
 end)
 
 test("Chance x10 : tous les N roulages", function()

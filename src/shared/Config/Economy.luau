@@ -45,6 +45,7 @@ Economy.EvolutionRarityMult = {
 	epic = 2,
 	legendary = 4,
 	mythic = 8,
+	secret = 16,
 	crossover = 12,
 }
 
@@ -76,7 +77,7 @@ Economy.IncomeFactor = 0.15
 ------------------------------------------------------------------------
 
 -- Raretés de la machine (de la plus commune à la plus rare).
---   charRarity   = rareté des persos tirés (Config/Rarities : common, rare, epic, legendary, mythic)
+--   charRarity   = rareté des persos tirés (Config/Rarities : common, rare, epic, legendary, mythic, secret)
 --   traitMinTier = trait garanti (palier minimum) ; aura = aura garantie
 --   odds         = chance en % (avant la chance de l'arbre) ; price = prix de base en ¥ (pièces)
 Economy.RollOrder = { "common", "uncommon", "rare", "epic", "legendary", "mythic", "secret" }
@@ -146,7 +147,7 @@ Economy.RollRarities = {
 		id = "secret",
 		name = "Secret",
 		order = 7,
-		color = Color3.fromRGB(20, 18, 26),
+		color = Color3.fromRGB(246, 240, 255), -- blanc nacré (même couleur unie que Rarities.secret)
 		gradient = {
 			Color3.fromRGB(255, 80, 80),
 			Color3.fromRGB(255, 220, 60),
@@ -155,7 +156,7 @@ Economy.RollRarities = {
 			Color3.fromRGB(220, 90, 255),
 		},
 		rainbow = true,
-		charRarity = "mythic", -- le Mythique de l'univers, en version Secrète :
+		charRarity = "secret", -- le perso Secret de l'univers (Radama, Sukana, Gojita, Kaydo, Muzon) :
 		aura = "arcenciel", -- aura Arc-en-ciel garantie
 		traitMinTier = 3, -- et un trait rare garanti
 		odds = 0.01,
