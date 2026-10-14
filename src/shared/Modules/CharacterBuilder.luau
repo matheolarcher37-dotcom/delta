@@ -605,10 +605,11 @@ local function cap(ctx, color: Color3, o)
 			local main, shine = ctx.napeTidy.color, ctx.napeTidy.shine
 			length *= 0.7
 			local top = 0.66
-			ctx.ball("Head", "HairNape", Vector3.new(1.26 + grow, length, 0.92 + grow * 0.5), CFrame.new(0, top - length / 2, 0.2), main)
-			local bottom = top - length + 0.12
-			for i, x in { -0.36, -0.12, 0.12, 0.36 } do
-				ctx.strand("Head", (i == 2) and shine or main, Vector3.new(x, bottom + 0.1, 0.5 - math.abs(x) * 0.25), Vector3.new(x * 0.5, -1, 0.3), 0.42, 0.26, 0.14)
+			ctx.ball("Head", "HairNape", Vector3.new(1.28 + grow, length, 0.86 + grow * 0.5), CFrame.new(0, top - length / 2, 0.3), main)
+			-- mèches de nuque qui sortent du volume (leur haut est caché dedans) et retombent
+			local from = top - length * 0.62
+			for i, x in { -0.4, -0.14, 0.14, 0.4 } do
+				ctx.strand("Head", (i == 2) and shine or main, Vector3.new(x, from, 0.62 - math.abs(x) * 0.22), Vector3.new(x * 0.45, -1, 0.12), 0.5, 0.38, 0.16)
 			end
 		else
 			ctx.ball("Head", "HairNape", Vector3.new(1.24 + grow, length, 0.9 + grow * 0.5), CFrame.new(0, 0.42 - length / 2 + (opts.napeLift or 0), 0.19), opts.color2 or color)

@@ -200,10 +200,11 @@ local function spottedHat()
 	local out = {
 		{ shape = "strand", limb = "Head", at = V(-0.6, 0.3, -0.12), dir = V(-0.1, -1, 0), length = 0.5, width = 0.16, depth = 0.1, color = rgb(26, 24, 30) },
 		{ shape = "strand", limb = "Head", at = V(0.6, 0.3, -0.12), dir = V(0.1, -1, 0), length = 0.5, width = 0.16, depth = 0.1, color = rgb(26, 24, 30) },
-		{ shape = "ball", limb = "Head", at = V(0, 0.34, 0.4), size = V(1.16, 0.4, 0.44), color = rgb(26, 24, 30) },
-		{ shape = "strand", limb = "Head", at = V(-0.28, 0.22, 0.5), dir = V(-0.15, -1, 0.3), length = 0.36, width = 0.24, depth = 0.12, color = rgb(26, 24, 30) },
-		{ shape = "strand", limb = "Head", at = V(0.0, 0.22, 0.56), dir = V(0, -1, 0.3), length = 0.38, width = 0.24, depth = 0.12, color = rgb(60, 62, 80) },
-		{ shape = "strand", limb = "Head", at = V(0.28, 0.22, 0.5), dir = V(0.15, -1, 0.3), length = 0.36, width = 0.24, depth = 0.12, color = rgb(26, 24, 30) },
+		-- cheveux courts de la nuque : plaque arrondie collée à l'arrière du crâne, bas en mèches
+		{ shape = "rounded", limb = "Head", at = V(0, 0.12, 0.6), size = V(1.16, 0.62, 0.12), radius = 0.1, color = rgb(26, 24, 30) },
+		{ shape = "strand", limb = "Head", at = V(-0.26, -0.08, 0.62), dir = V(-0.1, -1, 0.1), length = 0.34, width = 0.42, depth = 0.1, color = rgb(26, 24, 30) },
+		{ shape = "strand", limb = "Head", at = V(0.0, -0.08, 0.64), dir = V(0, -1, 0.1), length = 0.38, width = 0.42, depth = 0.1, color = rgb(40, 40, 52) },
+		{ shape = "strand", limb = "Head", at = V(0.26, -0.08, 0.62), dir = V(0.1, -1, 0.1), length = 0.34, width = 0.42, depth = 0.1, color = rgb(26, 24, 30) },
 		{ shape = "ball", limb = "Head", at = V(0, 0.62, 0.03), size = V(1.42, 1.06, 1.44), color = white },
 		{ shape = "cyl", limb = "Head", at = V(0, 0.36, 0.03), rot = V(0, 0, 90), size = V(0.3, 1.5, 0), color = white:Lerp(rgb(0, 0, 0), 0.06) },
 	}
@@ -454,10 +455,12 @@ for _, s in { -1, 1 } do
 	end
 end
 -- Crâne / casque spectral au-dessus de la tête, mâchoire, deux cornes recourbées
-for _, p in {
-	{ shape = "ball", limb = "Head", at = V(0, 1.45, 0.3), size = V(1.8, 0.9, 1.7), color = SUSANOO_BLUE, material = "Neon", transparency = 0.55, name = "SusanooSkull" },
-	{ shape = "block", limb = "Head", at = V(0, 1.2, -0.4), rot = V(-12, 0, 0), size = V(1.3, 0.16, 0.5), color = SUSANOO_BLUE, material = "Neon", transparency = 0.4 },
-} do
+for _, p in
+	{
+		{ shape = "ball", limb = "Head", at = V(0, 1.45, 0.3), size = V(1.8, 0.9, 1.7), color = SUSANOO_BLUE, material = "Neon", transparency = 0.55, name = "SusanooSkull" },
+		{ shape = "block", limb = "Head", at = V(0, 1.2, -0.4), rot = V(-12, 0, 0), size = V(1.3, 0.16, 0.5), color = SUSANOO_BLUE, material = "Neon", transparency = 0.4 },
+	}
+do
 	table.insert(SUSANOO_RIBS, p)
 end
 for _, s in { -1, 1 } do
@@ -576,7 +579,16 @@ local function HAKARO_HAIR(c: Color3)
 		{ shape = "ball", limb = "Head", at = V(0, 0.36, 0.44), size = V(1.04, 0.56, 0.56), color = c:Lerp(rgb(0, 0, 0), 0.2) },
 	}
 	for i, x in { -0.22, 0.22 } do
-		table.insert(out, { shape = "strand", limb = "Head", at = V(x, 1.12, -0.32), dir = V(x * 0.4, -0.3, 1), length = 1.0, width = 0.22, depth = 0.1, color = i == 1 and shine or c:Lerp(rgb(0, 0, 0), 0.12) })
+		table.insert(out, {
+			shape = "strand",
+			limb = "Head",
+			at = V(x, 1.12, -0.32),
+			dir = V(x * 0.4, -0.3, 1),
+			length = 1.0,
+			width = 0.22,
+			depth = 0.1,
+			color = i == 1 and shine or c:Lerp(rgb(0, 0, 0), 0.12),
+		})
 	end
 	for _, s in { -1, 1 } do
 		-- tempes rasées (duvet foncé peint à même la tête) sous le volume
@@ -636,22 +648,37 @@ for _, side in { { "Left Arm", "Left" }, { "Right Arm", "Right" } } do
 		},
 	})
 end
--- Manteau de chakra : dos et pans avant, bas en langues de flamme (néon léger)
-table.insert(MINATU_KCM, { shape = "block", limb = "Torso", at = V(0, -0.45, 0.6), rot = V(6, 0, 0), size = V(2.2, 2.6, 0.08), color = rgb(255, 150, 36) })
-for _, s in { -1, 1 } do
-	table.insert(MINATU_KCM, { shape = "block", limb = "Torso", at = V(s * 0.86, -0.45, -0.6), size = V(0.34, 2.6, 0.06), color = rgb(255, 150, 36) })
+-- Manteau de chakra dans le dos, bas découpé en langues de flamme (deux demi-coins en miroir
+-- par flamme, néon léger)
+local KCM_COAT_LINES = { { 0.06, 0.04, 0.94, 0.04, 0.14 } }
+for _, x in { 0.12, 0.36, 0.64, 0.88 } do
+	table.insert(KCM_COAT_LINES, { x, 0.98, x + 0.05, 0.78, 0.07 })
+	table.insert(KCM_COAT_LINES, { x + 0.05, 0.78, x - 0.03, 0.62, 0.05 })
 end
-for i, x in { -0.84, -0.42, 0, 0.42, 0.84 } do
-	table.insert(MINATU_KCM, {
-		shape = "ball",
-		limb = "Torso",
-		at = V(x, -1.62, 0.76),
-		dir = V(x * 0.2, -1, 0.22),
-		size = V(0.42, (i % 2 == 0) and 0.6 or 0.9, 0.08),
-		color = (i % 2 == 0) and rgb(255, 200, 70) or rgb(255, 110, 24),
-		material = "Neon",
-		transparency = 0.15,
-	})
+table.insert(MINATU_KCM, {
+	shape = "block",
+	limb = "Torso",
+	at = V(0, -0.35, 0.6),
+	rot = V(6, 0, 0),
+	size = V(2.2, 2.4, 0.08),
+	color = rgb(255, 160, 40),
+	paint = { kind = "strokes", faces = { "Back" }, ink = KCM_INK, lines = KCM_COAT_LINES, dots = { { 0.5, 0.3, 0.5, 0.5, rgb(255, 214, 90) } } },
+})
+for i, x in { -0.81, -0.27, 0.27, 0.81 } do
+	local h = (i % 2 == 0) and 0.95 or 0.7
+	local color = (i % 2 == 0) and rgb(255, 120, 24) or rgb(255, 196, 64)
+	for _, side in { -1, 1 } do
+		table.insert(MINATU_KCM, {
+			shape = "wedge",
+			limb = "Torso",
+			at = V(x + side * 0.135, -1.55 - h / 2, 0.68),
+			rot = V(180, side * 90, 0),
+			size = V(0.06, h, 0.27),
+			color = color,
+			material = "Neon",
+			transparency = 0.1,
+		})
+	end
 end
 
 -- Yuuto ★2/★3 : l'esprit maudit (Rika) surgit dans son dos — buste et tête spectraux, puis
@@ -670,7 +697,10 @@ local function rikaArm(s: number)
 	local out = chain("Torso", { V(s * 1.0, 1.8, 1.45), V(s * 2.15, 1.65, 0.85), V(s * 2.25, 1.05, -0.25) }, { 0.52, 0.44 }, RIKA_PALE, RIKA_GHOST)
 	table.insert(out, { shape = "ball", limb = "Torso", at = V(s * 2.2, 0.9, -0.55), size = V(0.72, 0.56, 0.76), color = RIKA_PALE, transparency = 0.3 })
 	for _, x in { -0.27, -0.09, 0.09, 0.27 } do
-		table.insert(out, { shape = "spike", limb = "Torso", at = V(s * 2.2 + x, 0.78, -0.82), dir = V(x * 0.4, -0.45, -1), length = 0.62, width = 0.12, color = rgb(196, 190, 210) })
+		table.insert(
+			out,
+			{ shape = "spike", limb = "Torso", at = V(s * 2.2 + x, 0.78, -0.82), dir = V(x * 0.4, -0.45, -1), length = 0.62, width = 0.12, color = rgb(196, 190, 210) }
+		)
 	end
 	return out
 end
@@ -722,7 +752,10 @@ local function CEL_CREST(color: Color3, k: number)
 		{ shape = "ball", limb = "Head", at = V(0, 0.62, -0.42), rot = V(-20, 0, 0), size = V(0.46, 0.3, 0.36), color = CEL_BLACK },
 	}
 	for _, s in { -1, 1 } do
-		table.insert(out, { shape = "wedge", limb = "Head", at = V(s * 0.36, 0.64 + 0.58 * k, 0.36), rot = V(18, -s * 28, -s * 16), size = V(0.1, 1.24 * k, 1.36), color = CEL_BLACK })
+		table.insert(
+			out,
+			{ shape = "wedge", limb = "Head", at = V(s * 0.36, 0.64 + 0.58 * k, 0.36), rot = V(18, -s * 28, -s * 16), size = V(0.1, 1.24 * k, 1.36), color = CEL_BLACK }
+		)
 		table.insert(out, { shape = "wedge", limb = "Head", at = V(s * 0.48, 0.58 + 0.5 * k, 0.22), rot = V(18, -s * 28, -s * 16), size = V(0.3, 1.12 * k, 1.26), color = color })
 	end
 	return out
@@ -734,7 +767,14 @@ local function CEL_BODY(plate: Color3)
 	end
 	local out = {
 		-- Plastron à taches, ventre et cou blancs
-		{ shape = "block", limb = "Torso", at = V(0, 0.48, -0.54), size = V(1.98, 0.95, 0.08), color = plate, paint = { kind = "strokes", faces = { "Front" }, ink = CEL_SPOT, dots = dots, lines = { { 0.5, 0.05, 0.5, 0.95, 0.04, Color3.fromRGB(40, 70, 40) } } } },
+		{
+			shape = "block",
+			limb = "Torso",
+			at = V(0, 0.48, -0.54),
+			size = V(1.98, 0.95, 0.08),
+			color = plate,
+			paint = { kind = "strokes", faces = { "Front" }, ink = CEL_SPOT, dots = dots, lines = { { 0.5, 0.05, 0.5, 0.95, 0.04, Color3.fromRGB(40, 70, 40) } } },
+		},
 		{
 			shape = "block",
 			limb = "Torso",
