@@ -1224,26 +1224,26 @@ local function chancesTable(parent: Instance, y: number)
 			Icons.make(iconOf(trait.id), ib, { px = 18, color = Theme.light(trait.color, 0.25), ink = INK, zindex = 2 })
 			Theme.label({
 				Text = trait.name,
-				Size = UDim2.new(1, -70, 1, -4),
+				Size = UDim2.new(1, -64, 1, -4),
 				Position = UDim2.fromOffset(24, 2),
 				FontFace = Theme.Faces.Heavy,
 				TextColor3 = mine and WHITE or Theme.light(trait.color, 0.4),
 				TextXAlignment = Enum.TextXAlignment.Left,
 				StrokeThickness = 1.5,
-				MaxSize = 14,
+				MaxSize = 12, -- même taille pour tous les noms (les plus longs tiennent à 12)
 				ZIndex = 2,
 				Parent = line,
 			})
 			Theme.label({
 				Text = percent(Traits.chance(trait.id)),
 				AnchorPoint = Vector2.new(1, 0),
-				Size = UDim2.new(0, 46, 1, -4),
+				Size = UDim2.new(0, 38, 1, -4),
 				Position = UDim2.new(1, -4, 0, 2),
 				FontFace = Theme.Faces.Heavy,
 				TextColor3 = WHITE,
 				TextXAlignment = Enum.TextXAlignment.Right,
 				StrokeThickness = 1.5,
-				MaxSize = 13,
+				MaxSize = 11,
 				ZIndex = 2,
 				Parent = line,
 			})

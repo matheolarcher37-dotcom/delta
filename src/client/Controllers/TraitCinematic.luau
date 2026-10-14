@@ -1457,12 +1457,13 @@ local function celesteScene(scene)
 		local seg = part(scene, "HaloSeg", Vector3.new(0.5, 0.12, 0.16), CFrame.new(), Color3.fromRGB(255, 248, 200), Enum.Material.Neon, nil, 1)
 		table.insert(haloSegs, { part = seg, a = i / 16 * math.pi * 2 })
 	end
-	-- Ailes de lumière : 6 rémiges par aile, repliées puis déployées en éventail
+	-- Ailes de lumière : 7 rémiges larges par aile, repliées puis déployées en éventail
+	-- (la plus haute est la plus longue, comme le bord d'attaque d'une vraie aile)
 	local wings = {}
 	for _, side in { -1, 1 } do
-		for i = 1, 6 do
-			local len = 3.2 + i * 0.7
-			local feather = wedge(scene, "WingFeather", Vector3.new(0.14, 0.75, len), CFrame.new(), i % 2 == 0 and Color3.fromRGB(235, 250, 255) or SKY, Enum.Material.Neon, 1)
+		for i = 1, 7 do
+			local len = 6.4 - (i - 1) * 0.5
+			local feather = wedge(scene, "WingFeather", Vector3.new(0.14, 1.25, len), CFrame.new(), i % 2 == 0 and Color3.fromRGB(235, 250, 255) or SKY, Enum.Material.Neon, 1)
 			table.insert(wings, { part = feather, side = side, i = i, len = len })
 		end
 	end
@@ -1532,9 +1533,10 @@ local function celesteScene(scene)
 		local flap = math.sin(t * 2.4) * 0.08 * open
 		local shoulder = headTop - 2.2
 		for _, w in wings do
-			local spread = (w.i - 1) / 5
-			local angle = math.rad(-10 + spread * 62) * open + math.rad(4) + flap -- relève en éventail
-			local sweep = math.rad(34 + spread * 16) * open + math.rad(6) -- s'écarte bien du dos (visible de face)
+			local spread = (w.i - 1) / 6
+			-- éventail : de 55° vers le haut (bord d'attaque) à 30° vers le bas (dernières rémiges)
+			local angle = math.rad(55 - spread * 85) * open + math.rad(70) * (1 - open) + flap
+			local sweep = math.rad(16 + spread * 10) * open + math.rad(6) -- presque dans le plan du dos : bien visible de face
 			w.part.Transparency = 1 - open * (0.6 + 0.12 * (w.i % 2))
 			w.part.CFrame = body
 				* CFrame.new(w.side * 0.6, shoulder, 0.75)
@@ -1600,6 +1602,9 @@ local function midasScene(scene)
 		coin.Reflectance = 0.25
 		local angle = rng:NextNumber(0, math.pi * 2)
 		local radius = math.sqrt(rng:NextNumber(0.02, 1)) * 9
+		if math.sin(angle) < 0 then
+			radius = math.min(radius, 5.5) -- côté caméra : les pièces restent loin de l'objectif
+		end
 		table.insert(coins, {
 			part = coin,
 			x = math.cos(angle) * radius,
@@ -1756,12 +1761,12 @@ local function localNight(scene)
 			local clock = from + (target - from) * night
 			set("ClockTime", clock % 24)
 		end
-		local red = Color3.fromRGB(70, 22, 34)
+		local red = Color3.fromRGB(96, 34, 48)
 		if typeof(saved.OutdoorAmbient) == "Color3" then
 			set("OutdoorAmbient", saved.OutdoorAmbient:Lerp(red, night))
 		end
 		if typeof(saved.Ambient) == "Color3" then
-			set("Ambient", saved.Ambient:Lerp(Color3.fromRGB(60, 24, 32), night))
+			set("Ambient", saved.Ambient:Lerp(Color3.fromRGB(84, 36, 46), night))
 		end
 		if typeof(saved.FogColor) == "Color3" then
 			set("FogColor", saved.FogColor:Lerp(Color3.fromRGB(40, 8, 16), night))
@@ -1808,6 +1813,9 @@ local function vampireScene(scene)
 	end
 	local glowPool = part(scene, "BloodPool", Vector3.new(0.05, 8, 8), CFrame.new(0, 0.1, 0) * FLAT, Color3.fromRGB(200, 20, 40), Enum.Material.Neon, CYL, 1)
 	light(glowPool, Color3.fromRGB(255, 40, 60), 2, 16)
+	-- lumière de lune pâle devant l'unité : elle reste lisible en pleine nuit
+	local moonKey = part(scene, "MoonKey", Vector3.new(0.2, 0.2, 0.2), CFrame.new(0, headTop - 1, -4.5), WHITE, Enum.Material.SmoothPlastic, nil, 1)
+	light(moonKey, Color3.fromRGB(255, 196, 206), 1.6, 12)
 	-- Chauves-souris : corps + deux ailes qui battent ; elles jaillissent de l'unité puis tournoient
 	local rng = Random.new(3)
 	local bats = {}
@@ -1834,7 +1842,7 @@ local function vampireScene(scene)
 		-- la nuit tombe (0 -> 1,2 s) : image plus sombre et rouge
 		local night = smooth(t / 1.2)
 		setNight(night)
-		grade.Brightness = -0.08 * night
+		grade.Brightness = -0.04 * night
 		grade.Contrast = 0.18 * night
 		grade.Saturation = -0.25 * night
 		grade.TintColor = WHITE:Lerp(Color3.fromRGB(255, 176, 176), night)
