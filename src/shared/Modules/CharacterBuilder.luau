@@ -2077,6 +2077,28 @@ ACC.haori_flame = function(ctx, look)
 		if kind == "sleeve" then
 			return
 		end
+		if kind == "back" and look.haoriText and not S.lite then
+			-- Inscription verticale dans le dos (ex. « Quatrième Hokage ») : colonne de caractères rouges
+			local chars = {}
+			for _, code in utf8.codes(look.haoriText) do
+				table.insert(chars, utf8.char(code))
+			end
+			local step = math.min(0.13, 0.62 / math.max(1, #chars))
+			for i, ch in chars do
+				local label = Instance.new("TextLabel")
+				label.Name = "HaoriKanji"
+				label.AnchorPoint = Vector2.new(0.5, 0.5)
+				label.Position = UDim2.fromScale(0.5, 0.1 + (i - 0.5) * step)
+				label.Size = UDim2.fromScale(0.22, step * 0.98)
+				label.BackgroundTransparency = 1
+				label.Text = ch
+				label.TextScaled = true
+				label.Font = Enum.Font.Fantasy
+				label.TextColor3 = Color3.fromRGB(180, 30, 30)
+				label.ZIndex = 8
+				label.Parent = S.g
+			end
+		end
 		local n = kind == "back" and 7 or 2
 		for i = 0, n - 1 do
 			local x = (i + 0.5) / n
@@ -2691,6 +2713,33 @@ ACC.bulk = function(ctx, look)
 		ctx.rounded(limb, "Forearm", Vector3.new(1.12, 0.7, 1.1), CFrame.new(out * 0.02, -0.45, 0), lower, 0.2)
 	end
 	ctx.wedge("Torso", "Trapezius", Vector3.new(1.3, 0.34, 0.5), CFrame.new(0, 1.12, 0.22) * CFrame.Angles(0, math.pi, 0), c.top)
+end
+
+-- Éclat des persos Secrets : quelques étincelles arc-en-ciel qui montent du sol à leurs pieds
+-- (discret : signe d'exclusivité visible de loin). Pas dans les aperçus des menus.
+ACC.secret_glint = function(ctx, _look)
+	if ctx.paint == "parts" then
+		return
+	end
+	local base = ctx.add("Torso", "SecretGlint", Vector3.new(2.4, 0.1, 1.6), CFrame.new(0, -2.95, 0), WHITE, { Transparency = 1, CastShadow = false })
+	local keys = {}
+	for k = 0, 5 do
+		table.insert(keys, ColorSequenceKeypoint.new(k / 5, Color3.fromHSV(k / 6, 0.55, 1)))
+	end
+	local glint = Instance.new("ParticleEmitter")
+	glint.Name = "SecretGlint"
+	glint.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	glint.Color = ColorSequence.new(keys)
+	glint.LightEmission = 1
+	glint.LightInfluence = 0
+	glint.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3 * ctx.s), NumberSequenceKeypoint.new(0.5, 0.4 * ctx.s), NumberSequenceKeypoint.new(1, 0) })
+	glint.Lifetime = NumberRange.new(1.2, 1.8)
+	glint.Rate = 4
+	glint.Speed = NumberRange.new(0.8 * ctx.s, 1.6 * ctx.s)
+	glint.SpreadAngle = Vector2.new(15, 15)
+	glint.EmissionDirection = Enum.NormalId.Top
+	glint.Shape = Enum.ParticleEmitterShape.Box
+	glint.Parent = base
 end
 
 -- Grosses boucles d'oreilles (écarteurs noirs cerclés de bronze).
@@ -3737,7 +3786,13 @@ local function buildProps(ctx, props)
 		local turn = CFrame.Angles(math.rad(r.X), math.rad(r.Y), math.rad(r.Z))
 		local cf = CFrame.new(at) * turn
 		local name = p.name or "Prop"
-		if p.dir and shape ~= "spike" and shape ~= "strand" then
+		if p.cf then
+			-- Repère explicite (CFrame dans le repère du membre) : ailes, plaques orientées
+			cf = p.cf * turn
+		elseif p.dir and shape == "blade" then
+			-- Lame : base en `at`, pointe dans la direction `dir`
+			cf = alongY(at, p.dir) * turn
+		elseif p.dir and shape ~= "spike" and shape ~= "strand" then
 			-- Pièce allongée de `at` dans la direction `dir` (axe Y de la pièce ; axe X du cylindre)
 			local size = p.size or Vector3.one
 			local length = shape == "cyl" and size.X or size.Y
@@ -3765,6 +3820,9 @@ local function buildProps(ctx, props)
 			ctx.spike(limb, color, at, p.dir or Vector3.new(0, 1, 0), p.length or 1, p.width or 0.3, { root = false, dark = p.dark })
 		elseif shape == "strand" then
 			ctx.strand(limb, color, at, p.dir or Vector3.new(0, -1, 0), p.length or 1, p.width or 0.3, p.depth)
+		elseif shape == "blade" then
+			-- Lame triangulaire plate (deux coins dos à dos) : crêtes, nageoires, griffes
+			ctx.blade(limb, color, cf, p.length or 1, p.width or 0.4, p.depth or 0.1, name)
 		elseif shape == "cone" then
 			ctx.cone(limb, cf, p.length or 1, p.width or 0.3, p.depth or p.width or 0.3, color, p.dark, p.half, name)
 		elseif shape == "cyl" then
@@ -3797,6 +3855,23 @@ local function buildProps(ctx, props)
 			light.Brightness = p.lightBrightness or 1
 			light.Shadows = false
 			light.Parent = made
+		end
+		if p.flames and made and ctx.paint ~= "parts" then
+			-- Flammèches qui s'échappent de la pièce (Susanoo...) : pas dans les aperçus des menus
+			local fire = Instance.new("ParticleEmitter")
+			fire.Name = "PropFlames"
+			fire.Texture = "rbxasset://textures/particles/fire_main.dds"
+			fire.Color = ColorSequence.new(p.flames:Lerp(Color3.new(1, 1, 1), 0.35), p.flames)
+			fire.LightEmission = 1
+			fire.LightInfluence = 0
+			fire.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.45 * ctx.s), NumberSequenceKeypoint.new(1, 0) })
+			fire.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) })
+			fire.Lifetime = NumberRange.new(0.4, 0.8)
+			fire.Rate = p.flameRate or 14
+			fire.Speed = NumberRange.new(0.6 * ctx.s, 1.4 * ctx.s)
+			fire.SpreadAngle = Vector2.new(25, 25)
+			fire.EmissionDirection = Enum.NormalId.Top
+			fire.Parent = made
 		end
 	end
 end
@@ -3839,7 +3914,9 @@ end
 
 function buildOnce(look, options: BuildOptions?, roots: number, withRelief: boolean): (Model, number)
 	local opts = options or {}
-	local s = opts.scale or 1
+	-- look.bodyScale : carrure propre au perso (Secrets, géants) ; pas dans les aperçus des menus
+	-- (cadrés à la même taille). BaseScale = échelle réelle (racine, animations, effets).
+	local s = (opts.scale or 1) * ((opts.paint ~= "parts" and look.bodyScale) or 1)
 	local model = Instance.new("Model")
 	model.Name = opts.name or "Character"
 
@@ -4356,20 +4433,34 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 		-- Reflet arc-en-ciel en diagonale sur toute la tenue peinte (lisible même sur un costume
 		-- noir : la variété la plus rare doit se voir sur tout le perso, pas seulement les cheveux)
 		local rainbowKeys = {}
+		-- toutes les teintes tiennent dans la bande visible (0.3 à 0.7)
+		table.insert(rainbowKeys, ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0.6, 1)))
 		for k = 0, 6 do
-			table.insert(rainbowKeys, ColorSequenceKeypoint.new(k / 6, Color3.fromHSV((k / 6 * 0.85) % 1, 0.75, 1)))
+			table.insert(rainbowKeys, ColorSequenceKeypoint.new(0.3 + k / 6 * 0.4, Color3.fromHSV(k / 6 * 0.85, 0.6, 1)))
 		end
+		table.insert(rainbowKeys, ColorSequenceKeypoint.new(1, Color3.fromHSV(0.85, 0.6, 1)))
 		for _, d in model:GetDescendants() do
 			if d:IsA("SurfaceGui") and not d:GetAttribute("LodNear") and d.Name ~= "Face" and d.Parent and LIMB_NAMES[d.Parent.Name] then
 				local sheen = Instance.new("Frame")
 				sheen.Name = "VarietyRainbow"
 				sheen.Size = UDim2.fromScale(1, 1)
 				sheen.BackgroundColor3 = Color3.new(1, 1, 1)
-				sheen.BackgroundTransparency = 0.62
+				sheen.BackgroundTransparency = 0
 				sheen.BorderSizePixel = 0
 				sheen.ZIndex = 55
+				-- Bande étroite en diagonale (transparente partout sauf au centre) : un reflet qui
+				-- glisse sur la tenue, qui garde sa couleur. Le client peut animer `Offset` des
+				-- UIGradient nommés « VarietyRainbow » pour le faire défiler.
 				local g = Instance.new("UIGradient")
+				g.Name = "VarietyRainbow"
 				g.Color = ColorSequence.new(rainbowKeys)
+				g.Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 1),
+					NumberSequenceKeypoint.new(0.3, 1),
+					NumberSequenceKeypoint.new(0.5, 0.7),
+					NumberSequenceKeypoint.new(0.7, 1),
+					NumberSequenceKeypoint.new(1, 1),
+				})
 				g.Rotation = 35
 				g.Parent = sheen
 				sheen.Parent = d

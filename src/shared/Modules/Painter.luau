@@ -567,8 +567,18 @@ local function eye(T, look, cx: number, cy: number, s: number, k: number)
 	if st.cut then
 		iy += H * 0.04
 	end
+	-- irisRainbow : iris en dégradé arc-en-ciel (deuxième lune démoniaque)
+	local irisRamp = look.irisRainbow
+			and {
+				Color3.fromRGB(120, 200, 255),
+				Color3.fromRGB(110, 230, 150),
+				Color3.fromRGB(255, 220, 90),
+				Color3.fromRGB(255, 120, 150),
+				Color3.fromRGB(190, 120, 255),
+			}
+		or { darken(iris, 0.65), darken(iris, 0.1), lighten(iris, 0.42) }
 	T.oval(ix, iy, IW, IH, iris, {
-		gradient = { darken(iris, 0.65), darken(iris, 0.1), lighten(iris, 0.42) },
+		gradient = irisRamp,
 		stroke = not T.lite and darken(iris, 0.78) or nil,
 		strokeThickness = 1,
 		z = 3,

@@ -156,6 +156,9 @@ end)
 
 test("Persos R6 classiques : proportions, tête, visage, budgets", function()
 	local function check(label, look)
+		-- proportions à l'échelle 1 (sans la carrure propre des Secrets, `bodyScale`)
+		look = table.clone(look)
+		look.bodyScale = nil
 		local model = CharacterBuilder.build(look, { scale = 1 })
 		local head = model:FindFirstChild("Head")
 		assert(head and head.Size.X == 2 and head.Size.Y == 1 and head.Size.Z == 1, label .. " : tête classique 2x1x1 attendue")
@@ -717,6 +720,91 @@ test("Roster v3.2 : 16 persos de plus, raretés de base, signatures, noms d'orig
 	end
 	for _, id in { "ninja_radama", "sai_gojita", "oce_kaydo", "pou_muzon" } do
 		assert(#Characters.get(id).look.props >= 5 and hasProp(id, 1, "Prop"), id .. " : objet signature")
+	end
+	-- Carrure : plus de sphères « bulk » (épaules en ballons) sur les persos du roster ; deltoïdes
+	-- intégrés à la place pour les colosses
+	for _, list in ROSTER do
+		for id in list do
+			for st = 1, 3 do
+				for _, a in Formulas.describe({ id = id, level = 1, stars = st }).look.accessories or {} do
+					assert(a ~= "bulk", id .. " ★" .. st .. " : accessoire « bulk » interdit (épaules en ballons)")
+				end
+			end
+		end
+	end
+	for _, id in { "oce_kaydo", "sai_jirene" } do
+		assert(hasProp(id, 1, "Deltoid") and hasProp(id, 1, "Trapezius"), id .. " : deltoïdes intégrés attendus")
+	end
+	-- Secrets : plus grands que les autres (Kaydo le géant encore plus) et éclat arc-en-ciel au
+	-- sol dès le ★1 ; ni l'un ni l'autre dans les aperçus des menus (cadrés à la même taille)
+	for id in SECRETS do
+		local look = Formulas.describe({ id = id, level = 1, stars = 1 }).look
+		assert((look.bodyScale or 1) >= 1.12, id .. " : Secret à peine plus grand attendu")
+		local m = CharacterBuilder.build(look, { scale = 1 })
+		assert(math.abs((m:GetAttribute("BaseScale") or 1) - look.bodyScale) < 1e-6, id .. " : BaseScale = carrure du Secret")
+		local glint = m:FindFirstChild("SecretGlint", true)
+		assert(glint and glint:FindFirstChildOfClass("ParticleEmitter"), id .. " : éclat arc-en-ciel du Secret absent")
+		m:Destroy()
+		local preview = CharacterBuilder.buildPreview(look)
+		assert(preview:FindFirstChild("SecretGlint", true) == nil, id .. " : éclat dans l'aperçu des menus")
+		assert((preview:GetAttribute("BaseScale") or 1) == 1, id .. " : aperçu des menus à l'échelle 1")
+		preview:Destroy()
+	end
+	assert(Formulas.describe({ id = "oce_kaydo", level = 1, stars = 1 }).look.bodyScale >= 1.25, "Kaydo : géant attendu")
+	-- Susanoo de Radama ★2 : crâne spectral (orbites, mâchoire) et colonne en flammèches bleues
+	do
+		local m = CharacterBuilder.build(Formulas.describe({ id = "ninja_radama", level = 1, stars = 2 }).look, { scale = 1 })
+		local spine = m:FindFirstChild("SusanooSpine", true)
+		assert(spine and spine:FindFirstChild("PropFlames"), "Susanoo : flammèches de la colonne absentes")
+		assert(m:FindFirstChild("SusanooSkull", true) and m:FindFirstChild("SusanooOrbit", true) and m:FindFirstChild("SusanooJaw", true), "Susanoo : crâne incomplet")
+		m:Destroy()
+	end
+	-- Rika (Yuuto ★2) : tête, bouche peinte de dents, yeux rouges luisants
+	do
+		local m = CharacterBuilder.build(Formulas.describe({ id = "occ_yuuto", level = 1, stars = 2 }).look, { scale = 1 })
+		assert(m:FindFirstChild("RikaHead", true), "Rika : tête absente")
+		local mouth = m:FindFirstChild("RikaMouth", true)
+		assert(mouth and mouth:FindFirstChildOfClass("SurfaceGui"), "Rika : dents non peintes")
+		local glow = false
+		for _, d in m:GetDescendants() do
+			if d.Name == "RikaEye" and d:FindFirstChild("PropGlow") then
+				glow = true
+			end
+		end
+		assert(glow, "Rika : yeux sans lueur")
+		m:Destroy()
+	end
+	-- Dos de Minatu : « Quatrième Hokage » en colonne de caractères rouges
+	do
+		local m = CharacterBuilder.build(Formulas.describe({ id = "ninja_minatu", level = 1, stars = 1 }).look, { scale = 1 })
+		local n = 0
+		for _, d in m:GetDescendants() do
+			if d:IsA("TextLabel") and d.Name == "HaoriKanji" then
+				n += 1
+			end
+		end
+		assert(n == 5, "Minatu : kanji du dos du haori attendus (" .. n .. ")")
+		m:Destroy()
+	end
+	-- Variété Arc-en-ciel : reflet en bande étroite (la tenue garde sa couleur)
+	do
+		local m = CharacterBuilder.build(Formulas.describe({ id = "pou_muzon", level = 1, stars = 1 }).look, { scale = 1 })
+		CharacterBuilder.applyVariety(m, "Arc-en-ciel")
+		local n = 0
+		for _, d in m:GetDescendants() do
+			if d:IsA("UIGradient") and d.Name == "VarietyRainbow" then
+				n += 1
+				local kp = d.Transparency.Keypoints
+				assert(kp[1].Value >= 0.99 and kp[#kp].Value >= 0.99, "Arc-en-ciel : les bords du reflet doivent être transparents")
+				local least = 1
+				for _, k in kp do
+					least = math.min(least, k.Value)
+				end
+				assert(least >= 0.6, "Arc-en-ciel : reflet trop couvrant")
+			end
+		end
+		assert(n > 0, "Arc-en-ciel : reflet absent")
+		m:Destroy()
 	end
 	-- Chaque perso jouable a une attaque signature valide (plus de repli générique)
 	for id in Characters.List do
