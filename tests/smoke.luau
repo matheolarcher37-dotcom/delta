@@ -360,7 +360,15 @@ test("Boss lisibles (liseré, lumières, aura) et variétés des persos", functi
 		for st = 1, 2 do
 			local la = Formulas.describe({ id = id, level = 1, stars = st }).look
 			local lb = Formulas.describe({ id = id, level = 1, stars = st + 1 }).look
-			local strong = false
+			-- Objets sur mesure (look.props) différents : pièces visibles en plus ou en moins
+			local function sig(props)
+				local out = {}
+				for _, p in props or {} do
+					table.insert(out, tostring(p.shape) .. tostring(p.limb) .. tostring(p.at) .. tostring(p.size))
+				end
+				return table.concat(out, ";")
+			end
+			local strong = sig(la.props) ~= sig(lb.props)
 			for _, k in STRONG do
 				if la[k] ~= lb[k] then
 					strong = true
@@ -526,10 +534,18 @@ test("Roster v3.2 : 15 persos de plus, raretés de base, signatures, noms d'orig
 	local Rarities = requireModule(Shared.Config.Rarities)
 	local AttackFx = requireModule(Shared.Config.AttackFx)
 	local Noms = requireModule(Shared.Config.NomsOriginaux)
+	local EFFECTS = { energy_aura = true, ssj_aura = true, steam = true, energy_fists = true, chidori = true, hollow_purple = true, sun_flames = true }
+	local function propSig(props)
+		local parts = {}
+		for _, p in props or {} do
+			table.insert(parts, tostring(p.shape) .. tostring(p.limb) .. tostring(p.at) .. tostring(p.size) .. tostring(p.color))
+		end
+		return table.concat(parts, ";")
+	end
 	local ROSTER = {
 		ninja = { ninja_gaaro = "epic", ninja_minatu = "legendary", ninja_radama = "secret" },
 		occulte = { occ_hakaro = "epic", occ_toja = "legendary", occ_yuuto = "legendary" },
-		saiyan = { sai_cel = "legendary", sai_jirene = "mythic", sai_gojita = "secret" },
+		saiyan = { sai_cel = "legendary", sai_jirene = "legendary", sai_gojita = "secret" },
 		ocean = { oce_inel = "legendary", oce_lao = "legendary", oce_kaydo = "secret" },
 		pourfendeur = { pou_tengan = "legendary", pou_doma = "mythic", pou_muzon = "secret" },
 	}
@@ -542,6 +558,14 @@ test("Roster v3.2 : 15 persos de plus, raretés de base, signatures, noms d'orig
 	assert(Characters.get("ninja_maruto").rarity == "epic", "Maruto doit être Épique")
 	assert(Characters.get("occ_sukana").rarity == "secret", "Sukana doit être Secret")
 	assert(Characters.get("occ_goju").rarity == "mythic", "Goju doit être Mythique")
+	-- Héros vedettes alignés : Goko et Itochi Mythiques comme Goju
+	assert(Characters.get("sai_goko").rarity == "mythic", "Goko doit être Mythique")
+	assert(Characters.get("ninja_itochi").rarity == "mythic", "Itochi doit être Mythique")
+	-- La couleur unie du Secret est claire (texte lisible sur fond sombre) et il s'affiche en arc-en-ciel
+	local sc = Rarities.get("secret").color
+	assert(Rarities.get("secret").rainbow and sc.R + sc.G + sc.B > 2.4, "Secret : couleur claire + arc-en-ciel")
+	-- Les persos Secrets du jeu : exactement un par univers, ceux attendus
+	local SECRETS = { ninja_radama = true, occ_sukana = true, sai_gojita = true, oce_kaydo = true, pou_muzon = true }
 	local named = {}
 	for _, entry in Noms.List do
 		named[entry.id] = true
@@ -553,8 +577,13 @@ test("Roster v3.2 : 15 persos de plus, raretés de base, signatures, noms d'orig
 			local r = Characters.get(id).rarity
 			count[r] = (count[r] or 0) + 1
 		end
-		assert(#universe.characters >= 13, universe.id .. " : au moins 13 persos attendus (" .. #universe.characters .. ")")
-		assert((count.secret or 0) >= 1 and (count.mythic or 0) >= 1, universe.id .. " : il faut au moins un Mythique et un Secret")
+		assert(#universe.characters == 13, universe.id .. " : 13 persos attendus (" .. #universe.characters .. ")")
+		assert(count.secret == 1 and (count.mythic or 0) >= 1 and (count.mythic or 0) <= 2, universe.id .. " : un Secret et 1 ou 2 Mythiques")
+		for _, id in universe.characters do
+			if Characters.get(id).rarity == "secret" then
+				assert(SECRETS[id], id .. " : Secret inattendu")
+			end
+		end
 		for id, rarity in ROSTER[universe.id] do
 			total += 1
 			local def = Characters.get(id)
@@ -565,9 +594,72 @@ test("Roster v3.2 : 15 persos de plus, raretés de base, signatures, noms d'orig
 			assert(def.fusion and def.fusion.prefix and def.fusion.suffix, id .. " : préfixe/suffixe de fusion")
 			assert(def.attack and def.attack.name and def.attack.kind, id .. " : attaque")
 			assert(named[id], id .. " : nom d'origine manquant")
+			-- Chaque étoile change la tenue, la coiffure ou les objets (hors auras et effets)
+			for st = 1, 2 do
+				local la = Formulas.describe({ id = id, level = 1, stars = st }).look
+				local lb = Formulas.describe({ id = id, level = 1, stars = st + 1 }).look
+				local visible = propSig(la.props) ~= propSig(lb.props)
+				for _, k in { "top", "outfit", "hair", "hairColor", "bottom", "skin" } do
+					if la[k] ~= lb[k] then
+						visible = true
+					end
+				end
+				local accA, accB = {}, {}
+				for _, a in la.accessories or {} do
+					accA[a] = true
+				end
+				for _, a in lb.accessories or {} do
+					accB[a] = true
+				end
+				for a in accB do
+					if not accA[a] and not EFFECTS[a] then
+						visible = true
+					end
+				end
+				for a in accA do
+					if not accB[a] and not EFFECTS[a] then
+						visible = true
+					end
+				end
+				assert(visible, id .. " ★" .. st .. " -> ★" .. (st + 1) .. " : tenue, coiffure ou objets doivent changer (pas seulement l'aura)")
+			end
+			-- Budget de pièces respecté à chaque étoile, objets sur mesure bien construits
+			for st = 1, 3 do
+				local look = Formulas.describe({ id = id, level = 1, stars = st }).look
+				local m = CharacterBuilder.build(look, { scale = 1 })
+				local n, props = 0, 0
+				for _, d in m:GetDescendants() do
+					if d:IsA("BasePart") then
+						n += 1
+						if d.Name == "Prop" then
+							props += 1
+						end
+					end
+				end
+				assert(n <= 178, id .. " ★" .. st .. " : trop de pièces (" .. n .. ")")
+				if look.props then
+					assert(props > 0 or #look.props > 0, id .. " : objets sur mesure absents")
+				end
+				m:Destroy()
+			end
 		end
 	end
 	assert(total == 15, "15 nouveaux persos attendus")
+	-- Objets signature des Secrets (lisibles de loin)
+	local function hasProp(id, stars, name)
+		local m = CharacterBuilder.build(Formulas.describe({ id = id, level = 1, stars = stars }).look, { scale = 1 })
+		local found = false
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and d.Name == name then
+				found = true
+			end
+		end
+		m:Destroy()
+		return found
+	end
+	for _, id in { "ninja_radama", "sai_gojita", "oce_kaydo", "pou_muzon" } do
+		assert(#Characters.get(id).look.props >= 5 and hasProp(id, 1, "Prop"), id .. " : objet signature")
+	end
 	-- Chaque perso jouable a une attaque signature valide (plus de repli générique)
 	for id in Characters.List do
 		local sig = AttackFx.Characters[id]

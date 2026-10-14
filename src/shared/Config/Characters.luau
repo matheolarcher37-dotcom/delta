@@ -615,7 +615,14 @@ for k = 0, 4 do
 	local a = math.rad(-40 + k * 20)
 	table.insert(
 		BEADS,
-		{ shape = "ball", limb = "Torso", at = V(math.sin(a) * 2.2, 1.6 + (k % 2) * 0.3, -math.cos(a) * 1.4), size = V(0.3, 0.3, 0.3), color = rgb(255, 150, 60), material = "Neon" }
+		{
+			shape = "ball",
+			limb = "Torso",
+			at = V(math.sin(a) * 2.2, 1.6 + (k % 2) * 0.3, -math.cos(a) * 1.4),
+			size = V(0.3, 0.3, 0.3),
+			color = rgb(255, 150, 60),
+			material = "Neon",
+		}
 	)
 end
 
