@@ -3638,6 +3638,7 @@ local HATS = { "boar_head", "hood_full", "straw_hat", "volcano", "dome", "turban
 --     dots = { { x, y, largeur, hauteur, couleur? } }, ink, bg = false pour une pièce invisible
 --     dont seule la peinture se voit) — glyphes, flammes, taches, aussi lisibles en mode « pièces ».
 -- `shift` (Vector3) : décalage dans le repère de la pièce après orientation (biseau, anneau...).
+-- `noPreview = true` : pièce omise dans les aperçus des menus (mode « parts », vus de face).
 local PROP_SHAPES = { wedge = "wedge", corner = "cornerWedge" }
 
 local function paintProp(ctx, part: BasePart, color: Color3, paint)
@@ -3646,8 +3647,32 @@ local function paintProp(ctx, part: BasePart, color: Color3, paint)
 	for _, faceName in paint.faces or { "Front" } do
 		local face = (Enum.NormalId :: any)[faceName]
 		if paint.kind == "lamellar" and lite then
-			-- Aperçus des menus (peinture convertie en pièces, budget serré) : pièce unie
-			break
+			-- Aperçus des menus (peinture convertie en pièces, budget serré) : armure simplifiée,
+			-- 2 bandes sombres fines collées à la face avant seulement (rangées de lamelles)
+			if faceName == "Front" then
+				local size = part.Size / ctx.s
+				local rows = math.min(3, paint.rows or 4)
+				local ink = paint.ink or darken(color, 0.55)
+				for r = 1, rows - 1 do
+					local y = size.Y / 2 - size.Y * r / rows
+					local band = Instance.new("Part")
+					band.Name = "PropBand"
+					band.Size = Vector3.new(size.X * 0.98, 0.07, 0.02) * ctx.s
+					band.CFrame = part.CFrame * CFrame.new(0, y * ctx.s, -(size.Z / 2 + 0.01) * ctx.s)
+					band.Color = ink
+					band.Material = Enum.Material.SmoothPlastic
+					band.CanCollide = false
+					band.CanTouch = false
+					band.CanQuery = false
+					band.Massless = true
+					local weld = Instance.new("Weld")
+					weld.Part0 = part
+					weld.Part1 = band
+					weld.C0 = part.CFrame:Inverse() * band.CFrame
+					weld.Parent = band
+					band.Parent = part.Parent
+				end
+			end
 		elseif paint.kind == "lamellar" then
 			local rows = paint.rows or 4
 			local ink = paint.ink or darken(color, 0.55)
@@ -3700,6 +3725,10 @@ end
 
 local function buildProps(ctx, props)
 	for _, p in props do
+		if p.noPreview and ctx.paint == "parts" then
+			-- Pièce du dos omise dans les aperçus des menus (vus de face, budget de pièces)
+			continue
+		end
 		local shape = p[1] or p.shape or "block"
 		local limb = p.limb or "Torso"
 		local color = p.color or Color3.fromRGB(200, 200, 200)
