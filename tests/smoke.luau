@@ -682,6 +682,27 @@ test("Roster v3.2 : 16 persos de plus, raretés de base, signatures, noms d'orig
 	end
 	assert(painted("ninja_gaaro", 1, "Kanji"), "Gaaro : kanji du front non peint")
 	assert(painted("ninja_radama", 1, "Prop"), "Radama : armure lamellaire non peinte")
+	-- Aperçus des menus (mode « parts » : fiche, inventaire, révélation) : Radama garde son armure
+	-- (bandes sombres des lamelles) et tous les nouveaux persos restent sous 390 pièces (marge)
+	for _, id in { "ninja_radama", "ninja_minatu", "oce_kaydo", "sai_cel", "pou_muzon", "occ_yuuto" } do
+		for st = 1, 3 do
+			local m = CharacterBuilder.buildPreview(Formulas.describe({ id = id, level = 1, stars = st }).look)
+			local n, bands = 0, 0
+			for _, d in m:GetDescendants() do
+				if d:IsA("BasePart") then
+					n += 1
+					if d.Name == "PropBand" then
+						bands += 1
+					end
+				end
+			end
+			assert(n <= 390, id .. " ★" .. st .. " (menus) : " .. n .. " pièces (> 390)")
+			if id == "ninja_radama" and st <= 2 then
+				assert(bands >= 4, "Radama ★" .. st .. " (menus) : armure lamellaire non dessinée")
+			end
+			m:Destroy()
+		end
+	end
 	-- Objets signature des Secrets (lisibles de loin)
 	local function hasProp(id, stars, name)
 		local m = CharacterBuilder.build(Formulas.describe({ id = id, level = 1, stars = stars }).look, { scale = 1 })

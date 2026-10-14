@@ -3760,6 +3760,7 @@ local function buildProps(ctx, props)
 				Transparency = p.transparency or 0,
 			}
 		end
+		local made: BasePart? = nil
 		if shape == "spike" then
 			ctx.spike(limb, color, at, p.dir or Vector3.new(0, 1, 0), p.length or 1, p.width or 0.3, { root = false, dark = p.dark })
 		elseif shape == "strand" then
@@ -3768,22 +3769,34 @@ local function buildProps(ctx, props)
 			ctx.cone(limb, cf, p.length or 1, p.width or 0.3, p.depth or p.width or 0.3, color, p.dark, p.half, name)
 		elseif shape == "cyl" then
 			local size = p.size or Vector3.new(1, 0.4, 0.4)
-			ctx.cyl(limb, name, size.X, size.Y, cf, color, extra)
+			made = ctx.cyl(limb, name, size.X, size.Y, cf, color, extra)
 		elseif shape == "rounded" then
 			ctx.rounded(limb, name, p.size or Vector3.one, cf, color, p.radius or 0.1, extra)
 		elseif shape == "ball" then
-			ctx.ball(limb, name, p.size or Vector3.one, cf, color, extra)
+			made = ctx.ball(limb, name, p.size or Vector3.one, cf, color, extra)
 		elseif PROP_SHAPES[shape] then
 			local part = ctx[PROP_SHAPES[shape]](limb, name, p.size or Vector3.one, cf, color)
 			if extra then
 				part.Material = extra.Material
 				part.Transparency = extra.Transparency
 			end
+			made = part
 		else
 			local part = ctx.add(limb, name, p.size or Vector3.one, cf, color, extra)
 			if p.paint then
 				paintProp(ctx, part, color, p.paint)
 			end
+			made = part
+		end
+		if p.light and made and ctx.paint ~= "parts" then
+			-- Lueur de la pièce (Susanoo, salle d'opération...) : pas dans les aperçus des menus
+			local light = Instance.new("PointLight")
+			light.Name = "PropGlow"
+			light.Color = p.light
+			light.Range = (p.lightRange or 8) * ctx.s
+			light.Brightness = p.lightBrightness or 1
+			light.Shadows = false
+			light.Parent = made
 		end
 	end
 end
@@ -4058,7 +4071,8 @@ local VARIETIES = {
 		fx = { texture = SPARK, colors = { rgb(255, 255, 255), rgb(190, 150, 255) }, size = 0.22, rate = 10, light = rgb(150, 100, 255) },
 	},
 	rainbow = {
-		-- Seulement les cheveux (chaque mèche d'une couleur) et le contour : la tenue reste intacte
+		-- Cheveux (chaque mèche d'une couleur), objets et accessoires teintés, reflet arc-en-ciel en
+		-- diagonale sur la tenue peinte, contour
 		rainbow = true,
 		outline = rgb(255, 150, 230),
 		fx = { texture = SPARK, colors = { rgb(255, 90, 90), rgb(255, 230, 80), rgb(90, 200, 255), rgb(210, 110, 255) }, size = 0.3, rate = 10 },
@@ -4316,6 +4330,10 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 				if paints then
 					d.Color = tintColor(d.Color, spec)
 				end
+			elseif spec.rainbow then
+				-- Arc-en-ciel : chapeau, cravate, revers, objets... chacun d'une teinte de l'arc-en-ciel
+				i += 1
+				d.Color = d.Color:Lerp(Color3.fromHSV((i * 0.13) % 1, 0.6, 1), 0.62)
 			elseif spec.acc then
 				-- Accessoires en relief : couleur et matière de la variété
 				d.Color = d.Color:Lerp(spec.acc.color, spec.acc.mix)
@@ -4333,6 +4351,30 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 	for _, gui in guis do
 		local onTorso = gui.Parent == torso and (gui.Face == Enum.NormalId.Front or gui.Face == Enum.NormalId.Back)
 		tintGui(gui, spec, onTorso)
+	end
+	if spec.rainbow then
+		-- Reflet arc-en-ciel en diagonale sur toute la tenue peinte (lisible même sur un costume
+		-- noir : la variété la plus rare doit se voir sur tout le perso, pas seulement les cheveux)
+		local rainbowKeys = {}
+		for k = 0, 6 do
+			table.insert(rainbowKeys, ColorSequenceKeypoint.new(k / 6, Color3.fromHSV((k / 6 * 0.85) % 1, 0.75, 1)))
+		end
+		for _, d in model:GetDescendants() do
+			if d:IsA("SurfaceGui") and not d:GetAttribute("LodNear") and d.Name ~= "Face" and d.Parent and LIMB_NAMES[d.Parent.Name] then
+				local sheen = Instance.new("Frame")
+				sheen.Name = "VarietyRainbow"
+				sheen.Size = UDim2.fromScale(1, 1)
+				sheen.BackgroundColor3 = Color3.new(1, 1, 1)
+				sheen.BackgroundTransparency = 0.62
+				sheen.BorderSizePixel = 0
+				sheen.ZIndex = 55
+				local g = Instance.new("UIGradient")
+				g.Color = ColorSequence.new(rainbowKeys)
+				g.Rotation = 35
+				g.Parent = sheen
+				sheen.Parent = d
+			end
+		end
 	end
 	if spec.outline then
 		-- Liseré coloré (contour seul, sans remplissage : la peinture reste nette)

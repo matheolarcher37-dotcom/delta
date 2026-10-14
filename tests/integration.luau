@@ -492,11 +492,9 @@ test("Pitié : Légendaire, Mythique et Secret garantis au seuil", function()
 		assert(got >= Economy.RollRarities[tier].order, tier .. " non garanti (obtenu " .. results[1].rarity .. ")")
 		assert(data.Pity[tier] == 0, "compteur de pitié non remis à zéro : " .. tier)
 	end
-	-- Le Secret = le perso Secret de l'univers (rareté de base « secret ») avec l'aura Arc-en-ciel.
+	-- (Quel perso donne un tirage Secret : voir le test « Palier Secret », indépendant de la pitié.)
 	local secret = data.RolledQueue[1]
 	assert(secret.aura == "arcenciel" and secret.trait, "Secret sans aura ni trait")
-	local SECRETS = { "ninja_radama", "occ_sukana", "sai_gojita", "oce_kaydo", "pou_muzon" }
-	assert(table.find(SECRETS, secret.id), "le palier Secret a tiré " .. tostring(secret.id) .. " (pas un perso Secret)")
 	local panel = services.PlotService:GetPlot(alice).machine.pityLines.legendary
 	assert(panel.Text:find("rouleaux") or panel.Text:find("PROCHAIN"), "panneau de pitié non mis à jour")
 	table.clear(data.RolledQueue)
