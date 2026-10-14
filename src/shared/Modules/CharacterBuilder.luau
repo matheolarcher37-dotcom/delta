@@ -3641,9 +3641,13 @@ local PROP_SHAPES = { wedge = "wedge", corner = "cornerWedge" }
 
 local function paintProp(ctx, part: BasePart, color: Color3, paint)
 	local mode = ctx.paint == "parts" and "parts" or nil
+	local lite = mode == "parts"
 	for _, faceName in paint.faces or { "Front" } do
 		local face = (Enum.NormalId :: any)[faceName]
-		if paint.kind == "lamellar" then
+		if paint.kind == "lamellar" and lite then
+			-- Aperçus des menus (peinture convertie en pièces, budget serré) : pièce unie
+			break
+		elseif paint.kind == "lamellar" then
 			local rows = paint.rows or 4
 			local ink = paint.ink or darken(color, 0.55)
 			Painter.panel(part, face, mode, color, function(S)
@@ -3651,16 +3655,19 @@ local function paintProp(ctx, part: BasePart, color: Color3, paint)
 					local y0 = r / rows
 					local y1 = (r + 1) / rows
 					-- Plaque : haut éclairé, bas ombré (la rangée suivante la recouvre)
-					S:rect(0.5, y0 + (y1 - y0) * 0.3, 1, (y1 - y0) * 0.38, Painter.lighten(color, 0.12), { z = 2 })
 					S:rect(0.5, y1 - (y1 - y0) * 0.16, 1, (y1 - y0) * 0.3, Painter.celShadow(color), { z = 2 })
 					S:rect(0.5, y1 - 0.012, 1, S:dy(0.06), ink, { z = 4 })
+					-- Aperçus des menus (peinture en pièces) : bandes seules, sans lacets ni rivets
+					local n = lite and 0 or math.max(2, math.floor(S.w / 0.42 + 0.5))
+					if not lite then
+						S:rect(0.5, y0 + (y1 - y0) * 0.3, 1, (y1 - y0) * 0.38, Painter.lighten(color, 0.12), { z = 2 })
+					end
 					-- Lacets verticaux entre les lamelles (décalés d'une rangée à l'autre)
-					local n = math.max(2, math.floor(S.w / 0.42 + 0.5))
-					for k = 0, n do
-						local x = (k + (r % 2) * 0.5) / n
+					for k = 1, n do
+						local x = (k - 1 + (r % 2) * 0.5) / n
 						if x > 0.02 and x < 0.98 then
 							S:rect(x, (y0 + y1) / 2, S:dx(0.035), (y1 - y0) * 0.86, ink, { z = 3, transparency = 0.35 })
-							if paint.rivet then
+							if paint.rivet and r % 2 == 0 then
 								S:oval(x, y0 + (y1 - y0) * 0.24, 0.08, 0.08, paint.rivet, { z = 5 })
 							end
 						end

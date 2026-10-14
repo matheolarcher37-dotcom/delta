@@ -530,7 +530,7 @@ test("Nouveaux persos v3.2, uniformes personnalisés, boss Akaino/Freezo", funct
 	end
 end)
 
-test("Roster v3.2 : 15 persos de plus, raretés de base, signatures, noms d'origine", function()
+test("Roster v3.2 : 16 persos de plus, raretés de base, signatures, noms d'origine", function()
 	local Rarities = requireModule(Shared.Config.Rarities)
 	local AttackFx = requireModule(Shared.Config.AttackFx)
 	local Noms = requireModule(Shared.Config.NomsOriginaux)
@@ -544,7 +544,7 @@ test("Roster v3.2 : 15 persos de plus, raretés de base, signatures, noms d'orig
 	end
 	local ROSTER = {
 		ninja = { ninja_gaaro = "epic", ninja_minatu = "legendary", ninja_radama = "secret" },
-		occulte = { occ_hakaro = "epic", occ_toja = "legendary", occ_yuuto = "legendary" },
+		occulte = { occ_hakaro = "epic", occ_toja = "legendary", occ_yuuto = "legendary", occ_ijichu = "common" },
 		saiyan = { sai_cel = "legendary", sai_jirene = "legendary", sai_gojita = "secret" },
 		ocean = { oce_inel = "legendary", oce_lao = "legendary", oce_kaydo = "secret" },
 		pourfendeur = { pou_tengan = "legendary", pou_doma = "mythic", pou_muzon = "secret" },
@@ -558,6 +558,9 @@ test("Roster v3.2 : 15 persos de plus, raretés de base, signatures, noms d'orig
 	assert(Characters.get("ninja_maruto").rarity == "epic", "Maruto doit être Épique")
 	assert(Characters.get("occ_sukana").rarity == "secret", "Sukana doit être Secret")
 	assert(Characters.get("occ_goju").rarity == "mythic", "Goju doit être Mythique")
+	-- Persos très populaires/puissants pas en Commun (Toudo Épique, Inumako Rare)
+	assert(Characters.get("occ_toudo").rarity == "epic", "Toudo doit être Épique")
+	assert(Characters.get("occ_inumako").rarity == "rare", "Inumako doit être Rare")
 	-- Héros vedettes alignés : Goko et Itochi Mythiques comme Goju
 	assert(Characters.get("sai_goko").rarity == "mythic", "Goko doit être Mythique")
 	assert(Characters.get("ninja_itochi").rarity == "mythic", "Itochi doit être Mythique")
@@ -577,7 +580,8 @@ test("Roster v3.2 : 15 persos de plus, raretés de base, signatures, noms d'orig
 			local r = Characters.get(id).rarity
 			count[r] = (count[r] or 0) + 1
 		end
-		assert(#universe.characters == 13, universe.id .. " : 13 persos attendus (" .. #universe.characters .. ")")
+		assert(#universe.characters >= 13 and #universe.characters <= 14, universe.id .. " : 13 ou 14 persos attendus (" .. #universe.characters .. ")")
+		assert((count.common or 0) >= 2, universe.id .. " : au moins 2 Communs (persos secondaires)")
 		assert(count.secret == 1 and (count.mythic or 0) >= 1 and (count.mythic or 0) <= 2, universe.id .. " : un Secret et 1 ou 2 Mythiques")
 		for _, id in universe.characters do
 			if Characters.get(id).rarity == "secret" then
@@ -637,6 +641,9 @@ test("Roster v3.2 : 15 persos de plus, raretés de base, signatures, noms d'orig
 					end
 				end
 				assert(n <= 178, id .. " ★" .. st .. " : trop de pièces (" .. n .. ")")
+				-- Seuil d'alerte : garder de la marge sous le plafond (les objets passent après les
+				-- accessoires et seraient les premiers sacrifiés si la coiffure ou la tenue s'alourdit)
+				assert(n <= 165, id .. " ★" .. st .. " : " .. n .. " pièces, au-delà du seuil d'alerte (165)")
 				if look.props then
 					assert(props > 0 or #look.props > 0, id .. " : objets sur mesure absents")
 				end
@@ -644,7 +651,37 @@ test("Roster v3.2 : 15 persos de plus, raretés de base, signatures, noms d'orig
 			end
 		end
 	end
-	assert(total == 15, "15 nouveaux persos attendus")
+	assert(total == 16, "16 nouveaux persos attendus")
+	-- Nuque « soignée » : de la couleur des cheveux, remontée dans la coiffure (plus de pavé sombre)
+	for _, id in { "occ_toja", "occ_yuuto", "oce_inel", "sai_gojita", "pou_muzon" } do
+		local look = Formulas.describe({ id = id, level = 1, stars = 1 }).look
+		assert(look.napeTidy, id .. " : nuque soignée attendue")
+		local m = CharacterBuilder.build(look, { scale = 1 })
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and d.Name == "HairNape" then
+				assert(d.Color == look.hairColor, id .. " : nuque d'une autre couleur que les cheveux")
+			end
+		end
+		m:Destroy()
+	end
+	-- Objets peints (armure lamellaire de Radama, kanji de Gaaro) : la peinture est bien posée
+	local function painted(id, stars, name)
+		local m = CharacterBuilder.build(Formulas.describe({ id = id, level = 1, stars = stars }).look, { scale = 1 })
+		local found = false
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and d.Name == name and #d:GetChildren() > 0 then
+				for _, c in d:GetDescendants() do
+					if c:IsA("SurfaceGui") then
+						found = true
+					end
+				end
+			end
+		end
+		m:Destroy()
+		return found
+	end
+	assert(painted("ninja_gaaro", 1, "Kanji"), "Gaaro : kanji du front non peint")
+	assert(painted("ninja_radama", 1, "Prop"), "Radama : armure lamellaire non peinte")
 	-- Objets signature des Secrets (lisibles de loin)
 	local function hasProp(id, stars, name)
 		local m = CharacterBuilder.build(Formulas.describe({ id = id, level = 1, stars = stars }).look, { scale = 1 })

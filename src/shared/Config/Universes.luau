@@ -147,6 +147,7 @@ Universes.List = {
 			"occ_toudo",
 			"occ_inumako",
 			"occ_nobora",
+			"occ_ijichu",
 			"occ_megumo",
 			"occ_yuzi",
 			"occ_mako",

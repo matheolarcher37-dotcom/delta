@@ -36,6 +36,7 @@ NomsOriginaux.List = {
 	{ id = "occ_yuzi", names = { "yuji", "itadori" } },
 	{ id = "occ_megumo", names = { "megumi", "fushiguro" } },
 	{ id = "occ_nobora", names = { "nobara", "kugisaki" } },
+	{ id = "occ_ijichu", names = { "ijichi", "kiyotaka" } },
 	{ id = "occ_mako", names = { "maki", "zenin" } },
 	{ id = "occ_inumako", names = { "inumaki", "toge" } },
 	{ id = "occ_toudo", names = { "todo", "aoi todo" } },
