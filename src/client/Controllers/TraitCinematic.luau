@@ -530,12 +530,27 @@ local function hideClientFx(scene)
 	if not fx then
 		return
 	end
-	for _, d in fx:GetDescendants() do
+	local function hide(d: Instance)
+		if scene.finished then
+			return
+		end
 		if d:IsA("BasePart") then
 			hideLocal(scene, d)
-		elseif (d:IsA("ParticleEmitter") or d:IsA("Beam") or d:IsA("Trail") or d:IsA("BillboardGui") or d:IsA("Light")) and d.Enabled then
-			d.Enabled = false
+		elseif (d:IsA("ParticleEmitter") or d:IsA("Beam") or d:IsA("Trail") or d:IsA("BillboardGui") or d:IsA("Light")) and (d :: any).Enabled then
+			(d :: any).Enabled = false
 			table.insert(scene.guis, d)
+		end
+	end
+	for _, d in fx:GetDescendants() do
+		hide(d)
+	end
+	-- un sort lancé pendant la scène est masqué dès son apparition (pas d'éclair d'un instant)
+	if not scene.fxConnection then
+		local ok, connection = pcall(function()
+			return fx.DescendantAdded:Connect(hide)
+		end)
+		if ok then
+			scene.fxConnection = connection
 		end
 	end
 end
@@ -585,6 +600,10 @@ local function finishScene(scene)
 	scene.finished = true
 	if scene.connection then
 		scene.connection:Disconnect()
+	end
+	if scene.fxConnection then
+		scene.fxConnection:Disconnect()
+		scene.fxConnection = nil
 	end
 	pcall(function()
 		ContextActionService:UnbindAction("AT_TraitCinematic")
@@ -1236,8 +1255,8 @@ function TraitCinematic.monarchCamera(total: number): { { any } }
 	return {
 		{ 0, Vector3.new(16, 15, -20), Vector3.new(0, 2.5, 0), 55 },
 		{ 2.2, Vector3.new(-10, 10, -18), Vector3.new(0, 3, 0), 52 },
-		{ 3.6, Vector3.new(-2.5, 6.8, -20), Vector3.new(0, 4.7, 0), 52 },
-		{ math.max(total, 4), Vector3.new(0, 6.5, -20.5), Vector3.new(0, 4.7, 0), 50 },
+		{ 3.6, Vector3.new(-2.5, 7.4, -20), Vector3.new(0, 5.5, 0), 52 },
+		{ math.max(total, 4), Vector3.new(0, 7.2, -20.5), Vector3.new(0, 5.5, 0), 50 },
 	}
 end
 
@@ -1331,7 +1350,8 @@ local function monarchScene(scene)
 	local crownScale = math.clamp((scene.heroHairRadius or 1) / 0.85, HERO_SCALE, 2.6)
 	local crown = buildCrown(scene, crownScale)
 	local crownBase = scene.crownParts
-	local crownTarget = math.max(headTop + 0.15 * crownScale, (scene.heroHairTop or headTop) - 0.55 * crownScale)
+	-- posée haut (sur la coiffure, pas enfoncée jusqu'aux yeux) : le visage reste entièrement visible
+	local crownTarget = math.max(headTop + 0.3 * crownScale, (scene.heroHairTop or headTop) - 0.3 * crownScale)
 	scene.crownY = crownTarget
 	-- Étincelles dorées qui montent du sol
 	local motes = part(scene, "Motes", Vector3.new(0.2, 20, 20), CFrame.new(0, 0.4, 0) * FLAT, GOLD, Enum.Material.Neon, CYL, 1)
@@ -1463,7 +1483,9 @@ local function celesteScene(scene)
 	for _, side in { -1, 1 } do
 		for i = 1, 7 do
 			local len = 6.4 - (i - 1) * 0.5
-			local feather = wedge(scene, "WingFeather", Vector3.new(0.14, 1.25, len), CFrame.new(), i % 2 == 0 and Color3.fromRGB(235, 250, 255) or SKY, Enum.Material.Neon, 1)
+			-- bleu ciel franc (lisible même devant un mur clair), bord d'attaque doré
+			local color = i == 1 and Color3.fromRGB(255, 232, 160) or (i % 2 == 0 and Color3.fromRGB(205, 238, 255) or Color3.fromRGB(130, 200, 255))
+			local feather = wedge(scene, "WingFeather", Vector3.new(0.14, 1.25, len), CFrame.new(), color, Enum.Material.Neon, 1)
 			table.insert(wings, { part = feather, side = side, i = i, len = len })
 		end
 	end
@@ -1536,11 +1558,13 @@ local function celesteScene(scene)
 			local spread = (w.i - 1) / 6
 			-- éventail : de 55° vers le haut (bord d'attaque) à 30° vers le bas (dernières rémiges)
 			local angle = math.rad(55 - spread * 85) * open + math.rad(70) * (1 - open) + flap
-			local sweep = math.rad(16 + spread * 10) * open + math.rad(6) -- presque dans le plan du dos : bien visible de face
-			w.part.Transparency = 1 - open * (0.6 + 0.12 * (w.i % 2))
+			-- légèrement vers l'arrière (presque dans le plan du dos) : bien visible de face
+			local sweep = math.rad(14 + spread * 10) * open + math.rad(6)
+			w.part.Transparency = 1 - open * (0.8 + 0.08 * (w.i % 2))
+			-- chaque aile part de son épaule vers l'extérieur (côté w.side), un peu en arrière
 			w.part.CFrame = body
 				* CFrame.new(w.side * 0.6, shoulder, 0.75)
-				* CFrame.Angles(0, w.side * (math.pi / 2 - sweep), 0)
+				* CFrame.Angles(0, -w.side * (math.pi / 2 + sweep), 0)
 				* CFrame.Angles(angle, 0, 0)
 				* CFrame.new(0, 0, -w.len * 0.5)
 		end
