@@ -50,7 +50,7 @@ local INK = Color3.fromRGB(14, 14, 20)
 
 local PAGE_SIZE = 6
 local AUTO_TARGETS = { 3, 4, 5 } -- rangs d'arrêt de la relance auto
-local ROW = 36 -- hauteur d'une ligne du rouleau (3 lignes visibles)
+local ROW = 32 -- hauteur d'une ligne du rouleau (3 lignes visibles)
 
 local gui: ScreenGui
 local window
@@ -248,7 +248,7 @@ local function sunburst(parent: Instance, color: Color3, count: number, z: numbe
 end
 
 -- Emblème du trait : hexagone aux couleurs du rang + icône du trait (+ anneau qui tourne si rare).
-local function emblem(parent: Instance, traitId: string?, radius: number, position: UDim2, z: number): Frame
+local function emblem(parent: Instance, traitId: string?, radius: number, position: UDim2, z: number, backing: boolean?): Frame
 	local trait = Traits.get(traitId)
 	local color = trait and trait.color or Color3.fromRGB(80, 80, 100)
 	local edge = trait and tierColor(trait.tier) or C.Edge
@@ -261,6 +261,22 @@ local function emblem(parent: Instance, traitId: string?, radius: number, positi
 		ZIndex = z,
 		Parent = parent,
 	})
+	if backing then
+		-- disque sombre derrière l'emblème : il se détache même sur une carte de la même couleur
+		local disc = new("Frame", {
+			Name = "Backing",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(1.3, 1.3),
+			BackgroundColor3 = INK,
+			BackgroundTransparency = 0.25,
+			ZIndex = z,
+			Parent = holder,
+		})
+		Theme.round().Parent = disc
+		Theme.stroke(Theme.light(edge, 0.2), 2, 0.2).Parent = disc
+		Theme.gradient({ Theme.dark(color, 0.55), INK }, 90).Parent = disc
+	end
 	if trait and trait.tier >= 3 then
 		local ring = new("Frame", {
 			Name = "Ring",
@@ -392,7 +408,7 @@ local function paintTraitCard(trait)
 	if refs.emblem then
 		refs.emblem:Destroy()
 	end
-	refs.emblem = emblem(card, trait and trait.id, 46, UDim2.fromOffset(66, 70), 4)
+	refs.emblem = emblem(card, trait and trait.id, 40, UDim2.fromOffset(64, 58), 4, true)
 end
 
 local function restReel(trait)
@@ -521,7 +537,7 @@ local function buildTraitCard(parent: Instance, props: { [string]: any }, trait)
 	refs.traitTier = Theme.label({
 		Name = "TraitTier",
 		Size = UDim2.new(1, -142, 0, 22),
-		Position = UDim2.fromOffset(128, ROW * 3 + 16),
+		Position = UDim2.fromOffset(128, ROW * 3 + 14),
 		FontFace = Theme.Faces.Heavy,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		StrokeThickness = 2,
@@ -532,7 +548,7 @@ local function buildTraitCard(parent: Instance, props: { [string]: any }, trait)
 	refs.traitDesc = Theme.label({
 		Name = "TraitDesc",
 		Size = UDim2.new(1, -28, 0, 20),
-		Position = UDim2.fromOffset(14, ROW * 3 + 44),
+		Position = UDim2.fromOffset(14, ROW * 3 + 40),
 		FontFace = Theme.Faces.Bold,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		StrokeThickness = 1.5,
@@ -543,7 +559,7 @@ local function buildTraitCard(parent: Instance, props: { [string]: any }, trait)
 	refs.traitChips = new("Frame", {
 		Name = "Chips",
 		Size = UDim2.new(1, -28, 0, 26),
-		Position = UDim2.fromOffset(14, ROW * 3 + 70),
+		Position = UDim2.fromOffset(14, ROW * 3 + 64),
 		BackgroundTransparency = 1,
 		ZIndex = 5,
 		Parent = card,
@@ -766,7 +782,7 @@ function TraitsMenu.playReveal(trait, desc, duration: number?): Frame?
 		ZIndex = 1,
 		Parent = root,
 	})
-	Theme.tween(catcher, 0.25, { BackgroundTransparency = 0.3 })
+	Theme.tween(catcher, 0.25, { BackgroundTransparency = 0.18 })
 	catcher.Activated:Connect(finish)
 	pcall(function()
 		ContextActionService:BindActionAtPriority("AT_TraitReveal", function(_, state)
@@ -776,26 +792,35 @@ function TraitsMenu.playReveal(trait, desc, duration: number?): Frame?
 			return Enum.ContextActionResult.Sink
 		end, false, Enum.ContextActionPriority.High.Value + 50, Enum.KeyCode.ButtonA, Enum.KeyCode.ButtonB, Enum.KeyCode.Space, Enum.KeyCode.Return)
 	end)
-	-- halo coloré + rayons + anneaux
+	-- halo coloré : disques concentriques très transparents empilés (un dégradé « radial », que
+	-- UIGradient ne sait pas faire) + rayons + anneaux
 	local glow = new("Frame", {
 		Name = "Glow",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.44),
-		Size = UDim2.fromOffset(760, 760),
-		BackgroundColor3 = color,
-		BackgroundTransparency = 0.2,
+		Position = UDim2.fromScale(0.5, 0.4),
+		Size = UDim2.fromOffset(820, 820),
+		BackgroundTransparency = 1,
 		ZIndex = 2,
 		Parent = root,
 	})
-	Theme.round().Parent = glow
-	local radial = new("UIGradient", {
-		Color = Theme.sequence({ Theme.light(color, 0.4), color }),
-		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(0.55, 0.75), NumberSequenceKeypoint.new(1, 1) }),
-		Rotation = 90,
-		Parent = glow,
-	})
-	radial.Name = "Radial"
-	sunburst(root, edge, 12, 3, 1300, UDim2.fromScale(0.5, 0.44))
+	local glowScale = new("UIScale", { Scale = 0.4, Parent = glow })
+	Theme.tween(glowScale, 0.6, { Scale = 1 }, Enum.EasingStyle.Quart)
+	local LAYERS = 13
+	for i = 1, LAYERS do
+		local f = (i - 1) / (LAYERS - 1) -- 0 = disque extérieur, 1 = cœur
+		local disc = new("Frame", {
+			Name = "GlowLayer",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(1 - f * 0.8, 1 - f * 0.8),
+			BackgroundColor3 = color:Lerp(WHITE, f * f * 0.75),
+			BackgroundTransparency = 0.9 - f * 0.04,
+			ZIndex = 2,
+			Parent = glow,
+		})
+		Theme.round().Parent = disc
+	end
+	sunburst(root, color:Lerp(edge, 0.35), 12, 3, 1300, UDim2.fromScale(0.5, 0.4)).Name = "Sunburst"
 	ringPulse(root, edge, 900, 4)
 	task.delay(0.25, function()
 		if root.Parent then
@@ -807,6 +832,27 @@ function TraitsMenu.playReveal(trait, desc, duration: number?): Frame?
 	local big = emblem(root, trait.id, 92, UDim2.fromScale(0.5, 0.36), 6)
 	local bigScale = new("UIScale", { Scale = 0.2, Parent = big })
 	Theme.tween(bigScale, 0.5, { Scale = 1 }, Enum.EasingStyle.Back)
+	-- bandeau sombre derrière les textes (lisibles par-dessus la fenêtre)
+	local band = new("Frame", {
+		Name = "TextBand",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0.6, -58),
+		Size = UDim2.new(1, 0, 0, 228),
+		BackgroundColor3 = INK,
+		BackgroundTransparency = 0,
+		BorderSizePixel = 0,
+		ZIndex = 7,
+		Parent = root,
+	})
+	new("UIGradient", {
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.28, 0.3),
+			NumberSequenceKeypoint.new(0.72, 0.3),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+		Parent = band,
+	})
 	-- titre
 	local title = Theme.label({
 		Name = "Title",
@@ -1095,7 +1141,7 @@ local function chancesTable(parent: Instance, y: number)
 		-- en-tête
 		local head = new("Frame", {
 			Name = "Head",
-			Size = UDim2.new(1, 0, 0, 46),
+			Size = UDim2.new(1, 0, 0, 38),
 			BackgroundColor3 = WHITE,
 			BorderSizePixel = 0,
 			Parent = col,
@@ -1104,34 +1150,54 @@ local function chancesTable(parent: Instance, y: number)
 		if tier >= 4 then
 			sweep(head, 2, 0, 3.5 - (tier - 4), 0.35)
 		end
+		-- nom du rang (une ligne pleine largeur), puis total du rang et étoiles
 		Theme.label({
-			Text = stars(tier),
-			Size = UDim2.new(1, -10, 0, 12),
-			Position = UDim2.fromOffset(5, 3),
-			FontFace = Theme.Faces.Heavy,
-			TextColor3 = WHITE,
-			StrokeThickness = 1.5,
-			ZIndex = 3,
-			Parent = head,
-		})
-		Theme.label({
-			Text = upper(Traits.TierNames[tier] or "") .. "  " .. percent(total),
-			Size = UDim2.new(1, -10, 0, 26),
-			Position = UDim2.fromOffset(5, 16),
+			Name = "TierName",
+			Text = upper(Traits.TierNames[tier] or ""),
+			Size = UDim2.new(1, -12, 0, 19),
+			Position = UDim2.fromOffset(7, 2),
 			FontFace = Theme.Faces.Title,
 			TextColor3 = WHITE,
+			TextXAlignment = Enum.TextXAlignment.Left,
 			StrokeThickness = 2,
-			MaxSize = 19,
+			MaxSize = 18,
 			ZIndex = 3,
 			Parent = head,
 		})
-		local list = new("Frame", { Name = "List", Size = UDim2.new(1, -10, 1, -52), Position = UDim2.fromOffset(5, 50), BackgroundTransparency = 1, Parent = col })
-		Theme.list(Enum.FillDirection.Vertical, 3, Enum.HorizontalAlignment.Left).Parent = list
+		Theme.label({
+			Name = "TierTotal",
+			Text = percent(total),
+			Size = UDim2.new(0.5, -7, 0, 14),
+			Position = UDim2.fromOffset(7, 21),
+			FontFace = Theme.Faces.Heavy,
+			TextColor3 = Theme.light(color, 0.6),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			StrokeThickness = 1.5,
+			MaxSize = 14,
+			ZIndex = 3,
+			Parent = head,
+		})
+		Theme.label({
+			Name = "TierStars",
+			Text = stars(tier),
+			AnchorPoint = Vector2.new(1, 0),
+			Size = UDim2.new(0.5, -6, 0, 12),
+			Position = UDim2.new(1, -6, 0, 22),
+			FontFace = Theme.Faces.Heavy,
+			TextColor3 = WHITE,
+			TextXAlignment = Enum.TextXAlignment.Right,
+			StrokeThickness = 1,
+			MaxSize = 12,
+			ZIndex = 3,
+			Parent = head,
+		})
+		local list = new("Frame", { Name = "List", Size = UDim2.new(1, -10, 1, -42), Position = UDim2.fromOffset(5, 42), BackgroundTransparency = 1, Parent = col })
+		Theme.list(Enum.FillDirection.Vertical, 2, Enum.HorizontalAlignment.Left).Parent = list
 		for i, trait in items do
 			local mine = currentTrait == trait
 			local line = new("Frame", {
 				Name = "Line",
-				Size = UDim2.new(1, 0, 0, 24),
+				Size = UDim2.new(1, 0, 0, 22),
 				BackgroundColor3 = mine and Theme.dark(color, 0.2) or BLACK,
 				BackgroundTransparency = mine and 0.1 or 0.6,
 				LayoutOrder = i,
@@ -1141,7 +1207,7 @@ local function chancesTable(parent: Instance, y: number)
 			if mine then
 				Theme.stroke(WHITE, 1.5).Parent = line
 			end
-			local ib = new("Frame", { Name = "Icon", Position = UDim2.fromOffset(3, 3), Size = UDim2.fromOffset(18, 18), BackgroundTransparency = 1, Parent = line })
+			local ib = new("Frame", { Name = "Icon", Position = UDim2.fromOffset(3, 2), Size = UDim2.fromOffset(18, 18), BackgroundTransparency = 1, Parent = line })
 			Icons.make(iconOf(trait.id), ib, { px = 18, color = Theme.light(trait.color, 0.25), ink = INK, zindex = 2 })
 			Theme.label({
 				Text = trait.name,
@@ -1221,7 +1287,7 @@ local function renderDetail()
 	local data = State.data
 	local entry = data and selected and data.characters[selected]
 	local sheet = Components.sheet(holder, { Size = UDim2.fromScale(1, 1) })
-	chancesTable(sheet, 370)
+	chancesTable(sheet, 364)
 	if not entry then
 		Components.emptyState(sheet, "Choisis une unité à gauche pour relancer son trait.", "gem").Position = UDim2.new(0, 10, 0.12, 0)
 		return
@@ -1336,15 +1402,15 @@ local function renderDetail()
 		MaxSize = 15,
 		Parent = right,
 	})
-	buildTraitCard(right, { Size = UDim2.new(1, 0, 0, ROW * 3 + 106), Position = UDim2.fromOffset(0, 28) }, trait)
+	buildTraitCard(right, { Size = UDim2.new(1, 0, 0, ROW * 3 + 98), Position = UDim2.fromOffset(0, 28) }, trait)
 	local uid = selected :: string
 	local count = gems()
-	local buttonsY = 28 + ROW * 3 + 106 + 12
+	local buttonsY = 28 + ROW * 3 + 98 + 10
 	refs.rollButton = Components.button({
 		Text = "RELANCER",
 		Icon = "dice",
 		Color = count > 0 and C.Purple or C.Gray,
-		Size = UDim2.new(0.66, -6, 0, 66),
+		Size = UDim2.new(0.66, -6, 0, 62),
 		Position = UDim2.fromOffset(0, buttonsY),
 		TextSize = 34,
 		Hint = "A",
@@ -1371,7 +1437,7 @@ local function renderDetail()
 		Name = "Cost",
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, 0, 0, buttonsY),
-		Size = UDim2.new(0.34, -6, 0, 61),
+		Size = UDim2.new(0.34, -6, 0, 57),
 		BackgroundColor3 = Color3.fromRGB(10, 10, 16),
 		BackgroundTransparency = 0.15,
 		Parent = right,
@@ -1392,7 +1458,7 @@ local function renderDetail()
 	Theme.label({
 		Name = "Amount",
 		Text = "1 gemme",
-		Position = UDim2.fromOffset(56, 24),
+		Position = UDim2.fromOffset(56, 22),
 		Size = UDim2.new(1, -62, 0, 28),
 		FontFace = Theme.Faces.Title,
 		TextColor3 = count > 0 and Color3.fromRGB(150, 236, 255) or Color3.fromRGB(255, 90, 90),
@@ -1401,12 +1467,12 @@ local function renderDetail()
 		Parent = cost,
 	})
 	-- Relance auto : s'arrête au rang choisi
-	local autoY = buttonsY + 74
+	local autoY = buttonsY + 70
 	refs.autoButton = Components.button({
 		Text = autoOn and "STOP AUTO" or "RELANCE AUTO",
 		Icon = "fast",
 		Color = autoOn and C.Red or C.Blue,
-		Size = UDim2.new(0.5, -6, 0, 46),
+		Size = UDim2.new(0.5, -6, 0, 42),
 		Position = UDim2.fromOffset(0, autoY),
 		TextSize = 20,
 		Parent = right,
@@ -1423,7 +1489,7 @@ local function renderDetail()
 		Name = "AutoTarget",
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, 0, 0, autoY),
-		Size = UDim2.new(0.5, -6, 0, 42),
+		Size = UDim2.new(0.5, -6, 0, 40),
 		BackgroundColor3 = Color3.fromRGB(12, 12, 18),
 		BackgroundTransparency = 0.15,
 		Parent = right,
@@ -1453,7 +1519,7 @@ local function renderDetail()
 			Text = "",
 			Icon = icon,
 			Color = C.Purple,
-			Size = UDim2.fromOffset(38, 36),
+			Size = UDim2.fromOffset(38, 32),
 			AnchorPoint = Vector2.new(x, 0.5),
 			Position = UDim2.new(x, x == 0 and 4 or -4, 0.5, 0),
 			Parent = target,

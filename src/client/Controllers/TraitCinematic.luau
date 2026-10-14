@@ -352,14 +352,15 @@ local function hideLocal(scene, part: BasePart)
 	if scene.hidden[part] ~= nil then
 		return
 	end
-	local ok, value = pcall(function()
-		return part.LocalTransparencyModifier
+	local value = 0
+	pcall(function()
+		value = part.LocalTransparencyModifier
+	end)
+	local ok = pcall(function()
+		part.LocalTransparencyModifier = 1
 	end)
 	if ok then
 		scene.hidden[part] = value
-		pcall(function()
-			part.LocalTransparencyModifier = 1
-		end)
 		for _, d in part:GetChildren() do
 			if (d:IsA("SurfaceGui") or d:IsA("BillboardGui") or d:IsA("ParticleEmitter")) and d.Enabled then
 				d.Enabled = false
@@ -450,31 +451,90 @@ function TraitCinematic.stageFor(uid: string?): (CFrame, Model?)
 	return CFrame.lookAt(center, center + toward.Unit), nil
 end
 
--- Masque (pour ce joueur) ce qui dépasse dans le cercle de la scène : arbres, poteaux, autres persos.
-local function clearArea(scene, radius: number)
-	local center = scene.stage.Position
+-- Masque (pour ce joueur) un obstacle : l'objet entier s'il est petit (arbre, lampadaire, perso,
+-- stand), sinon la pièce seule. Le sol (grande dalle plate) n'est jamais masqué.
+local function hideObstacle(scene, part: BasePart, groundY: number)
+	if scene.hidden[part] ~= nil or part:IsA("Terrain") or part:IsDescendantOf(scene.folder) then
+		return
+	end
+	local size = part.Size
+	local top = part.CFrame.Position.Y + size.Y * 0.5
+	if top <= groundY + 0.35 or math.max(size.X, size.Z) >= 60 then
+		return
+	end
+	local model = part:FindFirstAncestorOfClass("Model")
+	if model and model ~= Workspace then
+		if model:FindFirstChild("HumanoidRootPart") then
+			hideModel(scene, model)
+			return
+		end
+		local ok, extents = pcall(function()
+			return model:GetExtentsSize()
+		end)
+		if ok and typeof(extents) == "Vector3" and math.max(extents.X, extents.Y, extents.Z) < 40 then
+			hideModel(scene, model)
+			return
+		end
+	end
+	hideLocal(scene, part)
+end
+
+local function partsNear(scene, center: Vector3, radius: number): { BasePart }
 	local ok, parts = pcall(function()
 		local params = OverlapParams.new()
 		params.FilterType = Enum.RaycastFilterType.Exclude
 		params.FilterDescendantsInstances = { scene.folder }
-		return Workspace:GetPartBoundsInRadius(center + Vector3.new(0, 7, 0), radius, params)
+		return Workspace:GetPartBoundsInRadius(center, radius, params)
 	end)
-	if not ok or type(parts) ~= "table" then
+	if ok and type(parts) == "table" then
+		return parts
+	end
+	return {}
+end
+
+-- Masque (pour ce joueur) ce qui dépasse dans le cercle de la scène : arbres, poteaux, autres persos.
+local function clearArea(scene, radius: number)
+	local center = scene.stage.Position
+	for _, part in partsNear(scene, center + Vector3.new(0, 7, 0), radius) do
+		if part:IsA("BasePart") then
+			hideObstacle(scene, part, center.Y)
+		end
+	end
+end
+
+-- Masque aussi ce qui se trouve entre la caméra et la scène pendant tout son trajet (toits,
+-- lampadaires, arbres, murets...) : la scène reste toujours bien visible, où qu'elle se joue.
+function TraitCinematic.sightlinePoints(stage: CFrame, keys: { { any } }): { Vector3 }
+	local points = {}
+	local last = keys[#keys][1]
+	local steps = math.clamp(math.floor(last * 3), 6, 30)
+	local focus = stage.Position + Vector3.new(0, 3, 0)
+	for i = 0, steps do
+		local cf = TraitCinematic.evalCamera(keys, last * i / steps)
+		local eye = (stage * cf).Position
+		local toward = focus - eye
+		local distance = toward.Magnitude
+		if distance > 1 then
+			local unit = toward / distance
+			local d = 0
+			while d < distance - 6 do
+				table.insert(points, eye + unit * d)
+				d += 3
+			end
+		end
+	end
+	return points
+end
+
+local function clearSightlines(scene)
+	if not scene.cameraKeys then
 		return
 	end
-	for _, part in parts do
-		if part:IsA("BasePart") and not part:IsA("Terrain") then
-			local size = part.Size
-			local top = part.CFrame.Position.Y + size.Y * 0.5
-			local biggest = math.max(size.X, size.Z)
-			-- le sol (grande dalle plate) reste ; tout ce qui dépasse du sol est masqué
-			if top > center.Y + 0.35 and biggest < 60 then
-				local model = part:FindFirstAncestorOfClass("Model")
-				if model and model ~= Workspace and model:FindFirstChild("HumanoidRootPart") then
-					hideModel(scene, model)
-				else
-					hideLocal(scene, part)
-				end
+	local groundY = scene.stage.Position.Y
+	for _, point in TraitCinematic.sightlinePoints(scene.stage, scene.cameraKeys) do
+		for _, part in partsNear(scene, point, 3.5) do
+			if part:IsA("BasePart") then
+				hideObstacle(scene, part, groundY)
 			end
 		end
 	end
@@ -721,6 +781,7 @@ end
 -- Démarre la boucle d'images : `step(t, dt)` de la scène + caméra + secousse.
 local function run(scene, clock: (() -> number)?)
 	local now = clock or os.clock
+	clearSightlines(scene)
 	local start = now()
 	local last = start
 	local rng = Random.new(7)
@@ -813,7 +874,7 @@ local function title(scene, text: string, color: Color3, subtitle: string, badge
 	local holder = new("Frame", {
 		Name = "TitleBlock",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, y or 0.24),
+		Position = UDim2.fromScale(0.5, y or 0.2),
 		Size = UDim2.fromOffset(980, 190),
 		BackgroundTransparency = 1,
 		ZIndex = 25,
@@ -1079,7 +1140,7 @@ TraitCinematic.HeroScale = HERO_SCALE
 -- Places des persos (repère de la scène) : un cercle autour de l'unité, ouvert du côté de la
 -- caméra (devant, -Z) pour qu'aucun perso ne se tienne entre la caméra et l'unité. Angles mesurés
 -- depuis l'avant : 4 de chaque côté, du flanc avant jusque derrière l'unité.
-local MONARCH_ANGLES = { 54, 90, 124, 158 }
+local MONARCH_ANGLES = { 70, 99, 128, 157 }
 function TraitCinematic.monarchSpots(): { Vector3 }
 	local spots = {}
 	for _, a in MONARCH_ANGLES do
@@ -1097,8 +1158,8 @@ function TraitCinematic.monarchCamera(total: number): { { any } }
 	return {
 		{ 0, Vector3.new(16, 15, -20), Vector3.new(0, 2.5, 0), 55 },
 		{ 2.2, Vector3.new(-10, 10, -18), Vector3.new(0, 3, 0), 52 },
-		{ 3.6, Vector3.new(-2.5, 7.5, -20.5), Vector3.new(0, 4, 0), 50 },
-		{ math.max(total, 4), Vector3.new(0, 7, -20), Vector3.new(0, 4, 0), 50 },
+		{ 3.6, Vector3.new(-2.5, 6.4, -19.5), Vector3.new(0, 6.3, 0), 52 },
+		{ math.max(total, 4), Vector3.new(0, 6.2, -20), Vector3.new(0, 6.4, 0), 50 },
 	}
 end
 
@@ -1144,7 +1205,7 @@ local function monarchScene(scene)
 	-- Halo et rayons dorés derrière l'unité (apparaissent avec la couronne)
 	local haloY = headTop - 1.4
 	local halo =
-		part(scene, "Halo", Vector3.new(0.1, 6.4, 6.4), CFrame.new(0, haloY, 1.6) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 214, 100), Enum.Material.Neon, CYL, 1)
+		part(scene, "Halo", Vector3.new(0.1, 6.4, 6.4), CFrame.new(0, haloY, 1.6) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 186, 60), Enum.Material.Neon, CYL, 1)
 	local rays = {}
 	for i = 0, 15 do
 		local long = i % 2 == 0
@@ -1152,7 +1213,7 @@ local function monarchScene(scene)
 		table.insert(rays, { part = ray, a = i / 16 * math.pi * 2, long = long })
 	end
 	-- Colonne de lumière du ciel sur l'unité (au moment où la couronne descend)
-	local sky = part(scene, "SkyBeam", Vector3.new(60, 3.4, 3.4), CFrame.new(0, headTop + 30, 0) * UPRIGHT, Color3.fromRGB(255, 236, 170), Enum.Material.Neon, CYL, 1)
+	local sky = part(scene, "SkyBeam", Vector3.new(60, 2.6, 2.6), CFrame.new(0, headTop + 30, 0) * UPRIGHT, Color3.fromRGB(255, 236, 170), Enum.Material.Neon, CYL, 1)
 	-- Les persos du cercle : d'abord invisibles, ils apparaissent dans une colonne de lumière
 	local kneelers = {}
 	for i, info in TraitCinematic.kneelerLooks(scene.entry and scene.entry.uid, MONARCH_COUNT) do
@@ -1245,7 +1306,7 @@ local function monarchScene(scene)
 		local cf = smooth((t - 2.9) / 1.4)
 		local crownCf = scene.stage * CFrame.new(0, crownTarget + (1 - cf) * 9, 0) * CFrame.Angles(0, (1 - cf) * 5 + t * 0.4, 0)
 		placeAll(crownBase, crownCf)
-		sky.Transparency = 1 - 0.55 * math.clamp(math.min((t - 2.7) / 0.4, (4.6 - t) / 0.6), 0, 1)
+		sky.Transparency = 1 - 0.5 * math.clamp(math.min((t - 2.7) / 0.4, (4.4 - t) / 0.4), 0, 1)
 		if not crowned and t >= 4.3 then
 			crowned = true
 			flash(scene, Color3.fromRGB(255, 240, 190), 0.9, 0.8)
@@ -1254,7 +1315,7 @@ local function monarchScene(scene)
 		end
 		-- halo et rayons derrière l'unité, une fois couronnée
 		local h = smooth((t - 4.2) / 0.6)
-		halo.Transparency = 1 - h * 0.75
+		halo.Transparency = 1 - h * 0.5
 		for _, r in rays do
 			local a = r.a + t * 0.35
 			local len = r.long and 6 or 3.6
@@ -1280,8 +1341,8 @@ function TraitCinematic.celesteCamera(total: number): { { any } }
 	return {
 		{ 0, Vector3.new(7, 1.8, -12), Vector3.new(0, 14, 0), 60 },
 		{ 1.4, Vector3.new(4, 2.6, -13), Vector3.new(0, 6, 0), 52 },
-		{ 3, Vector3.new(0.5, 3.6, -13), Vector3.new(0, 6.4, 0), 46 },
-		{ math.max(total, 3.5), Vector3.new(0, 3.4, -11.5), Vector3.new(0, 6.6, 0), 44 },
+		{ 3, Vector3.new(1, 4.2, -16.5), Vector3.new(0, 7.2, 0), 52 },
+		{ math.max(total, 3.5), Vector3.new(0, 4, -16), Vector3.new(0, 7.5, 0), 50 },
 	}
 end
 
@@ -1295,6 +1356,7 @@ local function celesteScene(scene)
 	-- Le faisceau céleste (cœur + halo) descend du ciel jusqu'au sol
 	local beam = part(scene, "CelestialBeam", Vector3.new(1, 4.2, 4.2), CFrame.new(0, 200, 0) * UPRIGHT, SKY, Enum.Material.Neon, CYL, 0.35)
 	local beamGlow = part(scene, "CelestialGlow", Vector3.new(1, 8, 8), CFrame.new(0, 200, 0) * UPRIGHT, Color3.fromRGB(150, 220, 255), Enum.Material.Neon, CYL, 0.82)
+	local shaft = part(scene, "BackShaft", Vector3.new(160, 1.8, 1.8), CFrame.new(0, 80, 3.2) * UPRIGHT, Color3.fromRGB(225, 246, 255), Enum.Material.Neon, CYL, 1)
 	local ring = part(scene, "ImpactRing", Vector3.new(0.05, 4, 4), CFrame.new(0, 0.12, 0) * FLAT, SKY, Enum.Material.Neon, CYL, 1)
 	local pool = part(scene, "LightPool", Vector3.new(0.05, 9, 9), CFrame.new(0, 0.1, 0) * FLAT, Color3.fromRGB(230, 250, 255), Enum.Material.Neon, CYL, 1)
 	light(pool, SKY, 3, 22)
@@ -1317,7 +1379,7 @@ local function celesteScene(scene)
 	local wings = {}
 	for _, side in { -1, 1 } do
 		for i = 1, 6 do
-			local len = 2.6 + i * 0.55
+			local len = 3.2 + i * 0.7
 			local feather = wedge(scene, "WingFeather", Vector3.new(0.14, 0.75, len), CFrame.new(), i % 2 == 0 and Color3.fromRGB(235, 250, 255) or SKY, Enum.Material.Neon, 1)
 			table.insert(wings, { part = feather, side = side, i = i, len = len })
 		end
@@ -1349,10 +1411,16 @@ local function celesteScene(scene)
 		local bottom = 120 * (1 - d)
 		local length = 160 - bottom
 		local mid = bottom + length * 0.5
-		beam.Size = Vector3.new(length, 4.2, 4.2)
+		-- après l'impact, la colonne s'amincit et s'efface (l'unité apparaît) ; un rai reste derrière elle
+		local fade = smooth((t - 1) / 0.9)
+		local width = 4.2 - 2.6 * fade
+		beam.Size = Vector3.new(length, width, width)
 		beam.CFrame = scene.stage * CFrame.new(0, mid, 0) * UPRIGHT
+		beam.Transparency = 0.35 + 0.65 * fade
 		beamGlow.Size = Vector3.new(length, 8 + math.sin(t * 6) * 0.4, 8 + math.sin(t * 6) * 0.4)
 		beamGlow.CFrame = beam.CFrame
+		beamGlow.Transparency = 0.82 + 0.18 * fade
+		shaft.Transparency = 1 - 0.45 * smooth((t - 1.4) / 0.8)
 		if not landed and t >= 0.9 then
 			landed = true
 			flash(scene, WHITE, 0.9, 0.7)
@@ -1384,8 +1452,8 @@ local function celesteScene(scene)
 		for _, w in wings do
 			local spread = (w.i - 1) / 5
 			local angle = math.rad(-10 + spread * 62) * open + math.rad(4) + flap -- relève en éventail
-			local sweep = math.rad(20 + spread * 14) * open + math.rad(6) -- s'écarte du dos
-			w.part.Transparency = 1 - open * (0.25 + 0.08 * (w.i % 2))
+			local sweep = math.rad(34 + spread * 16) * open + math.rad(6) -- s'écarte bien du dos (visible de face)
+			w.part.Transparency = 1 - open * (0.6 + 0.12 * (w.i % 2))
 			w.part.CFrame = body
 				* CFrame.new(w.side * 0.6, shoulder, 0.75)
 				* CFrame.Angles(0, w.side * (math.pi / 2 - sweep), 0)
@@ -1421,8 +1489,8 @@ function TraitCinematic.midasCamera(total: number): { { any } }
 	return {
 		{ 0, Vector3.new(-6, 12, -14), Vector3.new(0, 3, 0), 58 },
 		{ 1.6, Vector3.new(5, 5, -12), Vector3.new(0, 3.5, 0), 50 },
-		{ 3, Vector3.new(1, 3.4, -12), Vector3.new(0, 4.4, 0), 46 },
-		{ math.max(total, 3.5), Vector3.new(0, 3.2, -10.5), Vector3.new(0, 4.6, 0), 44 },
+		{ 3, Vector3.new(1.2, 4.4, -15.5), Vector3.new(0, 5, 0), 50 },
+		{ math.max(total, 3.5), Vector3.new(0, 4.2, -15), Vector3.new(0, 5, 0), 48 },
 	}
 end
 
@@ -1548,8 +1616,8 @@ function TraitCinematic.vampireCamera(total: number): { { any } }
 	return {
 		{ 0, Vector3.new(0, 1.6, -22), Vector3.new(0, 9, 30), 56 },
 		{ 1.6, Vector3.new(-3, 2.2, -16), Vector3.new(0, 6, 10), 50 },
-		{ 3, Vector3.new(-1, 2.6, -12.5), Vector3.new(0, 5, 0), 46 },
-		{ math.max(total, 3.5), Vector3.new(0, 2.6, -11), Vector3.new(0, 5.2, 0), 44 },
+		{ 3, Vector3.new(-1.2, 3.8, -15.5), Vector3.new(0, 5, 0), 50 },
+		{ math.max(total, 3.5), Vector3.new(0, 3.6, -15), Vector3.new(0, 5, 0), 48 },
 	}
 end
 
@@ -1602,7 +1670,7 @@ local function vampireScene(scene)
 		table.insert(bats, {
 			body = body,
 			wings = { wingL, wingR },
-			radius = rng:NextNumber(3.5, 9),
+			radius = rng:NextNumber(3.5, 7),
 			height = rng:NextNumber(2, 10),
 			speed = rng:NextNumber(1.4, 2.4) * (rng:NextNumber() < 0.5 and -1 or 1),
 			phase = rng:NextNumber(0, math.pi * 2),
