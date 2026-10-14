@@ -598,7 +598,21 @@ local function cap(ctx, color: Color3, o)
 	ctx.ball("Head", "HairCap", Vector3.new(1.36 + grow, h, 1.38 + grow), CFrame.new(0, 0.5 + (opts.lift or 0), 0.03), color)
 	if opts.back ~= false then
 		local length = opts.backLength or 1.4
-		ctx.ball("Head", "HairNape", Vector3.new(1.24 + grow, length, 0.9 + grow * 0.5), CFrame.new(0, 0.42 - length / 2 + (opts.napeLift or 0), 0.19), opts.color2 or color)
+		if ctx.napeTidy then
+			-- Nuque « soignée » (look.napeTidy) : plaque remontée dans le volume des cheveux, 30 %
+			-- plus courte, de la couleur des cheveux (pas une masse sombre sous la coiffure),
+			-- prolongée par 4 petites mèches qui continuent la coiffure dans la nuque.
+			local main, shine = ctx.napeTidy.color, ctx.napeTidy.shine
+			length *= 0.7
+			local top = 0.66
+			ctx.ball("Head", "HairNape", Vector3.new(1.26 + grow, length, 0.92 + grow * 0.5), CFrame.new(0, top - length / 2, 0.2), main)
+			local bottom = top - length + 0.12
+			for i, x in { -0.36, -0.12, 0.12, 0.36 } do
+				ctx.strand("Head", (i == 2) and shine or main, Vector3.new(x, bottom + 0.1, 0.5 - math.abs(x) * 0.25), Vector3.new(x * 0.5, -1, 0.3), 0.42, 0.26, 0.14)
+			end
+		else
+			ctx.ball("Head", "HairNape", Vector3.new(1.24 + grow, length, 0.9 + grow * 0.5), CFrame.new(0, 0.42 - length / 2 + (opts.napeLift or 0), 0.19), opts.color2 or color)
+		end
 	end
 end
 
@@ -3616,7 +3630,65 @@ local HATS = { "boar_head", "hood_full", "straw_hat", "volcano", "dome", "turban
 --   "rounded" (radius), "cone" (length, width, depth, dark?), "spike" (dir, length, width : pointe
 --   pleine, comme une mèche), "strand" (dir, length, width : ellipsoïde allongé).
 -- Remplacée en entier par une évolution qui donne `props` (voir Characters.resolveLook).
+-- Peinture optionnelle d'une pièce (block / wedge) : `paint = { kind, faces = { "Front", ... }, ... }`
+--   kind "lamellar" : rangées de plaques d'armure (rows, ink = liseré, rivet = rivets, slit = fente
+--     verticale au milieu, rim = bordure du bas) ;
+--   kind "strokes" : traits peints (lines = { { x0, y0, x1, y1, épaisseur en studs, couleur? } },
+--     dots = { { x, y, largeur, hauteur, couleur? } }, ink, bg = false pour une pièce invisible
+--     dont seule la peinture se voit) — glyphes, flammes, taches, aussi lisibles en mode « pièces ».
+-- `shift` (Vector3) : décalage dans le repère de la pièce après orientation (biseau, anneau...).
 local PROP_SHAPES = { wedge = "wedge", corner = "cornerWedge" }
+
+local function paintProp(ctx, part: BasePart, color: Color3, paint)
+	local mode = ctx.paint == "parts" and "parts" or nil
+	for _, faceName in paint.faces or { "Front" } do
+		local face = (Enum.NormalId :: any)[faceName]
+		if paint.kind == "lamellar" then
+			local rows = paint.rows or 4
+			local ink = paint.ink or darken(color, 0.55)
+			Painter.panel(part, face, mode, color, function(S)
+				for r = 0, rows - 1 do
+					local y0 = r / rows
+					local y1 = (r + 1) / rows
+					-- Plaque : haut éclairé, bas ombré (la rangée suivante la recouvre)
+					S:rect(0.5, y0 + (y1 - y0) * 0.3, 1, (y1 - y0) * 0.38, Painter.lighten(color, 0.12), { z = 2 })
+					S:rect(0.5, y1 - (y1 - y0) * 0.16, 1, (y1 - y0) * 0.3, Painter.celShadow(color), { z = 2 })
+					S:rect(0.5, y1 - 0.012, 1, S:dy(0.06), ink, { z = 4 })
+					-- Lacets verticaux entre les lamelles (décalés d'une rangée à l'autre)
+					local n = math.max(2, math.floor(S.w / 0.42 + 0.5))
+					for k = 0, n do
+						local x = (k + (r % 2) * 0.5) / n
+						if x > 0.02 and x < 0.98 then
+							S:rect(x, (y0 + y1) / 2, S:dx(0.035), (y1 - y0) * 0.86, ink, { z = 3, transparency = 0.35 })
+							if paint.rivet then
+								S:oval(x, y0 + (y1 - y0) * 0.24, 0.08, 0.08, paint.rivet, { z = 5 })
+							end
+						end
+					end
+				end
+				if paint.slit then
+					S:rect(0.5, 0.5, S:dx(0.07), 1, ink, { z = 6 })
+				end
+				if paint.rim then
+					S:rect(0.5, 1 - S:dy(0.06), 1, S:dy(0.12), paint.rim, { z = 6 })
+				end
+			end, { folds = false })
+		elseif paint.kind == "strokes" then
+			local S = Painter.sheet(part, face, mode, "Pattern" .. face.Name, 60)
+			if paint.bg ~= false then
+				S:rect(0.5, 0.5, 1, 1, color, { z = 1 })
+			end
+			local ink = paint.ink or Color3.new(0, 0, 0)
+			for _, l in paint.lines or {} do
+				S:line(l[1], l[2], l[3], l[4], l[5] or 0.05, l[6] or ink, { z = 3, corner = 0.2 })
+			end
+			-- Taches / disques : { x, y, largeur, hauteur (studs), couleur? }
+			for _, o in paint.dots or {} do
+				S:oval(o[1], o[2], o[3], o[4], o[5] or ink, { z = 4 })
+			end
+		end
+	end
+end
 
 local function buildProps(ctx, props)
 	for _, p in props do
@@ -3639,6 +3711,10 @@ local function buildProps(ctx, props)
 			else
 				cf = alongY(at + p.dir.Unit * (length / 2), p.dir) * turn
 			end
+		end
+		if p.shift then
+			-- Décalage dans le repère de la pièce (après orientation) : biseau d'une lame, anneau...
+			cf = cf * CFrame.new(p.shift)
 		end
 		local extra = nil
 		if p.material or p.transparency then
@@ -3667,7 +3743,10 @@ local function buildProps(ctx, props)
 				part.Transparency = extra.Transparency
 			end
 		else
-			ctx.add(limb, name, p.size or Vector3.one, cf, color, extra)
+			local part = ctx.add(limb, name, p.size or Vector3.one, cf, color, extra)
+			if p.paint then
+				paintProp(ctx, part, color, p.paint)
+			end
 		end
 	end
 end
@@ -3722,6 +3801,10 @@ function buildOnce(look, options: BuildOptions?, roots: number, withRelief: bool
 	buildBody(ctx, look)
 
 	local hairColor = look.hairColor or BLACK
+	if look.napeTidy then
+		local _, shine = hairTones(hairColor, look)
+		ctx.napeTidy = { color = hairColor, shine = shine }
+	end
 	local covered = false
 	for _, hat in HATS do
 		if has(look, hat) then

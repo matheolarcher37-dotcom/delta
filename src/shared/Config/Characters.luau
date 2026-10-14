@@ -27,6 +27,8 @@
 --   Tenue : pantsStyle? ("plain" = sans les plis de la texture classique), holsterStyle? ("band" =
 --     sangle de cuisse comme Kid Naruto), handTop? (début de la main sur le bras), sandalTop?,
 --     collarColor?, collarLining? (col montant), maskColor?.
+--   napeTidy? (nuque remontée dans les cheveux, de leur couleur, prolongée de petites mèches).
+--   props? = objets sur mesure (voir plus bas et CharacterBuilder : buildProps).
 -- }
 -- Pour utiliser de vrais objets du catalogue Roblox (cheveux, vêtements, visage) : voir Config/Avatars.luau
 -- attack = { kind = "punch" | "orb" | "beam" | "slash" | "lightning" | "flame" | "shadow" | "stretch" | "ice", color, name }
@@ -74,6 +76,28 @@ local function chain(limb: string, points, widths, colors, extra)
 			at = a - d * (w * 0.25),
 			dir = d,
 			size = V(w, (b - a).Magnitude + w * 0.5, w * ((extra and extra.flat) or 1)),
+			color = color,
+			material = extra and extra.material,
+			transparency = extra and extra.transparency,
+		})
+	end
+	return out
+end
+
+-- Tiges rigides (cylindres bout à bout, légèrement chevauchés) passant par des points : côtes,
+-- arceaux, cornes fines. Plus lisibles que `chain` (ellipsoïdes) pour une structure osseuse.
+local function rods(limb: string, points, diameters, color: Color3, extra)
+	local out = {}
+	for i = 1, #points - 1 do
+		local a, b = points[i], points[i + 1]
+		local w = diameters[i] or diameters[#diameters]
+		local d = (b - a).Unit
+		table.insert(out, {
+			shape = "cyl",
+			limb = limb,
+			at = a - d * (w * 0.3),
+			dir = d,
+			size = V((b - a).Magnitude + w * 0.6, w, 0),
 			color = color,
 			material = extra and extra.material,
 			transparency = extra and extra.transparency,
@@ -176,7 +200,10 @@ local function spottedHat()
 	local out = {
 		{ shape = "strand", limb = "Head", at = V(-0.6, 0.3, -0.12), dir = V(-0.1, -1, 0), length = 0.5, width = 0.16, depth = 0.1, color = rgb(26, 24, 30) },
 		{ shape = "strand", limb = "Head", at = V(0.6, 0.3, -0.12), dir = V(0.1, -1, 0), length = 0.5, width = 0.16, depth = 0.1, color = rgb(26, 24, 30) },
-		{ shape = "ball", limb = "Head", at = V(0, 0.2, 0.42), size = V(1.1, 0.5, 0.4), color = rgb(26, 24, 30) },
+		{ shape = "ball", limb = "Head", at = V(0, 0.34, 0.4), size = V(1.16, 0.4, 0.44), color = rgb(26, 24, 30) },
+		{ shape = "strand", limb = "Head", at = V(-0.28, 0.22, 0.5), dir = V(-0.15, -1, 0.3), length = 0.36, width = 0.24, depth = 0.12, color = rgb(26, 24, 30) },
+		{ shape = "strand", limb = "Head", at = V(0.0, 0.22, 0.56), dir = V(0, -1, 0.3), length = 0.38, width = 0.24, depth = 0.12, color = rgb(60, 62, 80) },
+		{ shape = "strand", limb = "Head", at = V(0.28, 0.22, 0.5), dir = V(0.15, -1, 0.3), length = 0.36, width = 0.24, depth = 0.12, color = rgb(26, 24, 30) },
 		{ shape = "ball", limb = "Head", at = V(0, 0.62, 0.03), size = V(1.42, 1.06, 1.44), color = white },
 		{ shape = "cyl", limb = "Head", at = V(0, 0.36, 0.03), rot = V(0, 0, 90), size = V(0.3, 1.5, 0), color = white:Lerp(rgb(0, 0, 0), 0.06) },
 	}
@@ -224,15 +251,22 @@ local function drumRing()
 	return out
 end
 
--- Couperet du pilier du son : lame large, garde, poignée bandée, anneau au pommeau.
+-- Couperet du pilier du son : lame large au biseau clair, anneau au talon de la lame, garde
+-- dorée, poignée blanche enroulée de deux bandes sombres, pommeau doré.
 local function cleaver(limb: string, guard: Vector3, dir: Vector3, roll: number?)
 	local d = dir.Unit
+	local turn = V(0, roll or 0, 0)
+	local steel = { color = rgb(150, 152, 166), material = "Metal" }
 	return {
-		{ shape = "block", limb = limb, at = guard, dir = d, rot = V(0, roll or 0, 0), size = V(0.66, 2.3, 0.07), color = rgb(176, 178, 188), material = "Metal" },
-		{ shape = "block", limb = limb, at = guard + d * 2.1, dir = d, rot = V(0, roll or 0, 0), size = V(0.66, 0.2, 0.08), color = rgb(120, 122, 134), material = "Metal" },
+		{ shape = "block", limb = limb, at = guard, dir = d, rot = turn, size = V(0.66, 2.3, 0.07), color = steel.color, material = steel.material },
+		{ shape = "block", limb = limb, at = guard, dir = d, rot = turn, shift = V(0.27, 0.04, 0), size = V(0.14, 2.24, 0.09), color = rgb(228, 232, 240), material = "Metal" },
+		{ shape = "ball", limb = limb, at = guard, dir = d, rot = turn, shift = V(-0.16, 0.12, 0), size = V(0.42, 0.42, 0.1), color = GOLD, material = "Metal" },
+		{ shape = "ball", limb = limb, at = guard, dir = d, rot = turn, shift = V(-0.16, 0.12, 0), size = V(0.22, 0.22, 0.12), color = rgb(30, 28, 34) },
 		{ shape = "cyl", limb = limb, at = guard - d * 0.06, dir = d, size = V(0.12, 0.62, 0), color = GOLD, material = "Metal" },
 		{ shape = "cyl", limb = limb, at = guard - d * 0.8, dir = d, size = V(0.75, 0.2, 0), color = rgb(236, 232, 222) },
-		{ shape = "cyl", limb = limb, at = guard - d * 0.98, rot = V(0, 0, 0), dir = d, size = V(0.16, 0.3, 0), color = GOLD, material = "Metal" },
+		{ shape = "cyl", limb = limb, at = guard - d * 0.36, dir = d, size = V(0.08, 0.23, 0), color = rgb(40, 34, 40) },
+		{ shape = "cyl", limb = limb, at = guard - d * 0.62, dir = d, size = V(0.08, 0.23, 0), color = rgb(40, 34, 40) },
+		{ shape = "cyl", limb = limb, at = guard - d * 0.98, dir = d, size = V(0.16, 0.3, 0), color = GOLD, material = "Metal" },
 	}
 end
 
@@ -310,13 +344,14 @@ local function kunai3(limb: string, pos: Vector3?, dir: Vector3?)
 	}
 end
 
--- Kunais marqués lancés autour du perso (téléportation de l'éclair jaune), pointe vers le bas
+-- Kunais marqués lancés autour du perso (téléportation de l'éclair jaune), pointe vers le bas :
+-- 2 pièces chacun (poignée sombre + lame en feuille), pour garder de la marge de pièces.
 local MINATU_KUNAIS = {}
 for _, k in { { -2.3, 1.2, -0.6, 25 }, { 2.7, 1.5, -0.8, -20 }, { -1.9, -1.6, -1.1, 10 } } do
 	local a = math.rad(k[4])
-	for _, piece in kunai3("Torso", V(k[1], k[2], k[3]), V(math.sin(a), -1, 0)) do
-		table.insert(MINATU_KUNAIS, piece)
-	end
+	local at, d = V(k[1], k[2], k[3]), V(math.sin(a), -1, 0).Unit
+	table.insert(MINATU_KUNAIS, { shape = "cyl", limb = "Torso", at = at - d * 0.45, dir = d, size = V(0.5, 0.12, 0), color = rgb(30, 30, 34) })
+	table.insert(MINATU_KUNAIS, { shape = "ball", limb = "Torso", at = at, dir = d, size = V(0.26, 0.8, 0.06), color = rgb(206, 206, 216), material = "Metal" })
 end
 
 -- Katana dégainé tenu dans la main (lame, garde ronde, poignée tressée).
@@ -364,28 +399,74 @@ for _, s in { -1, 1 } do
 	table.insert(RADAMA_MANE, { shape = "spike", limb = "Head", at = V(s * 0.62, 0.25, 0.22), dir = V(s * 0.75, -1, 0.35), length = 1.9, width = 0.6, color = rgb(24, 22, 30) })
 end
 
--- Radama ★2 : cage thoracique spectrale bleue autour de lui (Susanoo)
-local SPECTRAL = { material = "Neon", transparency = 0.35 }
-local SUSANOO_RIBS = chain("Torso", { V(0, 1.6, 1.05), V(0, -1.3, 1.15) }, { 0.26 }, rgb(90, 130, 255), SPECTRAL)
+-- Radama : armure lamellaire rouge (rangées de plaques lacées et rivetées) sur une sous-tenue
+-- noire : plastron, dossière, tassettes jusqu'au-dessus des genoux, épaulières en 3 lamelles
+-- empilées, protège-avant-bras (coudes et genoux noirs visibles).
+local RADAMA_RED, RADAMA_INK, RADAMA_RIVET = rgb(150, 34, 40), rgb(44, 14, 20), rgb(214, 182, 120)
+local function lamellar(rows: number, faces, extra)
+	local paint = { kind = "lamellar", rows = rows, faces = faces, ink = RADAMA_INK, rivet = RADAMA_RIVET }
+	for k, v in extra or {} do
+		paint[k] = v
+	end
+	return paint
+end
+local RADAMA_ARMOR = {
+	{ shape = "block", limb = "Torso", at = V(0, 0.08, -0.54), size = V(2.04, 1.5, 0.08), color = RADAMA_RED, paint = lamellar(4, { "Front" }) },
+	{ shape = "block", limb = "Torso", at = V(0, 0.08, 0.54), size = V(2.04, 1.5, 0.08), color = RADAMA_RED, paint = lamellar(4, { "Back" }) },
+	-- Tassettes : jupe de lamelles fendue devant, qui s'arrête au-dessus des genoux
+	{
+		shape = "block",
+		limb = "Torso",
+		at = V(0, -1.55, 0),
+		size = V(2.16, 1.1, 1.16),
+		color = RADAMA_RED,
+		paint = lamellar(3, { "Front", "Back", "Left", "Right" }, { slit = true, rim = RADAMA_INK }),
+	},
+	{ shape = "block", limb = "Torso", at = V(0, -0.94, 0), size = V(2.1, 0.16, 1.12), color = rgb(30, 26, 34) },
+}
+for _, side in { { "Left Arm", -1 }, { "Right Arm", 1 } } do
+	local limb, s = side[1], side[2]
+	for i = 0, 2 do
+		table.insert(RADAMA_ARMOR, {
+			shape = "block",
+			limb = limb,
+			at = V(s * (0.06 + i * 0.07), 1.06 - i * 0.24, 0),
+			rot = V(0, 0, -s * (8 + i * 4)),
+			size = V(1.12 + i * 0.04, 0.2, 1.2),
+			color = i % 2 == 0 and RADAMA_RED or rgb(132, 28, 34),
+			paint = lamellar(1, { "Front", "Back", s > 0 and "Right" or "Left" }),
+		})
+	end
+	-- Protège-avant-bras rouge (le coude reste noir)
+	table.insert(RADAMA_ARMOR, { shape = "block", limb = limb, at = V(0, -0.5, 0), size = V(1.08, 0.72, 1.08), color = RADAMA_RED, paint = lamellar(2, { "Front", "Back", s > 0 and "Right" or "Left" }) })
+end
+
+-- Radama ★2 : Susanoo squelettique (côtes spectrales en arc qui partent de la colonne et
+-- entourent le torse, crâne/casque à cornes au-dessus de la tête)
+local SPECTRAL = { material = "Neon", transparency = 0.4 }
+local SUSANOO_BLUE = rgb(90, 130, 255)
+local SUSANOO_RIBS = rods("Torso", { V(0, 2.1, 1.25), V(0, 0.5, 1.35), V(0, -1.2, 1.25) }, { 0.34, 0.3 }, SUSANOO_BLUE, SPECTRAL)
 for _, s in { -1, 1 } do
-	for _, y in { 1.0, 0.4, -0.2 } do
-		for _, p in chain("Torso", { V(s * 0.2, y, 1.15), V(s * 2.2, y - 0.15, 1.05), V(s * 2.85, y - 0.35, 0), V(s * 2.3, y - 0.55, -1.0) }, { 0.22 }, rgb(90, 130, 255), SPECTRAL) do
+	for k, y in { 1.35, 0.8, 0.25, -0.3 } do
+		local r = 1.0 - (k - 1) * 0.06
+		local pts = { V(s * 0.15, y, 1.3), V(s * 2.0 * r, y - 0.1, 1.05), V(s * 2.5 * r, y - 0.32, -0.15), V(s * 1.95 * r, y - 0.55, -1.1) }
+		for _, p in rods("Torso", pts, { 0.24, 0.22, 0.18 }, SUSANOO_BLUE, { material = "Neon", transparency = 0.3 }) do
 			table.insert(SUSANOO_RIBS, p)
 		end
 	end
 end
-
--- Radama ★3 : orbes noirs en couronne dans le dos
-table.insert(SUSANOO_RIBS, {
-	shape = "ball",
-	limb = "Torso",
-	at = V(0, 0.4, 0.15),
-	size = V(5.6, 4.8, 3.4),
-	color = rgb(90, 130, 255),
-	material = "Neon",
-	transparency = 0.84,
-	name = "SusanooShell",
-})
+-- Crâne / casque spectral au-dessus de la tête, mâchoire, deux cornes recourbées
+for _, p in {
+	{ shape = "ball", limb = "Head", at = V(0, 1.45, 0.3), size = V(1.8, 0.9, 1.7), color = SUSANOO_BLUE, material = "Neon", transparency = 0.55, name = "SusanooSkull" },
+	{ shape = "block", limb = "Head", at = V(0, 1.2, -0.4), rot = V(-12, 0, 0), size = V(1.3, 0.16, 0.5), color = SUSANOO_BLUE, material = "Neon", transparency = 0.4 },
+} do
+	table.insert(SUSANOO_RIBS, p)
+end
+for _, s in { -1, 1 } do
+	for _, p in rods("Head", { V(s * 0.55, 1.6, -0.1), V(s * 1.35, 1.75, -0.3), V(s * 1.75, 2.2, -0.35) }, { 0.3, 0.2 }, SUSANOO_BLUE, { material = "Neon", transparency = 0.25 }) do
+		table.insert(SUSANOO_RIBS, p)
+	end
+end
 
 local TRUTH_ORBS = {}
 for k = 0, 5 do
@@ -426,27 +507,175 @@ for _, s in { -1, 1 } do
 	table.insert(GAARO_RINGS, { shape = "ball", limb = "Head", at = V(s * 0.38, -0.08, -0.55), rot = V(0, s * 40, s * 70), size = V(0.2, 0.05, 0.03), color = rgb(34, 18, 28) })
 end
 
--- Yuuto ★2/★3 : l'énorme main pâle de l'esprit maudit derrière l'épaule
-local function rikaHand(s: number)
-	local pale, patch = rgb(222, 218, 230), rgb(150, 140, 160)
-	local out = chain("Torso", { V(s * 0.9, 0.6, 0.95), V(s * 1.7, 1.35, 0.85), V(s * 2.25, 1.95, 0.35) }, { 0.8, 0.7 }, { pale, patch })
-	table.insert(out, { shape = "ball", limb = "Torso", at = V(s * 2.35, 2.45, 0.1), size = V(1.2, 1.25, 0.6), color = pale })
-	for i, x in { -0.42, -0.14, 0.14, 0.42 } do
-		table.insert(out, {
-			shape = "strand",
-			limb = "Torso",
-			at = V(s * 2.35 + x, 2.9, 0.05),
-			dir = V(x * 0.4, 1, -0.7),
-			length = 0.85 - math.abs(x) * 0.3,
-			width = 0.27,
-			color = i % 2 == 0 and pale or rgb(206, 200, 216),
-		})
+-- Gaaro : cheveux roux courts et décoiffés (calotte basse + mèches courtes en tous sens), front
+-- dégagé portant le kanji rouge de l'amour (愛) peint au-dessus de l'œil gauche.
+local GAARO_RED = rgb(176, 44, 38)
+local GAARO_HAIR = {
+	{ shape = "ball", limb = "Head", at = V(0, 0.55, 0.08), size = V(1.38, 0.78, 1.42), color = GAARO_RED },
+	{ shape = "ball", limb = "Head", at = V(0, 0.3, 0.3), size = V(1.3, 0.7, 0.92), color = rgb(150, 34, 32) },
+}
+for i, m in
+	{
+		{ V(-0.36, 0.78, -0.42), V(-0.5, 0.45, -0.75), 0.34 },
+		{ V(0.02, 0.86, -0.46), V(0.15, 0.6, -0.8), 0.32 },
+		{ V(0.38, 0.78, -0.4), V(0.7, 0.35, -0.6), 0.36 },
+		{ V(-0.22, 0.98, 0.0), V(-0.45, 1, 0.25), 0.38 },
+		{ V(0.24, 0.98, 0.12), V(0.4, 1, 0.45), 0.36 },
+		{ V(0.0, 0.78, 0.55), V(0.15, 0.25, 1), 0.46 },
+		{ V(-0.62, 0.45, 0.05), V(-1, -0.25, 0.25), 0.36 },
+		{ V(0.62, 0.45, 0.05), V(1, -0.2, 0.3), 0.36 },
+	}
+do
+	table.insert(GAARO_HAIR, {
+		shape = "spike",
+		limb = "Head",
+		at = m[1],
+		dir = m[2],
+		length = m[3],
+		width = 0.4,
+		color = i % 3 == 0 and rgb(206, 76, 60) or GAARO_RED,
+	})
+end
+local GAARO_KANJI = {
+	shape = "block",
+	limb = "Head",
+	at = V(-0.27, 0.37, -0.605),
+	size = V(0.3, 0.3, 0.02),
+	color = rgb(250, 224, 200),
+	transparency = 1,
+	name = "Kanji",
+	paint = {
+		kind = "strokes",
+		faces = { "Front" },
+		bg = false,
+		ink = rgb(196, 30, 40),
+		lines = {
+			{ 0.3, 0.1, 0.78, 0.04, 0.025 },
+			{ 0.3, 0.17, 0.36, 0.26, 0.022 },
+			{ 0.52, 0.16, 0.52, 0.26, 0.022 },
+			{ 0.72, 0.16, 0.66, 0.26, 0.022 },
+			{ 0.12, 0.33, 0.88, 0.33, 0.025 },
+			{ 0.12, 0.33, 0.12, 0.43, 0.022 },
+			{ 0.88, 0.33, 0.88, 0.43, 0.022 },
+			{ 0.26, 0.47, 0.34, 0.6, 0.022 },
+			{ 0.34, 0.6, 0.7, 0.6, 0.022 },
+			{ 0.5, 0.45, 0.56, 0.53, 0.022 },
+			{ 0.74, 0.45, 0.8, 0.54, 0.022 },
+			{ 0.36, 0.7, 0.78, 0.7, 0.025 },
+			{ 0.48, 0.66, 0.22, 0.96, 0.025 },
+			{ 0.74, 0.7, 0.34, 0.95, 0.025 },
+			{ 0.5, 0.8, 0.86, 0.97, 0.025 },
+		},
+	},
+}
+
+-- Hakaro : banane plaquée vers l'arrière (volume aplati + mèches lissées), tempes rasées
+local function HAKARO_HAIR(c: Color3)
+	local shine = c:Lerp(rgb(255, 255, 255), 0.25)
+	local out = {
+		{ shape = "ball", limb = "Head", at = V(0, 0.6, 0.1), size = V(1.16, 0.7, 1.42), color = c },
+		{ shape = "ball", limb = "Head", at = V(0, 0.92, -0.28), rot = V(-25, 0, 0), size = V(0.92, 0.44, 0.74), color = c },
+		{ shape = "ball", limb = "Head", at = V(0, 0.4, 0.44), size = V(1.04, 0.56, 0.56), color = c:Lerp(rgb(0, 0, 0), 0.2) },
+	}
+	for i, x in { -0.22, 0.22 } do
+		table.insert(out, { shape = "strand", limb = "Head", at = V(x, 1.02, -0.36), dir = V(x * 0.4, -0.15, 1), length = 1.0, width = 0.22, depth = 0.1, color = i == 1 and shine or c:Lerp(rgb(0, 0, 0), 0.12) })
 	end
-	table.insert(out, { shape = "strand", limb = "Torso", at = V(s * 1.85, 2.35, 0.0), dir = V(-s, 0.5, -0.6), length = 0.65, width = 0.28, color = pale })
+	for _, s in { -1, 1 } do
+		-- tempes rasées (duvet gris peint à même la tête) sous le volume
+		table.insert(out, { shape = "ball", limb = "Head", at = V(s * 0.585, 0.24, 0.1), size = V(0.04, 0.42, 0.7), color = rgb(150, 150, 140) })
+	end
 	return out
 end
-local RIKA_HAND = rikaHand(1)
-local RIKA_HAND_LEFT = rikaHand(-1)
+
+-- Minatu ★3 : mode chakra du renard — flammes noires sur le torse et les manches, tomoe en
+-- cercle sur le ventre, col noir, manteau de chakra au bas découpé en flammes.
+local KCM_INK = rgb(24, 20, 18)
+local KCM_GOLD = rgb(255, 176, 40)
+local function flameLines(x: number, flip: number)
+	return {
+		{ x, 0.02, x + 0.06 * flip, 0.18, 0.06 },
+		{ x + 0.06 * flip, 0.18, x - 0.02 * flip, 0.3, 0.05 },
+		{ x - 0.02 * flip, 0.3, x + 0.08 * flip, 0.44, 0.04 },
+	}
+end
+local KCM_FRONT = { { 0.08, 0.04, 0.92, 0.04, 0.16 } }
+for _, x in { 0.14, 0.86 } do
+	for _, l in flameLines(x, x < 0.5 and 1 or -1) do
+		table.insert(KCM_FRONT, l)
+	end
+end
+local KCM_TOMOE = {}
+for k = 0, 5 do
+	local a = math.rad(k * 60)
+	table.insert(KCM_TOMOE, { 0.5 + math.cos(a) * 0.15, 0.66 + math.sin(a) * 0.15, 0.13, 0.13 })
+end
+table.insert(KCM_TOMOE, { 0.5, 0.66, 0.1, 0.1 })
+local MINATU_KCM = {
+	{
+		shape = "block",
+		limb = "Torso",
+		at = V(0, 0, -0.515),
+		size = V(2.0, 2.0, 0.02),
+		color = KCM_GOLD,
+		transparency = 1,
+		paint = { kind = "strokes", faces = { "Front" }, bg = false, ink = KCM_INK, lines = KCM_FRONT, dots = KCM_TOMOE },
+	},
+}
+for _, side in { { "Left Arm", "Left" }, { "Right Arm", "Right" } } do
+	table.insert(MINATU_KCM, {
+		shape = "block",
+		limb = side[1],
+		at = V(0, 0, 0),
+		size = V(1.03, 2.02, 1.03),
+		color = KCM_GOLD,
+		transparency = 1,
+		paint = {
+			kind = "strokes",
+			faces = { "Front", "Back", side[2] },
+			bg = false,
+			ink = KCM_INK,
+			lines = { { 0.2, 0.06, 0.32, 0.26, 0.07 }, { 0.32, 0.26, 0.22, 0.4, 0.05 }, { 0.75, 0.08, 0.66, 0.3, 0.06 }, { 0.0, 0.86, 1.0, 0.86, 0.05 } },
+		},
+	})
+end
+-- Manteau de chakra : dos et pans avant, bas en langues de flamme
+table.insert(MINATU_KCM, { shape = "block", limb = "Torso", at = V(0, -0.45, 0.6), rot = V(6, 0, 0), size = V(2.2, 2.6, 0.08), color = rgb(255, 150, 36) })
+for _, s in { -1, 1 } do
+	table.insert(MINATU_KCM, { shape = "block", limb = "Torso", at = V(s * 0.86, -0.45, -0.6), size = V(0.34, 2.6, 0.06), color = rgb(255, 150, 36) })
+	table.insert(MINATU_KCM, { shape = "spike", limb = "Torso", at = V(s * 0.86, -1.65, -0.62), dir = V(s * 0.15, -1, -0.15), length = 0.6, width = 0.4, color = rgb(255, 110, 24) })
+end
+for i, x in { -0.84, -0.42, 0, 0.42, 0.84 } do
+	table.insert(MINATU_KCM, {
+		shape = "spike",
+		limb = "Torso",
+		at = V(x, -1.65, 0.75),
+		dir = V(x * 0.15, -1, 0.2),
+		length = (i % 2 == 0) and 0.55 or 0.8,
+		width = 0.42,
+		color = (i % 2 == 0) and rgb(255, 200, 70) or rgb(255, 110, 24),
+	})
+end
+
+-- Yuuto ★2/★3 : l'esprit maudit (Rika) surgit dans son dos — buste et tête spectraux, puis
+-- un long bras (deux au ★3) qui passe par-dessus l'épaule, main griffue tendue vers l'avant.
+local RIKA_PALE, RIKA_GHOST = rgb(226, 224, 234), { transparency = 0.2 }
+local RIKA_BUST = {
+	{ shape = "ball", limb = "Torso", at = V(0, 1.35, 1.5), size = V(2.4, 1.9, 1.1), color = RIKA_PALE, transparency = 0.2 },
+	{ shape = "ball", limb = "Torso", at = V(0, 2.6, 1.6), size = V(1.25, 1.35, 1.1), color = RIKA_PALE, transparency = 0.2 },
+	{ shape = "ball", limb = "Torso", at = V(0, 2.35, 1.06), size = V(0.66, 0.26, 0.1), color = rgb(40, 24, 40) },
+	{ shape = "ball", limb = "Torso", at = V(-0.26, 2.78, 1.07), size = V(0.2, 0.26, 0.08), color = rgb(30, 20, 30) },
+	{ shape = "ball", limb = "Torso", at = V(0.26, 2.78, 1.07), size = V(0.2, 0.26, 0.08), color = rgb(30, 20, 30) },
+}
+local function rikaArm(s: number)
+	local out = chain("Torso", { V(s * 1.0, 1.8, 1.45), V(s * 2.15, 1.65, 0.85), V(s * 2.25, 1.05, -0.25) }, { 0.52, 0.44 }, RIKA_PALE, RIKA_GHOST)
+	table.insert(out, { shape = "ball", limb = "Torso", at = V(s * 2.2, 0.9, -0.55), size = V(0.72, 0.56, 0.76), color = RIKA_PALE, transparency = 0.2 })
+	for _, x in { -0.27, -0.09, 0.09, 0.27 } do
+		table.insert(out, { shape = "spike", limb = "Torso", at = V(s * 2.2 + x, 0.78, -0.82), dir = V(x * 0.4, -0.45, -1), length = 0.62, width = 0.12, color = rgb(196, 190, 210) })
+	end
+	return out
+end
+local RIKA_HAND = join(RIKA_BUST, rikaArm(1))
+local RIKA_HAND_LEFT = rikaArm(-1)
 
 -- Hakaro ★2 : liserés vert fluo du jackpot sur la veste ouverte et aux poignets
 local JACKPOT = rgb(90, 255, 140)
@@ -483,18 +712,49 @@ local GOJITA_KIT = join({
 	{ shape = "block", limb = "Torso", at = V(-0.64, -1.2, -0.59), rot = V(0, 0, -14), size = V(0.2, 0.5, 0.05), color = rgb(52, 96, 196) },
 }, cuffs(rgb(244, 244, 240), 0.62, -0.62))
 
--- Cel : crête verte haute et large tachée de noir ; ★1 longue queue à dard
-local function CEL_CREST(color: Color3)
-	local spot = rgb(14, 22, 16)
+-- Cel : crête en deux grandes cornes plates (vertes bordées de noir, tachées) qui partent des
+-- tempes et montent vers l'arrière ; plastron vert clair à taches noires, ventre blanc,
+-- ailes noires dans le dos. `k` = hauteur de la crête (plus haute en forme parfaite).
+local CEL_SKIN, CEL_SPOT, CEL_BLACK = rgb(242, 228, 234), rgb(14, 22, 16), rgb(20, 24, 22)
+local function CEL_CREST(color: Color3, k: number)
 	local out = {
-		{ shape = "ball", limb = "Head", at = V(0, 0.95, 0.15), rot = V(-25, 0, 0), size = V(0.5, 0.9, 0.9), color = color },
-		{ shape = "spike", limb = "Head", at = V(0, 0.62, -0.52), dir = V(0, -1, -0.2), length = 0.42, width = 0.5, color = color },
+		{ shape = "ball", limb = "Head", at = V(0, 0.5, 0.1), size = V(1.3, 0.5, 1.34), color = color },
+		{ shape = "ball", limb = "Head", at = V(0, 0.62, -0.42), rot = V(-20, 0, 0), size = V(0.46, 0.3, 0.36), color = CEL_BLACK },
 	}
 	for _, s in { -1, 1 } do
-		table.insert(out, { shape = "spike", limb = "Head", at = V(s * 0.3, 0.82, 0.12), dir = V(s * 0.38, 1, 0.75), length = 1.35, width = 0.78, color = color })
-		table.insert(out, { shape = "ball", limb = "Head", at = V(s * 0.52, 1.28, 0.42), size = V(0.18, 0.16, 0.14), color = spot })
-		table.insert(out, { shape = "ball", limb = "Head", at = V(s * 0.4, 1.0, 0.0), size = V(0.16, 0.14, 0.12), color = spot })
-		table.insert(out, { shape = "ball", limb = "Head", at = V(s * 0.66, 1.62, 0.7), size = V(0.14, 0.12, 0.12), color = spot })
+		table.insert(out, { shape = "wedge", limb = "Head", at = V(s * 0.4, 0.66 + 0.62 * k, 0.26), rot = V(0, -s * 32, -s * 16), size = V(0.22, 1.3 * k, 1.44), color = CEL_BLACK })
+		table.insert(out, { shape = "wedge", limb = "Head", at = V(s * 0.5, 0.6 + 0.55 * k, 0.16), rot = V(0, -s * 32, -s * 16), size = V(0.26, 1.12 * k, 1.26), color = color })
+		table.insert(out, { shape = "ball", limb = "Head", at = V(s * 0.66, 0.85 + 0.2 * k, -0.12), size = V(0.2, 0.2, 0.2), color = CEL_SPOT })
+	end
+	return out
+end
+local function CEL_BODY(plate: Color3)
+	local dots = {}
+	for _, d in { { 0.14, 0.3 }, { 0.3, 0.62 }, { 0.42, 0.26 }, { 0.6, 0.7 }, { 0.72, 0.3 }, { 0.88, 0.56 }, { 0.22, 0.78 }, { 0.8, 0.82 } } do
+		table.insert(dots, { d[1], d[2], 0.16, 0.13 })
+	end
+	local out = {
+		-- Plastron à taches, ventre et cou blancs
+		{ shape = "block", limb = "Torso", at = V(0, 0.48, -0.54), size = V(1.98, 0.95, 0.08), color = plate, paint = { kind = "strokes", faces = { "Front" }, ink = CEL_SPOT, dots = dots, lines = { { 0.5, 0.05, 0.5, 0.95, 0.04, Color3.fromRGB(40, 70, 40) } } } },
+		{
+			shape = "block",
+			limb = "Torso",
+			at = V(0, -0.47, -0.53),
+			size = V(0.9, 0.98, 0.06),
+			color = CEL_SKIN,
+			paint = {
+				kind = "strokes",
+				faces = { "Front" },
+				ink = rgb(176, 160, 172),
+				lines = { { 0.5, 0.05, 0.5, 0.95, 0.03 }, { 0.15, 0.36, 0.85, 0.36, 0.03 }, { 0.18, 0.66, 0.82, 0.66, 0.03 } },
+			},
+		},
+		{ shape = "block", limb = "Torso", at = V(0, 1.02, -0.12), size = V(0.66, 0.08, 0.6), color = CEL_SKIN },
+	}
+	-- Ailes noires repliées dans le dos (en V), liseré vert
+	for _, s in { -1, 1 } do
+		table.insert(out, { shape = "block", limb = "Torso", at = V(s * 0.42, -0.05, 0.6), rot = V(-6, 0, -s * 12), size = V(0.78, 2.2, 0.06), color = CEL_BLACK })
+		table.insert(out, { shape = "block", limb = "Torso", at = V(s * 0.74, -0.1, 0.63), rot = V(-6, 0, -s * 12), size = V(0.08, 2.0, 0.04), color = plate })
 	end
 	return out
 end
@@ -601,6 +861,34 @@ local function MUZON_WHIPS(n: number)
 		end
 	end
 	return out
+end
+
+-- Muzon ★2 : cheveux noirs ondulés jusqu'à la nuque (courtes mèches courbées, pas des boules)
+local MUZON_CURLS = {}
+for i, m in
+	{
+		{ V(-0.4, 0.82, -0.35), V(-0.6, 0.2, -0.8) },
+		{ V(0.05, 0.92, -0.4), V(0.3, 0.25, -0.9) },
+		{ V(0.42, 0.8, -0.3), V(0.8, 0.1, -0.6) },
+		{ V(-0.62, 0.45, -0.1), V(-0.7, -1, -0.2) },
+		{ V(0.62, 0.45, -0.1), V(0.7, -1, -0.2) },
+		{ V(-0.55, 0.4, 0.35), V(-0.5, -1, 0.5) },
+		{ V(0.55, 0.4, 0.35), V(0.5, -1, 0.5) },
+		{ V(-0.2, 0.55, 0.6), V(-0.2, -1, 0.6) },
+		{ V(0.2, 0.55, 0.6), V(0.25, -1, 0.6) },
+		{ V(0.0, 1.0, 0.15), V(0.1, 0.4, 1) },
+	}
+do
+	table.insert(MUZON_CURLS, {
+		shape = "strand",
+		limb = "Head",
+		at = m[1],
+		dir = m[2],
+		length = 0.55,
+		width = 0.3,
+		depth = 0.16,
+		color = i % 3 == 0 and rgb(60, 56, 72) or rgb(20, 18, 24),
+	})
 end
 
 -- Doma : sang sur le dessus des cheveux
@@ -2469,8 +2757,9 @@ Characters.List = {
 			outfit = "armor",
 			sleeveColor = rgb(36, 30, 40),
 			armband = rgb(150, 34, 40),
+			sleeves = "long",
 			pantsStyle = "ninja",
-			legWraps = rgb(226, 222, 214),
+			legWraps = rgb(58, 52, 64),
 			footwear = "sandals",
 			shoes = rgb(30, 28, 36),
 			eyes = rgb(220, 24, 34),
@@ -2479,13 +2768,11 @@ Characters.List = {
 			eyeStyle = "sharp",
 			mouthStyle = "smirk",
 			browStyle = "frown",
-			accessories = { "shoulder_pads", "cloak_skirt" },
+			accessories = {},
 			accColor = rgb(150, 34, 40),
-			skirtColor = rgb(150, 34, 40),
-			skirtLength = 0.9,
 			collarColor = rgb(36, 30, 40),
 			collarLining = rgb(150, 34, 40),
-			props = join(RADAMA_MANE, gunbai("Torso", V(-0.72, 1.45, 0.86), V(0.45, -0.85, 0.66))),
+			props = join(RADAMA_MANE, RADAMA_ARMOR, gunbai("Torso", V(-0.72, 1.45, 0.86), V(0.45, -0.85, 0.66))),
 		},
 		evolve = {
 			-- ★★ : yeux éternels, éventail en main et cage thoracique spectrale bleue (Susanoo)
@@ -2493,9 +2780,9 @@ Characters.List = {
 				pupil = "ring",
 				eyes = rgb(170, 60, 220),
 				eyeGlow = true,
-				accessories = { "shoulder_pads", "cloak_skirt", "energy_aura" },
+				accessories = { "energy_aura" },
 				auraColor = rgb(80, 110, 255),
-				props = join(RADAMA_MANE, gunbai("Right Arm", V(0, -0.2, -2.2), V(0, -1.0, -0.2), 0), SUSANOO_RIBS),
+				props = join(RADAMA_MANE, RADAMA_ARMOR, gunbai("Right Arm", V(0, -0.2, -2.2), V(0, -1.0, -0.2), 0), SUSANOO_RIBS),
 			},
 			-- ★★★ : sage des six chemins (cheveux blancs, robe blanche, orbes noirs en couronne)
 			[3] = {
@@ -2563,18 +2850,20 @@ Characters.List = {
 			},
 			-- ★★★ : mode chakra du renard (corps doré à motifs noirs, cape)
 			[3] = {
-				top = rgb(255, 200, 50),
-				topAccent = rgb(30, 30, 30),
-				bottom = rgb(30, 30, 30),
-				outfit = "chakra",
+				top = KCM_GOLD,
+				topAccent = KCM_INK,
+				sleeveColor = KCM_GOLD,
+				sleeves = "long",
+				bottom = rgb(30, 28, 30),
+				outfit = "jumpsuit",
 				eyes = rgb(255, 120, 10),
+				pupil = "slit",
 				holster = false,
-				accessories = { "cape", "energy_fists", "ssj_aura" },
+				accessories = { "headband", "energy_fists", "ssj_aura" },
 				accColor = rgb(255, 180, 40),
-				capeColor = rgb(255, 196, 60),
 				energyColor = rgb(90, 190, 255),
 				auraColor = rgb(255, 210, 90),
-				props = kunai3("Right Arm"),
+				props = join(MINATU_KCM, kunai3("Right Arm")),
 			},
 		},
 		attack = { kind = "lightning", color = rgb(255, 230, 80), name = "Dieu de l'Éclair" },
@@ -2589,7 +2878,7 @@ Characters.List = {
 		look = {
 			headScale = Vector3.new(0.95, 1.0, 0.97),
 			skin = rgb(250, 224, 200),
-			hair = "slick_up",
+			hair = "none",
 			hairColor = rgb(176, 44, 38),
 			hairUnder = rgb(120, 26, 26),
 			eyeY = -0.05,
@@ -2608,10 +2897,10 @@ Characters.List = {
 			eyeStyle = "narrow",
 			mouthStyle = "line",
 			browStyle = "none",
-			accessories = { "forehead_mark", "sash" },
+			accessories = { "sash" },
 			sashColor = rgb(196, 176, 140),
 			accColor = rgb(214, 186, 132),
-			props = join(gourd(rgb(214, 186, 136)), GAARO_RINGS),
+			props = join(GAARO_HAIR, { GAARO_KANJI }, gourd(rgb(214, 186, 136)), GAARO_RINGS),
 		},
 		evolve = {
 			-- ★★ : tenue de l'après-guerre (gilet gris, manches rouges) et bouclier de sable
@@ -2620,9 +2909,9 @@ Characters.List = {
 				topAccent = rgb(90, 84, 76),
 				sleeveColor = rgb(126, 42, 44),
 				outfit = "flakvest",
-				accessories = { "forehead_mark", "sash", "energy_fists" },
+				accessories = { "sash", "energy_fists" },
 				energyColor = rgb(222, 190, 120),
-				props = join(gourd(rgb(214, 186, 136)), GAARO_RINGS, SAND_SHIELD),
+				props = join(GAARO_HAIR, { GAARO_KANJI }, gourd(rgb(214, 186, 136)), GAARO_RINGS, SAND_SHIELD),
 			},
 			-- ★★★ : robe blanche et bleue du chef du village du sable
 			[3] = {
@@ -2630,10 +2919,10 @@ Characters.List = {
 				topAccent = rgb(60, 110, 200),
 				bottom = rgb(236, 234, 228),
 				outfit = "robe",
-				accessories = { "forehead_mark", "energy_fists", "ssj_aura" },
+				accessories = { "energy_fists", "ssj_aura" },
 				energyColor = rgb(222, 190, 120),
 				auraColor = rgb(240, 210, 140),
-				props = join(gourd(rgb(214, 186, 136)), GAARO_RINGS, SAND_SHIELD),
+				props = join(GAARO_HAIR, { GAARO_KANJI }, gourd(rgb(214, 186, 136)), GAARO_RINGS, SAND_SHIELD),
 			},
 		},
 		attack = { kind = "shadow", color = rgb(222, 190, 120), name = "Cercueil de Sable" },
@@ -2649,6 +2938,7 @@ Characters.List = {
 			headScale = Vector3.new(1.03, 1.0, 1.0),
 			skin = rgb(240, 206, 172),
 			hair = "messy",
+			napeTidy = true,
 			hairColor = rgb(22, 22, 26),
 			top = rgb(30, 30, 36),
 			sleeves = "short",
@@ -2696,6 +2986,7 @@ Characters.List = {
 		look = {
 			skin = SKIN,
 			hair = "cover_eye",
+			napeTidy = true,
 			hairColor = rgb(28, 26, 34),
 			hairUnder = rgb(50, 46, 64),
 			top = rgb(238, 238, 234),
@@ -2747,7 +3038,7 @@ Characters.List = {
 		rarity = "epic",
 		look = {
 			skin = rgb(244, 210, 176),
-			hair = "slick_up",
+			hair = "none",
 			hairColor = rgb(120, 134, 112),
 			hairUnder = rgb(76, 88, 70),
 			top = rgb(70, 78, 66),
@@ -2764,6 +3055,7 @@ Characters.List = {
 			mouthStyle = "grin",
 			browStyle = "bold",
 			accessories = { "earrings_gold" },
+			props = HAKARO_HAIR(rgb(120, 134, 112)),
 		},
 		evolve = {
 			-- ★★ : jackpot ! (veste ouverte au col de fourrure, liserés vert fluo, billes de jackpot)
@@ -2776,7 +3068,7 @@ Characters.List = {
 				outfit = "openjacket",
 				accessories = { "earrings_gold", "steam" },
 				steamColor = rgb(140, 255, 170),
-				props = JACKPOT_TRIM,
+				props = join(HAKARO_HAIR(rgb(120, 134, 112)), JACKPOT_TRIM),
 			},
 			-- ★★★ : jackpot infini (veste tombée, yeux verts, aura flamboyante)
 			[3] = {
@@ -2789,7 +3081,7 @@ Characters.List = {
 				steamColor = rgb(140, 255, 170),
 				energyColor = rgb(110, 255, 150),
 				auraColor = rgb(150, 255, 170),
-				props = JACKPOT_BALLS,
+				props = join(HAKARO_HAIR(rgb(120, 134, 112)), JACKPOT_BALLS),
 			},
 		},
 		attack = { kind = "punch", color = rgb(110, 255, 150), name = "Jackpot Fiévreux" },
@@ -2805,6 +3097,7 @@ Characters.List = {
 		look = {
 			skin = SKIN,
 			hair = "goku",
+			napeTidy = true,
 			hairColor = rgb(22, 22, 28),
 			top = rgb(30, 30, 38),
 			topAccent = rgb(236, 130, 40),
@@ -2840,71 +3133,62 @@ Characters.List = {
 		fusion = { prefix = "Fusionné", suffix = "de la Fusion Parfaite" },
 	},
 	sai_cel = {
-		-- La créature parfaite : ★1 forme imparfaite (carapace sombre, longue queue à dard),
-		-- ★2 forme parfaite (crête haute, visage blanc rosé), ★3 super parfait (éclairs bleus)
+		-- La créature parfaite : visage blanc rosé masqué (joues violettes à deux traits), crête en
+		-- deux cornes plates vertes bordées de noir, plastron vert clair taché de noir, ventre blanc,
+		-- ailes noires dans le dos. ★1 forme imparfaite (vert sombre, longue queue à dard),
+		-- ★2 forme parfaite (crête plus haute, vert franc), ★3 super parfait (éclairs bleus)
 		name = "Cel",
 		universe = "saiyan",
 		rarity = "legendary",
 		look = {
-			headScale = Vector3.new(0.98, 1.04, 0.98),
-			skin = rgb(176, 196, 150),
+			skin = CEL_SKIN,
 			hair = "none",
 			hairColor = rgb(50, 110, 64),
-			top = rgb(98, 120, 70),
-			bottom = rgb(98, 120, 70),
+			top = rgb(84, 112, 66),
+			bottom = rgb(84, 112, 66),
 			outfit = "creature",
-			carapace = rgb(44, 70, 40),
-			limbPlates = rgb(44, 70, 40),
-			spots = rgb(14, 22, 16),
+			spots = CEL_SPOT,
 			sleeves = "long",
-			sleeveColor = rgb(98, 120, 70),
+			sleeveColor = rgb(84, 112, 66),
 			footwear = "barefoot",
 			eyes = rgb(150, 40, 60),
+			cheekShade = rgb(150, 90, 170),
+			lipColor = rgb(150, 90, 160),
 			face = "angry",
 			eyeStyle = "sharp",
 			mouthStyle = "snarl",
 			browStyle = "none",
-			accessories = { "cell_crest", "claws" },
+			accessories = { "claws" },
 			accColor = rgb(50, 110, 64),
-			props = join(CEL_CREST(rgb(44, 70, 40)), CEL_TAIL),
+			props = join(CEL_CREST(rgb(70, 110, 60), 1), CEL_BODY(rgb(110, 150, 84)), CEL_TAIL),
 		},
 		evolve = {
-			-- ★★ : forme parfaite (corps clair, visage blanc rosé aux joues violettes, crête haute)
+			-- ★★ : forme parfaite (crête plus haute, vert franc, plastron net, plus de queue)
 			[2] = {
-				skin = rgb(240, 226, 232),
-				top = rgb(140, 214, 120),
-				bottom = rgb(140, 214, 120),
-				sleeveColor = rgb(140, 214, 120),
-				carapace = rgb(84, 170, 92),
-				limbPlates = rgb(84, 170, 92),
+				top = rgb(120, 200, 110),
+				bottom = rgb(120, 200, 110),
+				sleeveColor = rgb(120, 200, 110),
 				spots = rgb(20, 30, 22),
 				eyes = rgb(200, 60, 170),
-				cheekShade = rgb(160, 90, 180),
-				lipColor = rgb(150, 90, 160),
 				face = "smirk",
 				mouthStyle = "smirk",
-				accessories = { "cell_crest", "claws" },
+				accessories = { "claws" },
 				accColor = rgb(70, 150, 90),
-				props = CEL_CREST(rgb(84, 170, 92)),
+				props = join(CEL_CREST(rgb(84, 176, 96), 1.3), CEL_BODY(rgb(150, 222, 130))),
 			},
 			-- ★★★ : super parfait (carrure massive, éclairs et aura bleus)
 			[3] = {
-				skin = rgb(240, 226, 232),
-				top = rgb(140, 214, 120),
-				bottom = rgb(140, 214, 120),
-				sleeveColor = rgb(140, 214, 120),
-				carapace = rgb(84, 170, 92),
-				limbPlates = rgb(84, 170, 92),
+				top = rgb(120, 200, 110),
+				bottom = rgb(120, 200, 110),
+				sleeveColor = rgb(120, 200, 110),
 				eyes = rgb(200, 60, 170),
-				cheekShade = rgb(160, 90, 180),
-				lipColor = rgb(150, 90, 160),
 				face = "smirk",
 				mouthStyle = "smirk",
 				eyeGlow = true,
-				accessories = { "cell_crest", "claws", "bulk", "ssj_aura", "chidori" },
+				accessories = { "claws", "bulk", "ssj_aura", "chidori" },
 				energyColor = rgb(120, 200, 255),
 				auraColor = rgb(90, 170, 255),
-				props = CEL_CREST(rgb(84, 170, 92)),
+				props = join(CEL_CREST(rgb(84, 176, 96), 1.3), CEL_BODY(rgb(150, 222, 130))),
 			},
 		},
 		attack = { kind = "beam", color = rgb(110, 190, 255), name = "Kaméha Parfait" },
@@ -2978,6 +3262,7 @@ Characters.List = {
 		look = {
 			skin = rgb(250, 220, 190),
 			hair = "short",
+			napeTidy = true,
 			hairColor = rgb(240, 214, 120),
 			top = rgb(250, 220, 190),
 			bottom = rgb(236, 132, 40),
@@ -3097,14 +3382,14 @@ Characters.List = {
 			accColor = rgb(232, 226, 210),
 			beltColor = rgb(222, 200, 150),
 			capeColor = rgb(96, 70, 140),
-			props = join(KAYDO_HORNS(1), KAYDO_FACE, kanabo("Right Arm", V(0.1, -1.0, -0.3), V(0.1, -0.42, -1), 3.6, 0.56)),
+			props = join(KAYDO_HORNS(1), KAYDO_FACE, kanabo("Right Arm", V(0.1, -1.0, -0.3), V(0.25, 0.82, 0.5), 3.6, 0.56)),
 		},
 		evolve = {
 			-- ★★ : forme hybride du dragon (cornes plus grandes, grande queue et écailles bleues)
 			[2] = {
 				armPlates = rgb(80, 140, 210),
 				accessories = { "bulk", "rope_belt", "cape" },
-				props = join(KAYDO_HORNS(1.45), KAYDO_FACE, KAYDO_TAIL, kanabo("Right Arm", V(0.1, -1.0, -0.3), V(0.1, -0.42, -1), 3.6, 0.56)),
+				props = join(KAYDO_HORNS(1.45), KAYDO_FACE, KAYDO_TAIL, kanabo("Right Arm", V(0.1, -1.0, -0.3), V(0.25, 0.82, 0.5), 3.6, 0.56)),
 			},
 			-- ★★★ : haki du conquérant (cornes dorées, griffes, yeux rouges, éclairs noirs et rouges)
 			[3] = {
@@ -3115,7 +3400,7 @@ Characters.List = {
 				clawColor = rgb(236, 230, 214),
 				auraColor = rgb(230, 40, 50),
 				steamColor = rgb(80, 40, 60),
-				props = join(KAYDO_HORNS(1.7, rgb(240, 200, 90)), KAYDO_FACE, KAYDO_WHISKERS, KAYDO_TAIL, kanabo("Right Arm", V(0.1, -1.0, -0.3), V(0.1, -0.42, -1), 3.6, 0.56)),
+				props = join(KAYDO_HORNS(1.7, rgb(240, 200, 90)), KAYDO_FACE, KAYDO_WHISKERS, KAYDO_TAIL, kanabo("Right Arm", V(0.1, -1.0, -0.3), V(0.25, 0.82, 0.5), 3.6, 0.56)),
 			},
 		},
 		attack = { kind = "flame", color = rgb(255, 100, 40), name = "Souffle du Dragon" },
@@ -3132,6 +3417,7 @@ Characters.List = {
 			headScale = Vector3.new(0.94, 1.03, 0.96),
 			skin = rgb(250, 232, 224),
 			hair = "short",
+			napeTidy = true,
 			hairColor = rgb(20, 18, 24),
 			top = rgb(24, 24, 30),
 			topAccent = rgb(242, 240, 236),
@@ -3154,10 +3440,10 @@ Characters.List = {
 		evolve = {
 			-- ★★ : chapeau ôté, cheveux ondulés, fouets de chair dans le dos, griffes
 			[2] = {
-				hair = "curly",
+				hair = "short",
 				accessories = { "earrings_stud", "claws" },
 				clawColor = rgb(180, 20, 40),
-				props = join(MUZON_TIE, MUZON_WHIPS(4)),
+				props = join(MUZON_CURLS, MUZON_TIE, MUZON_WHIPS(4)),
 			},
 			-- ★★★ : forme démoniaque ultime (longs cheveux blancs, veines rouges, six fouets)
 			[3] = {
@@ -3182,8 +3468,10 @@ Characters.List = {
 		rarity = "mythic",
 		look = {
 			skin = rgb(250, 234, 224),
-			hair = "tousled",
+			hair = "long",
+			hairLength = 1.7,
 			hairColor = rgb(238, 230, 210),
+			hairShine = rgb(255, 250, 236),
 			top = rgb(34, 30, 36),
 			topAccent = rgb(170, 30, 40),
 			bottom = rgb(34, 30, 36),
