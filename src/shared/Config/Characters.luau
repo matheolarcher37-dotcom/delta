@@ -367,6 +367,17 @@ for _, s in { -1, 1 } do
 end
 
 -- Radama ★3 : orbes noirs en couronne dans le dos
+table.insert(SUSANOO_RIBS, {
+	shape = "ball",
+	limb = "Torso",
+	at = V(0, 0.4, 0.15),
+	size = V(5.6, 4.8, 3.4),
+	color = rgb(90, 130, 255),
+	material = "Neon",
+	transparency = 0.84,
+	name = "SusanooShell",
+})
+
 local TRUTH_ORBS = {}
 for k = 0, 5 do
 	local a = math.rad(90 + k * 60)
@@ -613,17 +624,14 @@ end
 local BEADS = {}
 for k = 0, 4 do
 	local a = math.rad(-40 + k * 20)
-	table.insert(
-		BEADS,
-		{
-			shape = "ball",
-			limb = "Torso",
-			at = V(math.sin(a) * 2.2, 1.6 + (k % 2) * 0.3, -math.cos(a) * 1.4),
-			size = V(0.3, 0.3, 0.3),
-			color = rgb(255, 150, 60),
-			material = "Neon",
-		}
-	)
+	table.insert(BEADS, {
+		shape = "ball",
+		limb = "Torso",
+		at = V(math.sin(a) * 2.2, 1.6 + (k % 2) * 0.3, -math.cos(a) * 1.4),
+		size = V(0.3, 0.3, 0.3),
+		color = rgb(255, 150, 60),
+		material = "Neon",
+	})
 end
 
 Characters.List = {
