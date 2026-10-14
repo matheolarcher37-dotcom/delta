@@ -583,7 +583,7 @@ local SKULL_HOLE = rgb(12, 16, 48)
 table.insert(SUSANOO_RIBS, {
 	shape = "ball",
 	limb = "Head",
-	at = V(0, 2.0, 0.5),
+	at = V(0, 1.80, 0.5),
 	size = V(1.6, 1.5, 1.55),
 	color = SUSANOO_BLUE,
 	material = "Neon",
@@ -594,7 +594,7 @@ table.insert(SUSANOO_RIBS, {
 table.insert(SUSANOO_RIBS, {
 	shape = "ball",
 	limb = "Head",
-	at = V(0, 1.6, 0.05),
+	at = V(0, 1.40, 0.05),
 	size = V(1.3, 0.9, 0.7),
 	color = SUSANOO_BLUE,
 	material = "Neon",
@@ -605,7 +605,7 @@ for _, s in { -1, 1 } do
 	table.insert(SUSANOO_RIBS, {
 		shape = "ball",
 		limb = "Head",
-		at = V(s * 0.3, 1.78, -0.27),
+		at = V(s * 0.3, 1.58, -0.27),
 		rot = V(0, 0, s * 18),
 		size = V(0.46, 0.3, 0.14),
 		color = SKULL_HOLE,
@@ -614,7 +614,7 @@ for _, s in { -1, 1 } do
 	table.insert(SUSANOO_RIBS, {
 		shape = "block",
 		limb = "Head",
-		at = V(s * 0.32, 1.97, -0.27),
+		at = V(s * 0.32, 1.77, -0.27),
 		rot = V(0, 0, s * 18),
 		size = V(0.56, 0.09, 0.14),
 		color = SUSANOO_LIT,
@@ -625,7 +625,7 @@ for _, s in { -1, 1 } do
 	table.insert(SUSANOO_RIBS, {
 		shape = "wedge",
 		limb = "Head",
-		at = V(s * 0.55, 2.4, 0.55),
+		at = V(s * 0.55, 2.20, 0.55),
 		dir = V(s * 0.3, 0.55, 1),
 		size = V(0.14, 0.9, 0.34),
 		color = SUSANOO_BLUE,
@@ -634,13 +634,13 @@ for _, s in { -1, 1 } do
 	})
 end
 -- cavité nasale
-table.insert(SUSANOO_RIBS, { shape = "wedge", limb = "Head", at = V(0, 1.52, -0.32), size = V(0.18, 0.2, 0.08), color = SKULL_HOLE })
+table.insert(SUSANOO_RIBS, { shape = "wedge", limb = "Head", at = V(0, 1.32, -0.32), size = V(0.18, 0.2, 0.08), color = SKULL_HOLE })
 -- rangée de dents (blocs clairs séparés) et mâchoire en coin dessous
 for i = -2, 2 do
 	table.insert(SUSANOO_RIBS, {
 		shape = "block",
 		limb = "Head",
-		at = V(i * 0.13, 1.3, -0.24),
+		at = V(i * 0.13, 1.10, -0.24),
 		size = V(0.1, 0.16, 0.08),
 		color = rgb(200, 220, 255),
 		material = "Neon",
@@ -650,7 +650,7 @@ end
 table.insert(SUSANOO_RIBS, {
 	shape = "wedge",
 	limb = "Head",
-	at = V(0, 1.12, -0.12),
+	at = V(0, 0.92, -0.12),
 	rot = V(180, 0, 0),
 	size = V(0.86, 0.22, 0.36),
 	color = SUSANOO_BLUE,
@@ -1365,12 +1365,12 @@ end
 local DOMA_BLOOD = {}
 for _, d in
 	{
-		{ V(-0.05, 1.0, -0.05), V(-0.05, -0.25, -1), 0.62, 0.24 },
-		{ V(0.24, 0.97, -0.02), V(0.25, -0.45, -1), 0.6, 0.18 },
-		{ V(-0.3, 0.95, 0.0), V(-0.35, -0.5, -1), 0.52, 0.16 },
-		{ V(0.05, 1.0, 0.08), V(0.05, -0.35, 1), 0.6, 0.2 },
-		{ V(0.46, 0.8, 0.02), V(1, -0.9, -0.2), 0.42, 0.12 },
-		{ V(0.14, 0.86, -0.5), V(0.05, -1, -0.35), 0.34, 0.09 },
+		{ V(-0.05, 0.93, -0.05), V(-0.05, -0.3, -1), 0.75, 0.15 },
+		{ V(0.24, 0.9, -0.02), V(0.25, -0.5, -1), 0.7, 0.12 },
+		{ V(-0.3, 0.88, 0.0), V(-0.35, -0.55, -1), 0.6, 0.11 },
+		{ V(0.05, 0.93, 0.08), V(0.05, -0.4, 1), 0.7, 0.13 },
+		{ V(0.44, 0.76, 0.02), V(1, -1.1, -0.2), 0.5, 0.08 },
+		{ V(0.14, 0.82, -0.5), V(0.05, -1, -0.35), 0.4, 0.06 },
 	}
 do
 	table.insert(DOMA_BLOOD, { shape = "strand", limb = "Head", at = d[1], dir = d[2], length = d[3], width = d[4], depth = 0.04, color = rgb(168, 18, 30) })
