@@ -6,6 +6,7 @@ export type Rarity = {
 	order: number,
 	color: Color3,
 	gradient: { Color3 },
+	rainbow: boolean?,
 	basePower: number,
 	sellValue: number,
 }
@@ -59,11 +60,14 @@ Rarities.List = {
 		sellValue = 150000,
 	},
 	-- Secret : les persos les plus rares de chaque univers (v3.2), entre Mythique et Crossover.
+	-- Affiché en arc-en-ciel (comme Theme.rarity("secret")) ; la couleur unie est un blanc nacré
+	-- lisible sur fond sombre, utilisée par les écrans qui ne gèrent pas l'arc-en-ciel (annonce...).
 	secret = {
 		id = "secret",
 		name = "Secret",
 		order = 6,
-		color = Color3.fromRGB(28, 24, 36),
+		color = Color3.fromRGB(246, 240, 255),
+		rainbow = true,
 		gradient = {
 			Color3.fromRGB(255, 80, 80),
 			Color3.fromRGB(255, 220, 60),
