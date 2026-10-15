@@ -1421,7 +1421,19 @@ test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement
 	assert(panel.Position.Y.Offset <= -200, "barre ROULER sur le bouton de saut (tactile) : " .. panel.Position.Y.Offset)
 	local pull = RollPanel.refs().pull
 	assert(pull.Position.Y.Offset < panel.Position.Y.Offset, "cartes du perso tiré sous la barre en tactile")
+	-- La barre Robux de droite ne doit pas être poussée au milieu de l'écran (sur le perso tiré)
+	-- par la carte du perso tiré remontée : elle reste au bord droit, ou s'efface faute de place.
+	local RobuxSideBar = Harness.require(client.UI.RobuxSideBar)
+	local pullWasVisible = pull.Visible
+	pull.Visible = true
+	RobuxSideBar.layout()
+	local holder = RobuxSideBar.holder()
+	assert(holder, "barre Robux introuvable")
+	assert(not holder.Visible or holder.Position.X.Offset >= -240, "barre Robux poussée vers le centre en tactile : " .. holder.Position.X.Offset)
+	pull.Visible = pullWasVisible
 	Console.isTouch = isTouch
+	RobuxSideBar.layout()
+	assert(holder.Visible, "barre Robux masquée hors tactile")
 	RollPanel.layout()
 	assert(panel.Position.Y.Offset == pcBottom, "barre ROULER non revenue en place hors tactile")
 	RollPanel.forceNear(nil)

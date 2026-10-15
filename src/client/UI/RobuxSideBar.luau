@@ -304,7 +304,9 @@ local function rightPanels(root: Frame, holder: Frame, H: number)
 		if child ~= holder and child:IsA("GuiObject") and child.Visible and child.AnchorPoint.X == 1 and child.Position.X.Scale == 1 then
 			local h = child.Size.Y.Scale * H + child.Size.Y.Offset
 			local y = child.Position.Y.Scale * H + child.Position.Y.Offset - child.AnchorPoint.Y * h
-			table.insert(list, { y = y, h = h, right = -child.Position.X.Offset + child.Size.X.Offset + 10 })
+			-- (ancré en bas de l'écran : barre ROULER, carte du perso tiré, équipe sur PC)
+			local bottom = child.Position.Y.Scale >= 1
+			table.insert(list, { y = y, h = h, right = -child.Position.X.Offset + child.Size.X.Offset + 10, bottom = bottom })
 		end
 	end
 	return list
@@ -328,9 +330,11 @@ function RobuxSideBar.layout()
 	local panels = {}
 	-- Les panneaux du bas (barre ROULER et carte du perso tiré à la machine, équipe) ne poussent
 	-- pas la barre vers le centre : ils limitent sa hauteur (moins d'offres, la Boutique reste).
+	-- Un panneau ancré en bas compte toujours comme « du bas », même remonté au-dessus du bouton
+	-- de saut sur téléphone (sinon la barre flotterait au milieu de l'écran, sur le perso tiré).
 	local limitY = H - 16
 	for _, panel in rightPanels(root, holder, H) do
-		if panel.y > H * 0.45 then
+		if panel.bottom or panel.y > H * 0.45 then
 			-- (marge : les cartes du perso tiré peuvent dépasser un peu leur cadre vers le haut)
 			limitY = math.min(limitY, panel.y - 30)
 		else
@@ -372,6 +376,10 @@ function RobuxSideBar.layout()
 	end
 	holder.Position = UDim2.new(1, -right, 0, top)
 	holder.Size = UDim2.fromOffset(w + 20, height / scaleValue)
+	-- Pas même la place du bouton Boutique (téléphone à la machine : barre ROULER et carte du
+	-- perso tiré remontées au-dessus du bouton de saut) : la barre s'efface plutôt que d'être
+	-- coupée par la carte. La Boutique reste ouverte par sa tuile du HUD à gauche.
+	holder.Visible = limitY - top >= (h + 24) * scaleValue
 end
 
 function RobuxSideBar.init(root: Frame)
