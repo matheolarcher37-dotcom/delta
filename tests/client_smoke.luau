@@ -655,6 +655,32 @@ test("Traits : cinématiques Céleste, Midas, Vampire et résultat reçu du serv
 		assert(scene.shake == 0, kind .. " : la secousse doit être coupée par l'option")
 		local title = alice.PlayerGui.TraitCinematicUI:FindFirstChild("Title", true)
 		assert(title and title.Text == TraitCinematic.Titles[kind], kind .. " : titre manquant")
+		if kind == "celeste" then
+			-- chaque aile part de son épaule vers l'extérieur (pas à travers le corps) et un peu en arrière
+			local stage = scene.stage
+			local count = 0
+			for _, feather in scene.folder:GetDescendants() do
+				if feather.Name == "WingFeather" then
+					count += 1
+					local rel = stage:ToObjectSpace(feather.CFrame)
+					local root = rel.Position - rel.LookVector * feather.Size.Z * 0.5 -- bout côté épaule
+					local tip = rel.Position + rel.LookVector * feather.Size.Z * 0.5
+					assert(math.abs(tip.X) > math.abs(root.X) + 1, "Céleste : une rémige ne s'écarte pas du corps")
+					assert(math.sign(tip.X) == math.sign(root.X), "Céleste : une aile traverse le corps")
+					assert(tip.Z > root.Z - 0.05, "Céleste : les ailes doivent partir vers l'arrière")
+				end
+			end
+			assert(count == 14, "Céleste : 2 ailes de 7 rémiges attendues (" .. count .. ")")
+			-- un sort lancé pendant la scène (dossier ClientFX) est masqué dès son apparition
+			local fx = game.Workspace:FindFirstChild("ClientFX") or Instance.new("Folder")
+			fx.Name = "ClientFX"
+			fx.Parent = game.Workspace
+			local spell = Instance.new("Part")
+			spell.Parent = fx
+			signalFor(fx, "DescendantAdded"):Fire(spell)
+			assert(spell.LocalTransparencyModifier == 1, "Céleste : un sort apparu pendant la scène doit être masqué")
+			scene.testSpell = spell
+		end
 		if kind == "midas" then
 			local torso = scene.hero and scene.hero:FindFirstChild("Torso")
 			assert(torso and torso.Material == roblox.Enum.Material.Metal, "Midas : l'unité doit être changée en or")
@@ -666,6 +692,10 @@ test("Traits : cinématiques Céleste, Midas, Vampire et résultat reçu du serv
 		end
 		TraitCinematic.skip()
 		assert(scene.finished and not scene.folder.Parent, kind .. " : scène non nettoyée")
+		if scene.testSpell then
+			assert(scene.testSpell.LocalTransparencyModifier == 0, "le sort masqué doit réapparaître après la scène")
+			scene.testSpell:Destroy()
+		end
 		if kind == "vampire" then
 			task.wait(0.05)
 			assert(lighting.ClockTime == clockBefore, "Vampire : l'heure du jour doit revenir (" .. lighting.ClockTime .. ")")
