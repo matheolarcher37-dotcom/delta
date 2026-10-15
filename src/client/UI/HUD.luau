@@ -20,6 +20,7 @@ local Components = require(script.Parent.Components)
 local Console = require(script.Parent.Console)
 local Menus = require(script.Parent.Menus)
 local RobuxSideBar = require(script.Parent.RobuxSideBar)
+local Quests = require(script.Parent.Quests)
 local State = require(script.Parent.Parent.State)
 
 local HUD = {}
@@ -141,7 +142,7 @@ local function buildMenuGrid(root: Frame)
 	local holder = new("Frame", {
 		Name = "MenuGrid",
 		Position = UDim2.fromOffset(18, 210),
-		Size = UDim2.fromOffset(210, 420),
+		Size = UDim2.fromOffset(210, 474),
 		BackgroundTransparency = 1,
 		Parent = root,
 	})
@@ -152,7 +153,7 @@ local function buildMenuGrid(root: Frame)
 		Icon = "calendar",
 		Color = Color3.fromRGB(150, 40, 70),
 		Color2 = Color3.fromRGB(20, 110, 130),
-		Size = UDim2.fromOffset(206, 66),
+		Size = UDim2.fromOffset(206, 56),
 		Wide = true,
 		Seed = 3,
 		Parent = holder,
@@ -161,6 +162,24 @@ local function buildMenuGrid(root: Frame)
 		end,
 	})
 	refs.eventTile = event
+	-- « Défis » à côté (pastille = récompenses prêtes à réclamer).
+	local quests = Components.tile({
+		Text = "Défis",
+		Icon = "trophy",
+		Color = Color3.fromRGB(230, 130, 20),
+		Color2 = Color3.fromRGB(150, 40, 30),
+		Size = UDim2.fromOffset(206, 56),
+		Position = UDim2.fromOffset(0, 64),
+		Wide = true,
+		Seed = 9,
+		Parent = holder,
+		OnClick = function()
+			Menus.toggle("Quests")
+		end,
+	})
+	quests.Name = "QuestsTile"
+	pcall(Quests.fixIcons, quests) -- trophée dessiné par UI/Quests
+	refs.questsTile = quests
 	refs.tiles = {}
 	for i, info in HUD.Tiles do
 		local col = (i - 1) % 2
@@ -171,7 +190,7 @@ local function buildMenuGrid(root: Frame)
 			Color = info.color,
 			Color2 = info.color2,
 			Size = UDim2.fromOffset(98, 98),
-			Position = UDim2.fromOffset(col * 108, 76 + line * 108),
+			Position = UDim2.fromOffset(col * 108, 130 + line * 108),
 			Seed = i * 11,
 			Parent = holder,
 			OnClick = function()
@@ -190,11 +209,13 @@ local function buildMenuGrid(root: Frame)
 		table.insert(order, refs.tiles[info.text])
 	end
 	pcall(function()
-		event.NextSelectionDown = order[2]
+		event.NextSelectionDown = quests
+		quests.NextSelectionUp = event
+		quests.NextSelectionDown = order[2]
 		for i = 2, #order do
 			local tile = order[i]
 			local index = i - 1
-			tile.NextSelectionUp = index <= 2 and event or order[i - 2]
+			tile.NextSelectionUp = index <= 2 and quests or order[i - 2]
 			tile.NextSelectionDown = order[i + 2] or tile
 			if index % 2 == 1 then
 				tile.NextSelectionRight = order[i + 1] or tile
@@ -774,6 +795,8 @@ function HUD.init(gui: ScreenGui)
 				refs.eventLabel.Text = eventName .. " · " .. Formulas.formatTime((state:GetAttribute("EventEndsAt") or now) - now)
 			end
 			Components.setBadge(refs.eventTile, eventName and "!" or nil)
+			local ready = Quests.readyCount()
+			Components.setBadge(refs.questsTile, ready > 0 and tostring(ready) or nil)
 			local bossAt = state:GetAttribute("BossAt")
 			refs.bossChip.Visible = bossAt ~= nil or state:GetAttribute("BossAlive") == true
 			if state:GetAttribute("BossAlive") then

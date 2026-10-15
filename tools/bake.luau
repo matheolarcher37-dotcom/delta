@@ -132,26 +132,32 @@ for slot, id in displayIds do
 	displayed[slot] = id
 end
 PlotService:RefreshSlots(example, displayed)
--- Quelques persos d'exemple sur l'estrade de la machine ROULER.
-local rolledIds = { { "ninja_sakoura", "uncommon" }, { "ninja_konohamaro", "common" }, { "ninja_itochi", "mythic" } }
-for i, pair in rolledIds do
-	local info = Economy.RollRarities[pair[2]]
-	local entry = { id = pair[1], level = 1, stars = 1 }
-	local model = CharacterBuilder.build(Formulas.describe(entry).look, { anchored = true, name = "Tire_" .. pair[1] })
-	local spot = plot.machine.spots[i]
-	model:PivotTo(spot.cf * CFrame.new(0, model:GetAttribute("RootHeight"), 0))
-	Kit.unitTag(model.PrimaryPart, {
-		{ text = info.name, colors = info.gradient, weight = 0.9 },
-		{ text = "DPS " .. math.floor(Formulas.dps(entry)), color = Color3.fromRGB(230, 230, 230), font = Enum.Font.GothamBold, weight = 0.5 },
-		{ text = Characters.get(pair[1]).name, color = Color3.new(1, 1, 1), weight = 1 },
-		{ text = "¥" .. Formulas.formatNumber(Formulas.rollPrice(pair[2])), color = Color3.fromRGB(255, 215, 60), weight = 0.9 },
-	}, 3, 6, 70, 5.4)
+-- Le perso du dernier roulage sur le podium de la machine ROULER (mode normal : UN perso par
+-- roulage) : Itochi, Mythique, mutation Diamant, avec son étiquette au-dessus de la tête.
+local RollService = Harness.require(Server.Services.RollService)
+local MutationsFx = Harness.require(Shared.Modules.Mutations)
+local CharacterFactory = Harness.require(Shared.Modules.CharacterFactory)
+local CreatureBuilder = Harness.require(Shared.Modules.CreatureBuilder)
+do
+	local item = { key = "exemple", id = "ninja_itochi", rarity = "mythic", stars = 1, aura = "diamant", variety = "diamant" }
+	local entry = { id = item.id, level = 1, xp = 0, stars = 1, aura = item.aura }
+	item.dps = math.floor(Formulas.dps(entry) + 0.5)
+	item.price = Formulas.rollPrice(item.rarity, item.aura)
+	local model = CharacterFactory.build(item.id, 1, Formulas.describe(entry).look, { anchored = true, name = "Tire_exemple", variety = item.aura })
+	MutationsFx.apply(model, item.aura)
+	local rootHeight = CharacterFactory.rootHeight(model)
+	local spot = plot.machine.spots[1]
+	model:PivotTo(spot.cf * CFrame.new(0, rootHeight, 0))
+	local lines = RollService.itemTagLines(item, Characters.get(item.id))
+	local height, offset = RollService.tagPlacement(model, model.PrimaryPart, #lines)
+	Kit.unitTag(model.PrimaryPart, lines, height, offset, 80, 6)
 	model.Parent = plot.rolledFolder
-	TycoonMachine.lightSpot(plot.machine, i, info.color, info.order >= 5)
+	local info = Economy.RollRarities[item.rarity]
+	TycoonMachine.lightSpot(plot.machine, 1, info.color, true)
 end
-TycoonMachine.setX10(plot.machine, 4, 10)
 plot.machine.universeLabel.Text = "Univers : " .. Universes.List[1].name
-TycoonMachine.setPity(plot.machine, { legendary = 45, mythic = 415, secret = 5300 })
+TycoonMachine.setPity(plot.machine, 1000, Formulas.pityThreshold("mythic", 1))
+TycoonMachine.setOdds(plot.machine, Formulas.rollOdds(1, Formulas.rollPools(Universes.List[1].id)), 1)
 BaseDecor.setSign(plot, "BASE D'EXEMPLE")
 plot.model:SetAttribute("OwnerId", nil)
 print("bases :", count(world.Plots), "pièces")
@@ -189,9 +195,12 @@ local function pedestal(position: Vector3, title: string, color: Color3)
 end
 
 local function addModel(key: string, look, position: Vector3, title: string, color: Color3)
-	local model = CharacterBuilder.build(look, { name = key, anchored = true })
-	model:PivotTo(CFrame.new(position + Vector3.new(0, 0.6 + CharacterBuilder.RootHeight, 0)))
-	model.Parent = models
+	-- La fabrique choisit le bon constructeur (perso R6, ou créature comme Kourama).
+	local model = CharacterFactory.build(nil, nil, look, { name = key, anchored = true })
+	model:PivotTo(CFrame.new(position + Vector3.new(0, 0.6 + CharacterFactory.rootHeight(model), 0)))
+	-- Une créature (Kourama) est construite par le jeu lui-même (squelette animé par
+	-- CreatureAnimator) : elle est exposée ici, mais pas reprise comme modèle perso.
+	model.Parent = if CreatureBuilder.kindOf(look) then decor else models
 	pedestal(position, title, color)
 	return model
 end
@@ -243,8 +252,10 @@ print("galerie :", total, "modèles,", count(gallery), "pièces")
 -- Lune écrit "Font" comme un EnumItem : on le convertit en FontFace avant d'enregistrer.
 for _, item in game:GetDescendants() do
 	if item:IsA("TextLabel") or item:IsA("TextButton") or item:IsA("TextBox") then
-		local font = item.Font
-		if typeof(font) == "EnumItem" then
+		local ok, font = pcall(function()
+			return item.Font
+		end)
+		if ok and typeof(font) == "EnumItem" then
 			item.FontFace = roblox.Font.fromEnum(font)
 		end
 	end

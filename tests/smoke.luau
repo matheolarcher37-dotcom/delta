@@ -1311,6 +1311,30 @@ test("Roster v3.2 : 16 persos de plus, raretés de base, signatures, noms d'orig
 	end
 end)
 
+test("Intégration v3.2 : variété tirée visible partout (fabrique, aperçu), majuscules accentuées", function()
+	local Factory = requireModule(Shared.Modules.CharacterFactory)
+	assert(Formulas.upper("Légendaire") == "LÉGENDAIRE" and Formulas.upper("Planète des Guerriers") == "PLANÈTE DES GUERRIERS", "majuscules accentuées")
+	local look = Characters.get("ninja_maruto").look
+	-- La mutation tirée (champ « aura » = variété) passe par CharacterFactory.build.
+	local model = Factory.build("ninja_maruto", 1, look, { variety = "diamant", anchored = true })
+	assert(model:GetAttribute("Mutation") == "diamant", "variété non appliquée par la fabrique")
+	assert(model:FindFirstChildOfClass("Highlight") == nil, "Highlight posé côté serveur")
+	model:Destroy()
+	-- Foudre : la partie PERSOS ne teinte que les cheveux, le signe de la mutation est ajouté.
+	local bolt = Factory.build("ninja_maruto", 1, look, { variety = "foudre", anchored = true })
+	assert(bolt:FindFirstChild("MutationSigne", true), "Foudre sans son signe (éclairs)")
+	bolt:Destroy()
+	-- Aperçu des menus (ViewportFrame) : la variété aussi, sans contour lumineux.
+	local preview = Factory.buildPreview("ninja_maruto", 1, look, "galaxie")
+	assert(preview:GetAttribute("Mutation") == "galaxie", "aperçu sans variété")
+	assert(preview:FindFirstChildOfClass("Highlight") == nil, "Highlight dans un aperçu")
+	preview:Destroy()
+	-- Variété inconnue : rien ne casse.
+	local plain = Factory.build("ninja_maruto", 1, look, { variety = "inconnue", anchored = true })
+	assert(plain:GetAttribute("Mutation") == nil, "variété inconnue appliquée")
+	plain:Destroy()
+end)
+
 test("Kourama : vraie créature (renard à neuf queues) compatible avec le combat", function()
 	local Factory = requireModule(Shared.Modules.CharacterFactory)
 	local Creature = requireModule(Shared.Modules.CreatureBuilder)

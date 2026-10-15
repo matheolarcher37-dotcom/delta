@@ -655,6 +655,24 @@ test("Pitié : seul le Mythique est garanti, le reste est du pur hasard", functi
 	services.RollService:RenderStage(alice)
 end)
 
+test("Intégration v3.2 : la variété tirée est enregistrée (estrade → unité collectée)", function()
+	local Universes = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Universes"))
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	local stats = Formulas.playerStats(DataService:Get(alice))
+	local found = nil
+	for _ = 1, 400 do
+		local item = services.RollService:MakeItem(Universes.List[1], "common", stats)
+		assert(item.variety == item.aura, "variété ≠ mutation sur l'estrade")
+		if item.aura then
+			found = item
+			break
+		end
+	end
+	assert(found, "aucune mutation en 400 tirages")
+	local entry = services.CharacterService:CreateEntry(found.id, found.aura, nil)
+	assert(entry.variety == found.aura, "unité collectée sans variété")
+end)
+
 test("Passes Robux : 2 ou 3 persos par roulage (1 par défaut)", function()
 	local data = DataService:Get(alice)
 	table.clear(data.RolledQueue)

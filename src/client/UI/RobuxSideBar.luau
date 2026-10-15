@@ -245,7 +245,9 @@ function RobuxSideBar.rebuild(force: boolean?)
 	if not holder then
 		return
 	end
-	local maxCount = Console.isTouch() and 3 or 4
+	-- (refs.cap : moins d'offres quand un panneau du bas — barre ROULER, carte du perso tiré,
+	-- équipe — laisse moins de hauteur ; voir RobuxSideBar.layout)
+	local maxCount = math.max(0, math.min(Console.isTouch() and 3 or 4, refs.cap or 4))
 	local offers = RobuxSideBar.visibleOffers(maxCount)
 	local key = tostring(maxCount) .. (Console.isTouch() and "t" or "")
 	for _, offer in offers do
@@ -323,7 +325,30 @@ function RobuxSideBar.layout()
 	local height = (count * (h + GAP) - GAP) * scaleValue
 	local top = touch and 236 or 152
 	local H = rootHeight(root)
-	local panels = rightPanels(root, holder, H)
+	local panels = {}
+	-- Les panneaux du bas (barre ROULER et carte du perso tiré à la machine, équipe) ne poussent
+	-- pas la barre vers le centre : ils limitent sa hauteur (moins d'offres, la Boutique reste).
+	local limitY = H - 16
+	for _, panel in rightPanels(root, holder, H) do
+		if panel.y > H * 0.45 then
+			-- (marge : les cartes du perso tiré peuvent dépasser un peu leur cadre vers le haut)
+			limitY = math.min(limitY, panel.y - 30)
+		else
+			table.insert(panels, panel)
+		end
+	end
+	local full = ((math.min(Console.isTouch() and 3 or 4, #RobuxSideBar.visibleOffers(4)) + 1) * (h + GAP) - GAP) * scaleValue
+	if not touch and top + full > limitY then
+		top = 112 -- un peu plus haut (le bord droit est libre sous le haut de l'écran)
+	end
+	local fit = math.floor(((limitY - top) / scaleValue + GAP) / (h + GAP)) - 1 -- (- 1 : la Boutique)
+	fit = math.clamp(fit, 0, 4)
+	if fit ~= (refs.cap or 4) then
+		refs.cap = fit
+		RobuxSideBar.rebuild()
+		count = #buttons
+		height = (count * (h + GAP) - GAP) * scaleValue
+	end
 	local function rightFor(y0: number): (number, number)
 		local right, below = 16, y0
 		for _, panel in panels do
