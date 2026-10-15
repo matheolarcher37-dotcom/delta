@@ -17,6 +17,7 @@ local EVENTS = {
 	"Robux_Granted", -- (type "pass" | "product", clé, détails) achat Robux validé (célébration côté client)
 	"Robux_OpenShop", -- (onglet "passes" | "packs" | "boosts", clé?) ouvre la boutique Robux (passe manquant)
 	"QuestNotify", -- (info) défis : { kind = "ready" | "progress" | "punch" | "punchTier", ... } (QuestService)
+	"TraitRolled", -- ({ uid, traitId, previous, crystals }) résultat d'une relance de trait (TraitService) : le client l'affiche
 
 	-- Client -> Serveur
 	"SetTarget", -- (ennemi) cible prioritaire de l'équipe

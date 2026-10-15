@@ -359,6 +359,63 @@ roblox.implementMethod("Workspace", "GetServerTimeNow", function()
 	return os.time() + Harness.timeOffset
 end)
 
+-- Requête spatiale (cinématiques : masquer ce qui gêne la caméra). Approximation par sphère
+-- englobante ; la liste des pièces est mise en cache un court instant (appels groupés).
+local boundsCache = { at = -1, parts = {} }
+roblox.implementMethod("Workspace", "GetPartBoundsInRadius", function(workspace, center, radius, params)
+	local now = os.clock()
+	if now - boundsCache.at > 0.5 then
+		local list = {}
+		for _, d in workspace:GetDescendants() do
+			if d:IsA("BasePart") then
+				table.insert(list, d)
+			end
+		end
+		boundsCache.at, boundsCache.parts = now, list
+	end
+	local exclude = params and params.FilterDescendantsInstances or {}
+	local found = {}
+	for _, part in boundsCache.parts do
+		if part.Parent then
+			local reach = radius + part.Size.Magnitude * 0.5
+			local offset = part.CFrame.Position - center
+			if offset:Dot(offset) < reach * reach then
+				local skip = false
+				for _, ex in exclude do
+					if part == ex or part:IsDescendantOf(ex) then
+						skip = true
+						break
+					end
+				end
+				if not skip then
+					table.insert(found, part)
+				end
+			end
+		end
+	end
+	return found
+end)
+
+-- Taille de la boîte englobante d'un modèle (alignée sur le monde : approximation suffisante).
+roblox.implementMethod("Model", "GetExtentsSize", function(model)
+	local lo, hi = nil, nil
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			local half = d.Size * 0.5
+			for _, sx in { -1, 1 } do
+				for _, sy in { -1, 1 } do
+					for _, sz in { -1, 1 } do
+						local c = d.CFrame:PointToWorldSpace(Vector3.new(half.X * sx, half.Y * sy, half.Z * sz))
+						lo = lo and Vector3.new(math.min(lo.X, c.X), math.min(lo.Y, c.Y), math.min(lo.Z, c.Z)) or c
+						hi = hi and Vector3.new(math.max(hi.X, c.X), math.max(hi.Y, c.Y), math.max(hi.Z, c.Z)) or c
+					end
+				end
+			end
+		end
+	end
+	return lo and (hi - lo) or Vector3.zero
+end)
+
 function Harness.env(scriptInstance)
 	return {
 		os = fakeOs,
@@ -382,6 +439,11 @@ function Harness.env(scriptInstance)
 		ColorSequence = roblox.ColorSequence,
 		ColorSequenceKeypoint = roblox.ColorSequenceKeypoint,
 		RaycastParams = {
+			new = function()
+				return {}
+			end,
+		},
+		OverlapParams = {
 			new = function()
 				return {}
 			end,
