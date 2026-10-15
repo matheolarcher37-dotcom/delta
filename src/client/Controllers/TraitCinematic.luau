@@ -1245,8 +1245,8 @@ end
 -- MONARQUE
 ------------------------------------------------------------------------
 
-local MONARCH_RADIUS = 10.5 -- rang extérieur du demi-cercle des persos agenouillés
-local MONARCH_INNER = 7 -- rang intérieur
+local MONARCH_RADIUS = 11 -- rang extérieur du demi-cercle des persos agenouillés
+local MONARCH_INNER = 7.4 -- rang intérieur
 local MONARCH_COUNT = 8
 local DAIS_TOP = 1.2 -- l'unité se tient sur une estrade (2 marches)
 local HERO_SCALE = 1.1 -- un peu plus grande que les autres, sans remplir l'image
@@ -1260,10 +1260,10 @@ TraitCinematic.CrownBottom = 0.26 -- bas de la couronne sous le centre de l'anne
 -- l'unité, sur deux rangs décalés (comme une cour devant son roi), tous tournés vers elle.
 -- Angles mesurés depuis l'avant ; l'allée du milieu (tapis rouge) reste libre pour la caméra.
 local MONARCH_ROWS = {
-	{ angle = 22, radius = MONARCH_INNER },
-	{ angle = 37, radius = MONARCH_RADIUS },
-	{ angle = 52, radius = MONARCH_INNER },
-	{ angle = 68, radius = MONARCH_RADIUS },
+	{ angle = 24, radius = MONARCH_INNER },
+	{ angle = 45, radius = MONARCH_RADIUS },
+	{ angle = 66, radius = MONARCH_INNER },
+	{ angle = 84, radius = MONARCH_RADIUS },
 }
 function TraitCinematic.monarchSpots(): { Vector3 }
 	local spots = {}
@@ -1280,7 +1280,7 @@ end
 -- 1) plan large en plongée depuis derrière l'épaule de l'unité : la cour apparaît et s'agenouille
 --    face à elle (on voit les têtes s'incliner vers le monarque) ;
 -- 2) raccord (coupe franche) sur un contrechamp de face, juste derrière les deux persos du premier
---    rang (à 2,6 studs de part et d'autre : leurs têtes inclinées encadrent le bas de l'image) :
+--    rang (à 3 studs de part et d'autre : leurs têtes inclinées encadrent le bas de l'image) :
 --    la couronne descend sur l'unité ;
 -- 3) recul et montée : tout le demi-cercle tient dans l'image, l'unité couronnée au centre.
 function TraitCinematic.monarchCamera(total: number): { { any } }
