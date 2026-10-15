@@ -1331,20 +1331,21 @@ function TraitCinematic.monarchSpots(): { Vector3 }
 end
 
 -- Trajet de la caméra :
--- 1) plan large en plongée (y >= 11) depuis derrière l'épaule GAUCHE de l'unité : aucun perso de la
---    cour n'est entre l'objectif et elle ; on voit la cour apparaître et s'agenouiller face à elle ;
+-- 1) plan large en forte plongée (y ~ 20), dans l'axe, loin derrière l'unité : elle est de dos au centre, la
+--    cour en demi-cercle devant elle (les deux persos du 1er rang de part et d'autre de sa
+--    silhouette, aucun caché derrière elle ni près de l'objectif) apparaît et s'agenouille ;
 -- 2) raccord (coupe franche) sur un contrechamp de face, dans l'allée du tapis rouge, entre les deux
 --    persos du premier rang : la couronne descend sur l'unité ;
 -- 3) plan final proche et bas, dans l'allée : l'unité couronnée occupe ~40 % de la hauteur de
 --    l'image, les dos inclinés de la cour encadrent le bas de l'image.
 function TraitCinematic.monarchCamera(total: number): { { any } }
 	return {
-		{ 0, Vector3.new(-7, 12.5, 13), Vector3.new(0.6, 1.6, -6.8), 56 },
-		{ 2.84, Vector3.new(-8.6, 11.6, 11.4), Vector3.new(0.6, 1.6, -6.8), 54 },
-		{ 2.85, Vector3.new(0, 5.4, -12.5), Vector3.new(0, 6.6, 0), 50 },
-		{ 4.5, Vector3.new(0, 5.3, -13.2), Vector3.new(0, 6.5, 0), 49 },
-		{ 5.7, Vector3.new(0, 5.5, -17), Vector3.new(0, 5.2, 0), 50 },
-		{ math.max(total, 6), Vector3.new(0, 5.6, -17.4), Vector3.new(0, 5.2, 0), 50 },
+		{ 0, Vector3.new(0, 21, 23), Vector3.new(0, 0.5, -5.5), 42 },
+		{ 2.84, Vector3.new(0, 19.5, 21), Vector3.new(0, 0.5, -5.5), 42 },
+		{ 2.85, Vector3.new(0, 6.2, -13), Vector3.new(0, 7.2, 0), 48 },
+		{ 4.5, Vector3.new(0, 6.1, -13.6), Vector3.new(0, 7.1, 0), 47 },
+		{ 5.7, Vector3.new(0, 7, -17.5), Vector3.new(0, 5.4, 0), 50 },
+		{ math.max(total, 6), Vector3.new(0, 7.1, -17.9), Vector3.new(0, 5.4, 0), 50 },
 	}
 end
 

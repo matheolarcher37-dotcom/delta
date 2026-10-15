@@ -1183,6 +1183,9 @@ end
 
 -- Tableau des chances : une colonne par rang (en-tête coloré, total, puis chaque trait avec
 -- son icône, son nom et sa chance ; le trait actuel est surligné).
+-- largeur des colonnes selon leurs noms (« Célérité III » chez les Rares, un seul trait Secret)
+local COLUMN_WIDTH = { 0.2, 0.215, 0.23, 0.17, 0.185 }
+
 local function chancesTable(parent: Instance, y: number)
 	local box = new("Frame", {
 		Name = "Chances",
@@ -1222,7 +1225,7 @@ local function chancesTable(parent: Instance, y: number)
 		local isCurrent = currentTrait ~= nil and currentTrait.tier == tier
 		local col = new("Frame", {
 			Name = "Tier" .. tier,
-			Size = UDim2.new(0.2, -7, 1, 0),
+			Size = UDim2.new(COLUMN_WIDTH[tier], -7, 1, 0),
 			BackgroundColor3 = WHITE,
 			ClipsDescendants = true,
 			LayoutOrder = tier,
@@ -1323,7 +1326,7 @@ local function chancesTable(parent: Instance, y: number)
 			local name = Theme.label({
 				Name = "TraitName",
 				Text = trait.name,
-				Size = UDim2.new(1, -64, 1, -2),
+				Size = UDim2.new(1, -58, 1, -2),
 				Position = UDim2.fromOffset(11, 1),
 				FontFace = Theme.Faces.Heavy,
 				TextColor3 = mine and WHITE or Theme.light(trait.color, 0.4),
@@ -1337,7 +1340,7 @@ local function chancesTable(parent: Instance, y: number)
 				Name = "Chance",
 				Text = percent(Traits.chance(trait.id)),
 				AnchorPoint = Vector2.new(1, 0),
-				Size = UDim2.new(0, 50, 1, -2),
+				Size = UDim2.new(0, 44, 1, -2),
 				Position = UDim2.new(1, -3, 0, 1),
 				FontFace = Theme.Faces.Heavy,
 				TextColor3 = WHITE,
@@ -1810,6 +1813,16 @@ function TraitsMenu.init(screenGui: ScreenGui)
 	-- reste entièrement dans l'écran
 	if refs.windowPanel then
 		refs.windowPanel.Position = UDim2.new(0.5, 0, 0.5, -16)
+		-- aides manette sur une pastille sombre : lisibles même par-dessus le bandeau du HUD
+		local hints = refs.windowPanel:FindFirstChild("PadHints", true)
+		if hints and hints:IsA("Frame") then
+			hints.Size = UDim2.fromOffset(0, 36)
+			hints.AutomaticSize = Enum.AutomaticSize.X
+			hints.BackgroundColor3 = INK
+			hints.BackgroundTransparency = 0
+			Theme.round().Parent = hints
+			Theme.padding(18, 0).Parent = hints
+		end
 	end
 	local left = new("Frame", { Name = "Left", Size = UDim2.new(0, 376, 1, 0), BackgroundTransparency = 1, Parent = content })
 	buildBank(left)

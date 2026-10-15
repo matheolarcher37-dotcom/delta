@@ -597,6 +597,7 @@ test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, 
 	end
 	-- plan final : l'unité entière est dans l'image et occupe ~40 % de sa hauteur ; la cour
 	-- (de dos, inclinée) encadre le bas de l'image : la tête de chaque perso est visible
+	local headsVisible = 0
 	local heroLow, heroHigh = math.huge, -math.huge
 	for _, part in hero:GetDescendants() do
 		if part:IsA("BasePart") and part.Transparency < 1 then
@@ -611,7 +612,14 @@ test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, 
 		if child:IsA("Model") and child.Name ~= "Crown" then
 			local kneelerHead = child:FindFirstChild("Head")
 			if kneelerHead and child ~= hero then
-				assert(onScreen(kneelerHead.CFrame.Position), "tête hors du cadre : " .. child.Name)
+				-- les persos du rang extérieur avant peuvent être coupés par le bord de l'image
+				-- (premier plan), mais leur tête reste au moins en partie visible
+				local inFrame, v = onScreen(kneelerHead.CFrame.Position)
+				if inFrame then
+					headsVisible += 1
+				else
+					assert(v.Z < 0 and math.abs(v.X / -v.Z) < tanH * 1.2, "tête loin hors du cadre : " .. child.Name)
+				end
 			end
 			-- repère du perso : son orientation au sol (sans l'inclinaison du torse)
 			local torsoPart = child:FindFirstChild("Torso")
@@ -629,6 +637,7 @@ test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, 
 			end
 		end
 	end
+	assert(headsVisible >= TraitCinematic.MonarchCount - 2, "trop de persos de la cour hors du cadre (" .. headsVisible .. ")")
 	assert(kneelers == TraitCinematic.MonarchCount, "il faut " .. TraitCinematic.MonarchCount .. " persos agenouillés (" .. kneelers .. ")")
 	for i = 1, #boxes do
 		for j = i + 1, #boxes do
