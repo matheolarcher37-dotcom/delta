@@ -27,6 +27,7 @@ local ORDER = {
 	"HubService",
 	"SwordService",
 	"TradeService",
+	"QuestService",
 	"EventService",
 	"LeaderboardService",
 	"AdminService",

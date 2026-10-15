@@ -67,7 +67,8 @@ function SwordService:GiveTool(player: Player)
 	end
 end
 
-function SwordService:Swing(player: Player, tool: Tool)
+-- `punchStation` (facultatif) : punching-ball visé par l'invite « Frapper » de la zone anti-AFK.
+function SwordService:Swing(player: Player, tool: Tool, punchStation: Model?)
 	local sword = Swords.get(tool:GetAttribute("SwordId"))
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -118,6 +119,15 @@ function SwordService:Swing(player: Player, tool: Tool)
 		local CombatService = self.services.CombatService
 		local origin = root.Position
 		local forward = root.CFrame.LookVector
+		-- Zone anti-AFK : le coup compte s'il touche un punching-ball (QuestService).
+		local quests = self.services.QuestService
+		if quests then
+			if punchStation then
+				quests:Punch(player, punchStation, origin, forward)
+			else
+				quests:OnSwordSwing(player, origin, forward)
+			end
+		end
 		for _, record in CombatService:GetEnemiesNear(origin, sword.range + 8) do
 			local enemyRoot = record.root
 			if enemyRoot then

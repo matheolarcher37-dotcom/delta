@@ -120,6 +120,20 @@ roblox.implementMethod("Model", "PivotTo", function(model, target)
 	end
 end)
 roblox.implementMethod("BasePart", "SetNetworkOwner", function() end)
+-- Model:ScaleTo (échelle absolue autour du pivot) : tailles et positions des pièces.
+roblox.implementMethod("Model", "ScaleTo", function(model, scale)
+	local current = model:GetAttribute("HarnessScale") or 1
+	local ratio = scale / current
+	local pivot = pivotOf(model)
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			local rel = pivot:ToObjectSpace(d.CFrame)
+			d.Size = d.Size * ratio
+			d.CFrame = pivot * (rel.Rotation + rel.Position * ratio)
+		end
+	end
+	model:SetAttribute("HarnessScale", scale)
+end)
 
 roblox.implementMethod("Instance", "WaitForChild", function(self, name)
 	local child = self:FindFirstChild(name)

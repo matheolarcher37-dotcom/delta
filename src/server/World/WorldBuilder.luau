@@ -34,6 +34,7 @@ local Props = require(script.Parent.Kit.Props)
 local Relief = require(script.Parent.Kit.Relief)
 local LeaderboardBoards = require(script.Parent.LeaderboardBoards)
 local Merchant = require(script.Parent.Merchant)
+local AfkZone = require(script.Parent.AfkZone)
 
 local WorldBuilder = {}
 
@@ -1395,6 +1396,7 @@ function WorldBuilder.build(options: { water: boolean? }?)
 			WorldBuilder.fillWater(existing)
 		end
 		Core.replaceSlots(existing)
+		AfkZone.ensure(existing) -- zone anti-AFK (construite si le fichier est plus ancien)
 		return { world = existing, zone = existing:FindFirstChild("Zone") }
 	end
 	if existing then
@@ -1409,6 +1411,7 @@ function WorldBuilder.build(options: { water: boolean? }?)
 	buildTradeCorner(world)
 	buildMerchantPaths(world)
 	Merchant.build(world, WorldBuilder.groundY) -- marchand ambulant (déplacé ensuite par ShopService)
+	AfkZone.build(world) -- zone anti-AFK (punching-balls), voir World/AfkZone
 	buildBoards(world)
 	Build.folder(world, "Plots")
 	if not options or options.water ~= false then

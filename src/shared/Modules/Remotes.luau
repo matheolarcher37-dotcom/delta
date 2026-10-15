@@ -16,6 +16,7 @@ local EVENTS = {
 	"RollResult", -- { results = { {id, stars, rarity, aura (mutation), price, dps, ...} }, pity = { mythic = n } } (machine ROULER)
 	"Robux_Granted", -- (type "pass" | "product", clé, détails) achat Robux validé (célébration côté client)
 	"Robux_OpenShop", -- (onglet "passes" | "packs" | "boosts", clé?) ouvre la boutique Robux (passe manquant)
+	"QuestNotify", -- (info) défis : { kind = "ready" | "progress" | "punch" | "punchTier", ... } (QuestService)
 
 	-- Client -> Serveur
 	"SetTarget", -- (ennemi) cible prioritaire de l'équipe
@@ -32,7 +33,6 @@ local FUNCTIONS = {
 	"Fuse", -- (uidA, uidB) -> ok, message
 	"AutoEquip", -- () -> équipe les meilleurs persos
 	"RerollTrait", -- (uid) -> ok, message, traitId
-	"BuyTraitCrystal", -- () -> ok, message
 	"BuySword", -- (swordId) -> ok, message
 	"EquipSword", -- (swordId) -> ok, message
 	"BuySkill", -- (nodeId) -> ok, message (arbre de compétences)
@@ -47,6 +47,9 @@ local FUNCTIONS = {
 	"Robux_BuyPass", -- (clé du passe) -> ok, message (raccourci de Robux_Buy("pass", clé) pour les autres fenêtres)
 	"Merchant_GetStock", -- () -> état du marchand ambulant (coin, stock, compte à rebours)
 	"Merchant_Buy", -- (idObjet) -> ok, message, état (acheter un objet d'évolution)
+	"QuestClaim", -- (idDéfi | idDéfiDuJour | "bonus") -> ok, message (réclamer la récompense d'un défi)
+	"QuestClaimAll", -- () -> ok, message (réclamer tout ce qui est prêt)
+	"QuestGoAfk", -- () -> ok, message (voyage jusqu'à l'entrée de la zone anti-AFK)
 }
 
 local Remotes = {}

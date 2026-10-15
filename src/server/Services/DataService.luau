@@ -78,6 +78,14 @@ local function template()
 		RobuxSpent = 0, -- total de Robux dépensés dans le jeu (classement)
 		RobuxSlots = 0, -- cases d'unités en plus (passe « Emplacements + », recalculé à chaque arrivée)
 		RobuxOnce = {}, -- { [clé du produit] = os.time() } offres à achat unique déjà prises (Pack de départ)
+		-- v3.2 : défis (Config/Quests) et zone anti-AFK. Les gemmes de trait = traitCrystals.
+		Quests = {
+			counters = {}, -- { [clé] = nombre } : kills par ennemi, coups de punching-ball...
+			claimed = {}, -- { [idDéfi] = paliers réclamés }
+			notified = {}, -- { [idDéfi] = dernier palier annoncé « prêt à réclamer » }
+			daily = { day = 0, list = {}, base = {}, claimed = {}, bonus = false },
+			punch = 0, -- coups du cycle en cours au punching-ball (0 → 1000)
+		},
 	}
 end
 
@@ -224,6 +232,27 @@ local function migrate(data)
 	data.RobuxSlots = math.clamp(math.floor(tonumber(data.RobuxSlots) or 0), 0, 4)
 	data.RollCount = math.max(0, math.floor(tonumber(data.RollCount) or 0))
 	data.X10Counter = math.max(0, math.floor(tonumber(data.X10Counter) or 0))
+	-- Défis : sous-tables abîmées remises à neuf, compteurs entiers et positifs.
+	local quests = data.Quests
+	for _, key in { "counters", "claimed", "notified", "daily" } do
+		if type(quests[key]) ~= "table" then
+			quests[key] = {}
+		end
+	end
+	for key, value in quests.counters do
+		local n = tonumber(value)
+		quests.counters[key] = if n and n > 0 then math.floor(n) else nil
+	end
+	local daily = quests.daily
+	daily.day = math.floor(tonumber(daily.day) or 0)
+	for _, key in { "list", "base", "claimed" } do
+		if type(daily[key]) ~= "table" then
+			daily[key] = {}
+		end
+	end
+	daily.bonus = daily.bonus == true
+	quests.punch = math.clamp(math.floor(tonumber(quests.punch) or 0), 0, 1000000)
+	data.traitCrystals = math.max(0, math.floor(tonumber(data.traitCrystals) or 0))
 	if version < 3 then
 		migrateRollV3(data)
 	end

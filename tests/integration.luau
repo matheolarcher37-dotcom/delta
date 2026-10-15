@@ -1552,6 +1552,232 @@ test("Commandes admin", function()
 	AdminService:Run(alice, "aide")
 end)
 
+------------------------------------------------------------------------
+-- DÉFIS, GEMMES DE TRAIT, ZONE ANTI-AFK
+------------------------------------------------------------------------
+
+local QuestsConfig = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Quests"))
+
+-- Fait avancer un compteur de défi (compteur interne ou statistique de la sauvegarde).
+local function bump(data, key, amount)
+	if string.sub(key, 1, 5) == "stat:" then
+		local stat = string.sub(key, 6)
+		if stat == "RollCount" then
+			data.RollCount += amount
+		elseif stat == "totalCoins" then
+			data.totalCoins += amount
+		elseif stat == "playtime" then
+			data.stats.playtime += amount * 60
+		elseif stat == "skills" or stat == "index" then
+			local target = stat == "skills" and data.Skills or data.index
+			for i = 1, amount do
+				target["test_" .. key .. "_" .. i .. "_" .. os.clock()] = true
+			end
+		else
+			data.stats[stat] = (data.stats[stat] or 0) + amount
+		end
+	else
+		data.Quests.counters[key] = (data.Quests.counters[key] or 0) + amount
+	end
+end
+
+test("Défis : kills comptés, palier prêt annoncé, récompense réclamée", function()
+	local QuestService = services.QuestService
+	local CombatService = services.CombatService
+	local data = DataService:Get(alice)
+	assert(type(data.Quests) == "table" and type(data.Quests.counters) == "table", "données de défis absentes")
+	local killsBefore = data.Quests.counters.kill or 0
+	local enemy = CombatService:NearestEnemy(Vector3.zero, 500)
+	assert(enemy, "pas d'ennemi")
+	local defId = enemy.defId
+	CombatService:DamageEnemy(alice, enemy, 1e9, { sword = true })
+	assert((data.Quests.counters.kill or 0) == killsBefore + 1, "kill non compté pour les défis")
+	assert((data.Quests.counters["kill:" .. defId] or 0) >= 1, "kill par ennemi non compté")
+	assert((data.Quests.counters.swordkill or 0) >= 1, "kill à l'épée non compté")
+	-- Rival d'univers (« Tue 200 Kakashu ») : un perso de l'univers apparaît comme ennemi
+	local rival = CombatService:_createEnemy("ninja_kakashu", 1, false, "ninja_son")
+	assert(rival and rival.rival and rival.model:GetAttribute("Rival") == true, "rival non créé")
+	assert(string.find(rival.model:GetAttribute("DisplayName"), "Kakashu", 1, true), "nom du rival")
+	CombatService:DamageEnemy(alice, rival, 1e9, { sword = true })
+	assert((data.Quests.counters["kill:ninja_kakashu"] or 0) >= 1, "kill de rival non compté")
+	-- Défi du jour « Gagne X pièces » : l'objectif suit le revenu du joueur (pas instantané si riche)
+	do
+		local daily = data.Quests.daily
+		local savedList, savedGoals, savedIncome = daily.list, daily.goals, alice:GetAttribute("IncomePerSec")
+		daily.list = { "d_coins" }
+		daily.goals = { d_coins = 50000 }
+		daily.base[QuestsConfig.DailyById.d_coins.key] = QuestsConfig.read(data, QuestsConfig.DailyById.d_coins.key)
+		alice:SetAttribute("IncomePerSec", 10000)
+		QuestService:_check(alice, nil)
+		assert(daily.goals.d_coins >= 10000 * 60 * 20 * 0.9, "objectif de pièces non adapté au revenu : " .. tostring(daily.goals.d_coins))
+		daily.list, daily.goals = savedList, savedGoals
+		alice:SetAttribute("IncomePerSec", savedIncome)
+	end
+	-- Palier 1 de « Village Ninja : tue 50 <ennemi> »
+	local quest = QuestsConfig.ById.u_ninja_1
+	data.Quests.counters[quest.key] = 60
+	QuestService:_check(alice, { [quest.key] = true })
+	local announced, summary = false, false
+	for _, event in clientEvents do
+		if event.name == "QuestNotify" and event.player == alice and type(event.args[1]) == "table" then
+			announced = announced or event.args[1].kind == "ready"
+			summary = summary or event.args[1].kind == "readySummary"
+		end
+	end
+	assert(announced and summary, "défi réussi non annoncé")
+	local coins = data.coins
+	local ok, message = invoke("QuestClaim", alice, quest.id)
+	assert(ok, "réclamer : " .. tostring(message))
+	local expected = QuestsConfig.rewardCoins(quest.tiers[1].reward, alice:GetAttribute("IncomePerSec"))
+	assert(expected >= quest.tiers[1].reward.coins, "la récompense ne peut pas descendre sous le minimum")
+	assert(data.coins == coins + expected, "récompense en pièces non donnée")
+	-- revenu élevé : les pièces suivent (5 min de revenu au 1er palier)
+	assert(QuestsConfig.rewardCoins(quest.tiers[1].reward, 10000) == 3000000, "pièces non adaptées au revenu")
+	assert(data.Quests.claimed[quest.id] == 1, "palier non enregistré")
+	local again = invoke("QuestClaim", alice, quest.id)
+	assert(not again, "palier 2 réclamé sans l'avoir atteint")
+	-- Palier 2 : 200 kills → 1 000 pièces (+ gemme)
+	data.Quests.counters[quest.key] = 200
+	local gems = data.traitCrystals
+	coins = data.coins
+	assert(invoke("QuestClaim", alice, quest.id), "palier 2")
+	local expected2 = QuestsConfig.rewardCoins(quest.tiers[2].reward, alice:GetAttribute("IncomePerSec"))
+	assert(expected2 >= 1000 and data.coins == coins + expected2 and data.traitCrystals == gems + 1, "récompense du palier 2")
+	assert(not invoke("QuestClaim", alice, "defi_inconnu"), "défi inconnu accepté")
+end)
+
+test("Défis du jour : progression depuis le début de journée, coffre bonus", function()
+	local QuestService = services.QuestService
+	local data = DataService:Get(alice)
+	local q = data.Quests
+	assert(#q.daily.list == QuestsConfig.DailyCount, "défis du jour non tirés")
+	assert(q.daily.day == QuestsConfig.day(os.time()), "mauvais jour")
+	assert(not invoke("QuestClaim", alice, "bonus"), "coffre ouvert trop tôt")
+	for _, id in q.daily.list do
+		local daily = QuestsConfig.DailyById[id]
+		local progress = QuestsConfig.dailyProgress(data, id)
+		if progress < daily.goal then
+			bump(data, daily.key, daily.goal - progress)
+		end
+		local ok, message = invoke("QuestClaim", alice, id)
+		assert(ok, "défi du jour " .. id .. " : " .. tostring(message))
+	end
+	local gems = data.traitCrystals
+	local ok, message = invoke("QuestClaim", alice, "bonus")
+	assert(ok, "coffre du jour : " .. tostring(message))
+	assert(data.traitCrystals == gems + QuestsConfig.DailyBonus.gems, "gemmes du coffre")
+	assert(not invoke("QuestClaim", alice, "bonus"), "coffre ouvert deux fois")
+	-- Le lendemain : nouveaux défis, compteurs repartis de zéro
+	q.daily.day -= 1
+	QuestService:_check(alice, nil)
+	assert(q.daily.day == QuestsConfig.day(os.time()) and not q.daily.bonus, "défis du jour non renouvelés")
+	for _, id in q.daily.list do
+		assert(QuestsConfig.dailyProgress(data, id) == 0 or QuestsConfig.DailyById[id].key == "stat:playtime", "progression non remise à zéro")
+	end
+	-- Tout réclamer
+	bump(data, "stat:RollCount", 30)
+	local okAll = invoke("QuestClaimAll", alice)
+	assert(okAll and data.Quests.claimed.p_roll == 1, "tout réclamer")
+	assert(QuestService:ReadyCount(alice) >= 0, "compte des récompenses")
+end)
+
+test("Gemmes de trait : relance payée en gemmes, gemmes du boss", function()
+	local data = DataService:Get(alice)
+	local uid = next(data.characters)
+	assert(uid, "aucun perso")
+	data.traitCrystals = 1
+	local before = data.Quests.counters.reroll or 0
+	local ok, message, traitId = invoke("RerollTrait", alice, uid)
+	assert(ok and traitId, "relance : " .. tostring(message))
+	assert(data.traitCrystals == 0, "la relance doit coûter 1 gemme")
+	assert(data.Quests.counters.reroll == before + 1, "relance non comptée pour les défis")
+	local okEmpty = invoke("RerollTrait", alice, uid)
+	assert(not okEmpty, "relance sans gemme acceptée")
+	-- Le boss donne des gemmes à chaque participant
+	local CombatService = services.CombatService
+	CombatService:SpawnBoss()
+	local boss = CombatService:GetBoss()
+	assert(boss, "pas de boss")
+	local bossKills = data.Quests.counters.boss or 0
+	CombatService:DamageEnemy(alice, boss, 1e9, {})
+	assert(data.traitCrystals >= QuestsConfig.Gems.Boss.min, "pas de gemmes au boss")
+	assert(data.Quests.counters.boss == bossKills + 1, "boss non compté")
+	assert((data.Quests.counters["boss:" .. boss.defId] or 0) >= 1, "boss de l'univers non compté")
+end)
+
+test("Zone anti-AFK : coups comptés, cadence plafonnée, paliers, un sac par joueur", function()
+	local QuestService = services.QuestService
+	local stations = QuestService:GetStations()
+	assert(#stations == 3, "il faut 3 punching-balls")
+	local data = DataService:Get(alice)
+	local function standAt(player, station)
+		local anchor = station.PromptAnchor
+		local p = anchor.CFrame.Position
+		local zone = QuestsConfig and Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Layout")).AfkZone
+		local dir = Vector3.new(zone.X - p.X, 0, zone.Z - p.Z).Unit
+		local pos = Vector3.new(p.X, 3.9, p.Z) + dir * 4
+		player.Character:PivotTo(CFrame.lookAt(pos, Vector3.new(p.X, pos.Y, p.Z)))
+		return pos, -dir
+	end
+	local pos, look = standAt(alice, stations[1])
+	local count = data.Quests.punch
+	local total = data.Quests.counters.punch or 0
+	assert(QuestService:Punch(alice, nil, pos, look), "coup non compté")
+	assert(data.Quests.punch == count + 1 and data.Quests.counters.punch == total + 1, "compteurs de coups")
+	assert(not QuestService:Punch(alice, nil, pos, look), "cadence non plafonnée (anti-triche)")
+	assert(stations[1]:GetAttribute("OwnerId") == alice.UserId, "sac non réservé")
+	assert(stations[1]:GetAttribute("HitTick") >= 1, "pas d'animation de coup")
+	-- Palier de 100 coups : +2 gemmes
+	data.Quests.punch = 99
+	local gems = data.traitCrystals
+	task.wait(QuestsConfig.Punch.MinInterval + 0.05)
+	assert(QuestService:Punch(alice, nil, pos, look), "coup 100")
+	assert(data.traitCrystals == gems + QuestsConfig.Punch.Tiers[1][2], "palier de 100 coups non payé")
+	-- 1000 coups : dernier palier puis le cycle repart à 0
+	data.Quests.punch = 999
+	gems = data.traitCrystals
+	task.wait(QuestsConfig.Punch.MinInterval + 0.05)
+	assert(QuestService:Punch(alice, nil, pos, look), "coup 1000")
+	assert(data.traitCrystals == gems + QuestsConfig.Punch.Tiers[#QuestsConfig.Punch.Tiers][2], "palier de 1000 coups")
+	assert(data.Quests.punch == 0, "le cycle doit repartir à 0")
+	-- Un autre joueur ne peut pas prendre le sac d'Alice, mais peut prendre un sac libre
+	local posB, lookB = standAt(bob, stations[1])
+	assert(not QuestService:Punch(bob, nil, posB, lookB), "sac d'Alice pris par Bob")
+	posB, lookB = standAt(bob, stations[2])
+	assert(QuestService:Punch(bob, nil, posB, lookB), "Bob ne peut pas taper un sac libre")
+	assert(stations[2]:GetAttribute("OwnerId") == bob.UserId, "sac de Bob non réservé")
+	-- Alice s'éloigne : son sac est libéré
+	local delay = QuestsConfig.Punch.ReleaseDelay
+	QuestsConfig.Punch.ReleaseDelay = 0
+	alice.Character:PivotTo(CFrame.new(0, 5, 0))
+	QuestService:_tickStations()
+	QuestsConfig.Punch.ReleaseDelay = delay
+	assert(stations[1]:GetAttribute("OwnerId") == nil, "sac non libéré quand le joueur s'en va")
+	-- Invite « Frapper » (manette / mobile) : sort l'épée et frappe
+	standAt(alice, stations[1])
+	count = data.Quests.punch
+	task.wait(1)
+	signalFor(stations[1].PromptAnchor.PunchPrompt, "Triggered"):Fire(alice)
+	task.wait(0.4)
+	assert(data.Quests.punch == count + 1, "l'invite « Frapper » ne compte pas le coup")
+	-- Voyage jusqu'à la zone
+	local okGo = invoke("QuestGoAfk", alice)
+	assert(okGo, "voyage vers la zone anti-AFK")
+	removePlayer(bob)
+	task.wait(0.2)
+	assert(stations[2]:GetAttribute("OwnerId") == nil, "sac de Bob non libéré à sa déconnexion")
+end)
+
+test("Défis : migration d'une sauvegarde abîmée", function()
+	local data = { version = 2, Quests = "abîmé", traitCrystals = "3", characters = {} }
+	DataService.migrate(data)
+	assert(type(data.Quests) == "table" and type(data.Quests.counters) == "table" and type(data.Quests.daily.list) == "table", "défis non réparés")
+	assert(data.traitCrystals == 3, "gemmes non réparées")
+	local broken = { version = 2, characters = {}, Quests = { counters = { kill = -5, boss = "2" }, daily = "x", punch = "12" } }
+	DataService.migrate(broken)
+	assert(broken.Quests.counters.kill == nil and broken.Quests.counters.boss == 2 and broken.Quests.punch == 12, "compteurs non nettoyés")
+end)
+
 test("Sauvegarde à la déconnexion puis rechargement", function()
 	local data = DataService:Get(alice)
 	local coins = data.coins

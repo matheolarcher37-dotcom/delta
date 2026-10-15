@@ -10,6 +10,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Economy = require(Shared.Config.Economy)
 local Characters = require(Shared.Config.Characters)
 local Layout = require(Shared.Config.Layout)
+local QuestsConfig = require(Shared.Config.Quests)
 local Formulas = require(Shared.Modules.Formulas)
 local Robux = require(Shared.Config.Robux)
 local SkillTree = require(Shared.Config.SkillTree)
@@ -87,8 +88,34 @@ function CombatService:_currentUniverse()
 	return self.services.UniverseService:GetCurrent()
 end
 
-function CombatService:_createEnemy(defId: string, tier: number, isBoss: boolean)
+-- Définition d'un ennemi : ennemi d'univers, ou RIVAL (un perso de l'univers, ex. Kakashu).
+local function enemyDef(defId: string)
 	local def = Characters.Enemies[defId]
+	if def then
+		return def, false
+	end
+	local character = Characters.List[defId]
+	if character then
+		return { name = character.name, look = Characters.resolveLook(defId, 1) or character.look }, true
+	end
+	return nil, false
+end
+
+-- Ennemi à faire apparaître à la place d'un ennemi d'univers : parfois un rival (défis
+-- « Tue 200 Kakashu »).
+function CombatService:_pickSpawn(slotDefId: string): string
+	local universe = self:_currentUniverse()
+	if universe and rng:NextNumber() < QuestsConfig.RivalChance then
+		local rivals = QuestsConfig.rivalsFor(universe)
+		if #rivals > 0 then
+			return rivals[rng:NextInteger(1, #rivals)]
+		end
+	end
+	return slotDefId
+end
+
+function CombatService:_createEnemy(defId: string, tier: number, isBoss: boolean, slotDefId: string?)
+	local def, isRival = enemyDef(defId)
 	if not def then
 		return nil
 	end
@@ -105,7 +132,8 @@ function CombatService:_createEnemy(defId: string, tier: number, isBoss: boolean
 	local hp = tierStats.hp * (isBoss and 1 or (1 + (level - tierStats.level) * 0.08))
 	model:SetAttribute("Enemy", true)
 	model:SetAttribute("Boss", isBoss)
-	model:SetAttribute("DisplayName", def.name)
+	model:SetAttribute("DisplayName", isRival and ("Rival · " .. def.name) or def.name)
+	model:SetAttribute("Rival", isRival)
 	model:SetAttribute("Level", level)
 	model:SetAttribute("Tier", tier)
 	model:SetAttribute("HP", hp)
@@ -140,6 +168,8 @@ function CombatService:_createEnemy(defId: string, tier: number, isBoss: boolean
 
 	local record = {
 		defId = defId,
+		slotDefId = slotDefId or defId, -- ennemi d'univers remplacé (pour la réapparition)
+		rival = isRival,
 		def = def,
 		tier = tier,
 		isBoss = isBoss,
@@ -174,7 +204,7 @@ function CombatService:SpawnWave()
 	for tier, tierStats in Economy.EnemyTiers do
 		local defId = universe.enemies[tier]
 		for _ = 1, tierStats.count do
-			self:_createEnemy(defId, tier, false)
+			self:_createEnemy(self:_pickSpawn(defId), tier, false, defId)
 		end
 	end
 end
@@ -408,7 +438,8 @@ function CombatService:_kill(record, killer: Player, info)
 		local gen = record.generation
 		task.delay(Economy.EnemyRespawn, function()
 			if gen == generation then
-				self:_createEnemy(record.defId, record.tier, false)
+				local slot = record.slotDefId or record.defId
+				self:_createEnemy(self:_pickSpawn(slot), record.tier, false, slot)
 			end
 		end)
 	end
@@ -440,9 +471,20 @@ function CombatService:_reward(player: Player, record, universe, position: Vecto
 		DataService:AddMaterial(player, universe.material.id, amount)
 		Reward:FireClient(player, "material", amount, position, universe.material.id)
 	end
-	if record.tier == 3 and rng:NextNumber() < Economy.TraitCrystalTier3Chance then
-		data.traitCrystals = (data.traitCrystals or 0) + 1
-		Reward:FireClient(player, "crystal", 1, position)
+	-- Gemmes de trait (= Cristaux de Trait) : chance et quantité selon la force de l'ennemi.
+	local quests = self.services.QuestService
+	local gemRule = record.rival and QuestsConfig.Gems.Rival or QuestsConfig.Gems.Tiers[record.tier]
+	if gemRule and rng:NextNumber() < gemRule.chance then
+		local amount = rng:NextInteger(gemRule.min, gemRule.max)
+		if quests then
+			quests:GrantGems(player, amount, position)
+		else
+			data.traitCrystals = (data.traitCrystals or 0) + amount
+			Reward:FireClient(player, "crystal", amount, position)
+		end
+	end
+	if quests then
+		quests:OnEnemyKilled(player, record, info) -- compteurs des défis
 	end
 	self.services.TeamService:GrantCombatXP(player, stats.xp)
 end
@@ -475,9 +517,15 @@ function CombatService:_rewardBoss(record, universe, position: Vector3)
 					Notify:FireClient(player, "🎁 Le boss a lâché une relique rare : " .. relic.name .. " !", "success")
 				end
 			end
-			local crystals = rng:NextInteger(Economy.TraitCrystalBossDrop[1], Economy.TraitCrystalBossDrop[2])
-			data.traitCrystals = (data.traitCrystals or 0) + crystals
-			Reward:FireClient(player, "crystal", crystals, position)
+			local crystals = rng:NextInteger(QuestsConfig.Gems.Boss.min, QuestsConfig.Gems.Boss.max)
+			local quests = self.services.QuestService
+			if quests then
+				quests:GrantGems(player, crystals, position)
+				quests:OnBossKilled(player, record) -- compteurs des défis
+			else
+				data.traitCrystals = (data.traitCrystals or 0) + crystals
+				Reward:FireClient(player, "crystal", crystals, position)
+			end
 			data.stats.bossKills += 1
 			self.services.TeamService:GrantCombatXP(player, stats.xp * math.max(share, 0.2))
 			Notify:FireClient(player, "🏆 Boss vaincu ! Participation : " .. math.floor(share * 100) .. "%", "success")

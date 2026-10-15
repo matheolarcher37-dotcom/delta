@@ -1347,6 +1347,119 @@ test("Construction de la carte", function()
 	print("   pièces de la carte : " .. countParts(Workspace))
 end)
 
+test("Défis : configuration cohérente (paliers croissants, ennemis, récompenses)", function()
+	local Quests = requireModule(Shared.Config.Quests)
+	assert(#Quests.List >= 35, "pas assez de défis : " .. #Quests.List)
+	local ids = {}
+	local perUniverse = {}
+	for _, quest in Quests.List do
+		assert(not ids[quest.id], "identifiant de défi en double : " .. quest.id)
+		ids[quest.id] = true
+		assert(#quest.tiers >= 3, quest.id .. " : il faut au moins 3 paliers")
+		local previous = 0
+		for _, tier in quest.tiers do
+			assert(tier.goal > previous, quest.id .. " : paliers non croissants")
+			previous = tier.goal
+			assert((tier.reward.coins or 0) > 0 or (tier.reward.gems or 0) > 0, quest.id .. " : palier sans récompense")
+		end
+		assert(string.find(quest.title, "%s", 1, true), quest.id .. " : titre sans objectif")
+		if quest.universe then
+			perUniverse[quest.universe] = (perUniverse[quest.universe] or 0) + 1
+		end
+	end
+	for _, universe in Universes.List do
+		assert((perUniverse[universe.id] or 0) >= 5, universe.id .. " : pas assez de défis d'univers")
+		local name = Characters.Enemies[universe.enemies[1]].name
+		assert(ids["u_" .. universe.id .. "_1"], "défi « tue " .. name .. " » manquant")
+	end
+	-- Exemple demandé : « Village Ninja : tue 200 <ennemi> » → 1 000 pièces
+	local ninja = Quests.ById.u_ninja_1
+	assert(ninja.tiers[2].goal == 200 and ninja.tiers[2].reward.coins == 1000, "exemple 200 kills / 1000 pièces")
+	-- Exemple exact de l'utilisateur : « Village Ninja : tue 200 Kakashu » → 1 000 pièces (rival)
+	local rival = Quests.ById.u_ninja_rival1
+	assert(rival and rival.rival == "ninja_kakashu", "défi « Tue 200 Kakashu » manquant")
+	assert(Quests.title(rival, rival.tiers[2].goal) == "Tue 200 Kakashu", Quests.title(rival, rival.tiers[2].goal))
+	assert(rival.tiers[2].reward.coins == 1000, "Tue 200 Kakashu doit donner 1 000 pièces (minimum)")
+	assert(rival.tiers[1].goal == 50 and rival.tiers[3].goal == 1000, "paliers du rival : 50 → 200 → 1 000")
+	-- Pièces adaptées au revenu : minimum = valeur de base, sinon 5 / 15 / 45 min de revenu
+	assert(Quests.rewardCoins(rival.tiers[2].reward, 0) == 1000, "sans revenu : valeur de base")
+	assert(Quests.rewardCoins(rival.tiers[2].reward, 2540) == 2300000, "15 min de 2 540 ¥/s ≈ 2,3 M")
+	assert(Quests.rewardCoins(rival.tiers[1].reward, 2540) == 760000, "5 min de 2 540 ¥/s ≈ 760 k")
+	assert(Quests.rewardCoins(Quests.DailyBonus, 100) == 180000, "coffre du jour : 30 min de revenu")
+	assert(Quests.rewardCoins(Quests.DailyById.d_kill.reward, 1) == Quests.DailyById.d_kill.reward.coins, "petit revenu : minimum")
+	local long = {}
+	for _, quest in Quests.List do
+		local title = Quests.title(quest, quest.tiers[#quest.tiers].goal)
+		if utf8.len(title) > 31 then
+			table.insert(long, title)
+		end
+	end
+	assert(#long == 0, "titres trop longs : " .. table.concat(long, " | "))
+	local firstNinja
+	for _, quest in Quests.List do
+		if quest.universe == "ninja" then
+			firstNinja = quest
+			break
+		end
+	end
+	assert(firstNinja == rival, "le premier défi du Village Ninja doit être « Tue 200 Kakashu »")
+	for _, universe in Universes.List do
+		assert(#Quests.rivalsFor(universe) >= 2, universe.id .. " : il faut au moins 2 rivaux")
+	end
+	assert(Quests.Punch.Bags == 3, "il faut exactement 3 punching-balls")
+	assert(Quests.punchCycleGems() == 20 and Quests.Punch.Goal == 1000, "1000 coups doivent donner 20 gemmes")
+	assert(#Quests.pickDaily(20000, 42) == Quests.DailyCount, "défis du jour")
+	local a, b = Quests.pickDaily(20000, 42), Quests.pickDaily(20000, 42)
+	assert(table.concat(a) == table.concat(b), "tirage du jour instable")
+	assert(Quests.title(ninja, 1000) == "Tue 1 000 Ninjas du Son", Quests.title(ninja, 1000))
+	assert(Quests.title(Quests.ById.u_ocean_1, 50) == "Tue 50 Pirates de Buggi", Quests.title(Quests.ById.u_ocean_1, 50))
+	-- Défi du jour « Gagne X pièces » adapté au revenu du joueur
+	local coinsDaily = Quests.DailyById.d_coins
+	assert(Quests.dailyGoalFor(coinsDaily, 0) == coinsDaily.goal, "objectif de pièces minimal")
+	assert(Quests.dailyGoalFor(coinsDaily, 10000) == 12000000, "objectif de pièces selon le revenu")
+	-- Progression lue dans une sauvegarde
+	local data = {
+		RollCount = 12,
+		stats = { evolutions = 0, playtime = 600 },
+		Quests = { counters = { kill = 5 }, claimed = { p_roll = 0 }, daily = { list = { "d_kill" }, base = { kill = 2 }, claimed = {} } },
+	}
+	assert(Quests.read(data, "stat:RollCount") == 12 and Quests.read(data, "stat:playtime") == 10 and Quests.read(data, "kill") == 5, "lecture des compteurs")
+	assert(Quests.dailyProgress(data, "d_kill") == 3, "progression du jour")
+	assert(Quests.readyCount(data) == 0, "rien ne doit être prêt")
+	data.Quests.counters.kill = 200
+	assert(Quests.dailyReady(data, "d_kill") and Quests.readyCount(data) >= 2, "défis prêts non détectés")
+end)
+
+test("Zone anti-AFK : 3 punching-balls, invites, compteurs, rien d'agressif", function()
+	local Layout = requireModule(Shared.Config.Layout)
+	local AfkZone = requireModule(Server.World.AfkZone)
+	local world = Workspace:FindFirstChild("World")
+	assert(world, "carte absente")
+	local zone = world:FindFirstChild("AfkZone")
+	assert(zone, "zone anti-AFK absente de la carte")
+	local stations = AfkZone.stations(world)
+	assert(#stations == 3, "il faut exactement 3 punching-balls (" .. #stations .. ")")
+	for i, station in stations do
+		assert(station:GetAttribute("Station") == i, "numéro de poste")
+		local anchor = station:FindFirstChild("PromptAnchor")
+		local prompt = anchor and anchor:FindFirstChildOfClass("ProximityPrompt")
+		assert(prompt and prompt.HoldDuration == 0, "invite « Frapper » manquante")
+		assert(anchor:FindFirstChild("Counter"), "compteur au-dessus du sac manquant")
+		local bag = station:FindFirstChild("Bag")
+		assert(bag and bag.PrimaryPart and bag.PrimaryPart.Name == "Hook", "sac sans crochet (pivot)")
+		local p = anchor.CFrame.Position
+		local c = Layout.AfkZone
+		assert(math.sqrt((p.X - c.X) ^ 2 + (p.Z - c.Z) ^ 2) < 30, "poste hors de la zone")
+		assert(Layout.isReserved(p, 0), "poste hors du lieu réservé")
+	end
+	-- Rien d'agressif : aucune arme, aucun ennemi, aucun script dans la zone
+	for _, d in zone:GetDescendants() do
+		assert(not d:IsA("Humanoid") and not d:IsA("Tool") and not d:IsA("Script"), "objet agressif dans la zone : " .. d:GetFullName())
+	end
+	print("   pièces de la zone anti-AFK : " .. countParts(zone))
+	assert(countParts(zone) < 1500, "zone anti-AFK trop lourde")
+end)
+
 test("Décors des 5 univers", function()
 	local UniverseDecor = requireModule(Server.World.UniverseDecor)
 	local zone = Workspace.World.Zone
