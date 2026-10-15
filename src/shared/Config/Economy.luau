@@ -2,6 +2,8 @@
 
 local Economy = {}
 
+local Rarities = require(script.Parent.Rarities)
+
 -- Durée d'un univers (en secondes). 30 minutes comme dans le doc de conception.
 Economy.UniverseDuration = 30 * 60
 -- Intervalle de réapprovisionnement de la Machine à Reliques.
@@ -71,82 +73,54 @@ Economy.IncomeFactor = 0.15
 
 ------------------------------------------------------------------------
 -- MACHINE DE ROULAGE (« ROULER ») : la source principale de persos.
--- Le roulage est gratuit ; les persos tirés attendent sur l'estrade et on les « Collecte »
--- en payant leur prix (¥ = pièces). Chance, multi-tirage, vitesse, x10 et pitié
--- s'améliorent dans l'arbre de compétences (Config/SkillTree.luau).
+--
+-- Chaque roulage tire UN perso (deux ou trois avec les passes Robux « Roulage x2 / x3 ») :
+--   1) la machine tire une RARETÉ selon les chances ci-dessous (chance de l'arbre, potions...) ;
+--   2) puis un perso de CETTE rareté dans le pool de l'univers actuel : chaque perso garde sa
+--      rareté de base (Config/Characters : Maruto est Épique, il reste Épique) ;
+--   3) une MUTATION peut s'ajouter par-dessus (Config/Mutations : Or, Diamant, Sakura...).
+-- Le perso tiré s'affiche sur l'estrade : on le « Collecte » en payant son prix (¥ = pièces),
+-- ou on le laisse passer en roulant de nouveau. Pas de garantie, sauf la pitié du MYTHIQUE.
 ------------------------------------------------------------------------
 
--- Raretés de la machine (de la plus commune à la plus rare).
---   charRarity   = rareté des persos tirés (Config/Rarities : common, rare, epic, legendary, mythic, secret)
---   traitMinTier = trait garanti (palier minimum) ; aura = aura garantie
---   odds         = chance en % (avant la chance de l'arbre) ; price = prix de base en ¥ (pièces)
+-- Raretés de la machine (de la plus commune à la plus rare) = raretés des persos.
+--   odds     = chance en % (avant la chance du joueur) ; price = prix de base en ¥ (pièces)
+--   optional = rareté qui ne compte que si l'univers a des persos de cette rareté
+--              (Peu commun : aucun perso du jeu ne l'a pour l'instant ; Secret : 1 perso par univers)
 Economy.RollOrder = { "common", "uncommon", "rare", "epic", "legendary", "mythic", "secret" }
+
+local function rarityInfo(id: string, order: number, odds: number, price: number, extra: { [string]: any }?)
+	local base = Rarities.List[id]
+	local info: { [string]: any } = {
+		id = id,
+		name = base and base.name or id,
+		order = order,
+		color = base and base.color or Color3.new(1, 1, 1),
+		gradient = base and base.gradient or { Color3.new(1, 1, 1), Color3.new(0.6, 0.6, 0.6) },
+		charRarity = id,
+		odds = odds,
+		price = price,
+	}
+	for key, value in extra or {} do
+		info[key] = value
+	end
+	return info
+end
+
 Economy.RollRarities = {
-	common = {
-		id = "common",
-		name = "Commun",
-		order = 1,
-		color = Color3.fromRGB(176, 186, 197),
-		gradient = { Color3.fromRGB(225, 230, 236), Color3.fromRGB(140, 152, 166) },
-		charRarity = "common",
-		odds = 60,
-		price = 90,
-	},
-	uncommon = {
-		id = "uncommon",
+	common = rarityInfo("common", 1, 70, 90),
+	uncommon = rarityInfo("uncommon", 2, 15, 260, {
 		name = "Peu commun",
-		order = 2,
 		color = Color3.fromRGB(90, 220, 100),
 		gradient = { Color3.fromRGB(160, 255, 150), Color3.fromRGB(40, 170, 70) },
-		charRarity = "common",
-		traitMinTier = 1, -- un perso commun, mais avec un trait garanti
-		odds = 24,
-		price = 260,
-	},
-	rare = {
-		id = "rare",
-		name = "Rare",
-		order = 3,
-		color = Color3.fromRGB(64, 160, 255),
-		gradient = { Color3.fromRGB(120, 210, 255), Color3.fromRGB(40, 100, 230) },
-		charRarity = "rare",
-		odds = 11.5,
-		price = 900,
-	},
-	epic = {
-		id = "epic",
-		name = "Épique",
-		order = 4,
-		color = Color3.fromRGB(176, 92, 255),
-		gradient = { Color3.fromRGB(220, 150, 255), Color3.fromRGB(120, 50, 220) },
-		charRarity = "epic",
-		odds = 3.8,
-		price = 6000,
-	},
-	legendary = {
-		id = "legendary",
-		name = "Légendaire",
-		order = 5,
-		color = Color3.fromRGB(255, 190, 40),
-		gradient = { Color3.fromRGB(255, 236, 110), Color3.fromRGB(255, 140, 20) },
-		charRarity = "legendary",
-		odds = 0.6,
-		price = 45000,
-	},
-	mythic = {
-		id = "mythic",
-		name = "Mythique",
-		order = 6,
-		color = Color3.fromRGB(255, 50, 60),
-		gradient = { Color3.fromRGB(255, 120, 110), Color3.fromRGB(200, 10, 40) },
-		charRarity = "mythic",
-		odds = 0.09,
-		price = 350000,
-	},
-	secret = {
-		id = "secret",
+		optional = true,
+	}),
+	rare = rarityInfo("rare", 3, 22, 900),
+	epic = rarityInfo("epic", 4, 6.5, 6000),
+	legendary = rarityInfo("legendary", 5, 1.3, 45000),
+	mythic = rarityInfo("mythic", 6, 0.2, 350000),
+	secret = rarityInfo("secret", 7, 0.02, 2000000, {
 		name = "Secret",
-		order = 7,
 		color = Color3.fromRGB(246, 240, 255), -- blanc nacré (même couleur unie que Rarities.secret)
 		gradient = {
 			Color3.fromRGB(255, 80, 80),
@@ -156,24 +130,40 @@ Economy.RollRarities = {
 			Color3.fromRGB(220, 90, 255),
 		},
 		rainbow = true,
-		charRarity = "secret", -- le perso Secret de l'univers (Radama, Sukana, Gojita, Kaydo, Muzon) :
-		aura = "arcenciel", -- aura Arc-en-ciel garantie
-		traitMinTier = 3, -- et un trait rare garanti
-		odds = 0.01,
-		price = 2000000,
-	},
+		optional = true,
+	}),
 }
 
 Economy.Roll = {
-	X10Luck = 10, -- chance multipliée par 10 pendant le roulage « Chance x10 »
-	QueueMax = 6, -- persos tirés en attente sur l'estrade (les plus anciens partent)
-	-- Pitié : nombre de persos tirés (« rouleaux ») avant une rareté garantie (avant l'arbre).
-	Pity = { legendary = 150, mythic = 1200, secret = 8000 },
-	PityOrder = { "legendary", "mythic", "secret" },
+	QueueMax = 3, -- l'estrade montre les persos du DERNIER roulage (1, 2 ou 3)
+	MaxPerRoll = 3, -- 1 par défaut, 2 avec le passe « Roulage x2 », 3 avec « Roulage x3 »
+	-- Pitié : UNIQUEMENT pour le Mythique (tout le reste est du pur hasard).
+	PityRarity = "mythic",
+	Pity = { mythic = 1000 }, -- Mythique garanti au bout de 1000 persos tirés sans Mythique
+	PityOrder = { "mythic" },
+	-- Légendaire et plus : le premier appui sur ROULER demande confirmation avant de le laisser passer.
+	ProtectOrder = 5,
+	ConfirmWindow = 6, -- secondes pour confirmer
+	-- Bonus de chance (posés par le domaine Robux sur le joueur) : passe « x2 Chance »
+	-- (attribut Pass_Luck2) et potion de chance (attribut Boost_Luck = fin, os.time()).
+	PassLuck = 2,
+	BoostLuck = 2,
 	FirstCollectFree = true, -- le tout premier perso collecté est offert (pour bien démarrer)...
 	FreeCollectMaxOrder = 3, -- ... s'il est Rare ou moins (pas de Légendaire/Mythique gratuit)
+	AutoStep = 0.25, -- l'auto-roulage vérifie toutes les X secondes s'il peut rouler
 }
 
+-- Passes Robux de la machine (prix affichés tant que Config/Robux.luau ne les donne pas).
+Economy.RollPasses = {
+	Roll2 = { name = "Roulage x2", price = 149, desc = "Tire 2 persos à chaque roulage." },
+	Roll3 = { name = "Roulage x3", price = 349, desc = "Tire 3 persos à chaque roulage." },
+	AutoRoll = { name = "Roulement automatique", price = 29, desc = "Lancer AFK : la machine roule toute seule et s'arrête sur les raretés et mutations choisies." },
+	AutoRollPlus = {
+		name = "Roulement automatique +",
+		price = 500,
+		desc = "Achat automatique : choisis les persos, raretés et mutations voulus, la machine roule et les ACHÈTE pour toi.",
+	},
+}
 -- Paliers d'ennemis dans la zone d'univers (anneau extérieur -> centre).
 Economy.EnemyTiers = {
 	[1] = { hp = 60, damage = 4, coins = 15, xp = 12, materialChance = 0.05, level = 3, scale = 0.9, count = 14 },

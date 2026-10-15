@@ -11,6 +11,7 @@ local Rarities = require(Shared.Config.Rarities)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 local CharacterFactory = require(Shared.Modules.CharacterFactory)
+local MutationsFx = require(Shared.Modules.Mutations)
 
 local CharacterService = {}
 
@@ -40,7 +41,8 @@ function CharacterService:ApplyAttributes(model: Model, player: Player, uid: str
 	model:SetAttribute("OwnerId", player.UserId)
 	model:SetAttribute("DisplayName", desc and desc.name or "?")
 	model:SetAttribute("Rarity", desc and desc.rarity or "common")
-	-- Rareté obtenue à la machine ROULER (Commun... Secret) : couleur de l'étiquette côté client.
+	-- v3.2 : plus de rareté « de machine » (le perso garde la rareté de sa fiche) ; l'attribut
+	-- n'est plus posé que pour les très vieilles entrées pas encore migrées.
 	model:SetAttribute("RollRarity", entry.rollRarity)
 	model:SetAttribute("Level", entry.level)
 	model:SetAttribute("Stars", entry.stars or 1)
@@ -70,6 +72,13 @@ function CharacterService:BuildModel(player: Player, uid: string, entry, options
 		collisionGroup = opts.collisionGroup,
 	})
 	self:ApplyAttributes(model, player, uid, entry)
+	-- Mutation (variété) : teinte, reflets, particules (Modules/Mutations).
+	if entry.aura then
+		local ok, err = pcall(MutationsFx.apply, model, entry.aura)
+		if not ok then
+			warn("[AnimeTycoon] Mutation : " .. tostring(err))
+		end
+	end
 	CollectionService:AddTag(model, "AnimeRig")
 	return model
 end

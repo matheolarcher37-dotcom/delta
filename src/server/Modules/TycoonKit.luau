@@ -495,20 +495,65 @@ end
 
 -- Panneau flottant d'un bouton : nom (+ icône), effet, prix dans une pastille verte/rouge.
 -- Taille mixte (studs + pixels) : lisible de loin comme de près, à la télé comme sur mobile.
+-- Le panneau POUSSE VERS LE HAUT depuis `offset` (son bord bas y reste collé, quelle que soit la
+-- distance) : la BillboardGui fait deux fois la hauteur du panneau, qui en occupe la moitié haute.
+-- Le bord bas est à ~7 studs du sol, AU-DESSUS du socle, du jeton qui tourne, du tapis et des
+-- fantômes : comme la carte ne s'étend que vers le haut, aucun de ces objets (qui passent devant
+-- le panneau dans le test de profondeur de Roblox) ne peut plus la couper.
+-- Au-delà de `Kit.BoardFar.distance` studs, le client passe la carte en version compacte (titre +
+-- prix, sans la ligne d'effet, moins de pixels) : la base reste lisible de loin sans fouillis.
+Kit.BoardHeight = { studs = 2.4, pixels = 50 } -- hauteur du panneau (studs + pixels)
+Kit.BoardWidth = { studs = 4.8, pixels = 120 } -- largeur du panneau (studs + pixels)
+Kit.BoardFar = { distance = 60, heightPixels = 30, widthPixels = 92 } -- version compacte (client)
+Kit.BoardBottom = 7 -- hauteur du bord bas du panneau au-dessus du sol (studs)
+Kit.BoardMaxDistance = 140 -- la diagonale d'une demi-base : toute la base reste lisible
+
+-- Mise en page de la carte : complète (titre, effet, prix) ou compacte (titre, prix).
+-- Le client (RollPanel.layoutBoard) applique la même mise en page selon la distance de la caméra.
+function Kit.layoutBoard(gui: BillboardGui, compact: boolean)
+	local card = gui:FindFirstChild("Card")
+	if not card then
+		return
+	end
+	local h, w = Kit.BoardHeight, Kit.BoardWidth
+	local hp = compact and Kit.BoardFar.heightPixels or h.pixels
+	local wp = compact and Kit.BoardFar.widthPixels or w.pixels
+	gui.Size = UDim2.new(w.studs, wp, h.studs * 2, hp * 2)
+	local title = card:FindFirstChild("Title") :: TextLabel?
+	local effect = card:FindFirstChild("Effect") :: TextLabel?
+	local pill = card:FindFirstChild("Pill") :: Frame?
+	if title then
+		title.Position = UDim2.fromScale(0.05, compact and 0.06 or 0.05)
+		title.Size = UDim2.fromScale(0.9, compact and 0.46 or 0.36)
+	end
+	if effect then
+		effect.Visible = not compact
+	end
+	if pill then
+		pill.Position = UDim2.fromScale(0.14, compact and 0.56 or 0.63)
+		pill.Size = UDim2.fromScale(0.72, compact and 0.38 or 0.32)
+	end
+	gui:SetAttribute("Compact", compact)
+end
+
 function Kit.priceBoard(adornee: BasePart, title: string, effectLine: string, priceText: string, offset: Vector3): (BillboardGui, { [string]: Instance })
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "PriceGui"
-	gui.Size = UDim2.new(4.6, 120, 2.3, 60)
+	gui.Size = UDim2.new(Kit.BoardWidth.studs, Kit.BoardWidth.pixels, Kit.BoardHeight.studs * 2, Kit.BoardHeight.pixels * 2)
 	gui.StudsOffsetWorldSpace = offset
 	gui.AlwaysOnTop = false
 	gui.LightInfluence = 0
-	gui.MaxDistance = 200
+	gui.MaxDistance = Kit.BoardMaxDistance
 	gui.Adornee = adornee
 	gui.Parent = adornee
+	-- distance de passage en version compacte et tailles des deux versions (lues par le client)
+	gui:SetAttribute("FarDistance", Kit.BoardFar.distance)
+	gui:SetAttribute("NearSize", UDim2.new(Kit.BoardWidth.studs, Kit.BoardWidth.pixels, Kit.BoardHeight.studs * 2, Kit.BoardHeight.pixels * 2))
+	gui:SetAttribute("FarSize", UDim2.new(Kit.BoardWidth.studs, Kit.BoardFar.widthPixels, Kit.BoardHeight.studs * 2, Kit.BoardFar.heightPixels * 2))
 
 	local card = Instance.new("Frame")
 	card.Name = "Card"
-	card.Size = UDim2.fromScale(1, 1)
+	card.Size = UDim2.fromScale(1, 0.5)
 	card.BackgroundColor3 = C.Panel
 	card.BackgroundTransparency = 0.08
 	card.BorderSizePixel = 0
@@ -529,6 +574,7 @@ function Kit.priceBoard(adornee: BasePart, title: string, effectLine: string, pr
 	corner(pill, 0.5, 0)
 	stroke(pill, C.Stroke, 2)
 	local price = text(pill, "Price", priceText, UDim2.fromScale(0.04, 0.08), UDim2.fromScale(0.92, 0.84), Color3.new(1, 1, 1), Enum.Font.LuckiestGuy)
+	Kit.layoutBoard(gui, false)
 
 	return gui, { card = card, cardStroke = cardStroke, pill = pill, price = price }
 end

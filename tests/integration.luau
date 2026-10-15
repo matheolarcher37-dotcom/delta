@@ -378,9 +378,10 @@ local function rollNow(player)
 	return invoke("Roll", player)
 end
 
-test("Machine ROULER : roulage, estrade, collecte offerte puis payante", function()
+test("Machine ROULER : un perso par roulage, rareté de base, collecte offerte puis payante", function()
 	local data = DataService:Get(alice)
 	local plot = services.PlotService:GetPlot(alice)
+	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
 	assert(plot.machine and plot.machine.prompt, "machine absente")
 	table.clear(data.RolledQueue)
 	data.Skills = {}
@@ -391,12 +392,22 @@ test("Machine ROULER : roulage, estrade, collecte offerte puis payante", functio
 	local ok, results = rollNow(alice)
 	assert(ok and type(results) == "table" and #results == 1, "roulage : " .. tostring(results))
 	assert(#data.RolledQueue == 1, "perso pas sur l'estrade")
-	assert(lastEvent("RollResult", alice), "RollResult non envoyé")
 	local payload = lastEvent("RollResult", alice).args[1]
-	assert(payload.results[1].id and payload.results[1].price and payload.results[1].dps and payload.pity.legendary and payload.x10In, "contenu de RollResult")
+	assert(payload.results[1].id and payload.results[1].price and payload.results[1].dps and payload.pity.mythic, "contenu de RollResult")
+	assert(payload.x10In == nil and payload.pity.legendary == nil, "restes de l'ancien roulage (x10, pitié Légendaire)")
 	assert(#plot.rolledFolder:GetChildren() == 1, "modèle du perso tiré absent")
 	local univers = services.UniverseService:GetCurrent()
 	assert(table.find(univers.characters, results[1].id), "perso hors du pool de l'univers actuel")
+	-- Rareté de BASE : le perso tiré garde la rareté de sa fiche.
+	assert(results[1].rarity == Characters.get(results[1].id).rarity, "rareté de machine collée sur le perso")
+	-- Le roulage suivant REMPLACE le perso non collecté (il « passe ») : plus de file de 6.
+	local firstKey = data.RolledQueue[1].key
+	if data.RolledQueue[1].rarity == "legendary" or data.RolledQueue[1].rarity == "mythic" then
+		data.RolledQueue[1].rarity = "common"
+	end
+	rollNow(alice)
+	assert(#data.RolledQueue == 1 and data.RolledQueue[1].key ~= firstKey, "le perso précédent n'est pas passé")
+	assert(#plot.rolledFolder:GetChildren() == 1, "ancien modèle resté sur l'estrade")
 	-- Premier perso collecté : offert (s'il est Rare ou moins).
 	data.FirstCollectDone = false
 	data.coins = 0
@@ -427,15 +438,11 @@ test("Machine ROULER : roulage, estrade, collecte offerte puis payante", functio
 	assert(okPaid, "collecte payante : " .. tostring(msg2))
 	assert(data.coins == 0, "prix non débité")
 	local count = 0
-	local rolledEntry = nil
 	for _, entry in data.characters do
 		count += 1
-		if entry.rollRarity then
-			rolledEntry = entry
-		end
+		assert(entry.rollRarity == nil, "rareté de machine encore mémorisée")
 	end
 	assert(count == countBefore + 2, "persos non ajoutés")
-	assert(rolledEntry, "rareté de la machine non mémorisée")
 	-- L'invite « Collecter » de l'estrade marche aussi.
 	rollNow(alice)
 	DataService:AddCoins(alice, data.RolledQueue[1].price)
@@ -477,39 +484,26 @@ test("Machine ROULER : délai entre deux roulages", function()
 	table.clear(DataService:Get(alice).RolledQueue)
 end)
 
-test("Pitié : Légendaire, Mythique et Secret garantis au seuil", function()
+test("Légendaire sur l'estrade : confirmation avant de le laisser passer", function()
 	local data = DataService:Get(alice)
-	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
-	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
-	local stats = Formulas.playerStats(data)
-	for _, tier in { "legendary", "mythic", "secret" } do
-		table.clear(data.RolledQueue)
-		data.Pity = { legendary = 0, mythic = 0, secret = 0 }
-		data.Pity[tier] = Formulas.pityThreshold(tier, stats.pityMult) - 1
-		local ok, results = rollNow(alice)
-		assert(ok, "roulage")
-		local got = Economy.RollRarities[results[1].rarity].order
-		assert(got >= Economy.RollRarities[tier].order, tier .. " non garanti (obtenu " .. results[1].rarity .. ")")
-		assert(data.Pity[tier] == 0, "compteur de pitié non remis à zéro : " .. tier)
-	end
-	-- (Quel perso donne un tirage Secret : voir le test « Palier Secret », indépendant de la pitié.)
-	local secret = data.RolledQueue[1]
-	assert(secret.aura == "arcenciel" and secret.trait, "Secret sans aura ni trait")
-	local panel = services.PlotService:GetPlot(alice).machine.pityLines.legendary
-	assert(panel.Text:find("rouleaux") or panel.Text:find("PROCHAIN"), "panneau de pitié non mis à jour")
+	table.clear(data.RolledQueue)
+	table.insert(data.RolledQueue, { key = "L1", id = "ninja_maruto", rarity = "legendary", stars = 1, price = 45000, dps = 100, at = 0 })
+	local ok, message = rollNow(alice)
+	assert(not ok and type(message) == "string" and message:find("encore"), "pas d'avertissement avant de perdre un Légendaire")
+	assert(#data.RolledQueue == 1 and data.RolledQueue[1].key == "L1", "Légendaire perdu sans confirmation")
+	local ok2 = rollNow(alice)
+	assert(ok2 and data.RolledQueue[1].key ~= "L1", "2e appui : le Légendaire aurait dû passer")
 	table.clear(data.RolledQueue)
 	services.RollService:RenderStage(alice)
 end)
 
-test("Chaque palier de la machine a au moins un perso dans chaque univers", function()
-	-- Le palier « Peu commun » de la machine tire un perso de rareté Commun avec un trait garanti
-	-- (il n'existe pas de rareté de PERSO « Peu commun ») : la case « Peu commun » de l'auto-
-	-- roulage se rapporte donc au palier de la machine.
+test("Chaque rareté de la machine tire un perso de CETTE rareté dans chaque univers", function()
+	-- Chaque perso garde sa rareté de base (Maruto Épique reste Épique) ; une rareté « optionnelle »
+	-- (Peu commun) ne compte que si l'univers a des persos de cette rareté.
 	local Universes = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Universes"))
 	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
 	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
 	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
-	assert(Economy.RollRarities.uncommon.charRarity == "common", "palier Peu commun : perso Commun attendu")
 	local stats = Formulas.playerStats(DataService:Get(alice))
 	for tierId, info in Economy.RollRarities do
 		for _, universe in Universes.List do
@@ -519,9 +513,12 @@ test("Chaque palier de la machine a au moins un perso dans chaque univers", func
 					n += 1
 				end
 			end
-			assert(n >= 1, universe.id .. " : aucun perso pour le palier " .. tierId .. " (" .. info.charRarity .. ")")
-			local item = services.RollService:MakeItem(universe, tierId, stats)
-			assert(Characters.get(item.id).rarity == info.charRarity, universe.id .. " : palier " .. tierId .. " -> " .. item.id)
+			if n == 0 then
+				assert(info.optional, universe.id .. " : aucun perso pour la rareté " .. tierId)
+			else
+				local item = services.RollService:MakeItem(universe, tierId, stats)
+				assert(Characters.get(item.id).rarity == info.charRarity, universe.id .. " : rareté " .. tierId .. " -> " .. item.id)
+			end
 		end
 	end
 end)
@@ -555,27 +552,168 @@ test("Palier Secret : tire le perso Secret de chaque univers, jamais un autre", 
 	end
 end)
 
-test("Chance x10 : tous les N roulages", function()
+test("Pitié : seul le Mythique est garanti, le reste est du pur hasard", function()
 	local data = DataService:Get(alice)
 	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
-	local every = Formulas.playerStats(data).x10Every
-	data.X10Counter = every - 2
-	rollNow(alice)
-	assert(lastEvent("RollResult", alice).args[1].x10 == false, "x10 trop tôt")
-	assert(lastEvent("RollResult", alice).args[1].x10In == 1, "compte à rebours x10")
-	rollNow(alice)
-	assert(lastEvent("RollResult", alice).args[1].x10 == true, "pas de roulage x10")
-	assert(data.X10Counter == 0, "compteur x10 non remis à zéro")
-	-- Les probabilités x10 favorisent les raretés.
-	local normal = Formulas.rollOdds(1)
-	local boosted = Formulas.rollOdds(10)
-	assert(boosted.legendary > normal.legendary * 5 and boosted.common < normal.common, "chance x10 sans effet")
-	local total = 0
-	for _, p in boosted do
-		total += p
-	end
-	assert(math.abs(total - 1) < 1e-6, "probabilités x10 ≠ 100 %")
+	local stats = Formulas.playerStats(data)
 	table.clear(data.RolledQueue)
+	data.Pity = { mythic = Formulas.pityThreshold("mythic", stats.pityMult) - 1 }
+	local ok, results = rollNow(alice)
+	assert(ok and results[1].rarity == "mythic", "Mythique non garanti (obtenu " .. tostring(results and results[1] and results[1].rarity) .. ")")
+	assert(data.Pity.mythic == 0, "compteur de pitié non remis à zéro")
+	assert(data.Pity.legendary == nil and data.Pity.secret == nil, "pitiés Légendaire / Secret encore comptées")
+	local machine = services.PlotService:GetPlot(alice).machine
+	assert(machine.x10Text.Text:find("Mythique garanti"), "barre de pitié du Mythique non mise à jour : " .. machine.x10Text.Text)
+	assert(machine.pityLines.common.Text:find("%%"), "panneau des chances non mis à jour")
+	assert(machine.pityLines.mythic.Text:find("%%"), "chance du Mythique non affichée")
+	-- Un Mythique est sur l'estrade : rouler demande confirmation.
+	assert(not rollNow(alice), "Mythique laissé passer sans confirmation")
+	table.clear(data.RolledQueue)
+	services.RollService:RenderStage(alice)
+end)
+
+test("Passes Robux : 2 ou 3 persos par roulage (1 par défaut)", function()
+	local data = DataService:Get(alice)
+	table.clear(data.RolledQueue)
+	data.Skills = { coeur = true, taux1 = true, multi1 = true, multi2 = true, taux2 = true }
+	alice:SetAttribute("Pass_Roll2", nil)
+	alice:SetAttribute("Pass_Roll3", nil)
+	local ok, results = rollNow(alice)
+	assert(ok and #results == 1, "l'arbre donne encore plusieurs persos par roulage")
+	assert(not invoke("Roll_SetMulti", alice, 2), "x2 accepté sans passe")
+	alice:SetAttribute("Pass_Roll2", true)
+	table.clear(data.RolledQueue)
+	ok, results = rollNow(alice)
+	assert(ok and #results == 2, "passe Roulage x2 : " .. (type(results) == "table" and #results or tostring(results)))
+	assert(not invoke("Roll_SetMulti", alice, 3), "x3 accepté avec le seul passe x2")
+	assert(invoke("Roll_SetMulti", alice, 1), "retour à 1 perso")
+	table.clear(data.RolledQueue)
+	ok, results = rollNow(alice)
+	assert(ok and #results == 1, "choix « x1 » ignoré")
+	alice:SetAttribute("Pass_Roll3", true)
+	assert(invoke("Roll_SetMulti", alice, 3), "x3 avec le passe")
+	table.clear(data.RolledQueue)
+	ok, results = rollNow(alice)
+	assert(ok and #results == 3, "passe Roulage x3")
+	assert(#services.PlotService:GetPlot(alice).rolledFolder:GetChildren() == 3, "3 persos attendus sur l'estrade")
+	data.RollMulti = 0
+	alice:SetAttribute("Pass_Roll2", nil)
+	alice:SetAttribute("Pass_Roll3", nil)
+	table.clear(data.RolledQueue)
+	services.RollService:RenderStage(alice)
+end)
+
+test("Lancer AFK (passe AutoRoll) : roule seul, pause sur les raretés cochées", function()
+	local data = DataService:Get(alice)
+	local RollService = services.RollService
+	table.clear(data.RolledQueue)
+	alice:SetAttribute("Pass_AutoRoll", nil)
+	alice:SetAttribute("Pass_AutoRollPlus", nil)
+	assert(not invoke("SetAutoRoll", alice, true) and data.AutoRoll == false, "Lancer AFK sans le passe")
+	alice:SetAttribute("Pass_AutoRoll", true)
+	-- Réglages : seules des clés connues et des booléens sont gardés.
+	local okSave = invoke("Roll_SaveAutoSettings", alice, {
+		pauseRarities = { common = false, rare = false, epic = false, legendary = false, mythic = false, pirate = true },
+		pauseMutations = { ["or"] = "oui", diamant = false },
+		buyCharacters = { ninja_maruto = true, inconnu = true },
+	})
+	assert(okSave, "réglages refusés")
+	local settings = data.AutoRollSettings
+	assert(settings.pauseRarities.pirate == nil and settings.pauseRarities.common == false, "rareté inconnue gardée")
+	assert(next(settings.pauseMutations) == nil, "valeur non booléenne gardée")
+	assert(settings.buyCharacters.ninja_maruto == true and settings.buyCharacters.inconnu == nil, "perso inconnu gardé")
+	assert(invoke("SetAutoRoll", alice, true) and data.AutoRoll == true, "Lancer AFK avec le passe")
+	-- Rien de coché : ça roule sans s'arrêter (on enlève les mutations de la pause aussi).
+	local count = data.RollCount
+	for _ = 1, 3 do
+		RollService:ResetCooldown(alice)
+		RollService:AutoStep(alice)
+	end
+	assert(data.RollCount == count + 3, "l'auto-roulage ne roule pas")
+	assert(data.AutoRoll == true, "arrêt sans raison")
+	-- Tout coché : la machine s'arrête au premier perso, qui reste sur l'estrade.
+	invoke("Roll_SaveAutoSettings", alice, { pauseRarities = { common = true, rare = true, epic = true, legendary = true, mythic = true } })
+	RollService:ResetCooldown(alice)
+	RollService:AutoStep(alice)
+	assert(data.AutoRoll == false, "pas de pause sur une rareté cochée")
+	assert(#data.RolledQueue == 1, "le perso de la pause n'est pas resté sur l'estrade")
+	-- Passe perdu : l'auto-roulage s'arrête tout seul.
+	data.AutoRoll = true
+	alice:SetAttribute("Pass_AutoRoll", nil)
+	RollService:AutoStep(alice)
+	assert(data.AutoRoll == false, "auto-roulage sans passe")
+	invoke("Roll_SaveAutoSettings", alice, { pauseRarities = { legendary = true, mythic = true }, buyCharacters = {} })
+	table.clear(data.RolledQueue)
+	services.RollService:RenderStage(alice)
+end)
+
+test("Achat automatique (passe AutoRollPlus) : achète les cibles, s'arrête sans argent", function()
+	local data = DataService:Get(alice)
+	local RollService = services.RollService
+	table.clear(data.RolledQueue)
+	data.FirstCollectDone = true
+	alice:SetAttribute("Pass_AutoRollPlus", nil)
+	assert(not invoke("Roll_SetAutoBuy", alice, true), "achat automatique sans le passe")
+	alice:SetAttribute("Pass_AutoRollPlus", true)
+	invoke("Roll_SaveAutoSettings", alice, { buyCharacters = {}, buyRarities = {}, buyMutations = {} })
+	assert(not invoke("Roll_SetAutoBuy", alice, true), "achat automatique sans cible")
+	invoke("Roll_SaveAutoSettings", alice, { buyRarities = { common = true, rare = true, epic = true, legendary = true, mythic = true } })
+	assert(invoke("Roll_SetAutoBuy", alice, true) and data.AutoBuy == true, "achat automatique avec le passe et des cibles")
+	local count = 0
+	for _ in data.characters do
+		count += 1
+	end
+	DataService:AddCoins(alice, 100000000)
+	RollService:ResetCooldown(alice)
+	RollService:AutoStep(alice)
+	local after = 0
+	for _ in data.characters do
+		after += 1
+	end
+	assert(after == count + 1 and #data.RolledQueue == 0, "le perso visé n'a pas été acheté")
+	assert(data.AutoBuy == true, "arrêt sans raison")
+	-- Plus d'argent : l'achat s'arrête, le perso reste sur l'estrade.
+	data.coins = 0
+	RollService:ResetCooldown(alice)
+	RollService:AutoStep(alice)
+	assert(data.AutoBuy == false, "l'achat automatique ne s'arrête pas sans argent")
+	assert(#data.RolledQueue == 1, "le perso visé n'est pas resté sur l'estrade")
+	alice:SetAttribute("Pass_AutoRollPlus", nil)
+	invoke("Roll_SaveAutoSettings", alice, { buyRarities = {} })
+	table.clear(data.RolledQueue)
+	services.RollService:RenderStage(alice)
+end)
+
+test("Mutations : tirées à la machine, prix, apparence sur l'estrade et dans la base", function()
+	local data = DataService:Get(alice)
+	local RollService = services.RollService
+	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	local universe = services.UniverseService:GetCurrent()
+	local stats = Formulas.playerStats(data)
+	stats.auraLuck = 1000 -- mutation quasi certaine
+	local item = RollService:MakeItem(universe, "epic", stats)
+	assert(item.aura, "pas de mutation malgré une chance énorme")
+	assert(item.rarity == Characters.get(item.id).rarity, "rareté de base perdue")
+	assert(item.price > Formulas.rollPrice(item.rarity, nil, item.trait), "la mutation n'augmente pas le prix")
+	table.clear(data.RolledQueue)
+	table.insert(data.RolledQueue, item)
+	RollService:RenderStage(alice, { item })
+	local model = services.PlotService:GetPlot(alice).rolledFolder:GetChildren()[1]
+	assert(model and model:GetAttribute("Mutation"), "apparence de la mutation absente sur l'estrade")
+	local tag = model.PrimaryPart:FindFirstChild("AnimeTag")
+	assert(tag and tag:FindFirstChild("Mutation"), "mutation absente de l'étiquette")
+	DataService:AddCoins(alice, item.price)
+	local ok, message = invoke("CollectRolled", alice, item.key)
+	assert(ok, "collecte d'un perso muté : " .. tostring(message))
+	local found = false
+	for _, entry in data.characters do
+		if entry.aura == item.aura and entry.id == item.id then
+			found = true
+		end
+	end
+	assert(found, "mutation perdue à la collecte")
+	services.RollService:RenderStage(alice)
 end)
 
 test("Arbre de compétences : prérequis, argent, effets", function()
@@ -621,49 +759,6 @@ test("Arbre de compétences : prérequis, argent, effets", function()
 	signalFor(plot.skillRefs.prompt, "Triggered"):Fire(alice)
 	local open = lastEvent("OpenMenu", alice)
 	assert(open and open.args[1] == "SkillTree", "le pupitre n'ouvre pas l'arbre")
-end)
-
-test("Multi-tirage : 2 puis 3 persos par roulage + auto-roulage", function()
-	local data = DataService:Get(alice)
-	table.clear(data.RolledQueue)
-	data.Skills = { coeur = true, taux1 = true, multi1 = true }
-	local ok, results = rollNow(alice)
-	assert(ok and #results == 2, "multi-tirage I : " .. (type(results) == "table" and #results or tostring(results)))
-	table.clear(data.RolledQueue)
-	data.Skills.taux2 = true
-	data.Skills.multi2 = true
-	ok, results = rollNow(alice)
-	assert(ok and #results == 3, "multi-tirage II")
-	assert(#services.PlotService:GetPlot(alice).rolledFolder:GetChildren() == 3, "3 persos attendus sur l'estrade")
-	-- Auto-roulage : refusé sans le nœud, accepté avec.
-	assert(not invoke("SetAutoRoll", alice, true), "auto-roulage sans nœud")
-	data.Skills.autoroll = true
-	assert(invoke("SetAutoRoll", alice, true), "auto-roulage")
-	assert(data.AutoRoll == true, "auto-roulage non enregistré")
-	invoke("SetAutoRoll", alice, false)
-	table.clear(data.RolledQueue)
-	services.RollService:RenderStage(alice)
-end)
-
-test("Estrade pleine : les persos rares ne sont jamais poussés dehors", function()
-	local data = DataService:Get(alice)
-	data.Skills = {}
-	table.clear(data.RolledQueue)
-	for i = 1, 6 do
-		table.insert(data.RolledQueue, { key = "L" .. i, id = "ninja_maruto", rarity = "legendary", stars = 1, price = 45000, dps = 100, at = 0 })
-	end
-	local ok = rollNow(alice)
-	assert(not ok, "roulage accepté avec une estrade pleine de Légendaires")
-	assert(#data.RolledQueue == 6 and data.RolledQueue[1].key == "L1", "Légendaire perdu")
-	-- Avec un Commun dans la file, c'est lui qui part.
-	data.RolledQueue[3] = { key = "C", id = "ninja_rokli", rarity = "common", stars = 1, price = 90, dps = 5, at = 0 }
-	ok = rollNow(alice)
-	assert(ok, "roulage refusé alors qu'un Commun peut partir")
-	for _, item in data.RolledQueue do
-		assert(item.key ~= "C", "le Commun aurait dû partir")
-	end
-	table.clear(data.RolledQueue)
-	services.RollService:RenderStage(alice)
 end)
 
 test("Cases d'unités : « Remplacer l'unité », silhouettes verrouillées", function()
@@ -773,17 +868,47 @@ test("Migration d'une ancienne sauvegarde (v1)", function()
 	local carol = addPlayer("Carol")
 	assert(carol.UserId == oldId, "identifiant inattendu")
 	local data = DataService:Get(carol)
-	assert(data.version == 2, "version non migrée")
+	assert(data.version == 3, "version non migrée")
 	assert(type(data.Skills) == "table" and next(data.Skills) == nil, "Skills manquant")
-	assert(data.Pity.legendary == 0 and data.Pity.mythic == 0 and data.Pity.secret == 0, "Pity manquant")
-	assert(data.RollCount == 0 and data.X10Counter == 0 and data.AutoRoll == false, "compteurs manquants")
+	assert(data.Pity.mythic == 0 and data.Pity.legendary == nil, "Pity manquant")
+	assert(data.RollCount == 0 and data.AutoRoll == false and data.AutoBuy == false, "compteurs manquants")
+	assert(type(data.AutoRollSettings) == "table" and data.AutoRollSettings.pauseRarities.legendary == true, "réglages d'auto-roulage manquants")
 	assert(type(data.RolledQueue) == "table" and type(data.DisplayPins) == "table", "file / cases manquantes")
 	assert(data.FirstCollectDone == true, "un ancien joueur ne doit pas avoir de perso offert")
 	assert(data.coins == 1234 and data.characters["OLD-1"], "anciennes données perdues")
 	assert(data.upgrades.dojo and Economy.UpgradesById.dojo, "ancienne amélioration perdue")
 	-- Sauvegarde abîmée : les champs qui doivent être des tables sont réparés au lieu de planter.
 	local broken = DataService.migrate({ version = 1, Pity = 5, characters = "x", Skills = true, DisplayPins = { ["1"] = 3, ["2"] = false } })
-	assert(type(broken.Pity) == "table" and broken.Pity.legendary == 0, "Pity abîmé non réparé")
+	assert(type(broken.Pity) == "table" and broken.Pity.mythic == 0, "Pity abîmé non réparé")
+	-- v2 -> v3 : rareté de base, auras devenues mutations, file de l'estrade réduite.
+	local v2 = DataService.migrate({
+		version = 2,
+		characters = {
+			A = { id = "ninja_maruto", level = 3, xp = 0, stars = 1, aura = "dore", rollRarity = "secret" },
+			B = { id = "ninja_rokli", level = 1, xp = 0, stars = 1, aura = "pasunemutation" },
+		},
+		Pity = { legendary = 40, mythic = 300, secret = 900 },
+		X10Counter = 7,
+		AutoRoll = true,
+		RolledQueue = {
+			{ key = "Q1", id = "ninja_itochi", rarity = "secret", price = 2000000, dps = 1, at = 1 },
+			{ key = "Q2", id = "ninja_rokli", rarity = "uncommon", price = 260, dps = 1, at = 2 },
+			{ key = "Q3", id = "ninja_maruto", rarity = "common", price = 90, dps = 1, at = 3 },
+			{ key = "Q4", id = "ninja_sasuki", rarity = "common", price = 90, dps = 1, at = 4 },
+			{ key = "Q5", id = "inconnu", rarity = "common", price = 90, dps = 1, at = 5 },
+		},
+	})
+	assert(v2.version == 3, "v2 non migrée")
+	assert(v2.characters.A.aura == "or" and v2.characters.A.rollRarity == nil, "aura Doré / rareté de machine non migrées")
+	assert(v2.characters.B.aura == nil, "mutation inconnue gardée")
+	assert(v2.Pity.mythic == 300 and v2.Pity.legendary == nil and v2.Pity.secret == nil, "pitiés mal migrées")
+	assert(v2.AutoRoll == false and v2.X10Counter == 0, "auto-roulage / x10 non remis à zéro")
+	assert(#v2.RolledQueue == 3, "estrade non réduite à 3 persos : " .. #v2.RolledQueue)
+	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
+	for _, item in v2.RolledQueue do
+		assert(item.rarity == Characters.get(item.id).rarity, "rareté de base non rendue : " .. item.key)
+	end
+	assert(v2.RolledQueue[1].key == "Q1" and v2.RolledQueue[1].aura == "arcenciel", "l'ancien Secret n'est pas devenu Mythique Arc-en-ciel")
 	assert(type(broken.characters) == "table" and type(broken.Skills) == "table", "tables abîmées non réparées")
 	assert(broken.DisplayPins["1"] == nil and broken.DisplayPins["2"] == false, "cases abîmées mal nettoyées")
 	local plot = services.PlotService:GetPlot(carol)

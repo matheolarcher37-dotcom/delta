@@ -1,16 +1,23 @@
 -- MACHINE ROULER + ARBRE DE COMPÉTENCES (la source principale de persos).
 --
--- Rouler est gratuit : chaque roulage tire 1 perso (2 puis 3 avec « Multi-tirage ») dans le
--- pool de l'UNIVERS ACTUEL (la rotation des univers compte). Les persos tirés attendent sur
--- l'estrade de la base (data.RolledQueue, 6 places) ; on les « Collecte » en payant leur prix.
---   • chance : arbre (Chance I-V...) ; tous les N roulages, un roulage « Chance x10 »
---   • pitié  : Légendaire / Mythique / Secret garantis au bout de X persos tirés
---   • vitesse: délai entre deux roulages (Taux d'apparition) ; auto-roulage (nœud de l'arbre)
--- Les reliques (HatchService) restent une source secondaire : butin du boss, marchand de
--- reliques de la base, relique de bienvenue. Les deux donnent des persos identiques.
+-- UN PERSO PAR ROULAGE (v3.2) : chaque appui sur ROULER tire UN perso qui apparaît sur le podium
+-- de l'estrade. On le « Collecte » (on paie son prix) ou on le laisse passer : le roulage suivant
+-- le remplace. Rouler 2 ou 3 persos à la fois se paie en Robux (passes « Roulage x2 / x3 » :
+-- attributs Pass_Roll2 / Pass_Roll3 posés sur le joueur par le domaine Robux).
+--   • rareté : la machine tire d'abord une rareté (chances de Config/Economy × chance du joueur),
+--     puis un perso de CETTE rareté dans le pool de l'univers actuel (chaque perso garde sa rareté
+--     de base, Config/Characters) ; une MUTATION peut s'ajouter par-dessus (Config/Mutations) ;
+--   • pitié : uniquement le Mythique (garanti au bout de N persos tirés), le reste = pur hasard ;
+--   • chance : arbre (Chance I-V, Bénédiction...), passe « x2 Chance » (Pass_Luck2), potion de
+--     chance (Boost_Luck = heure de fin) ;
+--   • « Lancer AFK » (passe AutoRoll, 29 Robux) : roule tout seul et s'arrête sur les raretés /
+--     mutations cochées ; « Achat automatique » (passe AutoRollPlus, 500 Robux) : roule tout seul
+--     et ACHÈTE chaque perso qui correspond aux cibles choisies, s'arrête si on ne peut plus payer.
+-- Les reliques (HatchService) restent une source secondaire (butin du boss, marchand de reliques).
 --
 -- Remotes : Roll() → ok, résultats | message ; CollectRolled(clé) → ok, message ;
--- SetAutoRoll(bool) → ok, message ; BuySkill(nodeId) → ok, message ; RollResult (serveur → client).
+-- SetAutoRoll(bool), Roll_SetAutoBuy(bool), Roll_SaveAutoSettings(réglages), Roll_SetMulti(n)
+-- → ok, message ; BuySkill(nodeId) → ok, message ; RollResult (serveur → client).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,7 +25,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Economy = require(Shared.Config.Economy)
 local Characters = require(Shared.Config.Characters)
-local Auras = require(Shared.Config.Auras)
+local Mutations = require(Shared.Config.Mutations)
 local Traits = require(Shared.Config.Traits)
 local SkillTree = require(Shared.Config.SkillTree)
 local Universes = require(Shared.Config.Universes)
@@ -40,12 +47,34 @@ local RollResult = Remotes.event("RollResult")
 
 local rng = Random.new()
 local lastRoll: { [Player]: number } = {}
-local warnedFull: { [Player]: number } = {}
-local PROTECTED_ORDER = 5 -- Légendaire et plus : jamais poussés hors de l'estrade
+local confirmUntil: { [Player]: number } = {}
 
-local function rarityOrder(id: string): number
-	local info = Economy.RollRarities[id]
+local function rarityOrder(id: string?): number
+	local info = Economy.RollRarities[id or ""]
 	return info and info.order or 0
+end
+
+-- Passes Robux (attributs posés par le domaine Robux : achat ou possession).
+local function hasPass(player: Player, key: string): boolean
+	return player:GetAttribute("Pass_" .. key) == true
+end
+RollService.hasPass = hasPass
+
+local function canAfk(player: Player): boolean
+	return hasPass(player, "AutoRoll") or hasPass(player, "AutoRollPlus")
+end
+
+local function mutationName(id: string?): string?
+	local m = Mutations.get(id)
+	return m and m.name or nil
+end
+
+-- « Itochi (Mythique · Or) »
+local function itemLabel(item): string
+	local def = Characters.get(item.id)
+	local info = Economy.RollRarities[item.rarity] or Economy.RollRarities.common
+	local mutation = mutationName(item.aura)
+	return (def and def.name or "?") .. " (" .. info.name .. (mutation and (" · " .. mutation) or "") .. ")"
 end
 
 function RollService:Init(services)
@@ -60,9 +89,9 @@ function RollService:Start()
 	local DataService = self.services.DataService
 
 	Remotes.func("Roll").OnServerInvoke = function(player)
-		local ok, result = self:Roll(player)
+		local ok, result, kind = self:Roll(player)
 		if not ok and type(result) == "string" then
-			Notify:FireClient(player, result, "error")
+			Notify:FireClient(player, result, kind or "error")
 		end
 		return ok, result
 	end
@@ -73,6 +102,23 @@ function RollService:Start()
 	end
 	Remotes.func("SetAutoRoll").OnServerInvoke = function(player, enabled)
 		local ok, message = self:SetAutoRoll(player, enabled == true)
+		if message then
+			Notify:FireClient(player, message, ok and "success" or "error")
+		end
+		return ok, message
+	end
+	Remotes.func("Roll_SetAutoBuy").OnServerInvoke = function(player, enabled)
+		local ok, message = self:SetAutoBuy(player, enabled == true)
+		if message then
+			Notify:FireClient(player, message, ok and "success" or "error")
+		end
+		return ok, message
+	end
+	Remotes.func("Roll_SaveAutoSettings").OnServerInvoke = function(player, settings)
+		return self:SaveAutoSettings(player, settings)
+	end
+	Remotes.func("Roll_SetMulti").OnServerInvoke = function(player, count)
+		local ok, message = self:SetMulti(player, count)
 		if message then
 			Notify:FireClient(player, message, ok and "success" or "error")
 		end
@@ -93,9 +139,9 @@ function RollService:Start()
 					Notify:FireClient(player, "Ce n'est pas ta base !", "error")
 					return
 				end
-				local ok, message = self:Roll(player)
+				local ok, message, kind = self:Roll(player)
 				if not ok and type(message) == "string" then
-					Notify:FireClient(player, message, "error")
+					Notify:FireClient(player, message, kind or "error")
 				end
 			end)
 		end
@@ -110,15 +156,21 @@ function RollService:Start()
 			task.wait(0.2)
 			self:_applyWalkSpeed(player)
 		end)
+		-- Chance (passe / potion) ou passes de roulage achetés en cours de partie : panneaux à jour.
+		for _, attribute in { "Pass_Luck2", "Boost_Luck", "Pass_Roll2", "Pass_Roll3", "Pass_AutoRoll", "Pass_AutoRollPlus" } do
+			player:GetAttributeChangedSignal(attribute):Connect(function()
+				self:UpdatePanels(player)
+			end)
+		end
 		if (data.RollCount or 0) == 0 then
 			task.delay(6, function()
-				Notify:FireClient(player, "🎲 Appuie sur le gros bouton ROULER de ta base pour tirer des persos !", "info")
+				Notify:FireClient(player, "🎲 Appuie sur le gros bouton ROULER de ta base pour tirer un perso !", "info")
 			end)
 		end
 	end)
 	DataService:OnPlayerRemoving(function(player)
 		lastRoll[player] = nil
-		warnedFull[player] = nil
+		confirmUntil[player] = nil
 	end)
 
 	-- Déco des bases : celle de l'univers actuel, puis à chaque changement d'univers.
@@ -136,20 +188,14 @@ function RollService:Start()
 		end
 	end
 
-	-- Auto-roulage.
+	-- Auto-roulage (Lancer AFK / Achat automatique).
 	task.spawn(function()
 		while true do
-			task.wait(0.25)
+			task.wait(Economy.Roll.AutoStep or 0.25)
 			for _, player in Players:GetPlayers() do
-				local data = DataService:Get(player)
-				if data and data.AutoRoll then
-					local stats = Formulas.playerStats(data)
-					if stats.autoRoll and (not lastRoll[player] or os.clock() - lastRoll[player] >= stats.rollCooldown) then
-						local ok, err = pcall(self.Roll, self, player, true)
-						if not ok then
-							warn("[AnimeTycoon] Auto-roulage : " .. tostring(err))
-						end
-					end
+				local ok, err = pcall(self.AutoStep, self, player)
+				if not ok then
+					warn("[AnimeTycoon] Auto-roulage : " .. tostring(err))
 				end
 			end
 		end
@@ -162,6 +208,9 @@ function RollService:_onUniverse(universe)
 		local label = plot.machine and plot.machine.universeLabel
 		if label then
 			label.Text = "Univers : " .. universe.name
+		end
+		if plot.owner then
+			self:UpdatePanels(plot.owner) -- les raretés présentes changent avec l'univers
 		end
 	end
 end
@@ -180,11 +229,15 @@ function RollService:_applyWalkSpeed(player: Player)
 	humanoid.WalkSpeed = base + SkillTree.stats(data.Skills).walkSpeed
 end
 
--- Retire de la file les persos qui n'existent plus (sauvegarde ancienne / persos retirés du jeu).
+-- Retire de la file les persos qui n'existent plus (sauvegarde ancienne / persos retirés du jeu)
+-- et remet à chacun la rareté de sa fiche.
 function RollService:_cleanQueue(data)
 	local clean = {}
 	for _, item in data.RolledQueue do
-		if type(item) == "table" and Characters.get(item.id) and Economy.RollRarities[item.rarity] and #clean < Economy.Roll.QueueMax then
+		local def = type(item) == "table" and Characters.get(item.id)
+		if def and #clean < Economy.Roll.QueueMax then
+			item.rarity = Economy.RollRarities[def.rarity] and def.rarity or "common"
+			item.aura = Mutations.normalize(item.aura)
 			item.price = math.max(0, math.floor(tonumber(item.price) or Formulas.rollPrice(item.rarity, item.aura, item.trait)))
 			table.insert(clean, item)
 		end
@@ -196,119 +249,102 @@ end
 -- Tirage
 ------------------------------------------------------------------------
 
--- Tire une rareté de la machine en tenant compte de la chance et de la pitié.
-function RollService:_pickRarity(data, stats, luck: number): string
-	for _, tier in Economy.Roll.PityOrder do
-		data.Pity[tier] = (data.Pity[tier] or 0) + 1
-	end
-	local odds = Formulas.rollOdds(luck)
+function RollService:_universe()
+	return self.services.UniverseService and self.services.UniverseService:GetCurrent() or Universes.List[1]
+end
+
+function RollService:_luck(player: Player, stats): number
+	return Formulas.rollLuck(stats, player, os.time())
+end
+
+-- Tire une rareté (chances × chance du joueur) ; pitié du Mythique uniquement.
+function RollService:_pickRarity(data, stats, luck: number, pools): string
+	local pityTier = Economy.Roll.PityRarity
+	data.Pity[pityTier] = (data.Pity[pityTier] or 0) + 1
+	local odds = Formulas.rollOdds(luck, pools)
 	local roll = rng:NextNumber()
 	local rolled = "common"
 	for i = #Economy.RollOrder, 1, -1 do
 		local id = Economy.RollOrder[i]
 		roll -= odds[id] or 0
-		if roll <= 0 then
+		if roll <= 0 and (odds[id] or 0) > 0 then
 			rolled = id
 			break
 		end
 	end
-	-- Pitié : la plus haute rareté dont le compteur a atteint son seuil est garantie.
-	for _, tier in Economy.Roll.PityOrder do
-		if data.Pity[tier] >= Formulas.pityThreshold(tier, stats.pityMult) and rarityOrder(rolled) < rarityOrder(tier) then
-			rolled = tier
-		end
+	if data.Pity[pityTier] >= Formulas.pityThreshold(pityTier, stats.pityMult) and rarityOrder(rolled) < rarityOrder(pityTier) then
+		rolled = pityTier
 	end
-	for _, tier in Economy.Roll.PityOrder do
-		if rarityOrder(rolled) >= rarityOrder(tier) then
-			data.Pity[tier] = 0
-		end
+	if rarityOrder(rolled) >= rarityOrder(pityTier) then
+		data.Pity[pityTier] = 0
 	end
 	return rolled
 end
 
-local function rollTrait(minTier: number?, luck: number): string?
-	if not minTier then
-		return Traits.roll(rng, luck)
+-- Pool de la rareté demandée ; si l'univers n'en a pas, la rareté la plus proche (en dessous
+-- d'abord). Renvoie (ids, rareté réellement utilisée).
+local function poolFor(pools, rarityId: string): ({ string }, string)
+	if pools[rarityId] and #pools[rarityId] > 0 then
+		return pools[rarityId], rarityId
 	end
-	for _ = 1, 60 do
-		local id = Traits.roll(rng, luck * 2)
-		local trait = Traits.get(id)
-		if trait and trait.tier >= minTier then
-			return id
+	local index = table.find(Economy.RollOrder, rarityId) or 1
+	for distance = 1, #Economy.RollOrder do
+		for _, i in { index - distance, index + distance } do
+			local id = Economy.RollOrder[i]
+			if id and pools[id] and #pools[id] > 0 then
+				return pools[id], id
+			end
 		end
 	end
-	for _, id in Traits.Order do
-		if Traits.List[id].tier >= minTier then
-			return id
-		end
-	end
-	return nil
+	return {}, rarityId
 end
 
 -- Crée un perso tiré (pas encore collecté) de la rareté `rarityId` dans l'univers donné.
-function RollService:MakeItem(universe, rarityId: string, stats)
-	local info = Economy.RollRarities[rarityId] or Economy.RollRarities.common
-	local pool = {}
-	for _, id in universe.characters do
-		local def = Characters.get(id)
-		if def and def.rarity == info.charRarity then
-			table.insert(pool, id)
-		end
-	end
-	if #pool == 0 then
-		pool = table.clone(universe.characters)
-	end
-	local id = pool[rng:NextInteger(1, #pool)]
+-- Le perso garde TOUJOURS la rareté de sa fiche ; la mutation s'ajoute par-dessus.
+function RollService:MakeItem(universe, rarityId: string, stats, pools)
+	local available = pools or Formulas.rollPools(universe.id)
+	local pool, usedRarity = poolFor(available, rarityId)
+	local id = #pool > 0 and pool[rng:NextInteger(1, #pool)] or universe.characters[1]
+	local def = Characters.get(id)
+	local rarity = def and Economy.RollRarities[def.rarity] and def.rarity or usedRarity
 	local eventLuck = self.services.EventService and self.services.EventService.AuraLuck and self.services.EventService:AuraLuck() or 1
-	local aura = info.aura or Auras.roll(rng, eventLuck * (stats.auraLuck or 1))
+	local mutation = Mutations.roll(rng, eventLuck * (stats.auraLuck or 1))
 	local trait = nil
-	if info.traitMinTier then
-		trait = rollTrait(info.traitMinTier, stats.traitLuck or 1)
-	elseif rng:NextNumber() < Traits.HatchChance * 0.4 then
-		trait = rollTrait(nil, stats.traitLuck or 1)
+	if rng:NextNumber() < Traits.HatchChance * 0.4 then
+		trait = Traits.roll(rng, stats.traitLuck or 1)
 	end
-	local entry = { id = id, level = 1, xp = 0, stars = 1, aura = aura, trait = trait }
+	local entry = { id = id, level = 1, xp = 0, stars = 1, aura = mutation, trait = trait }
 	return {
 		key = self.services.DataService:NewUid(),
 		id = id,
-		rarity = rarityId,
+		rarity = rarity,
 		stars = 1,
-		aura = aura,
+		aura = mutation, -- mutation (nom historique du champ)
 		trait = trait,
-		price = Formulas.rollPrice(rarityId, aura, trait),
+		price = Formulas.rollPrice(rarity, mutation, trait, stats.rollDiscount),
 		dps = math.floor(Formulas.dps(entry) + 0.5),
 		at = os.time(),
 	}
 end
 
--- Fait de la place sur l'estrade pour `count` nouveaux persos (les plus anciens et les moins
--- rares partent d'abord ; les Légendaires et plus ne partent jamais tout seuls).
-local function makeRoom(queue, count: number): boolean
-	while #queue + count > Economy.Roll.QueueMax do
-		local removed = false
-		for i, item in queue do
-			if rarityOrder(item.rarity) < PROTECTED_ORDER then
-				table.remove(queue, i)
-				removed = true
-				break
-			end
-		end
-		if not removed then
-			return false
-		end
-	end
-	return true
-end
-
 function RollService:PityRemaining(data, stats)
-	local remaining = {}
-	for _, tier in Economy.Roll.PityOrder do
-		remaining[tier] = math.max(1, Formulas.pityThreshold(tier, stats.pityMult) - (data.Pity[tier] or 0))
-	end
-	return remaining
+	local tier = Economy.Roll.PityRarity
+	return { [tier] = math.max(1, Formulas.pityThreshold(tier, stats.pityMult) - (data.Pity[tier] or 0)) }
 end
 
--- Roule la machine. Renvoie (true, résultats) ou (false, message).
+-- Persos protégés (Légendaire et plus) encore sur l'estrade.
+local function protectedItem(queue)
+	local best = nil
+	for _, item in queue do
+		if rarityOrder(item.rarity) >= Economy.Roll.ProtectOrder and (not best or rarityOrder(item.rarity) > rarityOrder(best.rarity)) then
+			best = item
+		end
+	end
+	return best
+end
+
+-- Roule la machine. Renvoie (true, résultats) ou (false, message, type de message).
+-- options.auto = auto-roulage (pas de demande de confirmation, messages silencieux).
 function RollService:Roll(player: Player, auto: boolean?)
 	local DataService = self.services.DataService
 	local data = DataService:Get(player)
@@ -324,56 +360,52 @@ function RollService:Roll(player: Player, auto: boolean?)
 		end
 		return false, "La machine recharge..."
 	end
-	local count = stats.rollsPerPull
-	if not makeRoom(data.RolledQueue, count) then
-		lastRoll[player] = now
-		local message = "Estrade pleine de persos rares : collecte-les d'abord !"
-		if not auto then
-			return false, message -- l'appelant prévient le joueur (un seul message)
+	-- Un Légendaire (ou mieux) attend encore : on demande confirmation avant de le laisser passer.
+	if not auto then
+		local keep = protectedItem(data.RolledQueue)
+		if keep and not (confirmUntil[player] and now <= confirmUntil[player]) then
+			confirmUntil[player] = now + (Economy.Roll.ConfirmWindow or 6)
+			return false, "⚠️ " .. itemLabel(keep) .. " est encore sur l'estrade ! Collecte-le, ou appuie encore sur ROULER pour le laisser passer.", "warning"
 		end
-		-- Auto-roulage : on prévient de temps en temps seulement.
-		if not warnedFull[player] or now - warnedFull[player] > 20 then
-			warnedFull[player] = now
-			Notify:FireClient(player, message, "warning")
-		end
-		return false, nil
 	end
+	confirmUntil[player] = nil
 	lastRoll[player] = now
 	data.RollCount += 1
-	data.X10Counter += 1
-	local isX10 = data.X10Counter >= stats.x10Every
-	if isX10 then
-		data.X10Counter = 0
-	end
-	local luck = stats.luck * (isX10 and Economy.Roll.X10Luck or 1)
-	local universe = self.services.UniverseService and self.services.UniverseService:GetCurrent() or Universes.List[1]
+	local count = Formulas.rollsPerRoll(player, data.RollMulti ~= 0 and data.RollMulti or nil)
+	local luck = self:_luck(player, stats)
+	local universe = self:_universe()
+	local pools = Formulas.rollPools(universe.id)
+	-- Les persos du roulage précédent qui n'ont pas été collectés passent.
+	data.RolledQueue = {}
 	local results = {}
 	for _ = 1, count do
-		local rarity = self:_pickRarity(data, stats, luck)
-		local item = self:MakeItem(universe, rarity, stats)
+		local rarity = self:_pickRarity(data, stats, luck, pools)
+		local item = self:MakeItem(universe, rarity, stats, pools)
 		table.insert(data.RolledQueue, item)
 		table.insert(results, item)
 	end
 	DataService:Sync(player)
-	Machine.press(plot.machine, isX10)
+	Machine.press(plot.machine, false)
 	self:RenderStage(player, results)
 	self:UpdatePanels(player)
 	local payload = {
 		results = results,
 		pity = self:PityRemaining(data, stats),
-		x10In = stats.x10Every - data.X10Counter,
-		x10 = isX10,
+		pityThreshold = Formulas.pityThreshold(Economy.Roll.PityRarity, stats.pityMult),
+		luck = luck,
+		count = count,
+		auto = auto == true,
 		universe = universe.id,
 	}
 	RollResult:FireClient(player, payload)
 	for _, item in results do
 		local info = Economy.RollRarities[item.rarity]
-		if info.order >= PROTECTED_ORDER then
-			local def = Characters.get(item.id)
+		local mutation = Mutations.get(item.aura)
+		if info.order >= 5 or (mutation and mutation.multiplier >= 3.5) then
 			Announce:FireAllClients(
 				"✨ " .. player.DisplayName .. " ✨",
-				"a tiré " .. def.name .. " (" .. info.name .. ") à la machine ROULER !",
-				info.order >= 7 and Color3.fromRGB(255, 255, 255) or info.color
+				"a tiré " .. itemLabel(item) .. " à la machine ROULER !",
+				info.order >= 7 and Color3.fromRGB(255, 255, 255) or (info.order >= 5 and info.color or mutation and mutation.color or info.color)
 			)
 		end
 	end
@@ -384,8 +416,7 @@ end
 -- Collecte
 ------------------------------------------------------------------------
 
--- Seule la CLÉ du perso est acceptée (jamais sa position : la file bouge à chaque roulage,
--- on risquerait d'acheter un autre perso que celui choisi).
+-- Seule la CLÉ du perso est acceptée (jamais sa position).
 local function findIndex(queue, ref): number?
 	if type(ref) == "string" then
 		for i, item in queue do
@@ -397,25 +428,26 @@ local function findIndex(queue, ref): number?
 	return nil
 end
 
--- Achète un perso tiré (`ref` = clé du perso dans RolledQueue).
+-- Achète un perso tiré (`ref` = clé du perso dans RolledQueue). Renvoie (ok, message, raison).
+-- raison : "coins" (pas assez d'argent), "full" (inventaire plein), "gone" (plus là).
 function RollService:Collect(player: Player, ref: any)
 	local DataService = self.services.DataService
 	local data = DataService:Get(player)
 	if not data then
-		return false, "Erreur."
+		return false, "Erreur.", "gone"
 	end
 	local index = findIndex(data.RolledQueue, ref)
 	if not index then
-		return false, "Ce perso n'est plus sur l'estrade."
+		return false, "Ce perso n'est plus sur l'estrade.", "gone"
 	end
 	if DataService:CharacterCount(player) >= Economy.MaxCharacters then
-		return false, "Inventaire plein (" .. Economy.MaxCharacters .. ") ! Vends des persos."
+		return false, "Inventaire plein (" .. Economy.MaxCharacters .. ") ! Vends des persos.", "full"
 	end
 	local item = data.RolledQueue[index]
 	local free = Formulas.rollCollectFree(data, item.rarity)
 	local price = free and 0 or item.price
 	if data.coins < price then
-		return false, "Il te manque ¥ " .. Formulas.formatNumber(price - data.coins) .. " pour ce perso."
+		return false, "Il te manque ¥ " .. Formulas.formatNumber(price - data.coins) .. " pour " .. itemLabel(item) .. ".", "coins"
 	end
 	if price > 0 then
 		DataService:SpendCoins(player, price)
@@ -425,18 +457,16 @@ function RollService:Collect(player: Player, ref: any)
 	data.FirstCollectDone = true
 	local CharacterService = self.services.CharacterService
 	local entry = CharacterService:CreateEntry(item.id, item.aura, item.trait)
-	entry.rollRarity = item.rarity
 	local isNew = not data.index[item.id]
 	local uid = CharacterService:AddCharacter(player, entry)
 	data.stats.hatched += 1
 	DataService:Sync(player)
 	self:RenderStage(player, nil, firstCollect)
 	local info = Economy.RollRarities[item.rarity]
-	if info.order >= 4 or isNew then
+	if info.order >= 4 or isNew or item.aura then
 		HatchReveal:FireClient(player, { uid = uid, entry = entry, source = "roll", rollRarity = item.rarity, isNew = isNew })
 	end
-	local def = Characters.get(item.id)
-	return true, (free and "🎁 Offert : " or "✅ Collecté : ") .. def.name .. " (" .. info.name .. ")"
+	return true, (free and "🎁 Offert : " or "✅ Collecté : ") .. itemLabel(item)
 end
 
 -- Remet à zéro le délai entre deux roulages (tests, commandes admin).
@@ -444,18 +474,186 @@ function RollService:ResetCooldown(player: Player)
 	lastRoll[player] = nil
 end
 
+------------------------------------------------------------------------
+-- Auto-roulage (passes Robux)
+------------------------------------------------------------------------
+
+local function priceText(key: string): string
+	local pass = Economy.RollPasses[key]
+	return pass and (pass.name .. " (" .. pass.price .. " Robux)") or key
+end
+
+-- « Lancer AFK » : roule tout seul, s'arrête sur les raretés / mutations cochées.
 function RollService:SetAutoRoll(player: Player, enabled: boolean)
 	local data = self.services.DataService:Get(player)
 	if not data then
 		return false, "Erreur."
 	end
-	if enabled and not Formulas.playerStats(data).autoRoll then
+	if enabled and not canAfk(player) then
 		data.AutoRoll = false
-		return false, "Débloque « Auto-roulage » dans l'arbre de compétences."
+		self.services.DataService:Sync(player)
+		return false, "🔒 Le Lancer AFK demande le passe « " .. priceText("AutoRoll") .. " »."
 	end
 	data.AutoRoll = enabled
 	self.services.DataService:Sync(player)
-	return true, enabled and "🤖 Auto-roulage activé" or "Auto-roulage désactivé"
+	return true, enabled and "🤖 Lancer AFK : la machine roule toute seule." or "⏹ Lancer AFK arrêté."
+end
+
+-- « Achat automatique » : roule tout seul et ACHÈTE les persos qui correspondent aux cibles.
+function RollService:SetAutoBuy(player: Player, enabled: boolean)
+	local data = self.services.DataService:Get(player)
+	if not data then
+		return false, "Erreur."
+	end
+	if enabled then
+		if not hasPass(player, "AutoRollPlus") then
+			data.AutoBuy = false
+			self.services.DataService:Sync(player)
+			return false, "🔒 L'achat automatique demande le passe « " .. priceText("AutoRollPlus") .. " »."
+		end
+		local settings = data.AutoRollSettings
+		local filter = { characters = settings.buyCharacters, rarities = settings.buyRarities, mutations = settings.buyMutations }
+		if next(filter.characters) == nil and next(filter.rarities) == nil and next(filter.mutations) == nil then
+			data.AutoBuy = false
+			self.services.DataService:Sync(player)
+			return false, "Choisis d'abord ce que tu veux acheter (persos, raretés ou mutations) avec « Avancé »."
+		end
+	end
+	data.AutoBuy = enabled
+	self.services.DataService:Sync(player)
+	return true, enabled and "🛒 Achat automatique activé : la machine achète tes cibles pour toi." or "Achat automatique désactivé."
+end
+
+local SETTING_KEYS = {
+	pauseRarities = "rarity",
+	pauseMutations = "mutation",
+	buyCharacters = "character",
+	buyRarities = "rarity",
+	buyMutations = "mutation",
+}
+
+local function validKey(kind: string, key: any): boolean
+	if type(key) ~= "string" then
+		return false
+	end
+	if kind == "rarity" then
+		return Economy.RollRarities[key] ~= nil
+	elseif kind == "mutation" then
+		return Mutations.List[key] ~= nil or key == Mutations.None
+	end
+	return Characters.get(key) ~= nil
+end
+
+-- Enregistre les réglages de la fenêtre « Roulement automatique » (seulement des booléens
+-- sur des clés connues : rien d'autre n'est accepté du client).
+function RollService:SaveAutoSettings(player: Player, incoming: any)
+	local data = self.services.DataService:Get(player)
+	if not data or type(incoming) ~= "table" then
+		return false, "Réglages invalides."
+	end
+	local settings = data.AutoRollSettings
+	for field, kind in SETTING_KEYS do
+		local values = incoming[field]
+		if type(values) == "table" then
+			local clean = {}
+			local count = 0
+			for key, value in values do
+				if validKey(kind, key) and type(value) == "boolean" and count < 80 then
+					-- Raretés de pause : booléens explicites (faux = désactivé) ; cibles : seulement vrai.
+					if field == "pauseRarities" or value then
+						clean[key] = value
+						count += 1
+					end
+				end
+			end
+			settings[field] = clean
+		end
+	end
+	-- Plus aucune cible : l'achat automatique s'arrête.
+	if data.AutoBuy and next(settings.buyCharacters) == nil and next(settings.buyRarities) == nil and next(settings.buyMutations) == nil then
+		data.AutoBuy = false
+	end
+	self.services.DataService:Sync(player)
+	return true, "Réglages enregistrés."
+end
+
+-- Persos par roulage (1 à 3, dans la limite des passes Roulage x2 / x3).
+function RollService:SetMulti(player: Player, count: any)
+	local data = self.services.DataService:Get(player)
+	local n = math.floor(tonumber(count) or 1)
+	if not data or n < 1 or n > Economy.Roll.MaxPerRoll then
+		return false, "Erreur."
+	end
+	if n == 3 and not hasPass(player, "Roll3") then
+		return false, "🔒 Rouler 3 persos à la fois demande le passe « " .. priceText("Roll3") .. " »."
+	end
+	if n == 2 and not (hasPass(player, "Roll2") or hasPass(player, "Roll3")) then
+		return false, "🔒 Rouler 2 persos à la fois demande le passe « " .. priceText("Roll2") .. " »."
+	end
+	data.RollMulti = n
+	self.services.DataService:Sync(player)
+	return true, "🎲 " .. n .. " perso" .. (n > 1 and "s" or "") .. " par roulage."
+end
+
+function RollService:_stopAuto(player: Player, data, message: string, kind: string?)
+	data.AutoRoll = false
+	data.AutoBuy = false
+	self.services.DataService:Sync(player)
+	Notify:FireClient(player, message, kind or "warning")
+end
+
+-- Un pas de l'auto-roulage pour un joueur (appelé toutes les AutoStep secondes).
+function RollService:AutoStep(player: Player)
+	local data = self.services.DataService:Get(player)
+	if not data or not (data.AutoRoll or data.AutoBuy) then
+		return
+	end
+	-- Passe perdu (remboursement...) : on arrête proprement.
+	if data.AutoBuy and not hasPass(player, "AutoRollPlus") then
+		data.AutoBuy = false
+		self.services.DataService:Sync(player)
+	end
+	if data.AutoRoll and not canAfk(player) then
+		data.AutoRoll = false
+		self.services.DataService:Sync(player)
+	end
+	if not (data.AutoRoll or data.AutoBuy) then
+		return
+	end
+	local stats = Formulas.playerStats(data)
+	if lastRoll[player] and os.clock() - lastRoll[player] < stats.rollCooldown then
+		return
+	end
+	local ok, results = self:Roll(player, true)
+	if not ok or type(results) ~= "table" then
+		return
+	end
+	local settings = data.AutoRollSettings
+	-- 1) Achat automatique des cibles.
+	if data.AutoBuy then
+		local filter = { characters = settings.buyCharacters, rarities = settings.buyRarities, mutations = settings.buyMutations }
+		for _, item in results do
+			if Formulas.rollMatches(item, filter) then
+				local bought, message, reason = self:Collect(player, item.key)
+				if bought then
+					Notify:FireClient(player, "🛒 " .. message, "success")
+				elseif reason == "coins" or reason == "full" then
+					self:_stopAuto(player, data, "⏹ Achat automatique arrêté : " .. message .. " Il t'attend sur l'estrade.", "error")
+					return
+				end
+			end
+		end
+	end
+	-- 2) Pause sur les raretés / mutations cochées (Lancer AFK) : le perso reste sur l'estrade.
+	if data.AutoRoll then
+		for _, item in data.RolledQueue do
+			local mutation = Mutations.normalize(item.aura) or Mutations.None
+			if settings.pauseRarities[item.rarity] == true or settings.pauseMutations[mutation] == true then
+				self:_stopAuto(player, data, "⏸ Auto-roulage en pause : " .. itemLabel(item) .. " t'attend sur l'estrade !", "success")
+				return
+			end
+		end
+	end
 end
 
 ------------------------------------------------------------------------
@@ -490,8 +688,6 @@ function RollService:BuySkill(player: Player, nodeId: any)
 	end
 	DataService:SpendCoins(player, node.cost)
 	data.Skills[nodeId] = true
-	-- Le palier « Chance x10 » a pu baisser : le compteur ne doit pas le dépasser.
-	data.X10Counter = math.min(data.X10Counter or 0, math.max(0, Formulas.playerStats(data).x10Every - 1))
 	DataService:Sync(player)
 	local plot = self.services.PlotService:GetPlot(player)
 	if plot and plot.skillRefs then
@@ -516,8 +712,10 @@ function RollService:UpdatePanels(player: Player)
 		return
 	end
 	local stats = Formulas.playerStats(data)
-	Machine.setX10(plot.machine, stats.x10Every - data.X10Counter, stats.x10Every)
-	Machine.setPity(plot.machine, self:PityRemaining(data, stats))
+	local tier = Economy.Roll.PityRarity
+	Machine.setPity(plot.machine, self:PityRemaining(data, stats)[tier], Formulas.pityThreshold(tier, stats.pityMult))
+	local luck = self:_luck(player, stats)
+	Machine.setOdds(plot.machine, Formulas.rollOdds(luck, Formulas.rollPools(self:_universe().id)), luck)
 end
 
 function RollService:ClearStage(plot)
@@ -532,27 +730,53 @@ function RollService:ClearStage(plot)
 	end
 end
 
+-- Lignes de l'étiquette d'un perso tiré : rareté, mutation, trait, DPS, nom, prix.
 local function itemTagLines(item, def)
-	local info = Economy.RollRarities[item.rarity]
-	local aura = Auras.get(item.aura)
+	local info = Economy.RollRarities[item.rarity] or Economy.RollRarities.common
+	local mutation = Mutations.get(item.aura)
 	local trait = Traits.get(item.trait)
-	local extras = {}
-	if aura then
-		table.insert(extras, "✦ " .. aura.name)
-	end
-	if trait then
-		table.insert(extras, "◆ " .. trait.name)
-	end
 	local lines = {
 		{ name = "Rarete", text = info.name, colors = info.gradient, font = Enum.Font.LuckiestGuy, weight = 0.9 },
-		{ name = "Dps", text = "DPS " .. Formulas.formatNumber(item.dps or 0), color = Color3.fromRGB(230, 230, 230), font = Enum.Font.GothamBold, weight = 0.5 },
-		{ name = "Nom", text = def.name, color = Color3.new(1, 1, 1), font = Enum.Font.LuckiestGuy, weight = 1 },
-		{ name = "Prix", text = "¥" .. Formulas.formatNumber(item.price), color = Color3.fromRGB(255, 215, 60), font = Enum.Font.LuckiestGuy, weight = 0.9 },
 	}
-	if #extras > 0 then
-		table.insert(lines, 3, { name = "Bonus", text = table.concat(extras, "  "), color = Color3.fromRGB(150, 230, 255), font = Enum.Font.GothamBold, weight = 0.5 })
+	if mutation then
+		table.insert(lines, {
+			name = "Mutation",
+			text = "✦ " .. mutation.name .. " ✦  " .. Mutations.multText(mutation.id),
+			colors = mutation.gradient,
+			font = Enum.Font.LuckiestGuy,
+			weight = 0.75,
+		})
 	end
+	if trait then
+		table.insert(lines, { name = "Bonus", text = "◆ " .. trait.name, color = trait.color or Color3.fromRGB(150, 230, 255), font = Enum.Font.GothamBold, weight = 0.5 })
+	end
+	table.insert(lines, { name = "Dps", text = "DPS " .. Formulas.formatNumber(item.dps or 0), color = Color3.fromRGB(230, 230, 230), font = Enum.Font.GothamBold, weight = 0.5 })
+	table.insert(lines, { name = "Nom", text = def.name, color = Color3.new(1, 1, 1), font = Enum.Font.LuckiestGuy, weight = 1 })
+	table.insert(lines, { name = "Prix", text = "¥" .. Formulas.formatNumber(item.price), color = Color3.fromRGB(255, 215, 60), font = Enum.Font.LuckiestGuy, weight = 0.9 })
 	return lines
+end
+RollService.itemTagLines = itemTagLines
+
+-- Étiquette du perso tiré : hauteur (studs) et décalage au-dessus de la racine, calés sur le
+-- HAUT RÉEL du modèle (cheveux, auréole compris) pour qu'elle flotte juste au-dessus de la tête.
+function RollService.tagPlacement(model: Model, root: BasePart, lineCount: number): (number, number)
+	local height = 2.2 + lineCount * 0.5
+	local scale = model:GetAttribute("BaseScale") or 1
+	local fallback = 4.4 * scale + 1.4 + lineCount * 0.25
+	-- haut des pièces VISIBLES (une sphère invisible d'effet ne compte pas)
+	local maxY = -math.huge
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") and part.Transparency < 0.95 then
+			local cf, size = part.CFrame, part.Size
+			local _, _, _, _, _, _, r10, r11, r12 = cf:GetComponents()
+			maxY = math.max(maxY, cf.Position.Y + (math.abs(r10) * size.X + math.abs(r11) * size.Y + math.abs(r12) * size.Z) / 2)
+		end
+	end
+	local top = maxY - root.CFrame.Position.Y
+	if top <= 0 or top > 12 * scale then
+		return height, fallback
+	end
+	return height, top + 0.5 + height / 2
 end
 
 -- Texte de l'invite « Collecter » d'un perso de l'estrade (prix, ou « offert »).
@@ -584,7 +808,8 @@ function RollService:RenderStage(player: Player, fresh: { any }?, refreshPrompts
 		keep[item.key] = true
 		local spot = plot.machine.spots[i]
 		local info = Economy.RollRarities[item.rarity] or Economy.RollRarities.common
-		local entry = { id = item.id, level = 1, xp = 0, stars = item.stars or 1, aura = item.aura, trait = item.trait, rollRarity = item.rarity }
+		local mutation = Mutations.get(item.aura)
+		local entry = { id = item.id, level = 1, xp = 0, stars = item.stars or 1, aura = item.aura, trait = item.trait }
 		local existing = plot.stage[item.key]
 		if existing and existing.model.Parent then
 			if refreshPrompts and existing.prompt then
@@ -601,14 +826,15 @@ function RollService:RenderStage(player: Player, fresh: { any }?, refreshPrompts
 				local rootHeight = CharacterFactory.rootHeight(model)
 				model.Name = "Tire_" .. item.key
 				model:SetAttribute("Rolled", true)
-				model:SetAttribute("RollRarity", item.rarity)
 				model:PivotTo(spot.cf * CFrame.new(0, rootHeight, 0))
 				local root = model.PrimaryPart
 				if root then
 					root.CanCollide = false
 					local def = Characters.get(item.id)
-					Kit.unitTag(root, itemTagLines(item, def), 3, 4.4 * (model:GetAttribute("BaseScale") or 1) + 1.6, 70, 5.4)
-					local prompt = Props.prompt(root, self:_collectText(data, item), def.name, 9)
+					local lines = itemTagLines(item, def)
+					local height, offset = RollService.tagPlacement(model, root, #lines)
+					Kit.unitTag(root, lines, height, offset, 80, 6)
+					local prompt = Props.prompt(root, self:_collectText(data, item), def.name, 10)
 					promptRef = prompt
 					prompt.Triggered:Connect(function(who)
 						if who ~= plot.owner then
@@ -626,9 +852,11 @@ function RollService:RenderStage(player: Player, fresh: { any }?, refreshPrompts
 				warn("[AnimeTycoon] Perso tiré : " .. tostring(model))
 			end
 		end
-		Machine.lightSpot(plot.machine, i, info.color.R + info.color.G + info.color.B < 0.3 and Color3.fromRGB(255, 255, 255) or info.color, info.order >= PROTECTED_ORDER)
+		local strong = info.order >= Economy.Roll.ProtectOrder or (mutation ~= nil and mutation.multiplier >= 3.5)
+		local color = info.color.R + info.color.G + info.color.B < 0.3 and Color3.fromRGB(255, 255, 255) or info.color
+		Machine.lightSpot(plot.machine, i, color, strong)
 		if isFresh[item.key] then
-			Machine.burst(plot.machine, i, info.color, 20 + info.order * 8)
+			Machine.burst(plot.machine, i, mutation and mutation.color or info.color, 24 + info.order * 8 + (mutation and 20 or 0))
 		end
 	end
 	for key, info in plot.stage do

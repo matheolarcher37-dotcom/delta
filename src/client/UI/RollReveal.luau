@@ -3,14 +3,16 @@
 -- dégâts par seconde. Pour les grosses raretés (Légendaire et plus) : éclair de lumière,
 -- rayons tournants et grande annonce.
 --
--- Données reçues : { results = { { id, stars, rarity, price, dps, aura?, trait? } }, pity = {...},
---                    x10In = n, x10 = vrai si c'était un roulage « Chance x10 » }
+-- Données reçues : { results = { { id, stars, rarity, price, dps, aura? (= mutation), trait? } },
+--                    pity = { mythic = n }, luck, count, auto = vrai pendant l'auto-roulage }
+-- La rareté est celle du perso (sa fiche) ; la MUTATION (Or, Diamant...) s'affiche en plus.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Characters = require(Shared.Config.Characters)
+local Mutations = require(Shared.Config.Mutations)
 local Formulas = require(Shared.Modules.Formulas)
 
 local Theme = require(script.Parent.Theme)
@@ -26,6 +28,7 @@ local WHITE = Color3.new(1, 1, 1)
 
 local root: Frame
 local strip: Frame
+local stripScale: UIScale
 local flash: Frame
 local batch = 0
 
@@ -118,6 +121,31 @@ local function buildCard(parent: Instance, result, index: number)
 		ZIndex = 3,
 	})
 	local _ = tag
+	-- Mutation (variété) : pastille au-dessus de la rareté.
+	local mutation = Mutations.get(result.aura)
+	if mutation then
+		local chip = new("Frame", {
+			Name = "Mutation",
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.new(0.5, 0, 0.6, -3),
+			Size = UDim2.fromOffset(136, 24),
+			BackgroundColor3 = WHITE,
+			ZIndex = 4,
+			Parent = card,
+		})
+		Theme.corner(12).Parent = chip
+		Theme.stroke(C.Stroke, 2).Parent = chip
+		Theme.gradient(mutation.gradient, 0).Parent = chip
+		Theme.label({
+			Text = "✦ " .. mutation.name .. "  " .. Mutations.multText(mutation.id),
+			Size = UDim2.new(1, -8, 1, -4),
+			Position = UDim2.fromOffset(4, 2),
+			FontFace = Theme.Faces.Heavy,
+			ZIndex = 5,
+			StrokeThickness = 1.5,
+			Parent = chip,
+		})
+	end
 	Theme.label({
 		Name = "CharName",
 		Text = def and def.name or "???",
@@ -171,6 +199,42 @@ local function flashScreen(color: Color3)
 	end)
 end
 
+-- À la machine : bas du bandeau MUTATION (au-dessus de la barre ROULER et de la carte du perso).
+RollReveal.MachineBannerBottom = 96 + 132 + 8 + 86 + 8
+RollReveal.FocusTime = 1.5 -- durée du cadrage de la caméra sur le podium (Légendaire et plus)
+
+-- Cadre la caméra sur le podium de la machine pendant FocusTime secondes, puis la rend.
+local focusing = false
+function RollReveal.focusPodium(): boolean
+	local camera = workspace.CurrentCamera
+	local okCF, machineCF = pcall(function()
+		return require(script.Parent.RollPanel).machineCFrame()
+	end)
+	if focusing or not camera or not okCF or not machineCF then
+		return false
+	end
+	focusing = true
+	-- podium = centre de l'estrade (repère local de la machine : -Z = côté du joueur)
+	-- (le perso tiré occupe le milieu bas de l'écran : sous la grande annonce, au-dessus des
+	-- boutons de voyage)
+	local target = (machineCF * CFrame.new(0, 8.4, 0)).Position
+	local eye = (machineCF * CFrame.new(3, 8.5, -12)).Position
+	local savedType = camera.CameraType
+	local savedCF = camera.CFrame
+	camera.CameraType = Enum.CameraType.Scriptable
+	Theme.tween(camera, 0.35, { CFrame = CFrame.lookAt(eye, target) }, Enum.EasingStyle.Quad)
+	task.delay(RollReveal.FocusTime, function()
+		pcall(Theme.tween, camera, 0.3, { CFrame = savedCF }, Enum.EasingStyle.Quad)
+		task.delay(0.32, function()
+			if camera.CameraType == Enum.CameraType.Scriptable then
+				camera.CameraType = savedType
+			end
+			focusing = false
+		end)
+	end)
+	return true
+end
+
 function RollReveal.show(payload)
 	if type(payload) ~= "table" or type(payload.results) ~= "table" or #payload.results == 0 then
 		return
@@ -179,34 +243,61 @@ function RollReveal.show(payload)
 	local myBatch = batch
 	Components.clear(strip)
 	strip.Visible = true
+	-- À LA MACHINE, on voit le perso tiré en vrai sur le podium (et sa carte au-dessus de la
+	-- barre ROULER) : pas de vignettes. Seul le bandeau MUTATION s'affiche, au-dessus de la carte,
+	-- et pour un Légendaire ou plus la caméra cadre le podium 1,5 s (focusPodium).
+	local okNear, near = pcall(function()
+		return require(script.Parent.RollPanel).isNear()
+	end)
+	local atMachine = okNear and near == true
+	strip.AnchorPoint = atMachine and Vector2.new(1, 1) or Vector2.new(0.5, 0)
+	strip.Position = atMachine and UDim2.new(1, -16, 1, -RollReveal.MachineBannerBottom) or UDim2.new(0.5, 0, 0, 232)
+	-- (à la machine : hauteur = contenu seul, le bandeau se pose juste au-dessus de la carte)
+	strip.Size = atMachine and UDim2.fromOffset(640, 0) or UDim2.fromOffset(640, 280)
+	stripScale.Scale = 1
+	local stripAlign = atMachine and Enum.HorizontalAlignment.Right or Enum.HorizontalAlignment.Center
+	local stripLayout = strip:FindFirstChildOfClass("UIListLayout")
+	if stripLayout then
+		stripLayout.HorizontalAlignment = stripAlign
+	end
 	local best = nil
 	for _, result in payload.results do
 		if not best or rarityOrder(result.rarity) > rarityOrder(best.rarity) then
 			best = result
 		end
 	end
-	if payload.x10 then
-		local x10 = Theme.label({
-			Name = "X10",
-			Text = "CHANCE x10 !",
-			Size = UDim2.new(1, 0, 0, 30),
+	-- Bandeau « MUTATION ! » quand un perso tiré est muté.
+	local bestMutation = nil
+	for _, result in payload.results do
+		local m = Mutations.get(result.aura)
+		if m and (not bestMutation or m.multiplier > bestMutation.multiplier) then
+			bestMutation = m
+		end
+	end
+	if bestMutation then
+		local banner = Theme.label({
+			Name = "Mutation",
+			Text = "✦ MUTATION " .. string.upper(bestMutation.name) .. " ! ✦",
+			Size = UDim2.new(1, 0, 0, 32),
 			FontFace = Theme.Faces.Title,
-			LayoutOrder = 0,
+			LayoutOrder = 2, -- sous les cartes (l'annonce géante occupe le haut)
 			StrokeThickness = 3,
+			TextXAlignment = atMachine and Enum.TextXAlignment.Right or Enum.TextXAlignment.Center,
 			Parent = strip,
 		})
-		Theme.gradient({ C.Yellow, C.Orange }, 90).Parent = x10
+		Theme.gradient(bestMutation.gradient, 90).Parent = banner
 	end
 	local cards = new("Frame", {
 		Name = "Cards",
-		Size = UDim2.new(1, 0, 0, 244),
+		Size = UDim2.new(1, 0, 0, atMachine and 0 or 244),
 		BackgroundTransparency = 1,
 		LayoutOrder = 1,
+		Visible = not atMachine,
 		Parent = strip,
 	})
-	local layout = Theme.list(Enum.FillDirection.Horizontal, 14, Enum.HorizontalAlignment.Center)
+	local layout = Theme.list(Enum.FillDirection.Horizontal, 14, stripAlign)
 	layout.Parent = cards
-	for i, result in payload.results do
+	for i, result in (if atMachine then {} else payload.results) do
 		local holder, card = buildCard(cards, result, i)
 		local _ = holder
 		local scale = new("UIScale", { Scale = 0.2, Parent = card })
@@ -219,9 +310,13 @@ function RollReveal.show(payload)
 			end
 		end)
 	end
-	if best and rarityOrder(best.rarity) >= rarityOrder("legendary") then
+	local bigMutation = bestMutation and bestMutation.multiplier >= 3.5
+	if best and (rarityOrder(best.rarity) >= rarityOrder("legendary") or bigMutation) then
 		local info = Theme.rarity(best.rarity)
 		local def = Characters.get(best.id or "")
+		if atMachine and rarityOrder(best.rarity) >= rarityOrder("legendary") and not payload.auto then
+			RollReveal.focusPodium()
+		end
 		task.delay(0.25, function()
 			SoundService:PlayLocalSound(rareSound)
 			flashScreen(info.rainbow and WHITE or info.color)
@@ -234,7 +329,7 @@ function RollReveal.show(payload)
 		end)
 	end
 	-- Les cartes restent un moment puis s'envolent.
-	task.delay(2.6, function()
+	task.delay(payload.auto and 1.8 or 2.6, function()
 		if myBatch ~= batch then
 			return
 		end
@@ -276,6 +371,7 @@ function RollReveal.init(gui: ScreenGui)
 		Parent = root,
 	})
 	Theme.list(Enum.FillDirection.Vertical, 4, Enum.HorizontalAlignment.Center).Parent = strip
+	stripScale = new("UIScale", { Parent = strip })
 	local remote = State.remoteEvent("RollResult")
 	if remote then
 		remote.OnClientEvent:Connect(RollReveal.show)

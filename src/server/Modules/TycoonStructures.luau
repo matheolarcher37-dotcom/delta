@@ -136,7 +136,7 @@ local S = {}
 -- Palier 1 -------------------------------------------------------------
 
 S.distributeur = {
-	pad = { -39, -40 },
+	pad = { -38, -33 }, -- hors de l'axe entrée-coffre (ne cache pas le coffre)
 	build = function(ctx)
 		dropper(ctx, Spots.droppers[1], "bronze")
 		-- Panneau d'atelier au-dessus du tapis.
@@ -158,7 +158,7 @@ S.distributeur2 = {
 }
 
 S.distributeur3 = {
-	pad = { -39, -22 },
+	pad = { -39, -25 }, -- à l'écart des bannières d'équipe
 	build = function(ctx)
 		dropper(ctx, Spots.droppers[3], "crystal")
 		local crystal =
@@ -249,7 +249,10 @@ S.mannequins = {
 }
 
 S.aimant = {
-	pad = { -39, -47 },
+	-- Loin du coffre et des distributeurs ; panneau un cran plus haut que celui des Lanternes
+	-- (vus de l'entrée, les deux panneaux ne se recouvrent pas).
+	pad = { -20, -44 },
+	board = 4,
 	build = function(ctx)
 		-- Arche aimantée au-dessus du bout du tapis : attire les pièces vers le coffre.
 		local cf = ctx.at(Spots.beltX, 0, -44.5)
@@ -369,7 +372,7 @@ S.ramen = {
 }
 
 S.equipe4 = {
-	pad = { -29, -16 },
+	pad = { -27, -18 }, -- à l'écart du brasero d'angle de la cour
 	build = function(ctx)
 		teamBanners(ctx, -1, rgb(60, 120, 230))
 	end,
@@ -418,6 +421,7 @@ S.fontaine = {
 
 S.portail = { -- « Gong de Guerre »
 	pad = { 31, -50 },
+	board = 3, -- au-dessus du panneau de la Statue Dorée (vu de l'entrée)
 	build = function(ctx)
 		local cf = ctx.at(32, 0, -41)
 		Build.part(ctx.folder, "Estrade", Vector3.new(7.5, 0.6, 4), cf * CFrame.new(0, 0.3, 0), C.StoneMid, { Material = Enum.Material.Slate })
@@ -634,7 +638,7 @@ S.arene2 = { -- gradins derrière la cour
 }
 
 S.coffre = { -- « Coffre du Shogun »
-	pad = { -55, -46.5 },
+	pad = { -55, -48 }, -- entre le distributeur et le coffre, bien plus bas que le compteur du coffre
 	build = function(ctx)
 		local base = ctx.at(-55, 0, -56)
 		Build.part(ctx.folder, "Estrade", Vector3.new(9, 1, 6.6), base * CFrame.new(0, 0.5, 0), C.StoneMid, { Material = Enum.Material.Slate })
@@ -704,7 +708,7 @@ S.autel4 = {
 }
 
 S.equipe5 = {
-	pad = { 29, -16 },
+	pad = { 27, -18 },
 	build = function(ctx)
 		teamBanners(ctx, 1, rgb(230, 60, 90))
 	end,
@@ -813,6 +817,13 @@ function Structures.padPosition(upgradeId: string): Vector3?
 		return nil
 	end
 	return Vector3.new(def.pad[1], 0, def.pad[2])
+end
+
+-- Hauteur supplémentaire (studs) du panneau d'achat de `upgradeId` : décale d'un cran les
+-- panneaux qui, vus de l'entrée, tomberaient sur un voisin.
+function Structures.boardLift(upgradeId: string): number
+	local def = S[upgradeId]
+	return def and def.board or 0
 end
 
 -- Construit la structure `upgradeId` dans un nouveau modèle sous `parent`.

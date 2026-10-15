@@ -15,6 +15,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Layout = require(Shared.Config.Layout)
 local Economy = require(Shared.Config.Economy)
 local Rarities = require(Shared.Config.Rarities)
+local Mutations = require(Shared.Config.Mutations)
 local Universes = require(Shared.Config.Universes)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
@@ -105,6 +106,7 @@ local function buildPlot(index: number, parent: Instance)
 	local _2 = chestPrompt
 	plot.stashPad = pad
 	plot.stashLabel = label
+	plot.stashRate = stash:FindFirstChild("Rate", true)
 	local _3, relicCF = Props.relicMerchant(interactive, localCF(plot, Spots.merchant))
 	plot.relicDisplayCF = relicCF
 	Props.altar(interactive, localCF(plot, Spots.altar))
@@ -146,9 +148,26 @@ local function bindPlot(index: number, model: Model)
 	local interactive = model:FindFirstChild("Interactive") :: Instance
 	local stash = interactive:FindFirstChild("Stash") :: Instance
 	plot.stashPad = stash:FindFirstChild("Pad")
+	-- Ancien compteur (fichier pré-construit avant la v3.2) : on le remplace par le nouveau.
+	local lid = stash:FindFirstChild("Lid") :: BasePart?
+	local stashGui = lid and lid:FindFirstChild("StashGui")
+	if lid and not (stashGui and stashGui:GetAttribute("Version") == Conveyor.StashCardVersion) then
+		Conveyor.stashBoard(lid)
+	end
 	plot.stashLabel = stash:FindFirstChild("Amount", true)
+	plot.stashRate = stash:FindFirstChild("Rate", true)
 	plot.relicDisplayCF = localCF(plot, Spots.merchant) * CFrame.new(0, 7.2, -1.8)
-	plot.machine = Machine.bind(interactive:FindFirstChild("RollMachine") :: Model, localCF(plot, Spots.machine))
+	local machineModel = interactive:FindFirstChild("RollMachine") :: Model?
+	if machineModel and machineModel:FindFirstChild("Podium") then
+		plot.machine = Machine.bind(machineModel, localCF(plot, Spots.machine))
+	else
+		-- Machine d'avant la v3.2 (6 places, sans podium) : on la reconstruit.
+		if machineModel then
+			machineModel:Destroy()
+		end
+		local _, refs = Machine.build(interactive, localCF(plot, Spots.machine), Spots.carpetLength)
+		plot.machine = refs
+	end
 	plot.skillRefs = Props.bindSkillTree(interactive:FindFirstChild("ArbreCompetences") :: Model)
 	plot.slots = {}
 	local cases = interactive:FindFirstChild("Cases")
@@ -349,6 +368,9 @@ function PlotService:_updateDisplays(plot)
 	local data = plot.owner and DataService:Get(plot.owner)
 	if not data then
 		plot.stashLabel.Text = ""
+		if plot.stashRate then
+			plot.stashRate.Text = ""
+		end
 		if plot.boardLabels and plot.boardLabels.coffre then
 			plot.boardLabels.coffre.Text = "BASE LIBRE"
 			plot.boardLabels.revenu.Text = ""
@@ -358,6 +380,9 @@ function PlotService:_updateDisplays(plot)
 	end
 	local rate = (type(plot.owner) ~= "table" and plot.owner:GetAttribute("IncomePerSec")) or 0
 	plot.stashLabel.Text = "¥ " .. Formulas.formatNumber(data.stash)
+	if plot.stashRate then
+		plot.stashRate.Text = "+ ¥ " .. Formulas.formatNumber(rate) .. " / s"
+	end
 	local labels = plot.boardLabels
 	if labels and labels.coffre then
 		labels.coffre.Text = "Coffre : ¥ " .. Formulas.formatNumber(data.stash)
@@ -578,7 +603,9 @@ function PlotService:_buildPad(player: Player, plot, parent: Instance, upgrade)
 		(upgrade.icon or "") .. " " .. upgrade.name,
 		tierTag .. Kit.effectText(upgrade.effect),
 		"¥ " .. Formulas.formatNumber(upgrade.price),
-		Vector3.new(0, 5.4, 0)
+		-- bord bas du panneau ~7 studs au-dessus du sol (le Pad est à 1,15) : au-dessus du socle,
+		-- du bouton et du jeton qui tourne ; certains panneaux sont un cran plus haut (voisins)
+		Vector3.new(0, Kit.BoardBottom - 1.15 + Structures.boardLift(upgrade.id), 0)
 	)
 	for key, value in boardRefs do
 		refs[key] = value
@@ -711,11 +738,17 @@ function PlotService:DecorateUnit(_plot, model: Model, entry)
 	local rarityName = rollInfo and rollInfo.name or rarity.name
 	local gradient = rollInfo and rollInfo.gradient or rarity.gradient
 	local scale = model:GetAttribute("BaseScale") or Formulas.visualScale(entry)
-	Kit.unitTag(root, {
+	local lines = {
 		{ name = "Nom", text = desc.name, colors = gradient, font = Enum.Font.LuckiestGuy, weight = 1.3 },
 		{ name = "Etoiles", text = string.rep("★", entry.stars or 1), color = rgb(255, 210, 50), font = Enum.Font.GothamBlack, weight = 0.8 },
 		{ name = "Rarete", text = rarityName, colors = gradient, font = Enum.Font.GothamBlack, weight = 0.7 },
-	}, 2.4, 4.4 * scale + 1.2, 70, 6.5)
+	}
+	-- Mutation (variété) : en plus de la rareté de base.
+	local mutation = Mutations.get(entry.aura)
+	if mutation then
+		table.insert(lines, { name = "Mutation", text = "✦ " .. mutation.name .. " ✦", colors = mutation.gradient, font = Enum.Font.LuckiestGuy, weight = 0.75 })
+	end
+	Kit.unitTag(root, lines, mutation and 2.9 or 2.4, 4.4 * scale + 1.2 + (mutation and 0.25 or 0), 70, 6.5)
 end
 
 -- Chargement progressif : demande au client de charger la zone d'arrivée AVANT une

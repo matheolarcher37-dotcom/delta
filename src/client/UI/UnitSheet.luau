@@ -243,6 +243,31 @@ function UnitSheet.build(parent: Instance, entry, actions: SheetActions?): Frame
 	if info.rainbow then
 		Theme.gradient(Theme.RainbowColors, 0).Parent = rarityLabel
 	end
+	-- Mutation (variété) : pastille à droite de la rareté de base.
+	local mutation = Auras.get(entry.aura)
+	if mutation then
+		local pill = new("Frame", {
+			Name = "MutationPill",
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -12, 0, 44),
+			Size = UDim2.fromOffset(150, 24),
+			BackgroundColor3 = WHITE,
+			ZIndex = 3,
+			Parent = portrait,
+		})
+		Theme.round().Parent = pill
+		Theme.stroke(rgb(10, 10, 14), 2).Parent = pill
+		Theme.gradient((mutation :: any).gradient or { mutation.color, mutation.color }, 0).Parent = pill
+		Theme.label({
+			Text = "✦ " .. mutation.name .. "  " .. Auras.multText(mutation.id),
+			Size = UDim2.new(1, -10, 1, -4),
+			Position = UDim2.fromOffset(5, 2),
+			FontFace = Theme.Faces.Heavy,
+			ZIndex = 4,
+			StrokeThickness = 1.5,
+			Parent = pill,
+		})
+	end
 	local trait = Traits.get(entry.trait)
 	Theme.label({
 		Name = "Trait",
@@ -306,7 +331,7 @@ function UnitSheet.build(parent: Instance, entry, actions: SheetActions?): Frame
 		Parent = footer,
 	})
 	Theme.label({
-		Text = (universe and universe.name or "") .. (aura and ("  ·  Aura " .. aura.name) or ""),
+		Text = (universe and universe.name or "") .. (aura and ("  ·  Mutation " .. aura.name .. " " .. Auras.multText(aura.id)) or ""),
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -12, 0, 8),
 		Size = UDim2.new(0.42, 0, 0, 16),

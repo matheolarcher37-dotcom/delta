@@ -1,7 +1,8 @@
 -- MACHINE DE ROULAGE « ROULER » (comme dans les jeux de tirage) :
---   estrade sombre où les persos tirés apparaissent (6 places, ligne rouge lumineuse),
---   gros bouton hexagonal rouge « ROULER » à gauche (+ barre « x10 Chance dans : N »),
---   panneau néon de pitié à droite (Légendaire / Mythique / Secret dans X rouleaux),
+--   estrade sombre avec un PODIUM central où apparaît le perso tiré (2 places de plus à côté
+--   pour les passes Roulage x2 / x3), ligne rouge lumineuse,
+--   gros bouton hexagonal rouge « ROULER » à gauche (+ barre « Mythique garanti dans : N »),
+--   panneau néon des CHANCES à droite (% de chaque rareté, avec la chance du joueur),
 --   grande arche lumineuse derrière, tapis rouge devant.
 --
 -- Tout est construit par rapport à `cf` : centre de l'estrade, au sol, face (-Z) vers le joueur.
@@ -18,7 +19,9 @@ local Machine = {}
 local rgb = Color3.fromRGB
 
 Machine.TopY = 2.4 -- hauteur du dessus de l'estrade
-Machine.Spots = { 15, 9, 3, -3, -9, -15 } -- X des places, de gauche à droite vu du joueur (le perso regarde vers -Z)
+-- X des places : 1 = podium central (le perso tiré), 2 et 3 = à côté (passes Roulage x2 / x3).
+Machine.Spots = { 0, 11, -11 }
+Machine.PodiumLift = 0.9 -- le podium central dépasse de l'estrade
 Machine.ButtonX = 27 -- à gauche vu du joueur qui arrive par l'entrée
 Machine.PityX = -27
 
@@ -98,14 +101,21 @@ local function buildStage(model: Model, cf: CFrame, refs)
 	})
 
 	-- Places : anneau néon (couleur de la rareté quand un perso est là) + projecteur.
+	-- La place 1 (au centre) est un podium surélevé : c'est là qu'apparaît LE perso tiré.
 	refs.spots = {}
 	for i, x in Machine.Spots do
-		local spotCF = cf * CFrame.new(x, top, 0)
-		local plate = Build.part(model, "Place" .. i, Vector3.new(0.2, 4.6, 4.6), spotCF * CFrame.new(0, 0.05, 0) * CFrame.Angles(0, 0, math.rad(90)), DARK2, {
+		local lift = i == 1 and Machine.PodiumLift or 0
+		local width = i == 1 and 6.4 or 4.6
+		if i == 1 then
+			Kit.hexTile(model, "Podium", cf * CFrame.new(x, top + lift / 2, 0), 3.6, lift, DARK2, { Material = Enum.Material.Slate })
+			Kit.hexTile(model, "PodiumLisere", cf * CFrame.new(x, top + lift - 0.05, 0), 3.75, 0.12, rgb(255, 205, 60), { Material = Enum.Material.Metal, CanCollide = false })
+		end
+		local spotCF = cf * CFrame.new(x, top + lift, 0)
+		local plate = Build.part(model, "Place" .. i, Vector3.new(0.2, width, width), spotCF * CFrame.new(0, 0.05, 0) * CFrame.Angles(0, 0, math.rad(90)), DARK2, {
 			Shape = Enum.PartType.Cylinder,
 			Material = Enum.Material.Metal,
 		})
-		local ring = Build.deco(model, "Anneau" .. i, Vector3.new(0.12, 5, 5), spotCF * CFrame.new(0, 0.08, 0) * CFrame.Angles(0, 0, math.rad(90)), EDGE, {
+		local ring = Build.deco(model, "Anneau" .. i, Vector3.new(0.12, width + 0.4, width + 0.4), spotCF * CFrame.new(0, 0.08, 0) * CFrame.Angles(0, 0, math.rad(90)), EDGE, {
 			Shape = Enum.PartType.Cylinder,
 			Material = Enum.Material.Neon,
 			Transparency = 0.2,
@@ -167,14 +177,14 @@ local function buildButton(model: Model, cf: CFrame, refs)
 	refs.buttonGlow = glow
 	refs.buttonPress = desk.UpVector * -0.35
 
-	-- Barre « x10 Chance dans : N » au-dessus du pupitre.
+	-- Barre « Mythique garanti dans : N » (la pitié du Mythique) au-dessus du pupitre.
 	local barCF = base * CFrame.new(0, 7.6, 1.6)
 	local bar = Build.part(model, "PanneauX10", Vector3.new(8.4, 2.4, 0.4), barCF, DARK2, { Material = Enum.Material.Metal })
 	for _, side in { -1, 1 } do
 		Build.part(model, "MontantX10", Vector3.new(0.4, 5, 0.4), base * CFrame.new(side * 3.6, 6.2, 1.8), DARK, { Material = Enum.Material.Metal })
 	end
 	local barGui = surface(bar, Enum.NormalId.Front, 50)
-	local x10Text = Kit.text(barGui, "Titre", "x10 Chance dans : 10", UDim2.fromScale(0.04, 0.06), UDim2.fromScale(0.92, 0.46), Color3.new(1, 1, 1), Enum.Font.GothamBlack)
+	local x10Text = Kit.text(barGui, "Titre", "Mythique garanti dans : 1000", UDim2.fromScale(0.04, 0.06), UDim2.fromScale(0.92, 0.46), Color3.new(1, 1, 1), Enum.Font.GothamBlack)
 	local track = Instance.new("Frame")
 	track.Name = "Jauge"
 	track.Position = UDim2.fromScale(0.06, 0.58)
@@ -187,11 +197,11 @@ local function buildButton(model: Model, cf: CFrame, refs)
 	local fill = Instance.new("Frame")
 	fill.Name = "Remplissage"
 	fill.Size = UDim2.fromScale(0, 1)
-	fill.BackgroundColor3 = rgb(110, 230, 60)
+	fill.BackgroundColor3 = rgb(255, 70, 90)
 	fill.BorderSizePixel = 0
 	fill.Parent = track
 	corner(fill, 0.5)
-	Kit.gradient(fill, { rgb(170, 255, 90), rgb(60, 190, 40) })
+	Kit.gradient(fill, { rgb(255, 140, 150), rgb(210, 20, 60) })
 	refs.x10Text = x10Text
 	refs.x10Fill = fill
 	refs.x10Panel = bar
@@ -214,6 +224,15 @@ end
 -- Panneau de pitié
 ------------------------------------------------------------------------
 
+-- Raretés affichées sur le panneau des chances (les facultatives n'y sont que si elles existent).
+Machine.OddsRows = {
+	{ "common", "Commun", { rgb(235, 240, 245), rgb(150, 160, 175) } },
+	{ "rare", "Rare", { rgb(120, 210, 255), rgb(40, 110, 230) } },
+	{ "epic", "Épique", { rgb(220, 150, 255), rgb(120, 50, 220) } },
+	{ "legendary", "Légendaire", { rgb(255, 236, 110), rgb(255, 150, 20) } },
+	{ "mythic", "Mythique", { rgb(255, 130, 160), rgb(210, 20, 80) } },
+}
+
 local function buildPityPanel(model: Model, cf: CFrame, refs)
 	local base = cf * CFrame.new(Machine.PityX, 0, -0.5)
 	Build.part(model, "SoclePitie", Vector3.new(8.6, 1.2, 4.4), base * CFrame.new(0, 0.6, 0.6), DARK2, { Material = Enum.Material.Slate })
@@ -232,29 +251,27 @@ local function buildPityPanel(model: Model, cf: CFrame, refs)
 	bg.BorderSizePixel = 0
 	bg.Parent = gui
 	Kit.gradient(bg, { rgb(30, 34, 56), rgb(10, 10, 18) })
-	local title = Kit.text(gui, "Titre", "🛡️ GARANTIES", UDim2.fromScale(0.05, 0.03), UDim2.fromScale(0.9, 0.2), rgb(120, 230, 255), Enum.Font.LuckiestGuy)
-	local _ = title
+	local title = Kit.text(gui, "Titre", "🎲 CHANCES", UDim2.fromScale(0.05, 0.02), UDim2.fromScale(0.62, 0.16), rgb(120, 230, 255), Enum.Font.LuckiestGuy)
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	refs.luckLabel = Kit.text(gui, "Chance", "Chance x1", UDim2.fromScale(0.6, 0.05), UDim2.fromScale(0.36, 0.11), rgb(150, 255, 150), Enum.Font.GothamBlack)
+	refs.luckLabel.TextXAlignment = Enum.TextXAlignment.Right
 	refs.pityLines = {}
-	local defs = {
-		{ "legendary", "Légendaire", { rgb(255, 236, 110), rgb(255, 150, 20) } },
-		{ "mythic", "Mythique", { rgb(255, 120, 110), rgb(210, 20, 40) } },
-		{ "secret", "Secret", { rgb(255, 90, 90), rgb(255, 230, 70), rgb(90, 255, 120), rgb(90, 170, 255), rgb(230, 100, 255) } },
-	}
-	for i, d in defs do
-		local y = 0.26 + (i - 1) * 0.245
+	local rows = #Machine.OddsRows
+	for i, d in Machine.OddsRows do
+		local y = 0.2 + (i - 1) * (0.78 / rows)
 		local row = Instance.new("Frame")
 		row.Name = "Ligne" .. d[1]
 		row.Position = UDim2.fromScale(0.04, y)
-		row.Size = UDim2.fromScale(0.92, 0.22)
+		row.Size = UDim2.fromScale(0.92, 0.78 / rows - 0.025)
 		row.BackgroundColor3 = rgb(0, 0, 0)
 		row.BackgroundTransparency = 0.45
 		row.BorderSizePixel = 0
 		row.Parent = gui
 		corner(row, 0.3)
-		local name = Kit.text(row, "Rarete", d[2], UDim2.fromScale(0.03, 0.08), UDim2.fromScale(0.42, 0.84), Color3.new(1, 1, 1), Enum.Font.LuckiestGuy)
-		Kit.gradient(name, d[3], 0)
+		local name = Kit.text(row, "Rarete", d[2], UDim2.fromScale(0.03, 0.08), UDim2.fromScale(0.55, 0.84), Color3.new(1, 1, 1), Enum.Font.LuckiestGuy)
+		Kit.gradient(name, d[3], 90)
 		name.TextXAlignment = Enum.TextXAlignment.Left
-		local count = Kit.text(row, "Reste", "dans 150 rouleaux", UDim2.fromScale(0.45, 0.14), UDim2.fromScale(0.53, 0.72), Color3.new(1, 1, 1), Enum.Font.GothamBold)
+		local count = Kit.text(row, "Reste", "0 %", UDim2.fromScale(0.55, 0.12), UDim2.fromScale(0.42, 0.76), Color3.new(1, 1, 1), Enum.Font.GothamBlack)
 		count.TextXAlignment = Enum.TextXAlignment.Right
 		refs.pityLines[d[1]] = count
 	end
@@ -385,7 +402,7 @@ function Machine.bind(model: Model, cf: CFrame)
 	for i, x in Machine.Spots do
 		local ring = model:FindFirstChild("Anneau" .. i)
 		refs.spots[i] = {
-			cf = cf * CFrame.new(x, Machine.TopY, 0),
+			cf = cf * CFrame.new(x, Machine.TopY + (i == 1 and Machine.PodiumLift or 0), 0),
 			ring = ring,
 			light = ring and ring:FindFirstChildOfClass("PointLight"),
 			burst = ring and ring:FindFirstChild("Eclat"),
@@ -400,10 +417,11 @@ function Machine.bind(model: Model, cf: CFrame)
 	refs.pityLines = {}
 	local panel = model:FindFirstChild("PanneauPitie")
 	local gui = panel and panel:FindFirstChildOfClass("SurfaceGui")
-	for _, key in { "legendary", "mythic", "secret" } do
-		local row = gui and gui:FindFirstChild("Ligne" .. key)
-		refs.pityLines[key] = row and row:FindFirstChild("Reste")
+	for _, d in Machine.OddsRows do
+		local row = gui and gui:FindFirstChild("Ligne" .. d[1])
+		refs.pityLines[d[1]] = row and row:FindFirstChild("Reste")
 	end
+	refs.luckLabel = gui and gui:FindFirstChild("Chance")
 	refs.buttonParts = {}
 	for _, child in model:GetChildren() do
 		if child.Name == "Bouton" and child:IsA("BasePart") then
@@ -418,23 +436,44 @@ function Machine.bind(model: Model, cf: CFrame)
 	return refs
 end
 
-function Machine.setX10(refs, remaining: number, every: number)
+-- (ancien « Chance x10 », retiré en v3.2 : gardé pour les vieux scripts, ne fait plus rien)
+function Machine.setX10(_refs, _remaining: number, _every: number) end
+
+-- Barre de pitié du Mythique : `remaining` = persos tirés avant le Mythique garanti (nombre,
+-- ou ancienne table { mythic = n }) ; `threshold` = seuil total (pour la jauge).
+function Machine.setPity(refs, remaining: any, threshold: number?)
+	local n = type(remaining) == "table" and remaining.mythic or remaining
+	if type(n) ~= "number" then
+		return
+	end
+	local total = threshold or 1000
 	if refs.x10Text then
-		refs.x10Text.Text = remaining <= 1 and "⚡ PROCHAIN : CHANCE x10 ! ⚡" or ("x10 Chance dans : " .. remaining)
-		refs.x10Text.TextColor3 = remaining <= 1 and rgb(255, 230, 80) or Color3.new(1, 1, 1)
+		refs.x10Text.Text = n <= 1 and "MYTHIQUE GARANTI AU PROCHAIN !" or ("Mythique garanti dans : " .. n)
+		refs.x10Text.TextColor3 = n <= 1 and rgb(255, 120, 150) or Color3.new(1, 1, 1)
 	end
 	if refs.x10Fill then
-		local ratio = math.clamp((every - remaining) / math.max(1, every - 1), 0, 1)
+		local ratio = math.clamp((total - n) / math.max(1, total - 1), 0, 1)
 		refs.x10Fill.Size = UDim2.fromScale(math.max(0.04, ratio), 1)
 	end
 end
 
-function Machine.setPity(refs, remaining: { [string]: number })
+-- Panneau des chances : `odds` = { [rareté] = probabilité 0-1 } ; `luck` = chance du joueur.
+function Machine.setOdds(refs, odds: { [string]: number }, luck: number?)
 	for key, label in refs.pityLines or {} do
-		local n = remaining[key]
-		if label and n then
-			label.Text = n <= 1 and "PROCHAIN ROULEAU !" or ("dans " .. n .. " rouleaux")
+		local p = odds[key]
+		if label and p then
+			local percent = p * 100
+			if percent >= 10 then
+				label.Text = string.format("%d %%", math.floor(percent + 0.5))
+			elseif percent >= 1 then
+				label.Text = (string.format("%.1f %%", percent):gsub("%.", ","))
+			else
+				label.Text = (string.format("%.2f %%", percent):gsub("%.", ","))
+			end
 		end
+	end
+	if refs.luckLabel and luck then
+		refs.luckLabel.Text = (string.format("Chance x%.2f", luck):gsub("%.", ",", 1):gsub(",00$", ""))
 	end
 end
 
