@@ -6,6 +6,7 @@ export type Rarity = {
 	order: number,
 	color: Color3,
 	gradient: { Color3 },
+	rainbow: boolean?,
 	basePower: number,
 	sellValue: number,
 }
@@ -58,10 +59,29 @@ Rarities.List = {
 		basePower = 400,
 		sellValue = 150000,
 	},
+	-- Secret : les persos les plus rares de chaque univers (v3.2), entre Mythique et Crossover.
+	-- Affiché en arc-en-ciel (comme Theme.rarity("secret")) ; la couleur unie est un blanc nacré
+	-- lisible sur fond sombre, utilisée par les écrans qui ne gèrent pas l'arc-en-ciel (annonce...).
+	secret = {
+		id = "secret",
+		name = "Secret",
+		order = 6,
+		color = Color3.fromRGB(246, 240, 255),
+		rainbow = true,
+		gradient = {
+			Color3.fromRGB(255, 80, 80),
+			Color3.fromRGB(255, 220, 60),
+			Color3.fromRGB(80, 255, 120),
+			Color3.fromRGB(80, 160, 255),
+			Color3.fromRGB(220, 90, 255),
+		},
+		basePower = 700,
+		sellValue = 400000,
+	},
 	crossover = {
 		id = "crossover",
 		name = "Crossover",
-		order = 6,
+		order = 7,
 		color = Color3.fromRGB(80, 255, 220),
 		gradient = { Color3.fromRGB(120, 255, 200), Color3.fromRGB(90, 120, 255), Color3.fromRGB(255, 90, 230) },
 		basePower = 1000,
@@ -69,7 +89,7 @@ Rarities.List = {
 	},
 } :: { [string]: Rarity }
 
-Rarities.Order = { "common", "rare", "epic", "legendary", "mythic", "crossover" }
+Rarities.Order = { "common", "rare", "epic", "legendary", "mythic", "secret", "crossover" }
 
 function Rarities.get(id: string): Rarity
 	return Rarities.List[id] or Rarities.List.common

@@ -492,13 +492,67 @@ test("Pitié : Légendaire, Mythique et Secret garantis au seuil", function()
 		assert(got >= Economy.RollRarities[tier].order, tier .. " non garanti (obtenu " .. results[1].rarity .. ")")
 		assert(data.Pity[tier] == 0, "compteur de pitié non remis à zéro : " .. tier)
 	end
-	-- Le Secret = le Mythique de l'univers avec l'aura Arc-en-ciel.
+	-- (Quel perso donne un tirage Secret : voir le test « Palier Secret », indépendant de la pitié.)
 	local secret = data.RolledQueue[1]
 	assert(secret.aura == "arcenciel" and secret.trait, "Secret sans aura ni trait")
 	local panel = services.PlotService:GetPlot(alice).machine.pityLines.legendary
 	assert(panel.Text:find("rouleaux") or panel.Text:find("PROCHAIN"), "panneau de pitié non mis à jour")
 	table.clear(data.RolledQueue)
 	services.RollService:RenderStage(alice)
+end)
+
+test("Chaque palier de la machine a au moins un perso dans chaque univers", function()
+	-- Le palier « Peu commun » de la machine tire un perso de rareté Commun avec un trait garanti
+	-- (il n'existe pas de rareté de PERSO « Peu commun ») : la case « Peu commun » de l'auto-
+	-- roulage se rapporte donc au palier de la machine.
+	local Universes = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Universes"))
+	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
+	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	assert(Economy.RollRarities.uncommon.charRarity == "common", "palier Peu commun : perso Commun attendu")
+	local stats = Formulas.playerStats(DataService:Get(alice))
+	for tierId, info in Economy.RollRarities do
+		for _, universe in Universes.List do
+			local n = 0
+			for _, id in universe.characters do
+				if Characters.get(id).rarity == info.charRarity then
+					n += 1
+				end
+			end
+			assert(n >= 1, universe.id .. " : aucun perso pour le palier " .. tierId .. " (" .. info.charRarity .. ")")
+			local item = services.RollService:MakeItem(universe, tierId, stats)
+			assert(Characters.get(item.id).rarity == info.charRarity, universe.id .. " : palier " .. tierId .. " -> " .. item.id)
+		end
+	end
+end)
+
+test("Palier Secret : tire le perso Secret de chaque univers, jamais un autre", function()
+	local Universes = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Universes"))
+	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
+	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	assert(Economy.RollRarities.secret.charRarity == "secret", "le palier Secret ne tire pas la rareté secret")
+	assert((Economy.EvolutionRarityMult.secret or 0) >= Economy.EvolutionRarityMult.mythic, "évolution d'un Secret trop bon marché")
+	local stats = Formulas.playerStats(DataService:Get(alice))
+	local SECRETS = { "ninja_radama", "occ_sukana", "sai_gojita", "oce_kaydo", "pou_muzon" }
+	local seen = {}
+	for _, universe in Universes.List do
+		for _ = 1, 6 do
+			local item = services.RollService:MakeItem(universe, "secret", stats)
+			assert(table.find(SECRETS, item.id), universe.id .. " : palier Secret -> " .. tostring(item.id))
+			assert(Characters.get(item.id).rarity == "secret", item.id .. " n'est pas de rareté secret")
+			assert(table.find(universe.characters, item.id), item.id .. " hors du pool de " .. universe.id)
+			seen[item.id] = true
+		end
+		-- Le palier Mythique ne donne jamais un Secret.
+		for _ = 1, 6 do
+			local item = services.RollService:MakeItem(universe, "mythic", stats)
+			assert(Characters.get(item.id).rarity == "mythic", universe.id .. " : palier Mythique -> " .. item.id)
+		end
+	end
+	for _, id in SECRETS do
+		assert(seen[id], "Secret jamais tiré : " .. id)
+	end
 end)
 
 test("Chance x10 : tous les N roulages", function()
@@ -944,8 +998,31 @@ test("Noms d'origine : les modèles de la Boîte à outils sont reconnus", funct
 		["Frieza Soldier"] = "sai_soldat",
 		["Gojo Satoru"] = "occ_goju",
 		["Tanjiro Kamado"] = "pou_tanjiru",
+		["Madara Uchiha"] = "ninja_radama",
+		["Minato Namikaze"] = "ninja_minatu",
+		["Gaara Kazekage"] = "ninja_gaaro_3",
+		["Toji Fushiguro"] = "occ_toja",
+		["Megumi Fushiguro"] = "occ_megumo",
+		["Yuta Okkotsu"] = "occ_yuuto",
+		["Perfect Cell"] = "sai_cel",
+		["Gogeta Blue"] = "sai_gojita_3",
+		["Trafalgar Law"] = "oce_lao",
+		["Kaido Hybrid"] = "oce_kaydo_2",
+		["Muzan Kibutsuji"] = "pou_muzon",
+		["Tengen Uzui"] = "pou_tengan",
 		["Bruit de fond"] = false,
 		["Model"] = false,
+		-- mots courts reconnus seulement en mot entier, pas à l'intérieur d'un autre mot
+		["Dragon Claw"] = false,
+		["Outlaw Lawn Chair"] = false,
+		["Law Enforcement Car"] = false,
+		["Face Place Space"] = false,
+		["Portgas D. Ace"] = "oce_ase",
+		["Ace"] = "oce_ase",
+		-- « Kurama Mode » / « Chakra Mode » seuls = Maruto (pas Minatu)
+		["Naruto Chakra Mode"] = "ninja_maruto_3",
+		["Minato KCM"] = "ninja_minatu_3",
+		["Kurama Mode"] = "ninja_kourama",
 	}
 	for name, expected in cases do
 		local got = Noms.match(name)

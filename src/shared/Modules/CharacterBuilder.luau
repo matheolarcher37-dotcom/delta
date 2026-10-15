@@ -598,7 +598,22 @@ local function cap(ctx, color: Color3, o)
 	ctx.ball("Head", "HairCap", Vector3.new(1.36 + grow, h, 1.38 + grow), CFrame.new(0, 0.5 + (opts.lift or 0), 0.03), color)
 	if opts.back ~= false then
 		local length = opts.backLength or 1.4
-		ctx.ball("Head", "HairNape", Vector3.new(1.24 + grow, length, 0.9 + grow * 0.5), CFrame.new(0, 0.42 - length / 2 + (opts.napeLift or 0), 0.19), opts.color2 or color)
+		if ctx.napeTidy then
+			-- Nuque « soignée » (look.napeTidy) : plaque remontée dans le volume des cheveux, 30 %
+			-- plus courte, de la couleur des cheveux (pas une masse sombre sous la coiffure),
+			-- prolongée par 4 petites mèches qui continuent la coiffure dans la nuque.
+			local main, shine = ctx.napeTidy.color, ctx.napeTidy.shine
+			length *= 0.7
+			local top = 0.66
+			ctx.ball("Head", "HairNape", Vector3.new(1.28 + grow, length, 0.86 + grow * 0.5), CFrame.new(0, top - length / 2, 0.3), main)
+			-- mèches de nuque qui sortent du volume (leur haut est caché dedans) et retombent
+			local from = top - length * 0.62
+			for i, x in { -0.4, -0.14, 0.14, 0.4 } do
+				ctx.strand("Head", (i == 2) and shine or main, Vector3.new(x, from, 0.62 - math.abs(x) * 0.22), Vector3.new(x * 0.45, -1, 0.12), 0.5, 0.38, 0.16)
+			end
+		else
+			ctx.ball("Head", "HairNape", Vector3.new(1.24 + grow, length, 0.9 + grow * 0.5), CFrame.new(0, 0.42 - length / 2 + (opts.napeLift or 0), 0.19), opts.color2 or color)
+		end
 	end
 end
 
@@ -1302,8 +1317,12 @@ HAIR.heavy_long = function(ctx, c, look)
 			{ segments = 2, facing = Vector3.new(x, 1, 0), thickness = 0.2, point = false }
 		)
 	end
-	-- Lourdes mèches qui tombent (des côtés de la tête jusque dans le dos ; jamais devant le visage)
-	for i, a in { -108, -82, -54, -24, 0, 24, 54, 82, 108 } do
+	-- Lourdes mèches qui tombent (des côtés de la tête jusque dans le dos ; jamais devant le visage).
+	-- `look.hairSweep` (degrés, 108 par défaut) resserre l'éventail vers l'arrière : à 92, les
+	-- mèches latérales partent derrière les oreilles.
+	local sweep = (look.hairSweep or 108) / 108
+	for i, a0 in { -108, -82, -54, -24, 0, 24, 54, 82, 108 } do
+		local a = a0 * sweep
 		local r = math.rad(a)
 		-- a = angle depuis l'arrière (0 = dos), + vers la droite du perso
 		local out = Vector3.new(math.sin(r), 0, math.cos(r))
@@ -2062,6 +2081,28 @@ ACC.haori_flame = function(ctx, look)
 		if kind == "sleeve" then
 			return
 		end
+		if kind == "back" and look.haoriText and not S.lite then
+			-- Inscription verticale dans le dos (ex. « Quatrième Hokage ») : colonne de caractères rouges
+			local chars = {}
+			for _, code in utf8.codes(look.haoriText) do
+				table.insert(chars, utf8.char(code))
+			end
+			local step = math.min(0.13, 0.62 / math.max(1, #chars))
+			for i, ch in chars do
+				local label = Instance.new("TextLabel")
+				label.Name = "HaoriKanji"
+				label.AnchorPoint = Vector2.new(0.5, 0.5)
+				label.Position = UDim2.fromScale(0.5, 0.1 + (i - 0.5) * step)
+				label.Size = UDim2.fromScale(0.22, step * 0.98)
+				label.BackgroundTransparency = 1
+				label.Text = ch
+				label.TextScaled = true
+				label.Font = Enum.Font.Fantasy
+				label.TextColor3 = Color3.fromRGB(180, 30, 30)
+				label.ZIndex = 8
+				label.Parent = S.g
+			end
+		end
 		local n = kind == "back" and 7 or 2
 		for i = 0, n - 1 do
 			local x = (i + 0.5) / n
@@ -2676,6 +2717,33 @@ ACC.bulk = function(ctx, look)
 		ctx.rounded(limb, "Forearm", Vector3.new(1.12, 0.7, 1.1), CFrame.new(out * 0.02, -0.45, 0), lower, 0.2)
 	end
 	ctx.wedge("Torso", "Trapezius", Vector3.new(1.3, 0.34, 0.5), CFrame.new(0, 1.12, 0.22) * CFrame.Angles(0, math.pi, 0), c.top)
+end
+
+-- Éclat des persos Secrets : quelques étincelles arc-en-ciel qui montent du sol à leurs pieds
+-- (discret : signe d'exclusivité visible de loin). Pas dans les aperçus des menus.
+ACC.secret_glint = function(ctx, _look)
+	if ctx.paint == "parts" then
+		return
+	end
+	local base = ctx.add("Torso", "SecretGlint", Vector3.new(2.4, 0.1, 1.6), CFrame.new(0, -2.95, 0), WHITE, { Transparency = 1, CastShadow = false })
+	local keys = {}
+	for k = 0, 5 do
+		table.insert(keys, ColorSequenceKeypoint.new(k / 5, Color3.fromHSV(k / 6, 0.55, 1)))
+	end
+	local glint = Instance.new("ParticleEmitter")
+	glint.Name = "SecretGlint"
+	glint.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	glint.Color = ColorSequence.new(keys)
+	glint.LightEmission = 1
+	glint.LightInfluence = 0
+	glint.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3 * ctx.s), NumberSequenceKeypoint.new(0.5, 0.4 * ctx.s), NumberSequenceKeypoint.new(1, 0) })
+	glint.Lifetime = NumberRange.new(1.2, 1.8)
+	glint.Rate = 4
+	glint.Speed = NumberRange.new(0.8 * ctx.s, 1.6 * ctx.s)
+	glint.SpreadAngle = Vector2.new(15, 15)
+	glint.EmissionDirection = Enum.NormalId.Top
+	glint.Shape = Enum.ParticleEmitterShape.Box
+	glint.Parent = base
 end
 
 -- Grosses boucles d'oreilles (écarteurs noirs cerclés de bronze).
@@ -3607,6 +3675,227 @@ end
 
 local HATS = { "boar_head", "hood_full", "straw_hat", "volcano", "dome", "turban", "cap", "bandana", "cowboy_hat" }
 
+-- Pièces sur mesure décrites dans la config du perso (`look.props`), pour les objets propres à un
+-- seul perso (gourde, éventail de guerre, tambours, massue à piques...) sans créer un accessoire.
+-- Chaque entrée : { shape = forme, limb = membre, at = position (studs, repère du membre, avant = -Z),
+--   rot = angles en degrés (X, Y, Z), size = Vector3, color, material? (nom d'Enum.Material),
+--   transparency?, name?, dir? (pièce allongée qui part de `at` dans cette direction : axe Y du
+--   bloc ou de l'ellipsoïde, axe du cylindre, axe de la pointe) }. Formes : "block", "ball", "cyl" (axe X), "wedge", "corner",
+--   "rounded" (radius), "cone" (length, width, depth, dark?), "spike" (dir, length, width : pointe
+--   pleine, comme une mèche), "strand" (dir, length, width : ellipsoïde allongé).
+-- Remplacée en entier par une évolution qui donne `props` (voir Characters.resolveLook).
+-- Peinture optionnelle d'une pièce (block / wedge) : `paint = { kind, faces = { "Front", ... }, ... }`
+--   kind "lamellar" : rangées de plaques d'armure (rows, ink = liseré, rivet = rivets, slit = fente
+--     verticale au milieu, rim = bordure du bas) ;
+--   kind "strokes" : traits peints (lines = { { x0, y0, x1, y1, épaisseur en studs, couleur? } },
+--     dots = { { x, y, largeur, hauteur, couleur? } }, ink, bg = false pour une pièce invisible
+--     dont seule la peinture se voit) — glyphes, flammes, taches, aussi lisibles en mode « pièces ».
+-- `shift` (Vector3) : décalage dans le repère de la pièce après orientation (biseau, anneau...).
+-- `noPreview = true` : pièce omise dans les aperçus des menus (mode « parts », vus de face).
+local PROP_SHAPES = { wedge = "wedge", corner = "cornerWedge" }
+
+local function paintProp(ctx, part: BasePart, color: Color3, paint)
+	local mode = ctx.paint == "parts" and "parts" or nil
+	local lite = mode == "parts"
+	for _, faceName in paint.faces or { "Front" } do
+		local face = (Enum.NormalId :: any)[faceName]
+		if paint.kind == "lamellar" and lite then
+			-- Aperçus des menus (peinture convertie en pièces, budget serré) : armure simplifiée,
+			-- 2 bandes sombres fines collées à la face avant seulement (rangées de lamelles)
+			if faceName == "Front" then
+				local size = part.Size / ctx.s
+				local rows = math.min(3, paint.rows or 4)
+				local ink = paint.ink or darken(color, 0.55)
+				for r = 1, rows - 1 do
+					local y = size.Y / 2 - size.Y * r / rows
+					local band = Instance.new("Part")
+					band.Name = "PropBand"
+					band.Size = Vector3.new(size.X * 0.98, 0.07, 0.02) * ctx.s
+					band.CFrame = part.CFrame * CFrame.new(0, y * ctx.s, -(size.Z / 2 + 0.01) * ctx.s)
+					band.Color = ink
+					band.Material = Enum.Material.SmoothPlastic
+					band.CanCollide = false
+					band.CanTouch = false
+					band.CanQuery = false
+					band.Massless = true
+					local weld = Instance.new("Weld")
+					weld.Part0 = part
+					weld.Part1 = band
+					weld.C0 = part.CFrame:Inverse() * band.CFrame
+					weld.Parent = band
+					band.Parent = part.Parent
+				end
+			end
+		elseif paint.kind == "lamellar" then
+			local rows = paint.rows or 4
+			local ink = paint.ink or darken(color, 0.55)
+			Painter.panel(part, face, mode, color, function(S)
+				for r = 0, rows - 1 do
+					local y0 = r / rows
+					local y1 = (r + 1) / rows
+					-- Plaque : haut éclairé, bas ombré (la rangée suivante la recouvre)
+					S:rect(0.5, y1 - (y1 - y0) * 0.16, 1, (y1 - y0) * 0.3, Painter.celShadow(color), { z = 2 })
+					S:rect(0.5, y1 - 0.012, 1, S:dy(0.06), ink, { z = 4 })
+					-- Aperçus des menus (peinture en pièces) : bandes seules, sans lacets ni rivets
+					local n = lite and 0 or math.max(2, math.floor(S.w / 0.6 + 0.5))
+					if not lite then
+						S:rect(0.5, y0 + (y1 - y0) * 0.3, 1, (y1 - y0) * 0.38, Painter.lighten(color, 0.12), { z = 2 })
+					end
+					-- Lacets verticaux entre les lamelles (décalés d'une rangée à l'autre)
+					for k = 1, n do
+						local x = (k - 1 + (r % 2) * 0.5) / n
+						if x > 0.02 and x < 0.98 then
+							S:rect(x, (y0 + y1) / 2, S:dx(0.035), (y1 - y0) * 0.86, ink, { z = 3, transparency = 0.35 })
+							if paint.rivet and r % 2 == 0 then
+								S:oval(x, y0 + (y1 - y0) * 0.24, 0.08, 0.08, paint.rivet, { z = 5 })
+							end
+						end
+					end
+				end
+				if paint.slit then
+					S:rect(0.5, 0.5, S:dx(0.07), 1, ink, { z = 6 })
+				end
+				if paint.rim then
+					S:rect(0.5, 1 - S:dy(0.06), 1, S:dy(0.12), paint.rim, { z = 6 })
+				end
+			end, { folds = false })
+		elseif paint.kind == "strokes" then
+			local S = Painter.sheet(part, face, mode, "Pattern" .. face.Name, 60)
+			if paint.bg ~= false then
+				S:rect(0.5, 0.5, 1, 1, color, { z = 1 })
+			end
+			local ink = paint.ink or Color3.new(0, 0, 0)
+			for _, l in paint.lines or {} do
+				S:line(l[1], l[2], l[3], l[4], l[5] or 0.05, l[6] or ink, { z = 3, corner = 0.2 })
+			end
+			-- Taches / disques : { x, y, largeur, hauteur (studs), couleur? }
+			for _, o in paint.dots or {} do
+				S:oval(o[1], o[2], o[3], o[4], o[5] or ink, { z = 4 })
+			end
+		end
+	end
+end
+
+local function buildProps(ctx, props)
+	for _, p in props do
+		if p.noPreview and ctx.paint == "parts" then
+			-- Pièce du dos omise dans les aperçus des menus (vus de face, budget de pièces)
+			continue
+		end
+		local shape = p[1] or p.shape or "block"
+		local limb = p.limb or "Torso"
+		local color = p.color or Color3.fromRGB(200, 200, 200)
+		local at = p.at or Vector3.zero
+		local r = p.rot or Vector3.zero
+		local turn = CFrame.Angles(math.rad(r.X), math.rad(r.Y), math.rad(r.Z))
+		local cf = CFrame.new(at) * turn
+		local name = p.name or "Prop"
+		if p.cf then
+			-- Repère explicite (CFrame dans le repère du membre) : ailes, plaques orientées
+			cf = p.cf * turn
+		elseif p.dir and shape == "blade" then
+			-- Lame : base en `at`, pointe dans la direction `dir`
+			cf = alongY(at, p.dir) * turn
+		elseif p.dir and shape ~= "spike" and shape ~= "strand" then
+			-- Pièce allongée de `at` dans la direction `dir` (axe Y de la pièce ; axe X du cylindre)
+			local size = p.size or Vector3.one
+			local length = shape == "cyl" and size.X or size.Y
+			if shape == "cone" then
+				cf = alongY(at, p.dir) * turn
+			elseif shape == "cyl" then
+				cf = alongY(at + p.dir.Unit * (length / 2), p.dir) * turn * CFrame.Angles(0, 0, math.pi / 2)
+			else
+				cf = alongY(at + p.dir.Unit * (length / 2), p.dir) * turn
+			end
+		end
+		if p.shift then
+			-- Décalage dans le repère de la pièce (après orientation) : biseau d'une lame, anneau...
+			cf = cf * CFrame.new(p.shift)
+		end
+		local extra = nil
+		if p.material or p.transparency then
+			extra = {
+				Material = p.material and (Enum.Material :: any)[p.material] or Enum.Material.SmoothPlastic,
+				Transparency = p.transparency or 0,
+			}
+		end
+		local made: BasePart? = nil
+		if shape == "spike" then
+			ctx.spike(limb, color, at, p.dir or Vector3.new(0, 1, 0), p.length or 1, p.width or 0.3, { root = false, dark = p.dark })
+		elseif shape == "strand" then
+			ctx.strand(limb, color, at, p.dir or Vector3.new(0, -1, 0), p.length or 1, p.width or 0.3, p.depth)
+		elseif shape == "blade" then
+			-- Lame triangulaire plate (deux coins dos à dos) : crêtes, nageoires, griffes
+			ctx.blade(limb, color, cf, p.length or 1, p.width or 0.4, p.depth or 0.1, name)
+		elseif shape == "cone" then
+			ctx.cone(limb, cf, p.length or 1, p.width or 0.3, p.depth or p.width or 0.3, color, p.dark, p.half, name)
+		elseif shape == "cyl" then
+			local size = p.size or Vector3.new(1, 0.4, 0.4)
+			made = ctx.cyl(limb, name, size.X, size.Y, cf, color, extra)
+		elseif shape == "rounded" then
+			ctx.rounded(limb, name, p.size or Vector3.one, cf, color, p.radius or 0.1, extra)
+		elseif shape == "ball" then
+			made = ctx.ball(limb, name, p.size or Vector3.one, cf, color, extra)
+		elseif PROP_SHAPES[shape] then
+			local part = ctx[PROP_SHAPES[shape]](limb, name, p.size or Vector3.one, cf, color)
+			if extra then
+				part.Material = extra.Material
+				part.Transparency = extra.Transparency
+			end
+			made = part
+		else
+			local part = ctx.add(limb, name, p.size or Vector3.one, cf, color, extra)
+			if p.paint then
+				paintProp(ctx, part, color, p.paint)
+			end
+			made = part
+		end
+		if p.light and made and ctx.paint ~= "parts" then
+			-- Lueur de la pièce (Susanoo, salle d'opération...) : pas dans les aperçus des menus
+			local light = Instance.new("PointLight")
+			light.Name = "PropGlow"
+			light.Color = p.light
+			light.Range = (p.lightRange or 8) * ctx.s
+			light.Brightness = p.lightBrightness or 1
+			light.Shadows = false
+			light.Parent = made
+		end
+		if p.flames and made and ctx.paint ~= "parts" then
+			-- Flammèches qui s'échappent de la pièce (Susanoo...) : pas dans les aperçus des menus
+			local fire = Instance.new("ParticleEmitter")
+			fire.Name = "PropFlames"
+			fire.Texture = "rbxasset://textures/particles/fire_main.dds"
+			fire.Color = ColorSequence.new(p.flames:Lerp(Color3.new(1, 1, 1), 0.35), p.flames)
+			fire.LightEmission = 1
+			fire.LightInfluence = 0
+			fire.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.45 * ctx.s), NumberSequenceKeypoint.new(1, 0) })
+			fire.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) })
+			fire.Lifetime = NumberRange.new(0.4, 0.8)
+			fire.Rate = p.flameRate or 14
+			fire.Speed = NumberRange.new(0.6 * ctx.s, 1.4 * ctx.s)
+			fire.SpreadAngle = Vector2.new(25, 25)
+			fire.EmissionDirection = Enum.NormalId.Top
+			fire.Parent = made
+		end
+		if p.dust and made and ctx.paint ~= "parts" then
+			-- Grains (sable de Gaaro...) qui s'échappent de la pièce : pas dans les aperçus des menus
+			local dust = Instance.new("ParticleEmitter")
+			dust.Name = "PropDust"
+			dust.Texture = "rbxasset://textures/particles/smoke_main.dds"
+			dust.Color = ColorSequence.new(p.dust)
+			dust.LightInfluence = 1
+			dust.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.12 * ctx.s), NumberSequenceKeypoint.new(1, 0.04 * ctx.s) })
+			dust.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+			dust.Lifetime = NumberRange.new(0.6, 1.2)
+			dust.Rate = p.dustRate or 15
+			dust.Speed = NumberRange.new(0.4 * ctx.s, 1.2 * ctx.s)
+			dust.Acceleration = Vector3.new(0, -2 * ctx.s, 0)
+			dust.SpreadAngle = Vector2.new(60, 60)
+			dust.Parent = made
+		end
+	end
+end
+
 local MAX_PARTS = 178
 local MAX_PREVIEW_PARTS = 396
 local buildOnce
@@ -3645,7 +3934,14 @@ end
 
 function buildOnce(look, options: BuildOptions?, roots: number, withRelief: boolean): (Model, number)
 	local opts = options or {}
-	local s = opts.scale or 1
+	-- look.bodyScale : carrure propre au perso (Secrets, géants) ; pas dans les aperçus des menus
+	-- (cadrés à la même taille). BaseScale = échelle réelle (racine, animations, effets).
+	local s = (opts.scale or 1) * ((opts.paint ~= "parts" and look.bodyScale) or 1)
+	if opts.paint ~= "parts" and look.minScale then
+		-- look.minScale : taille plancher en jeu, appliquée APRÈS la taille de niveau
+		-- (Formulas.visualScale, 0.85 au niveau 1) : Kaydo le géant dépasse l'avatar dès le niveau 1
+		s = math.max(s, look.minScale)
+	end
 	local model = Instance.new("Model")
 	model.Name = opts.name or "Character"
 
@@ -3657,6 +3953,10 @@ function buildOnce(look, options: BuildOptions?, roots: number, withRelief: bool
 	buildBody(ctx, look)
 
 	local hairColor = look.hairColor or BLACK
+	if look.napeTidy then
+		local _, shine = hairTones(hairColor, look)
+		ctx.napeTidy = { color = hairColor, shine = shine }
+	end
 	local covered = false
 	for _, hat in HATS do
 		if has(look, hat) then
@@ -3694,6 +3994,9 @@ function buildOnce(look, options: BuildOptions?, roots: number, withRelief: bool
 		if builder then
 			builder(ctx, look)
 		end
+	end
+	if look.props then
+		buildProps(ctx, look.props)
 	end
 
 	if withRelief then
@@ -3870,7 +4173,8 @@ local VARIETIES = {
 		fx = { texture = SPARK, colors = { rgb(255, 255, 255), rgb(190, 150, 255) }, size = 0.22, rate = 10, light = rgb(150, 100, 255) },
 	},
 	rainbow = {
-		-- Seulement les cheveux (chaque mèche d'une couleur) et le contour : la tenue reste intacte
+		-- Cheveux (chaque mèche d'une couleur), objets et accessoires teintés, reflet arc-en-ciel en
+		-- diagonale sur la tenue peinte, contour
 		rainbow = true,
 		outline = rgb(255, 150, 230),
 		fx = { texture = SPARK, colors = { rgb(255, 90, 90), rgb(255, 230, 80), rgb(90, 200, 255), rgb(210, 110, 255) }, size = 0.3, rate = 10 },
@@ -4128,6 +4432,10 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 				if paints then
 					d.Color = tintColor(d.Color, spec)
 				end
+			elseif spec.rainbow then
+				-- Arc-en-ciel : chapeau, cravate, revers, objets... chacun d'une teinte de l'arc-en-ciel
+				i += 1
+				d.Color = d.Color:Lerp(Color3.fromHSV((i * 0.13) % 1, 0.6, 1), 0.62)
 			elseif spec.acc then
 				-- Accessoires en relief : couleur et matière de la variété
 				d.Color = d.Color:Lerp(spec.acc.color, spec.acc.mix)
@@ -4145,6 +4453,44 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 	for _, gui in guis do
 		local onTorso = gui.Parent == torso and (gui.Face == Enum.NormalId.Front or gui.Face == Enum.NormalId.Back)
 		tintGui(gui, spec, onTorso)
+	end
+	if spec.rainbow then
+		-- Reflet arc-en-ciel en diagonale sur toute la tenue peinte (lisible même sur un costume
+		-- noir : la variété la plus rare doit se voir sur tout le perso, pas seulement les cheveux)
+		local rainbowKeys = {}
+		-- toutes les teintes tiennent dans la bande visible (0.3 à 0.7)
+		table.insert(rainbowKeys, ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0.6, 1)))
+		for k = 0, 6 do
+			table.insert(rainbowKeys, ColorSequenceKeypoint.new(0.3 + k / 6 * 0.4, Color3.fromHSV(k / 6 * 0.85, 0.6, 1)))
+		end
+		table.insert(rainbowKeys, ColorSequenceKeypoint.new(1, Color3.fromHSV(0.85, 0.6, 1)))
+		for _, d in model:GetDescendants() do
+			if d:IsA("SurfaceGui") and not d:GetAttribute("LodNear") and d.Name ~= "Face" and d.Parent and LIMB_NAMES[d.Parent.Name] then
+				local sheen = Instance.new("Frame")
+				sheen.Name = "VarietyRainbow"
+				sheen.Size = UDim2.fromScale(1, 1)
+				sheen.BackgroundColor3 = Color3.new(1, 1, 1)
+				sheen.BackgroundTransparency = 0
+				sheen.BorderSizePixel = 0
+				sheen.ZIndex = 55
+				-- Bande étroite en diagonale (transparente partout sauf au centre) : un reflet qui
+				-- glisse sur la tenue, qui garde sa couleur. Le client peut animer `Offset` des
+				-- UIGradient nommés « VarietyRainbow » pour le faire défiler.
+				local g = Instance.new("UIGradient")
+				g.Name = "VarietyRainbow"
+				g.Color = ColorSequence.new(rainbowKeys)
+				g.Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 1),
+					NumberSequenceKeypoint.new(0.3, 1),
+					NumberSequenceKeypoint.new(0.5, 0.7),
+					NumberSequenceKeypoint.new(0.7, 1),
+					NumberSequenceKeypoint.new(1, 1),
+				})
+				g.Rotation = 35
+				g.Parent = sheen
+				sheen.Parent = d
+			end
+		end
 	end
 	if spec.outline then
 		-- Liseré coloré (contour seul, sans remplissage : la peinture reste nette)

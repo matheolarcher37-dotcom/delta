@@ -156,6 +156,10 @@ end)
 
 test("Persos R6 classiques : proportions, tête, visage, budgets", function()
 	local function check(label, look)
+		-- proportions à l'échelle 1 (sans la carrure propre des Secrets, `bodyScale`)
+		look = table.clone(look)
+		look.bodyScale = nil
+		look.minScale = nil
 		local model = CharacterBuilder.build(look, { scale = 1 })
 		local head = model:FindFirstChild("Head")
 		assert(head and head.Size.X == 2 and head.Size.Y == 1 and head.Size.Z == 1, label .. " : tête classique 2x1x1 attendue")
@@ -360,7 +364,15 @@ test("Boss lisibles (liseré, lumières, aura) et variétés des persos", functi
 		for st = 1, 2 do
 			local la = Formulas.describe({ id = id, level = 1, stars = st }).look
 			local lb = Formulas.describe({ id = id, level = 1, stars = st + 1 }).look
-			local strong = false
+			-- Objets sur mesure (look.props) différents : pièces visibles en plus ou en moins
+			local function sig(props)
+				local out = {}
+				for _, p in props or {} do
+					table.insert(out, tostring(p.shape) .. tostring(p.limb) .. tostring(p.at) .. tostring(p.size))
+				end
+				return table.concat(out, ";")
+			end
+			local strong = sig(la.props) ~= sig(lb.props)
 			for _, k in STRONG do
 				if la[k] ~= lb[k] then
 					strong = true
@@ -438,7 +450,7 @@ test("Nouveaux persos v3.2, uniformes personnalisés, boss Akaino/Freezo", funct
 		ocean = { "oce_robine", "oce_ase" },
 		pourfendeur = { "pou_shinobo", "pou_giyo" },
 	}
-	local rarities = { common = true, rare = true, epic = true, legendary = true, mythic = true }
+	local rarities = { common = true, rare = true, epic = true, legendary = true, mythic = true, secret = true }
 	for _, universe in Universes.List do
 		assert(#universe.characters >= 10, universe.id .. " : au moins 10 persos attendus (" .. #universe.characters .. ")")
 		for _, id in NEW[universe.id] or {} do
@@ -519,6 +531,545 @@ test("Nouveaux persos v3.2, uniformes personnalisés, boss Akaino/Freezo", funct
 			end
 		end
 		assert(found, id .. " absent de toutes les tables de tirage")
+	end
+end)
+
+test("Roster v3.2 : 16 persos de plus, raretés de base, signatures, noms d'origine", function()
+	local Rarities = requireModule(Shared.Config.Rarities)
+	local AttackFx = requireModule(Shared.Config.AttackFx)
+	local Noms = requireModule(Shared.Config.NomsOriginaux)
+	local EFFECTS = { energy_aura = true, ssj_aura = true, steam = true, energy_fists = true, chidori = true, hollow_purple = true, sun_flames = true }
+	local function propSig(props)
+		local parts = {}
+		for _, p in props or {} do
+			table.insert(parts, tostring(p.shape) .. tostring(p.limb) .. tostring(p.at) .. tostring(p.size) .. tostring(p.color))
+		end
+		return table.concat(parts, ";")
+	end
+	local ROSTER = {
+		ninja = { ninja_gaaro = "epic", ninja_minatu = "mythic", ninja_radama = "secret" },
+		occulte = { occ_hakaro = "epic", occ_toja = "mythic", occ_yuuto = "legendary", occ_ijichu = "common" },
+		saiyan = { sai_cel = "legendary", sai_jirene = "legendary", sai_gojita = "secret" },
+		ocean = { oce_inel = "mythic", oce_lao = "legendary", oce_kaydo = "secret" },
+		pourfendeur = { pou_tengan = "legendary", pou_doma = "mythic", pou_muzon = "secret" },
+	}
+	-- La rareté Secret existe et se place entre Mythique et Crossover
+	local secret = Rarities.get("secret")
+	assert(secret.id == "secret" and table.find(Rarities.Order, "secret"), "rareté Secret manquante")
+	assert(secret.basePower > Rarities.get("mythic").basePower and secret.basePower < Rarities.get("crossover").basePower, "puissance Secret mal placée")
+	assert(secret.order > Rarities.get("mythic").order and secret.order < Rarities.get("crossover").order, "ordre Secret mal placé")
+	-- Raretés de base cohérentes (Maruto Épique, Sukana Secret, Goju Mythique)
+	assert(Characters.get("ninja_maruto").rarity == "epic", "Maruto doit être Épique")
+	assert(Characters.get("occ_sukana").rarity == "secret", "Sukana doit être Secret")
+	assert(Characters.get("occ_goju").rarity == "mythic", "Goju doit être Mythique")
+	-- Persos très populaires/puissants pas en Commun (Toudo Épique, Inumako Rare)
+	assert(Characters.get("occ_toudo").rarity == "epic", "Toudo doit être Épique")
+	assert(Characters.get("occ_inumako").rarity == "rare", "Inumako doit être Rare")
+	-- Héros vedettes alignés : Goko et Itochi Mythiques comme Goju
+	assert(Characters.get("sai_goko").rarity == "mythic", "Goko doit être Mythique")
+	assert(Characters.get("ninja_itochi").rarity == "mythic", "Itochi doit être Mythique")
+	-- La couleur unie du Secret est claire (texte lisible sur fond sombre) et il s'affiche en arc-en-ciel
+	local sc = Rarities.get("secret").color
+	assert(Rarities.get("secret").rainbow and sc.R + sc.G + sc.B > 2.4, "Secret : couleur claire + arc-en-ciel")
+	-- Les persos Secrets du jeu : exactement un par univers, ceux attendus
+	local SECRETS = { ninja_radama = true, occ_sukana = true, sai_gojita = true, oce_kaydo = true, pou_muzon = true }
+	local named = {}
+	for _, entry in Noms.List do
+		named[entry.id] = true
+	end
+	local total = 0
+	for _, universe in Universes.List do
+		local count = {}
+		for _, id in universe.characters do
+			local r = Characters.get(id).rarity
+			count[r] = (count[r] or 0) + 1
+		end
+		assert(#universe.characters >= 13 and #universe.characters <= 14, universe.id .. " : 13 ou 14 persos attendus (" .. #universe.characters .. ")")
+		assert((count.common or 0) >= 2, universe.id .. " : au moins 2 Communs (persos secondaires)")
+		assert(count.secret == 1 and (count.mythic or 0) >= 1 and (count.mythic or 0) <= 2, universe.id .. " : un Secret et 1 ou 2 Mythiques")
+		for _, id in universe.characters do
+			if Characters.get(id).rarity == "secret" then
+				assert(SECRETS[id], id .. " : Secret inattendu")
+			end
+		end
+		for id, rarity in ROSTER[universe.id] do
+			total += 1
+			local def = Characters.get(id)
+			assert(def and def.universe == universe.id, id .. " : univers")
+			assert(table.find(universe.characters, id), id .. " absent de la table de tirage")
+			assert(def.rarity == rarity, id .. " : rareté de base " .. tostring(def.rarity) .. " (attendu " .. rarity .. ")")
+			assert(def.evolve and def.evolve[2] and def.evolve[3], id .. " : évolutions ★2/★3")
+			assert(def.fusion and def.fusion.prefix and def.fusion.suffix, id .. " : préfixe/suffixe de fusion")
+			assert(def.attack and def.attack.name and def.attack.kind, id .. " : attaque")
+			assert(named[id], id .. " : nom d'origine manquant")
+			-- Chaque étoile change la tenue, la coiffure ou les objets (hors auras et effets)
+			for st = 1, 2 do
+				local la = Formulas.describe({ id = id, level = 1, stars = st }).look
+				local lb = Formulas.describe({ id = id, level = 1, stars = st + 1 }).look
+				local visible = propSig(la.props) ~= propSig(lb.props)
+				for _, k in { "top", "outfit", "hair", "hairColor", "bottom", "skin" } do
+					if la[k] ~= lb[k] then
+						visible = true
+					end
+				end
+				local accA, accB = {}, {}
+				for _, a in la.accessories or {} do
+					accA[a] = true
+				end
+				for _, a in lb.accessories or {} do
+					accB[a] = true
+				end
+				for a in accB do
+					if not accA[a] and not EFFECTS[a] then
+						visible = true
+					end
+				end
+				for a in accA do
+					if not accB[a] and not EFFECTS[a] then
+						visible = true
+					end
+				end
+				assert(visible, id .. " ★" .. st .. " -> ★" .. (st + 1) .. " : tenue, coiffure ou objets doivent changer (pas seulement l'aura)")
+			end
+			-- Budget de pièces respecté à chaque étoile, objets sur mesure bien construits
+			for st = 1, 3 do
+				local look = Formulas.describe({ id = id, level = 1, stars = st }).look
+				local m = CharacterBuilder.build(look, { scale = 1 })
+				local n, props = 0, 0
+				for _, d in m:GetDescendants() do
+					if d:IsA("BasePart") then
+						n += 1
+						if d.Name == "Prop" then
+							props += 1
+						end
+					end
+				end
+				assert(n <= 178, id .. " ★" .. st .. " : trop de pièces (" .. n .. ")")
+				-- Seuil d'alerte : garder de la marge sous le plafond (les objets passent après les
+				-- accessoires et seraient les premiers sacrifiés si la coiffure ou la tenue s'alourdit)
+				assert(n <= 165, id .. " ★" .. st .. " : " .. n .. " pièces, au-delà du seuil d'alerte (165)")
+				if look.props then
+					assert(props > 0 or #look.props > 0, id .. " : objets sur mesure absents")
+				end
+				m:Destroy()
+			end
+		end
+	end
+	assert(total == 16, "16 nouveaux persos attendus")
+	-- Nuque « soignée » : de la couleur des cheveux, remontée dans la coiffure (plus de pavé sombre)
+	for _, id in { "occ_toja", "occ_yuuto", "oce_inel", "sai_gojita", "pou_muzon" } do
+		local look = Formulas.describe({ id = id, level = 1, stars = 1 }).look
+		assert(look.napeTidy, id .. " : nuque soignée attendue")
+		local m = CharacterBuilder.build(look, { scale = 1 })
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and d.Name == "HairNape" then
+				assert(d.Color == look.hairColor, id .. " : nuque d'une autre couleur que les cheveux")
+			end
+		end
+		m:Destroy()
+	end
+	-- Objets peints (armure lamellaire de Radama, kanji de Gaaro) : la peinture est bien posée
+	local function painted(id, stars, name)
+		local m = CharacterBuilder.build(Formulas.describe({ id = id, level = 1, stars = stars }).look, { scale = 1 })
+		local found = false
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and d.Name == name and #d:GetChildren() > 0 then
+				for _, c in d:GetDescendants() do
+					if c:IsA("SurfaceGui") then
+						found = true
+					end
+				end
+			end
+		end
+		m:Destroy()
+		return found
+	end
+	assert(painted("ninja_gaaro", 1, "Kanji"), "Gaaro : kanji du front non peint")
+	assert(painted("ninja_radama", 1, "Prop"), "Radama : armure lamellaire non peinte")
+	-- Aperçus des menus (mode « parts » : fiche, inventaire, révélation) : Radama garde son armure
+	-- (bandes sombres des lamelles) et tous les nouveaux persos restent sous 390 pièces (marge)
+	for _, id in { "ninja_radama", "ninja_minatu", "oce_kaydo", "sai_cel", "pou_muzon", "occ_yuuto" } do
+		for st = 1, 3 do
+			local m = CharacterBuilder.buildPreview(Formulas.describe({ id = id, level = 1, stars = st }).look)
+			local n, bands = 0, 0
+			for _, d in m:GetDescendants() do
+				if d:IsA("BasePart") then
+					n += 1
+					if d.Name == "PropBand" then
+						bands += 1
+					end
+				end
+			end
+			assert(n <= 390, id .. " ★" .. st .. " (menus) : " .. n .. " pièces (> 390)")
+			if id == "ninja_radama" and st <= 2 then
+				assert(bands >= 4, "Radama ★" .. st .. " (menus) : armure lamellaire non dessinée")
+			end
+			m:Destroy()
+		end
+	end
+	-- Objets signature des Secrets (lisibles de loin)
+	local function hasProp(id, stars, name)
+		local m = CharacterBuilder.build(Formulas.describe({ id = id, level = 1, stars = stars }).look, { scale = 1 })
+		local found = false
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and d.Name == name then
+				found = true
+			end
+		end
+		m:Destroy()
+		return found
+	end
+	for _, id in { "ninja_radama", "sai_gojita", "oce_kaydo", "pou_muzon" } do
+		assert(#Characters.get(id).look.props >= 5 and hasProp(id, 1, "Prop"), id .. " : objet signature")
+	end
+	-- Carrure : plus de sphères « bulk » (épaules en ballons) sur les persos du roster ; deltoïdes
+	-- intégrés à la place pour les colosses
+	for _, list in ROSTER do
+		for id in list do
+			for st = 1, 3 do
+				local look = Formulas.describe({ id = id, level = 1, stars = st }).look
+				for _, a in look.accessories or {} do
+					assert(a ~= "bulk", id .. " ★" .. st .. " : accessoire « bulk » interdit (épaules en ballons)")
+				end
+				-- plaques d'avant-bras peintes (pastille ronde en surbrillance = « ballon » dans les menus)
+				assert(look.armPlates == nil, id .. " ★" .. st .. " : armPlates interdit (pastilles rondes sur les bras)")
+			end
+		end
+	end
+	for _, id in { "oce_kaydo", "sai_jirene" } do
+		assert(hasProp(id, 1, "Deltoid") and hasProp(id, 1, "Trapezius"), id .. " : deltoïdes intégrés attendus")
+	end
+	-- Kaydo ★2/★3 (forme hybride) : écailles plates en coins le long des avant-bras, pas de boule
+	for st = 2, 3 do
+		local m = CharacterBuilder.build(Formulas.describe({ id = "oce_kaydo", level = 1, stars = st }).look, { scale = 1 })
+		local n = 0
+		for _, d in m:GetDescendants() do
+			if d.Name == "KaydoScale" then
+				assert(d:IsA("WedgePart") and math.min(d.Size.X, d.Size.Y, d.Size.Z) <= 0.1 * m:GetAttribute("BaseScale"), "Kaydo : écaille non plate")
+				n += 1
+			end
+		end
+		assert(n >= 6, "Kaydo ★" .. st .. " : écailles des avant-bras attendues (" .. n .. ")")
+		m:Destroy()
+	end
+	-- Secrets : plus grands que les autres (Kaydo le géant encore plus) et éclat arc-en-ciel au
+	-- sol dès le ★1 ; ni l'un ni l'autre dans les aperçus des menus (cadrés à la même taille)
+	for id in SECRETS do
+		local look = Formulas.describe({ id = id, level = 1, stars = 1 }).look
+		assert((look.bodyScale or 1) >= 1.12, id .. " : Secret à peine plus grand attendu")
+		local m = CharacterBuilder.build(look, { scale = 1 })
+		local expected = math.max(look.bodyScale, look.minScale or 0)
+		assert(math.abs((m:GetAttribute("BaseScale") or 1) - expected) < 1e-6, id .. " : BaseScale = carrure du Secret")
+		m:Destroy()
+		-- au niveau 1 (taille de niveau 0.85) : jamais plus petit que l'avatar joueur (plancher)
+		m = CharacterBuilder.build(look, { scale = Formulas.visualScale({ id = id, level = 1, stars = 1 }) })
+		assert((m:GetAttribute("BaseScale") or 1) >= 1.05 - 1e-6, id .. " : Secret plus petit que l'avatar au niveau 1")
+		local glint = m:FindFirstChild("SecretGlint", true)
+		assert(glint and glint:FindFirstChildOfClass("ParticleEmitter"), id .. " : éclat arc-en-ciel du Secret absent")
+		m:Destroy()
+		local preview = CharacterBuilder.buildPreview(look)
+		assert(preview:FindFirstChild("SecretGlint", true) == nil, id .. " : éclat dans l'aperçu des menus")
+		assert((preview:GetAttribute("BaseScale") or 1) == 1, id .. " : aperçu des menus à l'échelle 1")
+		preview:Destroy()
+	end
+	assert(Formulas.describe({ id = "oce_kaydo", level = 1, stars = 1 }).look.bodyScale >= 1.25, "Kaydo : géant attendu")
+	do
+		-- Kaydo le géant : ~30 % de plus que l'avatar joueur (échelle 1) dès le niveau 1
+		local entry = { id = "oce_kaydo", level = 1, stars = 1 }
+		local m = CharacterBuilder.build(Formulas.describe(entry).look, { scale = Formulas.visualScale(entry) })
+		assert(m:GetAttribute("BaseScale") >= 1.3, "Kaydo : pas un géant en jeu (" .. m:GetAttribute("BaseScale") .. ")")
+		m:Destroy()
+		-- les aperçus des menus restent cadrés à l'échelle 1
+		local preview = CharacterBuilder.buildPreview(Formulas.describe(entry).look)
+		assert((preview:GetAttribute("BaseScale") or 1) == 1, "Kaydo : aperçu des menus à l'échelle 1")
+		preview:Destroy()
+	end
+	-- Susanoo de Radama ★2 : squelette en blocs et coins (aucune sphère, en jeu comme dans les
+	-- menus), colonne centrée, côtes symétriques qui contournent les bras, crâne centré derrière
+	-- la tête, colonne en flammèches bleues (en jeu seulement)
+	for _, mode in { "game", "parts" } do
+		local look = Formulas.describe({ id = "ninja_radama", level = 1, stars = 2 }).look
+		local m = mode == "parts" and CharacterBuilder.buildPreview(look) or CharacterBuilder.build(look, { scale = 1 })
+		local k = m:GetAttribute("BaseScale") or 1
+		local tag = "Susanoo (" .. mode .. ") : "
+		local spine = m:FindFirstChild("SusanooSpine", true)
+		assert(spine, tag .. "colonne absente")
+		if mode == "game" then
+			assert(spine:FindFirstChild("PropFlames"), tag .. "flammèches de la colonne absentes")
+		end
+		assert(m:FindFirstChild("SusanooSkull", true) and m:FindFirstChild("SusanooOrbit", true) and m:FindFirstChild("SusanooJaw", true), tag .. "crâne incomplet")
+		local torso = m:FindFirstChild("Torso")
+		local head = m:FindFirstChild("Head")
+		local left, right = {}, {}
+		local skullX, skullN = 0, 0
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and string.sub(d.Name, 1, 7) == "Susanoo" then
+				assert(not d:FindFirstChildOfClass("SpecialMesh"), tag .. d.Name .. " en sphère")
+				assert(not (d:IsA("Part") and d.Shape == Enum.PartType.Ball), tag .. d.Name .. " en boule")
+				local rel = torso.CFrame:PointToObjectSpace(d.CFrame.Position) / k
+				if d.Name == "SusanooRib" then
+					-- devant le plan du dos : seulement à l'extérieur des bras (jamais devant l'armure)
+					if rel.Z < 0.5 then
+						assert(math.abs(rel.X) >= 1.95, tag .. "côte devant le torse (x = " .. rel.X .. ", z = " .. rel.Z .. ")")
+					end
+					table.insert(rel.X < 0 and left or right, rel)
+				elseif d.Name == "SusanooSpine" or d.Name == "SusanooVertebra" then
+					assert(math.abs(rel.X) < 0.05 and rel.Z > 0.5 and rel.Z < 1.0, tag .. "colonne décentrée")
+				elseif d.Name == "SusanooSkull" then
+					local h = head.CFrame:PointToObjectSpace(d.CFrame.Position) / k
+					skullX += h.X
+					skullN += 1
+					assert(h.Z > 0.5 and h.Y < 2.2, tag .. "crâne mal placé")
+				end
+			end
+		end
+		-- côtes symétriques : même nombre de chaque côté, positions en miroir
+		assert(#left == #right and #left >= 16, tag .. "côtes asymétriques (" .. #left .. " / " .. #right .. ")")
+		local widest = 0
+		for _, r in right do
+			widest = math.max(widest, r.X)
+			local mirrored = false
+			for _, l in left do
+				if math.abs(l.X + r.X) + math.abs(l.Y - r.Y) + math.abs(l.Z - r.Z) < 0.03 then
+					mirrored = true
+					break
+				end
+			end
+			assert(mirrored, tag .. "côte sans pendant en miroir")
+		end
+		assert(widest >= 2.4, tag .. "cage trop étroite (" .. widest .. ")")
+		assert(skullN >= 3 and math.abs(skullX / skullN) < 0.05, tag .. "crâne décentré")
+		m:Destroy()
+	end
+	-- Kaydo : la massue n'est jamais devant ni derrière le visage (tenue verticale sur le flanc
+	-- droit) ; mèches latérales derrière les oreilles
+	for st = 1, 3 do
+		local look = Formulas.describe({ id = "oce_kaydo", level = 1, stars = st }).look
+		assert((look.hairSweep or 108) <= 95, "Kaydo : mèches latérales sur le visage")
+		for _, mode in { "game", "parts" } do
+			local m = mode == "parts" and CharacterBuilder.buildPreview(look) or CharacterBuilder.build(look, { scale = 1 })
+			local k = m:GetAttribute("BaseScale") or 1
+			local head = m:FindFirstChild("Head")
+			local n = 0
+			for _, d in m:GetDescendants() do
+				if d:IsA("BasePart") and d.Name == "Kanabo" then
+					n += 1
+					local rel = head.CFrame:PointToObjectSpace(d.CFrame.Position) / k
+					assert(math.abs(rel.X) > 1.3, "Kaydo ★" .. st .. " : massue dans l'axe de la tête (x = " .. rel.X .. ")")
+					assert(rel.Y < 0, "Kaydo ★" .. st .. " : massue à hauteur du visage")
+				end
+			end
+			assert(n >= 5, "Kaydo ★" .. st .. " : massue absente")
+			m:Destroy()
+		end
+	end
+	-- Kaydo ★2 (forme dragon) : se distingue du ★1 au premier coup d'œil
+	do
+		local l1 = Formulas.describe({ id = "oce_kaydo", level = 1, stars = 1 }).look
+		local l2 = Formulas.describe({ id = "oce_kaydo", level = 1, stars = 2 }).look
+		assert(l2.eyeGlow and not l1.eyeGlow, "Kaydo ★2 : yeux luisants attendus")
+		assert(l2.capeColor ~= l1.capeColor, "Kaydo ★2 : cape d'une autre teinte attendue")
+		local m = CharacterBuilder.build(l2, { scale = 1 })
+		local k = m:GetAttribute("BaseScale")
+		local torso = m:FindFirstChild("Torso")
+		local limbs, scales, horns, tailX = {}, 0, 0, 0
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") then
+				if d.Name == "KaydoScale" then
+					scales += 1
+					limbs[d.Parent and d.Parent.Name or "?"] = true
+				elseif d.Name == "KaydoHorn" then
+					horns += 1
+				elseif d.Name == "KaydoTail" then
+					tailX = math.min(tailX, torso.CFrame:PointToObjectSpace(d.CFrame.Position).X / k)
+				end
+			end
+		end
+		assert(scales >= 12, "Kaydo ★2 : écailles attendues sur les deux avant-bras, les épaules et les pommettes (" .. scales .. ")")
+		assert(horns >= 4, "Kaydo ★2 : cornes recourbées en deux segments attendues")
+		assert(tailX < -2.1, "Kaydo ★2 : la queue doit dépasser de la silhouette sur le côté")
+		m:Destroy()
+	end
+	-- Rika (Yuuto ★2) : tête, bouche peinte de dents, yeux rouges luisants
+	do
+		local m = CharacterBuilder.build(Formulas.describe({ id = "occ_yuuto", level = 1, stars = 2 }).look, { scale = 1 })
+		assert(m:FindFirstChild("RikaHead", true), "Rika : tête absente")
+		local mouth = m:FindFirstChild("RikaMouth", true)
+		assert(mouth and mouth:FindFirstChildOfClass("SurfaceGui"), "Rika : dents non peintes")
+		local glow = false
+		for _, d in m:GetDescendants() do
+			if d.Name == "RikaEye" and d:FindFirstChild("PropGlow") then
+				glow = true
+			end
+		end
+		assert(glow, "Rika : yeux sans lueur")
+		-- Rika en blocs et coins (crâne anguleux, dos voûté) : plus de grosses sphères
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and (d.Name == "RikaHead" or d.Name == "RikaBack") then
+				assert(not d:FindFirstChildOfClass("SpecialMesh"), "Rika : " .. d.Name .. " en sphère")
+			end
+		end
+		assert(m:FindFirstChild("RikaBack", true), "Rika : dos voûté absent")
+		m:Destroy()
+	end
+	-- Hakaro : tempes rasées sur les côtés seulement (pas de bande autour de la tête)
+	do
+		local m = CharacterBuilder.build(Formulas.describe({ id = "occ_hakaro", level = 1, stars = 1 }).look, { scale = 1 })
+		local n = 0
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and d.Name == "Shaved" then
+				n += 1
+				assert(d.Size.X < 0.5, "Hakaro : rasé tout autour de la tête")
+			end
+		end
+		assert(n == 2, "Hakaro : deux tempes rasées attendues")
+		m:Destroy()
+	end
+	-- Gaaro ★2/★3 : le sable sort de la gourde en petits blocs de Sable (aucune boule), avec
+	-- grains, jamais plus haut que l'épaule ; au ★3, bouclier mural sur le côté
+	for st = 2, 3 do
+		local look = Formulas.describe({ id = "ninja_gaaro", level = 1, stars = st }).look
+		local m = CharacterBuilder.build(look, { scale = 1 })
+		local k = m:GetAttribute("BaseScale") or 1
+		local wave = m:FindFirstChild("SandWave", true)
+		assert(wave and wave:FindFirstChild("PropDust"), "Gaaro ★" .. st .. " : vague de sable sans grains")
+		local torso = m:FindFirstChild("Torso")
+		local sand, wall = 0, 0
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and (d.Name == "Sand" or d.Name == "SandWave" or d.Name == "SandWall") then
+				assert(d.Material == Enum.Material.Sand, "Gaaro : sable sans matériau Sable")
+				assert(not d:FindFirstChildOfClass("SpecialMesh"), "Gaaro : boule de sable")
+				local rel = torso.CFrame:PointToObjectSpace(d.CFrame.Position) / k
+				assert(rel.Y <= 1.6, "Gaaro ★" .. st .. " : sable plus haut que l'épaule (" .. rel.Y .. ")")
+				sand += 1
+				if d.Name == "SandWall" then
+					wall += 1
+				end
+			end
+		end
+		assert(sand >= 14, "Gaaro ★" .. st .. " : flot de sable trop maigre (" .. sand .. ")")
+		assert(st == 2 or wall >= 10, "Gaaro ★3 : bouclier mural attendu")
+		m:Destroy()
+	end
+	-- Coiffures : Muzon ★2 en vagues de coins (pas de boules), Tengan cheveux plaqués + bandeau
+	-- à gemmes en néon (pas de hérisson)
+	do
+		local look = Formulas.describe({ id = "pou_muzon", level = 1, stars = 2 }).look
+		for _, p in look.props do
+			if p.limb == "Head" then
+				assert(p.shape ~= "strand" and p.shape ~= "ball", "Muzon ★2 : boucles en boules")
+			end
+		end
+		local m = CharacterBuilder.build(look, { scale = 1 })
+		local curls = 0
+		for _, d in m:GetDescendants() do
+			if d.Name == "MuzonCurl" then
+				assert(d:IsA("WedgePart"), "Muzon : boucle qui n'est pas un coin")
+				curls += 1
+			end
+		end
+		assert(curls >= 15, "Muzon ★2 : boucles en vagues attendues")
+		m:Destroy()
+		local tl = Formulas.describe({ id = "pou_tengan", level = 1, stars = 1 }).look
+		assert(tl.hair ~= "hedgehog", "Tengan : hérisson interdit")
+		m = CharacterBuilder.build(tl, { scale = 1 })
+		local gems, locks = 0, 0
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and d.Name == "Gem" then
+				assert(d.Material == Enum.Material.Neon, "Tengan : gemme non lumineuse")
+				gems += 1
+			elseif d.Name == "TenganLock" then
+				locks += 1
+			end
+		end
+		assert(gems == 5 and locks >= 3 and locks <= 4, "Tengan : bandeau à gemmes et 3-4 mèches attendus")
+		m:Destroy()
+	end
+	-- Doma : mèches lisses et plates (aucun boudin), sang en éclaboussures plates sur le sommet
+	for st = 1, 3 do
+		local look = Formulas.describe({ id = "pou_doma", level = 1, stars = st }).look
+		local locks, blood = 0, 0
+		for _, p in look.props do
+			assert(p.shape ~= "strand", "Doma ★" .. st .. " : mèche en boudin")
+			if p.name == "DomaLock" then
+				locks += 1
+			elseif p.name == "DomaBlood" then
+				blood += 1
+				assert(p.shape == "wedge", "Doma : sang en relief")
+			end
+		end
+		assert(locks >= 14 and blood >= 4, "Doma ★" .. st .. " : mèches plates et sang attendus")
+	end
+	-- Jirène sans marques sur les joues ; crête de Cel symétrique (une lame de chaque côté)
+	assert(not Formulas.describe({ id = "sai_jirene", level = 1, stars = 1 }).look.jawShade, "Jirène : marques sur les joues")
+	do
+		local m = CharacterBuilder.build(Formulas.describe({ id = "sai_cel", level = 1, stars = 1 }).look, { scale = 1 })
+		local head = m:FindFirstChild("Head")
+		local xs = {}
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and string.sub(d.Name, 1, 8) == "CelCrest" then
+				table.insert(xs, head.CFrame:PointToObjectSpace(d.CFrame.Position).X)
+			end
+		end
+		local l, r = 0, 0
+		for _, x in xs do
+			if x < -0.1 then
+				l += 1
+			elseif x > 0.1 then
+				r += 1
+			end
+		end
+		assert(l > 0 and l == r, "Cel : crête asymétrique (" .. l .. " / " .. r .. ")")
+		m:Destroy()
+	end
+	-- Pas de bouche « rouge à lèvres » (grand sourire ouvert) pour Hakaro et Inel
+	for _, id in { "occ_hakaro", "oce_inel" } do
+		local style = Formulas.describe({ id = id, level = 1, stars = 1 }).look.mouthStyle
+		assert(style ~= "grin" and style ~= "wide_grin", id .. " : bouche ouverte rouge")
+	end
+	-- Dos de Minatu : « Quatrième Hokage » en colonne de caractères rouges
+	do
+		local m = CharacterBuilder.build(Formulas.describe({ id = "ninja_minatu", level = 1, stars = 1 }).look, { scale = 1 })
+		local n = 0
+		for _, d in m:GetDescendants() do
+			if d:IsA("TextLabel") and d.Name == "HaoriKanji" then
+				n += 1
+			end
+		end
+		assert(n == 5, "Minatu : kanji du dos du haori attendus (" .. n .. ")")
+		m:Destroy()
+	end
+	-- Variété Arc-en-ciel : reflet en bande étroite (la tenue garde sa couleur)
+	do
+		local m = CharacterBuilder.build(Formulas.describe({ id = "pou_muzon", level = 1, stars = 1 }).look, { scale = 1 })
+		CharacterBuilder.applyVariety(m, "Arc-en-ciel")
+		local n = 0
+		for _, d in m:GetDescendants() do
+			if d:IsA("UIGradient") and d.Name == "VarietyRainbow" then
+				n += 1
+				local kp = d.Transparency.Keypoints
+				assert(kp[1].Value >= 0.99 and kp[#kp].Value >= 0.99, "Arc-en-ciel : les bords du reflet doivent être transparents")
+				local least = 1
+				for _, k in kp do
+					least = math.min(least, k.Value)
+				end
+				assert(least >= 0.6, "Arc-en-ciel : reflet trop couvrant")
+			end
+		end
+		assert(n > 0, "Arc-en-ciel : reflet absent")
+		m:Destroy()
+	end
+	-- Chaque perso jouable a une attaque signature valide (plus de repli générique)
+	for id in Characters.List do
+		local sig = AttackFx.Characters[id]
+		assert(sig and AttackFx.Signatures[sig], id .. " : pas d'attaque signature")
+		assert(AttackFx.forCharacter(id, "punch") == sig, id .. " : signature non résolue")
+	end
+	-- Noms proches des originaux, tous différents
+	local names = {}
+	for id, def in Characters.List do
+		assert(not names[def.name], def.name .. " en double (" .. id .. ")")
+		names[def.name] = true
 	end
 end)
 
