@@ -542,6 +542,31 @@ test("Zone anti-AFK : panneau affiché sur place, sac qui se balance", function(
 	assert(tracker and not tracker.Visible, "les cartes de suivi des défis doivent être masquées dans la zone")
 	local toasts = gui:FindFirstChild("Toasts", true)
 	assert(toasts and toasts.Position.Y.Offset >= panel.Position.Y.Offset + panel.Size.Y.Offset, "les bandeaux doivent passer sous le panneau AFK")
+	-- Jamais sur la rangée des pastilles du HUD (Marchand, Boss : y 98 → 130).
+	assert(panel.Position.Y.Offset >= 134, "panneau AFK posé sur les pastilles du HUD : y " .. panel.Position.Y.Offset)
+	-- Auto-roulage en cours (pastille « Arrêter ») : le panneau descend dessous, les bandeaux suivent.
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local RollPanel = Harness.require(client.UI.RollPanel)
+	local pill = RollPanel.refs().pill
+	assert(pill.Position.Y.Offset >= 134, "pastille d'auto-roulage posée sur les pastilles du HUD")
+	-- (la pastille est remise à jour par le panneau ROULER : on la réaffiche à chaque essai)
+	local moved = false
+	for _ = 1, 30 do
+		pill.Visible = true
+		task.wait(0.05)
+		if panel.Position.Y.Offset >= pill.Position.Y.Offset + pill.Size.Y.Offset then
+			moved = true
+			break
+		end
+	end
+	assert(moved, "le panneau AFK cache le bouton « Arrêter » de l'auto-roulage")
+	pill.Visible = true
+	Harness.services.RunService.RenderStepped:Fire(1 / 60)
+	task.wait(0.02)
+	assert(toasts.Position.Y.Offset >= panel.Position.Y.Offset + panel.Size.Y.Offset, "bandeaux sous le panneau AFK descendu")
+	pill.Visible = false
+	task.wait(0.4)
+	assert(panel.Position.Y.Offset < pill.Position.Y.Offset + pill.Size.Y.Offset, "le panneau AFK ne remonte pas")
 	local station = workspaceService.World.AfkZone.Stations.Station1
 	-- compteur en studs (rapetisse avec la distance) et tableau ligne par ligne, texte fixe
 	local counter = station:FindFirstChild("Counter", true)
@@ -1385,6 +1410,20 @@ test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement
 	for _, key in { "Pass_Roll2", "Pass_AutoRoll", "Pass_AutoRollPlus" } do
 		setAttr(key, nil)
 	end
+	-- Téléphone : la barre ROULER remonte au-dessus du bouton de saut (coin bas droit).
+	local Console = Harness.require(client.UI.Console)
+	local isTouch = Console.isTouch
+	local pcBottom = panel.Position.Y.Offset
+	Console.isTouch = function()
+		return true
+	end
+	RollPanel.layout()
+	assert(panel.Position.Y.Offset <= -200, "barre ROULER sur le bouton de saut (tactile) : " .. panel.Position.Y.Offset)
+	local pull = RollPanel.refs().pull
+	assert(pull.Position.Y.Offset < panel.Position.Y.Offset, "cartes du perso tiré sous la barre en tactile")
+	Console.isTouch = isTouch
+	RollPanel.layout()
+	assert(panel.Position.Y.Offset == pcBottom, "barre ROULER non revenue en place hors tactile")
 	RollPanel.forceNear(nil)
 	local _ = State
 	expectNoNewWarnings(before, "machine ROULER")
@@ -1398,6 +1437,9 @@ test("Boucle de la base vue par le client : rouler, collecter, poser une unité"
 	local Remotes = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Remotes"))
 	local data = services.DataService:Get(alice)
 	local rolls = received.RollResult or 0
+	-- Devant sa machine : le serveur refuse le remote Roll ailleurs.
+	local plot = services.PlotService:GetPlot(alice)
+	alice.Character:PivotTo(plot.cf * CFrame.new(services.PlotService.MachineOffset + Vector3.new(0, 3, -8)))
 	-- 1) Rouler depuis le panneau du HUD : le serveur répond par RollResult (révélation).
 	-- (la machine du serveur peut encore recharger après le test précédent : on réessaie)
 	for _ = 1, 15 do
@@ -1803,6 +1845,18 @@ test("Boutique Robux : onglets, barre de droite, achat simulé", function()
 	assert(dim and dim.Visible and dim.Active, "pas de voile derrière la boutique") -- (fondu : tween)
 	local hints = root:FindFirstChild("PadHints", true)
 	assert(hints and hints.BackgroundTransparency < 0.5, "indications manette sans fond")
+	-- Roulage x3 possédé : la carte « Roulage x2 » affiche « INCLUS ✓ » au lieu de son prix.
+	alice:SetAttribute("Pass_Roll3", true)
+	RobuxShop.render("passes")
+	local roll2 = root:FindFirstChild("Pass_Roll2", true)
+	local included = false
+	for _, d in roll2:GetDescendants() do
+		if d:IsA("TextLabel") and string.find(d.Text, "INCLUS", 1, true) then
+			included = true
+		end
+	end
+	assert(included, "« Roulage x2 » encore à vendre avec « Roulage x3 »")
+	alice:SetAttribute("Pass_Roll3", nil)
 	RobuxShop.render("packs")
 	assert(root:FindFirstChild("Pack_CoinsXL", true) and root:FindFirstChild("Pack_GemsL", true), "onglet Packs")
 	RobuxShop.render("boosts")
