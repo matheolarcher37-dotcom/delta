@@ -8,6 +8,7 @@ local Universes = require(Shared.Config.Universes)
 local Economy = require(Shared.Config.Economy)
 local Traits = require(Shared.Config.Traits)
 local SkillTree = require(Shared.Config.SkillTree)
+local Robux = require(Shared.Config.Robux)
 
 local Formulas = {}
 
@@ -317,10 +318,11 @@ end
 -- Statistiques complètes d'un joueur (améliorations + arbre) à partir de ses données.
 function Formulas.playerStats(data)
 	local stats = Formulas.upgradeStats(data and data.upgrades, data and data.Skills)
-	-- Passe Robux « Emplacements + » (data.RobuxSlots, posé par MonetizationService).
-	local bonus = data and tonumber(data.RobuxSlots) or 0
+	-- Passe Robux « +2 Cases » (data.RobuxSlots, posé par MonetizationService) : 2 cases EN PLUS
+	-- des 24 du jeu gratuit (rangée d'honneur au fond de la cour), utiles même arbre terminé.
+	local bonus = data and math.floor(tonumber(data.RobuxSlots) or 0) or 0
 	if bonus > 0 then
-		stats.display = math.min(stats.display + math.floor(bonus), Economy.MaxDisplaySlots)
+		stats.display = math.min(stats.display + bonus, Economy.MaxDisplaySlots + bonus)
 	end
 	return stats
 end
@@ -401,6 +403,11 @@ function Formulas.rollLuck(stats, player: Player?, now: number?, extra: number?)
 	if player then
 		if player:GetAttribute("Pass_Luck2") == true then
 			luck *= Economy.Roll.PassLuck or 2
+		end
+		-- VIP : +10 % de chance (ici pour que le serveur et la barre ROULER du client ne
+		-- puissent jamais afficher deux chances différentes).
+		if player:GetAttribute("Pass_VIP") == true then
+			luck *= Robux.VIP.luck or 1
 		end
 		local boost = tonumber(player:GetAttribute("Boost_Luck"))
 		if boost and boost > (now or os.time()) then

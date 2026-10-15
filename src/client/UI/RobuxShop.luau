@@ -208,12 +208,13 @@ function RobuxShop.priceButton(parent: Instance, price: number, props: { [string
 	return button
 end
 
-function RobuxShop.setOwned(button: Instance, owned: boolean, price: number?)
+-- `included` : passe contenu dans un passe plus grand déjà possédé (« INCLUS ✓ »).
+function RobuxShop.setOwned(button: Instance, owned: boolean, price: number?, included: boolean?)
 	local holder = button:FindFirstChild("IconHolder", true) :: GuiObject?
 	if holder then
 		holder.Visible = not owned
 	end
-	Components.setButtonText(button, owned and "POSSÉDÉ ✓" or tostring(price or ""))
+	Components.setButtonText(button, owned and (included and "INCLUS ✓" or "POSSÉDÉ ✓") or tostring(price or ""))
 	Components.setButtonColor(button, owned and Color3.fromRGB(80, 86, 104) or RobuxShop.RobuxGreen)
 end
 
@@ -360,6 +361,11 @@ function RobuxShop.buy(kind: string, key: string)
 		Notifications.toast("Tu possèdes déjà « " .. entry.name .. " » !", "info")
 		return
 	end
+	local bigger = kind == "pass" and Robux.coveredBy(player, key)
+	if bigger then
+		Notifications.toast("Déjà inclus dans « " .. Robux.Passes[bigger].name .. " » !", "info")
+		return
+	end
 	if kind == "product" and entry.once and Robux.onceTaken(State.data, key) then
 		Notifications.toast("Tu as déjà pris « " .. entry.name .. " » (un seul achat).", "info")
 		return
@@ -378,7 +384,8 @@ end
 
 local function passCard(parent: Instance, key: string, size: UDim2, position: UDim2, seed: number)
 	local pass = Robux.Passes[key]
-	local owned = Robux.hasPass(player, key)
+	local owned = Robux.passCovered(player, key)
+	local included = owned and not Robux.hasPass(player, key)
 	local card = cardBase(parent, "Pass_" .. key, pass.color, size, position, seed)
 	glow(card, pass.color, 100, UDim2.new(0.5, 0, 0, 52))
 	RobuxShop.offerIcon(card, pass.icon, pass.color, 68, pass.badge, UDim2.new(0.5, 0, 0, 50))
@@ -415,7 +422,7 @@ local function passCard(parent: Instance, key: string, size: UDim2, position: UD
 	end)
 	button:SetAttribute("SelKey", "pass_" .. key)
 	if owned then
-		RobuxShop.setOwned(button, true)
+		RobuxShop.setOwned(button, true, nil, included)
 		ownedTag(card)
 	end
 	configTag(card, pass)
@@ -425,7 +432,8 @@ end
 
 local function featuredCard(parent: Instance, key: string, size: UDim2)
 	local pass = Robux.Passes[key]
-	local owned = Robux.hasPass(player, key)
+	local owned = Robux.passCovered(player, key)
+	local included = owned and not Robux.hasPass(player, key)
 	local card = cardBase(parent, "Pass_" .. key, pass.color, size, UDim2.new(), 3)
 	Theme.rainbowStroke(card:FindFirstChild("Rim") :: GuiObject, 3)
 	ribbon(card, "MEILLEURE OFFRE", C.Gold, { Position = UDim2.new(0.5, 0, 0, 2), Size = UDim2.fromOffset(190, 32) })
@@ -472,7 +480,7 @@ local function featuredCard(parent: Instance, key: string, size: UDim2)
 	end)
 	button:SetAttribute("SelKey", "pass_" .. key)
 	if owned then
-		RobuxShop.setOwned(button, true)
+		RobuxShop.setOwned(button, true, nil, included)
 		ownedTag(card)
 	end
 	configTag(card, pass)

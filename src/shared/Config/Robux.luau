@@ -207,6 +207,27 @@ function Robux.hasPass(who, key: string): boolean
 	return ok and value == true
 end
 
+-- Passes qui en contiennent un autre : posséder la valeur rend la clé inutile
+-- (Roulage x3 tire déjà 3 persos ; Roulement automatique + permet déjà le Lancer AFK).
+Robux.Supersedes = {
+	Roll2 = "Roll3",
+	AutoRoll = "AutoRollPlus",
+}
+
+-- Passe qui couvre `key` et que le joueur possède (nil sinon).
+function Robux.coveredBy(who, key: string): string?
+	local bigger = Robux.Supersedes[key]
+	if bigger and Robux.hasPass(who, bigger) then
+		return bigger
+	end
+	return nil
+end
+
+-- Vrai si le joueur possède `key` ou un passe qui le contient (inutile de l'acheter).
+function Robux.passCovered(who, key: string): boolean
+	return Robux.hasPass(who, key) or Robux.coveredBy(who, key) ~= nil
+end
+
 -- Secondes restantes du boost `key` (0 s'il n'est pas actif). `now` : os.time() côté serveur,
 -- Workspace:GetServerTimeNow() côté client.
 function Robux.boostLeft(who, key: string, now: number?): number

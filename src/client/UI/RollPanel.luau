@@ -48,7 +48,9 @@ local near = false
 -- TycoonStructures.Spots.machine côté serveur.
 RollPanel.MachineLocal = Vector3.new(0, 0, -30)
 -- Zone « à la machine » (repère local de la machine) : estrade, bouton, panneau, tapis rouge.
-RollPanel.Zone = { halfX = 34, zMin = -32, zMax = 10, maxY = 24 }
+RollPanel.PillTop = 138 -- haut de la pastille « auto-roulage en cours » (unités logiques du HUD)
+RollPanel.PillHeight = 40
+RollPanel.Zone = Economy.Roll.MachineZone -- même zone que le serveur (Config/Economy)
 
 -- Seuil de pitié du Mythique (après l'arbre de compétences).
 function RollPanel.pityThreshold(rarityId: string?, pityMult: number?): number
@@ -149,7 +151,14 @@ end
 local PANEL_W, PANEL_H = 440, 132
 local PANEL_RIGHT = 16
 local PANEL_BOTTOM = 96 -- au-dessus de l'équipe (bas droite du HUD, 84 px de haut)
+local PANEL_BOTTOM_TOUCH = 200 -- tactile : au-dessus du bouton de saut de Roblox (bas droite)
 RollPanel.PanelSize = Vector2.new(PANEL_W, PANEL_H)
+
+-- Marge du bas selon l'appareil (sur téléphone, l'équipe passe en haut mais le coin bas droit
+-- appartient au bouton de saut : la barre ne doit jamais être posée dessus).
+function RollPanel.panelBottom(): number
+	return if Console.isTouch() then PANEL_BOTTOM_TOUCH else PANEL_BOTTOM
+end
 
 local function multiButton(parent: Instance, n: number, x: number)
 	local holder = new("Frame", {
@@ -197,7 +206,7 @@ local function build(root: Frame)
 	local panel = new("Frame", {
 		Name = "MachinePanel",
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -PANEL_RIGHT, 1, -PANEL_BOTTOM),
+		Position = UDim2.new(1, -PANEL_RIGHT, 1, -RollPanel.panelBottom()),
 		Size = UDim2.fromOffset(PANEL_W, PANEL_H),
 		BackgroundColor3 = WHITE,
 		Visible = false,
@@ -305,7 +314,7 @@ local function build(root: Frame)
 	local pull = new("Frame", {
 		Name = "Tirage",
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -PANEL_RIGHT, 1, -PANEL_BOTTOM - PANEL_H - 8),
+		Position = UDim2.new(1, -PANEL_RIGHT, 1, -RollPanel.panelBottom() - PANEL_H - 8),
 		Size = UDim2.fromOffset(3 * 212 + 2 * 10, 86),
 		BackgroundTransparency = 1,
 		Visible = false,
@@ -320,8 +329,9 @@ local function build(root: Frame)
 	local pill = new("Frame", {
 		Name = "AutoPill",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 104),
-		Size = UDim2.fromOffset(360, 40),
+		-- Sous la rangée des pastilles du HUD (Marchand, Boss, Événement : y 98 → 130).
+		Position = UDim2.new(0.5, 0, 0, RollPanel.PillTop),
+		Size = UDim2.fromOffset(360, RollPanel.PillHeight),
 		BackgroundColor3 = WHITE,
 		Visible = false,
 		Parent = root,
@@ -665,12 +675,27 @@ function RollPanel.forceNear(value: boolean?)
 	end
 end
 
+-- Place la barre ROULER et les cartes du perso tiré selon l'appareil (PC / manette / tactile).
+function RollPanel.layout()
+	local bottom = RollPanel.panelBottom()
+	if refs.panel then
+		refs.panel.Position = UDim2.new(1, -PANEL_RIGHT, 1, -bottom)
+	end
+	if refs.pull then
+		refs.pull.Position = UDim2.new(1, -PANEL_RIGHT, 1, -bottom - PANEL_H - 8)
+	end
+end
+
 function RollPanel.init(gui: ScreenGui, hudRoot: Frame?)
 	local root = hudRoot or Theme.scaledRoot(gui, "RollHUD", 1)
 	pcall(AutoRoll.init, gui)
 	-- contours lumineux des persos mutés proches + reflet animé de l'Or (côté client)
 	pcall(MutationsFx.startClient)
 	build(root)
+	RollPanel.layout()
+	Console.onModeChanged(function()
+		RollPanel.layout()
+	end)
 	refresh()
 	State.onChanged(refresh)
 	Console.setAction("roll", rollFromGamepad)

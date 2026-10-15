@@ -90,6 +90,12 @@ function RollService:Start()
 	local DataService = self.services.DataService
 
 	Remotes.func("Roll").OnServerInvoke = function(player)
+		-- Le remote ne roule qu'à la machine (comme la barre ROULER côté client) : sinon un
+		-- script client referait gratuitement le Lancer AFK depuis n'importe où.
+		if not self:IsAtMachine(player) then
+			Notify:FireClient(player, "Va à ta machine ROULER !", "warning")
+			return false, "Va à ta machine ROULER !"
+		end
 		local ok, result, kind = self:Roll(player)
 		if not ok and type(result) == "string" then
 			Notify:FireClient(player, result, kind or "error")
@@ -255,9 +261,9 @@ function RollService:_universe()
 end
 
 function RollService:_luck(player: Player, stats): number
-	-- x2 Chance (Pass_Luck2) et potion (Boost_Luck) sont dans Formulas.rollLuck ; le VIP ajoute +10 %.
-	local vip = Robux.hasPass(player, "VIP") and (Robux.VIP.luck or 1) or 1
-	return Formulas.rollLuck(stats, player, os.time(), vip)
+	-- x2 Chance (Pass_Luck2), VIP (+10 %) et potion (Boost_Luck) : tout est dans Formulas.rollLuck,
+	-- le même calcul que la barre ROULER du client.
+	return Formulas.rollLuck(stats, player, os.time())
 end
 
 -- Tire une rareté (chances × chance du joueur) ; pitié du Mythique uniquement.
@@ -347,6 +353,43 @@ local function protectedItem(queue)
 	return best
 end
 
+-- Vrai si le joueur se tient dans la zone de SA machine ROULER (Economy.Roll.MachineZone,
+-- avec une marge pour la latence). Pas utilisé par l'auto-roulage (passes Robux, à distance).
+function RollService:IsAtMachine(player: Player): boolean
+	local plot = self.services.PlotService:GetPlot(player)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not plot or not plot.cf or not root then
+		return false
+	end
+	local PlotService = self.services.PlotService
+	local machineCF = plot.cf * CFrame.new(PlotService.MachineOffset or Vector3.new(0, 0, -30))
+	local p = machineCF:PointToObjectSpace(root.CFrame.Position)
+	local zone = Economy.Roll.MachineZone
+	local margin = Economy.Roll.MachineMargin or 6
+	return math.abs(p.X) <= zone.halfX + margin and p.Z >= zone.zMin - margin and p.Z <= zone.zMax + margin and p.Y <= zone.maxY + margin
+end
+
+-- Perso de l'estrade sur lequel l'auto-roulage (Lancer AFK ou Achat automatique) doit
+-- s'arrêter au lieu de le laisser passer : rareté ou mutation cochée dans « Pause sur... »,
+-- ou Légendaire et mieux tant que le joueur n'a pas désactivé la pause pour cette rareté.
+local function autoHoldItem(data)
+	local settings = data.AutoRollSettings or {}
+	local pauseRarities = settings.pauseRarities or {}
+	local pauseMutations = settings.pauseMutations or {}
+	local best = nil
+	for _, item in data.RolledQueue or {} do
+		local mutation = Mutations.normalize(item.aura) or Mutations.None
+		local protected = rarityOrder(item.rarity) >= Economy.Roll.ProtectOrder and pauseRarities[item.rarity] ~= false
+		if pauseRarities[item.rarity] == true or pauseMutations[mutation] == true or protected then
+			if not best or rarityOrder(item.rarity) > rarityOrder(best.rarity) then
+				best = item
+			end
+		end
+	end
+	return best
+end
+
 -- Roule la machine. Renvoie (true, résultats) ou (false, message, type de message).
 -- options.auto = auto-roulage (pas de demande de confirmation, messages silencieux).
 function RollService:Roll(player: Player, auto: boolean?)
@@ -363,6 +406,10 @@ function RollService:Roll(player: Player, auto: boolean?)
 			return false, nil
 		end
 		return false, "La machine recharge..."
+	end
+	-- Auto-roulage : jamais un perso à garder jeté en silence (AutoStep met alors en pause).
+	if auto and autoHoldItem(data) then
+		return false, nil
 	end
 	-- Un Légendaire (ou mieux) attend encore : on demande confirmation avant de le laisser passer.
 	if not auto then
@@ -482,8 +529,9 @@ end
 -- Auto-roulage (passes Robux)
 ------------------------------------------------------------------------
 
+-- Nom et prix d'un passe : toujours lus dans Config/Robux (seule source de vérité).
 local function priceText(key: string): string
-	local pass = Economy.RollPasses[key]
+	local pass = Robux.Passes[key]
 	return pass and (pass.name .. " (" .. pass.price .. " Robux)") or key
 end
 
@@ -626,6 +674,13 @@ function RollService:AutoStep(player: Player)
 	if not (data.AutoRoll or data.AutoBuy) then
 		return
 	end
+	-- Un perso à garder attend déjà sur l'estrade (pause précédente non collectée, Mythique
+	-- de la pitié...) : on s'arrête au lieu de le laisser passer.
+	local waiting = autoHoldItem(data)
+	if waiting then
+		self:_stopAuto(player, data, "⏸ Auto-roulage en pause : " .. itemLabel(waiting) .. " t'attend sur l'estrade !", "success")
+		return
+	end
 	local stats = Formulas.playerStats(data)
 	if lastRoll[player] and os.clock() - lastRoll[player] < stats.rollCooldown then
 		return
@@ -650,15 +705,12 @@ function RollService:AutoStep(player: Player)
 			end
 		end
 	end
-	-- 2) Pause sur les raretés / mutations cochées (Lancer AFK) : le perso reste sur l'estrade.
-	if data.AutoRoll then
-		for _, item in data.RolledQueue do
-			local mutation = Mutations.normalize(item.aura) or Mutations.None
-			if settings.pauseRarities[item.rarity] == true or settings.pauseMutations[mutation] == true then
-				self:_stopAuto(player, data, "⏸ Auto-roulage en pause : " .. itemLabel(item) .. " t'attend sur l'estrade !", "success")
-				return
-			end
-		end
+	-- 2) Pause sur les raretés / mutations cochées (Lancer AFK et Achat automatique) pour les
+	-- persos qui n'ont pas été achetés : ils restent sur l'estrade.
+	local hold = autoHoldItem(data)
+	if hold then
+		self:_stopAuto(player, data, "⏸ Auto-roulage en pause : " .. itemLabel(hold) .. " t'attend sur l'estrade !", "success")
+		return
 	end
 end
 

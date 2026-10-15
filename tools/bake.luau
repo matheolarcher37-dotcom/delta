@@ -6,7 +6,8 @@
 --     ServerStorage > DecorsUnivers (glisse-les dans Workspace pour les voir / modifier)
 --   * Workspace > World > Plots > Plot1 : une base d'exemple avec toutes les améliorations
 --     (déco du 1er univers) ; la déco de base des 5 univers est dans ServerStorage > DecorsBase
---   * Workspace > GaleriePersos : tous les persos et ennemis (modifiables, repris par le jeu)
+--   * Workspace > GaleriePersos : tous les persos et ennemis (attribut AutoGenere : un modèle n'est
+--     repris par le jeu qu'une fois cet attribut supprimé, après retouche)
 --   * ServerStorage > ModelesDeco : dossier (vide) pour les modèles de la Boîte à outils qui
 --     remplacent les arbres, rochers, maisons... de la carte (même nom que l'élément, ex. "ArbreGeant")
 --
@@ -186,7 +187,7 @@ Build.part(decor, "Deck", Vector3.new(210, 1, 150), CFrame.new(center + Vector3.
 local sign = Build.part(decor, "Sign", Vector3.new(70, 9, 1), CFrame.new(center + Vector3.new(0, 8, -78)), Color3.fromRGB(60, 40, 30), { Material = Enum.Material.Wood })
 Build.surfaceText(sign, Enum.NormalId.Front, "GALERIE DES PERSOS · modifie-les ici !", Color3.fromRGB(255, 220, 90))
 local info = Build.part(decor, "Info", Vector3.new(70, 4, 1), CFrame.new(center + Vector3.new(0, 1.8, -78)), Color3.fromRGB(40, 30, 25), { Material = Enum.Material.Wood })
-Build.surfaceText(info, Enum.NormalId.Front, "Visible seulement dans Studio : le jeu reprend ces modèles au lancement", Color3.fromRGB(255, 255, 255))
+Build.surfaceText(info, Enum.NormalId.Front, "Retouche un perso puis supprime son attribut AutoGenere : le jeu utilisera ton modèle", Color3.fromRGB(255, 255, 255))
 
 local function pedestal(position: Vector3, title: string, color: Color3)
 	Build.part(decor, "Pedestal", Vector3.new(4, 0.6, 4), CFrame.new(position + Vector3.new(0, 0.3, 0)), color, { Material = Enum.Material.SmoothPlastic })
@@ -197,6 +198,9 @@ end
 local function addModel(key: string, look, position: Vector3, title: string, color: Color3)
 	-- La fabrique choisit le bon constructeur (perso R6, ou créature comme Kourama).
 	local model = CharacterFactory.build(nil, nil, look, { name = key, anchored = true })
+	-- Modèle généré : le jeu ne le reprend PAS (il reconstruit le perso lui-même). Supprimer cet
+	-- attribut dans Studio = « j'ai retouché ce perso, utilise mon modèle en jeu ».
+	model:SetAttribute("AutoGenere", true)
 	model:PivotTo(CFrame.new(position + Vector3.new(0, 0.6 + CharacterFactory.rootHeight(model), 0)))
 	-- Une créature (Kourama) est construite par le jeu lui-même (squelette animé par
 	-- CreatureAnimator) : elle est exposée ici, mais pas reprise comme modèle perso.

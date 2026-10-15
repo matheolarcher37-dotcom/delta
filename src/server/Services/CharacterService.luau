@@ -147,6 +147,25 @@ function CharacterService:Start()
 	end)
 end
 
+-- Revenu par seconde (pièces) des persos exposés, multiplicateurs compris (x2 Argent, VIP,
+-- boosts, événement). Même calcul que la boucle de revenu, sans effet de bord.
+function CharacterService:IncomePerSec(player: Player): number
+	local data = self.services.DataService:Get(player)
+	if not data then
+		return 0
+	end
+	local stats = Formulas.playerStats(data)
+	local coinMult = (self.services.EventService and self.services.EventService:CoinMultiplier() or 1) * Robux.coinMultiplier(player)
+	local total = 0
+	for _, uid in self:GetDisplayed(player) do
+		local entry = data.characters[uid]
+		if entry then
+			total += Formulas.income(entry, stats.income)
+		end
+	end
+	return math.floor(total * coinMult)
+end
+
 function CharacterService:_tick(player: Player, s)
 	local DataService = self.services.DataService
 	local data = DataService:Get(player)

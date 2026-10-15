@@ -202,7 +202,7 @@ Le fichier contient le jeu **déjà construit**. Dans l'*Explorateur* de Studio 
 | `Workspace › World › Plots › Plot1` | Une **base d'exemple complète** (toutes les constructions, des unités sur les cases, un Itochi Diamant sur le podium de la machine, déco Ninja) | Les constructions et les persos sont reconstruits pour chaque joueur |
 | `ServerStorage › DecorsBase` | La **déco de base** des 5 univers (murs, portail, sol, accessoires) | Retouche-les ici : elles sont appliquées à toutes les bases quand l'univers change |
 | `ServerStorage › ModelesDeco` | Dossier **vide** pour tes modèles de la Boîte à outils | Voir « Remplacer les arbres et bâtiments » plus bas |
-| `Workspace › GaleriePersos` | **Les 66 persos (et leurs évolutions), les ennemis et les 5 boss**, posés sur des socles (Kourama, une créature, y est exposé mais construit par le jeu) | Le jeu **reprend ces modèles** : retouche une couleur, une coiffure, un accessoire… et c'est appliqué en jeu |
+| `Workspace › GaleriePersos` | **Les 66 persos (et leurs évolutions), les ennemis et les 5 boss**, posés sur des socles (Kourama, une créature, y est exposé mais construit par le jeu) | Pour **voir** les persos. Pour en **modifier** un en jeu : retouche-le (couleur, coiffure, accessoire…), puis **supprime son attribut `AutoGenere`** (fenêtre Propriétés › Attributs). Seuls les modèles sans cet attribut sont repris par le jeu ; les autres sont reconstruits par le jeu lui-même (plus léger pour les joueurs) |
 
 ### Remplacer un perso
 
@@ -217,7 +217,7 @@ Le fichier contient le jeu **déjà construit**. Dans l'*Explorateur* de Studio 
 - **Avec des objets du catalogue Roblox** (cheveux, vêtements, visage) : suis le mode d'emploi en haut de
   `src/shared/Config/Avatars.luau`. Le jeu crée l'avatar tout seul au démarrage.
 - **Changer le look intégré** (couleurs, coiffure, tenue) : `src/shared/Config/Characters.luau`, champ `look`. Les champs
-  possibles sont expliqués en haut du fichier. Supprime ensuite le modèle de la galerie, ou reconstruis le fichier, pour voir la nouvelle version.
+  possibles sont expliqués en haut du fichier. Le jeu applique la nouvelle version tout seul (les modèles générés de la galerie ne sont pas repris) ; reconstruis le fichier pour la voir aussi dans la galerie.
 
 ### Remplacer les arbres et bâtiments
 

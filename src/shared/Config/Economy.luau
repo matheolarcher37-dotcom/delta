@@ -62,7 +62,7 @@ Economy.Fusion = {
 -- Équipe & stockage
 Economy.BaseTeamSlots = 3
 Economy.BaseDisplaySlots = 6 -- emplacements d'unités au départ (cases hexagonales de la base)
-Economy.MaxDisplaySlots = 24 -- cases construites dans la base (les autres sont « ??? » verrouillées)
+Economy.MaxDisplaySlots = 24 -- cases du jeu gratuit (améliorations + arbre) ; le passe « +2 Cases » en ajoute 2 (26 construites)
 Economy.BaseIncubators = 1
 Economy.MaxCharacters = 150
 
@@ -151,16 +151,20 @@ Economy.Roll = {
 	FirstCollectFree = true, -- le tout premier perso collecté est offert (pour bien démarrer)...
 	FreeCollectMaxOrder = 3, -- ... s'il est Rare ou moins (pas de Légendaire/Mythique gratuit)
 	AutoStep = 0.25, -- l'auto-roulage vérifie toutes les X secondes s'il peut rouler
+	-- Zone « à la machine » (repère local de la machine : estrade, bouton, panneau, tapis rouge).
+	-- Le client n'affiche la barre ROULER que dedans ; le serveur refuse le remote Roll hors de
+	-- cette zone (+ MachineMargin), sauf pour l'auto-roulage des passes Robux.
+	MachineZone = { halfX = 34, zMin = -32, zMax = 10, maxY = 24 },
+	MachineMargin = 6,
 }
 
--- Passes Robux de la machine (prix affichés tant que Config/Robux.luau ne les donne pas).
+-- Passes Robux de la machine : seulement les descriptions longues. Le NOM et le PRIX viennent
+-- d'une seule source, Config/Robux.luau (Robux.Passes), pour ne jamais afficher deux prix.
 Economy.RollPasses = {
-	Roll2 = { name = "Roulage x2", price = 149, desc = "Tire 2 persos à chaque roulage." },
-	Roll3 = { name = "Roulage x3", price = 349, desc = "Tire 3 persos à chaque roulage." },
-	AutoRoll = { name = "Roulement automatique", price = 29, desc = "Lancer AFK : la machine roule toute seule et s'arrête sur les raretés et mutations choisies." },
+	Roll2 = { desc = "Tire 2 persos à chaque roulage." },
+	Roll3 = { desc = "Tire 3 persos à chaque roulage." },
+	AutoRoll = { desc = "Lancer AFK : la machine roule toute seule et s'arrête sur les raretés et mutations choisies." },
 	AutoRollPlus = {
-		name = "Roulement automatique +",
-		price = 500,
 		desc = "Achat automatique : choisis les persos, raretés et mutations voulus, la machine roule et les ACHÈTE pour toi.",
 	},
 }

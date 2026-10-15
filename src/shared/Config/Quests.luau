@@ -14,6 +14,7 @@
 
 local Universes = require(script.Parent.Universes)
 local Characters = require(script.Parent.Characters)
+local EvolutionItems = require(script.Parent.EvolutionItems)
 
 local rgb = Color3.fromRGB
 
@@ -242,14 +243,17 @@ local function add(quest: Quest)
 	Quests.ById[quest.id] = quest
 end
 
--- Objets du marchand donnés aux derniers paliers des défis d'univers (identifiants de
--- Config/EvolutionItems ; un objet inconnu est remplacé par des pièces, voir QuestService).
-Quests.UniverseItems = {
-	ninja = { "ninja_parchemin", "ninja_secret", "ninja_interdit" },
-	occulte = { "occ_talisman", "occ_doigt", "occ_prison" },
-	saiyan = { "sai_capsule", "sai_boule_divine", "sai_dragon" },
-	ocean = { "oce_bouteille", "oce_coffre", "oce_fruit" },
-	pourfendeur = { "pou_garde", "pou_marque", "pou_lys" },
+-- Objets du marchand donnés aux derniers paliers des défis d'univers : les objets de base de
+-- chaque univers (palier 1, 2, 3), recopiés de Config/EvolutionItems pour ne jamais diverger
+-- (un objet inconnu est remplacé par des pièces, voir QuestService).
+Quests.UniverseItems = {}
+for universeId, list in EvolutionItems.Universe do
+	Quests.UniverseItems[universeId] = table.clone(list)
+end
+-- Objet SIGNATURE donné EN PLUS au dernier palier du défi de boss (ex. la Boule du Dragon, qui
+-- fait passer Goko Super Saiyan).
+Quests.UniverseBossBonus = {
+	saiyan = { sai_dragon = 1 },
 }
 -- Titres courts des défis « tous les ennemis d'un univers » (≤ 30 caractères : jamais réduits).
 Quests.UniverseKillTitle = {
@@ -260,6 +264,18 @@ Quests.UniverseKillTitle = {
 	pourfendeur = "Pourfends %s démons",
 }
 Quests.ItemFallbackCoins = { 4000, 15000, 60000 } -- pièces à la place d'un objet inconnu (par palier)
+
+-- Objets du dernier palier du défi de boss : l'objet de palier 3 + l'éventuel bonus signature.
+local function bossItems(base: string?, bonus: { [string]: number }?): { [string]: number }?
+	local result = {}
+	if base then
+		result[base] = 1
+	end
+	for itemId, amount in bonus or {} do
+		result[itemId] = (result[itemId] or 0) + amount
+	end
+	return if next(result) then result else nil
+end
 
 -- Défis de chaque univers : ses 3 ennemis (du plus faible au plus fort) et son boss.
 for _, universe in Universes.List do
@@ -310,7 +326,7 @@ for _, universe in Universes.List do
 			icon = "crown",
 			color = universe.color,
 			key = "boss:" .. universe.boss,
-			tiers = tiers({ 1, 3, 10 }, { 5000, 15000, 60000 }, { 2, 4, 8 }, { [3] = items[3] and { [items[3]] = 1 } or nil }),
+			tiers = tiers({ 1, 3, 10 }, { 5000, 15000, 60000 }, { 2, 4, 8 }, { [3] = bossItems(items[3], Quests.UniverseBossBonus[universe.id]) }),
 		})
 	end
 	add({

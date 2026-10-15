@@ -55,9 +55,11 @@ local Spots = {
 	merchant = Vector3.new(-32, 0, 54), -- comptoir du marchand ambulant (ancienne machine à reliques)
 	altar = Vector3.new(0, 0, 46), -- autel d'éveil (évolutions)
 	pedestals = { Vector3.new(-44, 0, 44), Vector3.new(-37, 0, 44), Vector3.new(-30, 0, 44), Vector3.new(-23, 0, 44) },
-	-- Cour des unités : 6 colonnes x 4 rangées de cases hexagonales.
+	-- Cour des unités : 6 colonnes x 4 rangées de cases hexagonales (24 cases du jeu gratuit),
+	-- plus une rangée d'honneur au fond : 2 cases réservées au passe Robux « +2 Cases ».
 	slotCols = { -26.25, -15.75, -5.25, 5.25, 15.75, 26.25 },
-	slotRows = { -8, 2, 12, 22 },
+	slotRows = { -9, 0, 9, 18 },
+	passSlots = { Vector3.new(-5.25, 0, 25.5), Vector3.new(5.25, 0, 25.5) },
 	slotRadius = 3.5,
 	slotHeight = 0.6,
 	court = { x0 = -34, x1 = 34, z0 = -15, z1 = 29 },

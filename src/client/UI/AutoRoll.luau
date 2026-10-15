@@ -57,10 +57,9 @@ local function robuxConfig()
 	return type(config) == "table" and config or nil
 end
 
--- Infos d'un passe : { name, price, id } (Config/Robux si le domaine Robux l'a créé, sinon
--- les valeurs de Config/Economy.RollPasses).
+-- Infos d'un passe : { name, price, id }, lues dans Config/Robux (seule source du nom et du prix).
 function AutoRoll.passInfo(key: string)
-	local fallback = Economy.RollPasses[key] or { name = key, price = 0 }
+	local fallback = { name = key, price = 0 }
 	local config = robuxConfig()
 	local pass = config and type(config.Passes) == "table" and config.Passes[key]
 	if type(pass) == "table" then
@@ -906,9 +905,17 @@ function AutoRoll.toggle()
 end
 
 -- Premier bouton sélectionné à la manette.
+-- Sans le passe (cas le plus courant), on se pose sur « Débloquer » : la seule action utile, et
+-- un appui réflexe sur A ne ferme pas la fenêtre.
 local function selection(): GuiObject?
 	if refs.leftCover and not refs.leftCover.Visible then
 		return refs.afkButton
+	end
+	if refs.leftCover and refs.leftCover.Visible and refs["buy_AutoRoll"] then
+		return refs["buy_AutoRoll"]
+	end
+	if refs.rightCover and refs.rightCover.Visible and refs["buy_AutoRollPlus"] then
+		return refs["buy_AutoRollPlus"]
 	end
 	return refs.close
 end

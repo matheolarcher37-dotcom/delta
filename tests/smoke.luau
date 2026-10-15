@@ -249,6 +249,10 @@ test("Machine ROULER : probabilités, prix, pitié", function()
 	fake.attrs.Boost_Luck = 200
 	assert(Formulas.rollLuck({ luck = 1.5 }, fake :: any, 100) == 6, "passe x2 Chance + potion")
 	assert(Formulas.rollLuck({ luck = 1.5 }, fake :: any, 300) == 3, "potion terminée encore active")
+	-- VIP : +10 % dans le même calcul (serveur et barre ROULER du client).
+	fake.attrs.Pass_VIP = true
+	assert(math.abs(Formulas.rollLuck({ luck = 1.5 }, fake :: any, 300) - 3.3) < 1e-6, "VIP absent de la chance affichée")
+	fake.attrs.Pass_VIP = nil
 	-- Cibles de l'achat automatique.
 	local item = { id = "ninja_maruto", rarity = "epic", aura = "or" }
 	assert(not Formulas.rollMatches(item, { characters = {}, rarities = {}, mutations = {} }), "aucune cible = rien")
@@ -1472,6 +1476,17 @@ test("Défis : configuration cohérente (paliers croissants, ennemis, récompens
 		local name = Characters.Enemies[universe.enemies[1]].name
 		assert(ids["u_" .. universe.id .. "_1"], "défi « tue " .. name .. " » manquant")
 	end
+	-- Objets des défis d'univers = objets de base de l'univers (palier 1, 2, 3), Saiyan compris.
+	local Items = requireModule(Shared.Config.EvolutionItems)
+	for universeId, list in Items.Universe do
+		for i, itemId in list do
+			assert(Quests.UniverseItems[universeId][i] == itemId, "objet de défi décalé : " .. universeId .. " n°" .. i)
+		end
+	end
+	local saiyan3 = Quests.ById.u_saiyan_3.tiers[3].reward.items
+	assert(saiyan3 and saiyan3.sai_haricot == 2 and not saiyan3.sai_boule_divine, "défi Saiyan n°3 : objet de palier 2 attendu")
+	local saiyanBoss = Quests.ById.u_saiyan_boss.tiers[3].reward.items
+	assert(saiyanBoss and saiyanBoss.sai_boule_divine == 1 and saiyanBoss.sai_dragon == 1, "boss Saiyan : palier 3 + Boule du Dragon")
 	-- Exemple demandé : « Village Ninja : tue 200 <ennemi> » → 1 000 pièces
 	local ninja = Quests.ById.u_ninja_1
 	assert(ninja.tiers[2].goal == 200 and ninja.tiers[2].reward.coins == 1000, "exemple 200 kills / 1000 pièces")
@@ -1774,7 +1789,7 @@ test("Bases des joueurs + toutes les améliorations", function()
 		assert(pad, "bouton sans position : " .. upgrade.id)
 		assert(math.abs(pad.X) <= limit and math.abs(pad.Z) <= limit, "bouton hors de la zone de jeu : " .. upgrade.id)
 	end
-	assert(#plot.slots == 24 and plot.machine.prompt and plot.skillRefs.prompt, "machine / cases / arbre manquants")
+	assert(#plot.slots == 26 and plot.machine.prompt and plot.skillRefs.prompt, "machine / cases / arbre manquants")
 	assert(plot.model:FindFirstChild("Decor") and #plot.signLabels >= 2, "déco de base ou panneau manquant")
 	local total = countParts(plot.model)
 	print("   pièces d'une base complète : " .. total .. " (déco : " .. countParts(plot.model.Decor) .. ")")

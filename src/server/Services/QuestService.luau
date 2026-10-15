@@ -33,6 +33,7 @@ local dirty: { [Player]: { [string]: boolean } } = {} -- compteurs modifiés dep
 local buckets: { [Player]: { [string]: number } } = {} -- dernier quart de progression annoncé par défi
 local lastPunch: { [Player]: number } = {}
 local busyWarned: { [Player]: number } = {}
+local lastTravel: { [Player]: number } = {} -- cadence du voyage vers la zone anti-AFK (3 s)
 local stations: { [Model]: { owner: Player?, lastHit: number, farSince: number? } } = {}
 local stationList: { Model } = {}
 
@@ -600,7 +601,9 @@ function QuestService:Punch(player: Player, station: Model?, origin: Vector3?, f
 	target:SetAttribute("HitTick", (target:GetAttribute("HitTick") or 0) + 1)
 	target:SetAttribute("HitDir", Vector3.new(offset.X, 0, offset.Z).Unit)
 	self:_refreshStation(target)
-	DataService:Sync(player)
+	-- Le compteur se voit déjà sur le sac (attributs Count/HitTick) et par QuestNotify : pas
+	-- besoin de renvoyer toute la sauvegarde à chaque coup (regroupé sur 2 s).
+	DataService:Sync(player, 2)
 	return true
 end
 
@@ -718,10 +721,29 @@ function QuestService:GoToAfkZone(player: Player): (boolean, string)
 	if self.services.TradeService and self.services.TradeService:IsInTrade(player) then
 		return false, "Impossible pendant un échange."
 	end
+	local now = os.clock()
+	if lastTravel[player] and now - lastTravel[player] < 3 then
+		return false, "Patiente un instant avant de voyager à nouveau."
+	end
+	lastTravel[player] = now
 	local center = Layout.AfkZone
 	local inward = (Vector3.zero - center).Unit
 	local spot = center + inward * 40 + Vector3.new(0, 4, 0)
+	-- Comme le remote Teleport : charge la zone d'arrivée chez le client (StreamingEnabled),
+	-- puis emmène l'équipe avec le joueur.
+	local PlotService = self.services.PlotService
+	if PlotService and PlotService.streamAround then
+		PlotService.streamAround(player, spot)
+	end
 	character:PivotTo(CFrame.lookAt(spot, Vector3.new(center.X, spot.Y, center.Z)))
+	local TeamService = self.services.TeamService
+	if TeamService then
+		task.delay(0.2, function()
+			if player.Parent then
+				TeamService:TeleportTeam(player)
+			end
+		end)
+	end
 	return true, "Bienvenue à la zone anti-AFK : prends un punching-ball libre !"
 end
 
@@ -748,6 +770,7 @@ function QuestService:Start()
 		dirty[player] = nil
 		buckets[player] = nil
 		lastPunch[player] = nil
+		lastTravel[player] = nil
 		busyWarned[player] = nil
 	end)
 

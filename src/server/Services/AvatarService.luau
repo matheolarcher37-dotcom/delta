@@ -25,22 +25,29 @@ local function folder(name: string): Folder
 	return created
 end
 
--- La galerie visible dans Studio devient la bibliothèque de modèles du jeu.
-function AvatarService:CollectGallery()
+-- La galerie visible dans Studio : le jeu ne reprend QUE les modèles retouchés à la main.
+-- Les modèles générés par tools/bake.luau portent l'attribut « AutoGenere » : ils ne sont pas
+-- recopiés dans ReplicatedStorage (sinon ~19 000 pièces envoyées à chaque joueur à l'arrivée,
+-- et les corrections du CharacterBuilder ignorées). Pour qu'un perso retouché dans la galerie
+-- soit utilisé en jeu, supprime son attribut AutoGenere (Propriétés › Attributs).
+function AvatarService:CollectGallery(): number
 	local gallery = Workspace:FindFirstChild("GaleriePersos")
 	if not gallery then
-		return
+		return 0
 	end
+	local moved = 0
 	local source = gallery:FindFirstChild("ModelesPersos")
 	if source then
 		local target = folder("ModelesPersos")
 		for _, model in source:GetChildren() do
-			if not target:FindFirstChild(model.Name) then
+			if model:GetAttribute("AutoGenere") ~= true and not target:FindFirstChild(model.Name) then
 				model.Parent = target
+				moved += 1
 			end
 		end
 	end
 	gallery:Destroy()
+	return moved
 end
 
 -- Dossiers du jeu à ne pas fouiller (la carte, la galerie, les persos qui suivent les joueurs...).

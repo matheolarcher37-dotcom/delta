@@ -25,6 +25,7 @@ local MonetizationService = {}
 local Notify = Remotes.event("Notify")
 local Granted = Remotes.event("Robux_Granted")
 
+local RETRY_DELAYS = { 2, 5, 10 } -- nouvelles tentatives si UserOwnsGamePassAsync échoue (secondes)
 local MAX_RECEIPTS = 200 -- reçus gardés dans la sauvegarde (les plus anciens partent)
 local ownsCache: { [number]: { [number]: boolean } } = {} -- [UserId][passId] = possédé
 local processing: { [string]: boolean } = {} -- reçus en cours de traitement
@@ -74,6 +75,10 @@ function MonetizationService:Start()
 		MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
 			if purchased then
 				self:_onPassBought(player, passId)
+			else
+				-- Fenêtre fermée sans achat... ou « déjà possédé » (vérification ratée à l'arrivée) :
+				-- on redemande à Roblox, sans cache, et on accorde le passe s'il est à lui.
+				task.spawn(self._recheckPass, self, player, passId)
 			end
 		end)
 	end)
@@ -118,18 +123,46 @@ function MonetizationService:_setup(player: Player, data)
 			data.RobuxBoosts[key] = nil
 		end
 	end
-	-- Passes achetés sur Roblox (vérifiés un par un, sans bloquer l'arrivée).
+	-- Passes achetés sur Roblox (vérifiés un par un, sans bloquer l'arrivée). Si Roblox ne
+	-- répond pas (erreur passagère), on réessaie avec une attente croissante : un passe payé
+	-- ne doit jamais manquer pour toute la session.
 	task.spawn(function()
+		local pending = {}
 		for key, pass in Robux.Passes do
 			if Robux.isConfigured(pass) and not Robux.hasPass(player, key) and player.Parent then
 				local owns, checked = self:Owns(player, pass.id)
 				if owns then
 					self:_applyPass(player, key, true)
-				elseif key == "Slots" and not checked and previousSlots > 0 then
-					data.RobuxSlots = previousSlots -- erreur passagère de Roblox : on garde les cases
-					self:_refreshSlots(player)
+				elseif not checked then
+					table.insert(pending, key)
+					if key == "Slots" and previousSlots > 0 then
+						data.RobuxSlots = previousSlots -- erreur passagère de Roblox : on garde les cases
+						self:_refreshSlots(player)
+					end
 				end
 			end
+		end
+		for _, delay in RETRY_DELAYS do
+			if #pending == 0 or not player.Parent then
+				break
+			end
+			task.wait(delay)
+			local still = {}
+			for _, key in pending do
+				local pass = Robux.Passes[key]
+				if player.Parent and not Robux.hasPass(player, key) then
+					local owns, checked = self:Owns(player, pass.id)
+					if owns then
+						self:_applyPass(player, key)
+					elseif not checked then
+						table.insert(still, key)
+					end
+				end
+			end
+			pending = still
+		end
+		if #pending > 0 and player.Parent then
+			warn("[AnimeTycoon] Roblox n'a pas confirmé les passes de " .. player.Name .. " : " .. table.concat(pending, ", "))
 		end
 	end)
 	-- VIP : couronne à chaque réapparition.
@@ -305,6 +338,10 @@ function MonetizationService:RequestPurchase(player: Player, kind: any, key: any
 	if kind == "pass" and Robux.hasPass(player, key) then
 		return false, "Tu possèdes déjà « " .. entry.name .. " » !"
 	end
+	local bigger = kind == "pass" and Robux.coveredBy(player, key)
+	if bigger then
+		return false, "Déjà inclus dans « " .. Robux.Passes[bigger].name .. " » !"
+	end
 	if kind == "product" and entry.once and Robux.onceTaken(data, key) then
 		return false, "Tu as déjà pris « " .. entry.name .. " » (un seul achat par joueur)."
 	end
@@ -360,6 +397,37 @@ function MonetizationService:_onPassBought(player: Player, passId: number)
 	self.services.DataService:SaveNow(player)
 end
 
+-- Achat refusé ou fermé : si Roblox dit que le joueur possède le passe (achat d'une session
+-- précédente dont la vérification avait échoué), on l'accorde sans recompter les Robux.
+function MonetizationService:_recheckPass(player: Player, passId: number)
+	local key = Robux.passKeyById(passId)
+	if not key or Robux.hasPass(player, key) or not player.Parent then
+		return
+	end
+	local cache = ownsCache[player.UserId]
+	if cache then
+		cache[passId] = nil
+	end
+	local owns = self:Owns(player, passId)
+	if owns and player.Parent then
+		self:_applyPass(player, key)
+		self.services.DataService:Sync(player)
+	end
+end
+
+-- Revenu par seconde du joueur calculé depuis ses données (même calcul que la boucle de
+-- revenu), pour ne pas dépendre de l'attribut IncomePerSec, absent juste après l'arrivée.
+function MonetizationService:_incomePerSec(player: Player): number
+	local CharacterService = self.services.CharacterService
+	if CharacterService and CharacterService.IncomePerSec then
+		local ok, value = pcall(CharacterService.IncomePerSec, CharacterService, player)
+		if ok and type(value) == "number" then
+			return math.max(value, tonumber(player:GetAttribute("IncomePerSec")) or 0)
+		end
+	end
+	return tonumber(player:GetAttribute("IncomePerSec")) or 0
+end
+
 -- Donne le contenu d'un produit. Renvoie le détail (pour l'affichage).
 function MonetizationService:_grantProduct(player: Player, key: string)
 	local product = Robux.Products[key]
@@ -368,7 +436,7 @@ function MonetizationService:_grantProduct(player: Player, key: string)
 	assert(product and data, "produit ou données introuvables")
 	local details = {}
 	if product.kind == "coins" then
-		local amount = Robux.coinPackAmount(product, player:GetAttribute("IncomePerSec"))
+		local amount = Robux.coinPackAmount(product, self:_incomePerSec(player))
 		DataService:AddCoins(player, amount)
 		details.amount = amount
 		details.text = "¥ " .. Formulas.formatNumber(amount)
@@ -385,7 +453,7 @@ function MonetizationService:_grantProduct(player: Player, key: string)
 		details.text = product.name .. " pendant " .. math.floor(product.duration / 60) .. " min"
 	elseif product.kind == "bundle" then
 		-- Pack de départ : pièces + gemmes de trait + boost(s).
-		local amount = Robux.coinPackAmount(product, player:GetAttribute("IncomePerSec"))
+		local amount = Robux.coinPackAmount(product, self:_incomePerSec(player))
 		DataService:AddCoins(player, amount)
 		data.traitCrystals = (tonumber(data.traitCrystals) or 0) + (product.crystals or 0)
 		for _, boost in product.boosts or {} do

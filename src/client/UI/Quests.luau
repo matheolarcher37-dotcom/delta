@@ -1386,6 +1386,27 @@ Quests.trackerCard = trackerCard
 ------------------------------------------------------------------------
 
 local afk: { [string]: any } = {}
+Quests.AfkPanelTop = 138 -- sous les pastilles du HUD (y 98 → 130)
+Quests.AfkPanelHeight = 80
+
+-- Pastille « auto-roulage en cours » (RollPanel) affichée ? Le panneau descend alors dessous
+-- pour ne jamais cacher son bouton « Arrêter ».
+local rollPanelModule: any = nil
+local function autoPillBottom(): number?
+	if not rollPanelModule then
+		local ok, module = pcall(require, script.Parent.RollPanel)
+		if not ok then
+			return nil
+		end
+		rollPanelModule = module
+	end
+	local ok, refs = pcall(rollPanelModule.refs)
+	local pill = ok and type(refs) == "table" and refs.pill
+	if pill and pill.Visible then
+		return (rollPanelModule.PillTop or 138) + (rollPanelModule.PillHeight or 40)
+	end
+	return nil
+end
 
 -- Version compacte, en haut au centre sous la bannière d'univers : elle ne cache ni les sacs ni
 -- le perso pendant qu'on tape (et les cartes de suivi des défis sont masquées dans la zone).
@@ -1393,8 +1414,9 @@ local function buildAfkPanel(root: Frame)
 	local panel = new("Frame", {
 		Name = "AfkPanel",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 98),
-		Size = UDim2.fromOffset(520, 80),
+		-- Sous la rangée des pastilles du HUD (Marchand, Boss... : y 98 → 130), jamais dessus.
+		Position = UDim2.new(0.5, 0, 0, Quests.AfkPanelTop),
+		Size = UDim2.fromOffset(520, Quests.AfkPanelHeight),
 		BackgroundColor3 = WHITE,
 		Visible = false,
 		Parent = root,
@@ -1506,17 +1528,16 @@ local function updateAfkPanel()
 	if not inside then
 		return
 	end
-	local data = State.data
-	local count = data and data.Quests and tonumber(data.Quests.punch) or 0
-	afk.count.Text = fmt(count) .. " / " .. fmt(QuestsConfig.Punch.Goal)
-	afk.bar.set(count / QuestsConfig.Punch.Goal)
-	for i, tier in QuestsConfig.Punch.Tiers do
-		local reached = count >= tier[1]
-		afk.marks[i].mark.BackgroundColor3 = reached and C.Gold or Color3.fromRGB(40, 44, 60)
-		afk.marks[i].label.TextColor3 = reached and C.Gold or Color3.fromRGB(150, 236, 255)
+	-- Sous la pastille d'auto-roulage si elle est là ; les bandeaux suivent le panneau.
+	local pillBottom = autoPillBottom()
+	local top = pillBottom and (pillBottom + 8) or Quests.AfkPanelTop
+	if panel.Position.Y.Offset ~= top then
+		panel.Position = UDim2.new(0.5, 0, 0, top)
+		Quests.ToastPositionInZone = UDim2.new(0.5, 0, 0, top + Quests.AfkPanelHeight + 12)
 	end
-	-- Mon punching-ball ?
-	local mine = nil
+	-- Mon punching-ball ? (son compteur, posé par le serveur à chaque coup, est plus frais
+	-- que la sauvegarde, synchronisée toutes les 2 s pendant qu'on tape)
+	local mine, mineCount = nil, nil
 	local world = Workspace:FindFirstChild("World")
 	local zone = world and world:FindFirstChild("AfkZone")
 	local stations = zone and zone:FindFirstChild("Stations")
@@ -1524,8 +1545,18 @@ local function updateAfkPanel()
 		for _, station in stations:GetChildren() do
 			if station:GetAttribute("OwnerId") == Players.LocalPlayer.UserId then
 				mine = station:GetAttribute("Station")
+				mineCount = tonumber(station:GetAttribute("Count"))
 			end
 		end
+	end
+	local data = State.data
+	local count = mineCount or (data and data.Quests and tonumber(data.Quests.punch)) or 0
+	afk.count.Text = fmt(count) .. " / " .. fmt(QuestsConfig.Punch.Goal)
+	afk.bar.set(count / QuestsConfig.Punch.Goal)
+	for i, tier in QuestsConfig.Punch.Tiers do
+		local reached = count >= tier[1]
+		afk.marks[i].mark.BackgroundColor3 = reached and C.Gold or Color3.fromRGB(40, 44, 60)
+		afk.marks[i].label.TextColor3 = reached and C.Gold or Color3.fromRGB(150, 236, 255)
 	end
 	local nextTier = QuestsConfig.nextPunchTier(count)
 	if mine then
@@ -1700,8 +1731,9 @@ end
 -- Position des bandeaux de notification quand l'écran Défis est ouvert : dans la marge du bas
 -- de la fenêtre, sous la liste (ni sur les onglets ni sur les boutons Réclamer).
 Quests.ToastPositionWhileOpen = UDim2.new(0.5, 0, 1, -90)
--- Dans la zone anti-AFK : sous le panneau compact du haut (jamais par-dessus).
-Quests.ToastPositionInZone = UDim2.new(0.5, 0, 0, 190)
+-- Dans la zone anti-AFK : sous le panneau compact du haut (jamais par-dessus). Suit le panneau
+-- quand il descend sous la pastille « auto-roulage en cours » (voir updateAfkPanel).
+Quests.ToastPositionInZone = UDim2.new(0.5, 0, 0, Quests.AfkPanelTop + Quests.AfkPanelHeight + 12)
 Quests.TrackerTop = 332 -- haut des cartes de suivi des défis (unités logiques du HUD)
 Quests.TrackerMax = 3 -- cartes de suivi affichées au plus
 
@@ -1764,6 +1796,11 @@ function Quests.init(gui: ScreenGui)
 		if toastFrame and toastHome then
 			local inZone = afk.panel ~= nil and afk.panel.Visible
 			local wanted = open and Quests.ToastPositionWhileOpen or inZone and Quests.ToastPositionInZone or toastHome
+			-- Pastille « auto-roulage en cours » affichée : les bandeaux passent dessous.
+			local pillBottom = not open and not inZone and autoPillBottom()
+			if pillBottom and toastHome.Y.Offset < pillBottom + 8 then
+				wanted = UDim2.new(toastHome.X.Scale, toastHome.X.Offset, toastHome.Y.Scale, pillBottom + 8)
+			end
 			if toastFrame.Position ~= wanted then
 				toastFrame.Position = wanted
 			end
@@ -1785,20 +1822,34 @@ function Quests.init(gui: ScreenGui)
 end
 
 -- Compteur de gemmes du HUD (cadre « Crystals » de UI/HUD), s'il est affiché.
+-- Compteur de gemmes du HUD, gardé en cache : le parcours de toute l'interface (des dizaines de
+-- milliers d'objets) ne se fait qu'une fois, pas à chaque gemme gagnée en combat.
+local cachedGem: GuiObject? = nil
+local lastGemSearch = -math.huge
+local function shownOnScreen(d: GuiObject): boolean
+	local ok, shown = pcall(function()
+		return d.AbsoluteSize.X > 0
+	end)
+	return ok and shown == true
+end
 local function hudGemCounter(): GuiObject?
+	if cachedGem and cachedGem.Parent and shownOnScreen(cachedGem) then
+		return cachedGem
+	end
+	-- Introuvable récemment : on ne refouille pas plus d'une fois toutes les 5 s.
+	if os.clock() - lastGemSearch < 5 then
+		return nil
+	end
+	lastGemSearch = os.clock()
 	local player = Players.LocalPlayer
 	local playerGui = player and player:FindFirstChildOfClass("PlayerGui")
 	if not playerGui then
 		return nil
 	end
 	for _, d in playerGui:GetDescendants() do
-		if d.Name == "Crystals" and d:IsA("GuiObject") and d.Parent and d.Parent.Name == "Row" then
-			local ok, shown = pcall(function()
-				return d.AbsoluteSize.X > 0
-			end)
-			if ok and shown then
-				return d
-			end
+		if d.Name == "Crystals" and d:IsA("GuiObject") and d.Parent and d.Parent.Name == "Row" and shownOnScreen(d) then
+			cachedGem = d
+			return d
 		end
 	end
 	return nil

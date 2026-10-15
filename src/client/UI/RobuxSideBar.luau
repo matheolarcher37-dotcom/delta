@@ -75,7 +75,7 @@ function RobuxSideBar.visibleOffers(maxCount: number): { any }
 	for _, offer in RobuxSideBar.Offers do
 		local skip = false
 		if offer.kind == "pass" then
-			skip = Robux.hasPass(player, offer.key) or (offer.skipIf ~= nil and Robux.hasPass(player, offer.skipIf))
+			skip = Robux.passCovered(player, offer.key) or (offer.skipIf ~= nil and Robux.hasPass(player, offer.skipIf))
 		end
 		if not skip and #list < maxCount then
 			table.insert(list, offer)

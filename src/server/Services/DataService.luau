@@ -25,7 +25,7 @@ local storeAvailable = false
 local profiles: { [Player]: { data: any, dirty: boolean, loaded: boolean } } = {}
 local loadedCallbacks = {}
 local removingCallbacks = {}
-local pendingSync: { [Player]: boolean } = {}
+local pendingSync: { [Player]: number } = {} -- heure (os.clock) du prochain envoi prévu
 
 local DataSync = Remotes.event("DataSync")
 local Notify = Remotes.event("Notify")
@@ -295,14 +295,25 @@ function DataService:Init(services)
 	end)
 	if ok then
 		store = result
-		-- Vérifie que l'accès aux API est autorisé (sinon on joue sans sauvegarde).
-		local probeOk = pcall(function()
-			(result :: DataStore):GetAsync("__probe")
-		end)
-		storeAvailable = probeOk
+		if RunService:IsStudio() then
+			-- Studio : vérifie que l'accès aux API est autorisé (sinon on joue sans sauvegarde).
+			local probeOk = pcall(function()
+				(result :: DataStore):GetAsync("__probe")
+			end)
+			storeAvailable = probeOk
+		else
+			-- En ligne : on ne coupe JAMAIS la sauvegarde sur une erreur passagère au démarrage
+			-- (limite de requêtes, panne de quelques secondes). loadData réessaie, puis expulse
+			-- le joueur si sa sauvegarde reste illisible : jamais de partie vierge à la place.
+			storeAvailable = true
+		end
 	end
 	if not storeAvailable then
-		warn("[AnimeTycoon] DataStore indisponible : la progression ne sera PAS sauvegardée. (Studio : Game Settings > Security > Enable Studio Access to API Services)")
+		if RunService:IsStudio() then
+			warn("[AnimeTycoon] DataStore indisponible : la progression ne sera PAS sauvegardée. (Studio : Game Settings > Security > Enable Studio Access to API Services)")
+		else
+			warn("[AnimeTycoon] DataStore introuvable : les joueurs ne pourront pas charger leur sauvegarde.")
+		end
 	end
 end
 
@@ -312,7 +323,9 @@ end
 
 local function loadData(player: Player)
 	if not storeAvailable or not store then
-		return template()
+		-- Sans sauvegarde : partie vierge seulement dans Studio (en ligne, on expulse plutôt
+		-- que de remplacer la vraie progression du joueur).
+		return if RunService:IsStudio() then template() else nil
 	end
 	local key = keyFor(player)
 	local result = nil
@@ -533,18 +546,27 @@ function DataService:IsLoaded(player: Player): boolean
 end
 
 -- Marque les données comme modifiées et programme une synchro vers le client.
-function DataService:Sync(player: Player)
+-- `window` (secondes, 0,25 par défaut) : délai de regroupement. Les sources fréquentes
+-- (coups de punching-ball, auto-roulage) passent une fenêtre plus longue pour ne pas renvoyer
+-- toute la sauvegarde plusieurs fois par seconde ; un appel normal reste prioritaire.
+function DataService:Sync(player: Player, window: number?)
 	local profile = profiles[player]
 	if not profile or not profile.loaded then
 		return
 	end
 	profile.dirty = true
-	if pendingSync[player] then
-		return
+	local wait = math.max(0, window or 0.25)
+	local due = os.clock() + wait
+	local planned = pendingSync[player]
+	if planned and planned <= due then
+		return -- un envoi est déjà prévu plus tôt : il emportera ces changements
 	end
-	pendingSync[player] = true
+	pendingSync[player] = due
 	-- Regroupe les modifications rapprochées en un seul envoi.
-	task.delay(0.25, function()
+	task.delay(wait, function()
+		if pendingSync[player] ~= due then
+			return -- remplacé par un envoi plus proche (ou joueur parti)
+		end
 		pendingSync[player] = nil
 		local current = profiles[player]
 		if current and current.loaded and player.Parent then

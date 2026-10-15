@@ -67,8 +67,9 @@ end
 
 local function isNear(): boolean
 	local distance = distanceToMerchant()
-	-- Le comptoir est ~3 studs devant le centre de l'échoppe : petite marge.
-	return distance ~= nil and distance <= EvolutionItems.Merchant.BuyDistance + 3
+	-- Position = comptoir (comme le serveur) ; marge NÉGATIVE pour qu'un bouton actif ne soit
+	-- jamais refusé par le serveur (latence de déplacement).
+	return distance ~= nil and distance <= EvolutionItems.Merchant.BuyDistance - 1
 end
 
 -- Tes unités qui attendent cet objet pour leur prochaine évolution.
@@ -642,7 +643,7 @@ local function renderDetail()
 			elseif entry.remaining <= 0 then
 				Notifications.toast("Rupture de stock : reviens au prochain passage du marchand !", "error")
 			else
-				Notifications.toast("Il te manque ¥ " .. Formulas.formatNumber(item.price - coins), "error")
+				Notifications.toast("Il te manque ¥ " .. Formulas.formatNumber(item.price - (State.data and State.data.coins or 0)), "error")
 			end
 		end,
 	})
@@ -673,17 +674,46 @@ local function renderTop()
 	end
 end
 
-function Shop.render()
+-- Clé de tout ce que montrent la grille et la fiche : on ne reconstruit (cartes, aperçus 3D)
+-- que si elle change. Les synchros fréquentes (revenu toutes les 5 s, ennemis tués) ne font
+-- alors que rafraîchir la barre du haut, sans à-coups ni rotation des objets qui repart à zéro.
+local lastKey = ""
+local function renderKey(): string
+	if not shopState then
+		return "none"
+	end
+	local coins = State.data and State.data.coins or 0
+	local parts = { tostring(selectedId), tostring(isNear()), tostring(shopState.window) }
+	for _, entry in shopState.items do
+		local item = EvolutionItems.get(entry.id)
+		local needing = unitsNeeding(entry.id)
+		local needKey = {}
+		for _, unit in needing do
+			table.insert(needKey, unit.name .. unit.stars .. "x" .. unit.amount)
+		end
+		table.insert(
+			parts,
+			entry.id .. ":" .. tostring(entry.remaining) .. ":" .. tostring(item ~= nil and coins >= item.price) .. ":" .. owned(entry.id) .. ":" .. table.concat(needKey, ",")
+		)
+	end
+	return table.concat(parts, "|")
+end
+
+function Shop.render(force: boolean?)
 	if not window then
 		return
 	end
 	if shopState and not stateItem(selectedId) then
 		selectedId = shopState.items[1] and shopState.items[1].id or nil
 	end
-	Components.preserveSelection(window.content, function()
-		renderGrid()
-		renderDetail()
-	end)
+	local key = renderKey()
+	if force or key ~= lastKey then
+		lastKey = key
+		Components.preserveSelection(window.content, function()
+			renderGrid()
+			renderDetail()
+		end)
+	end
 	renderTop()
 	local near = isNear()
 	window.subtitle.Text = near and "Objets d'évolution : ils font évoluer tes persos (★★, ★★★)" or "Tu regardes son stock de loin : va le voir pour acheter"
@@ -737,7 +767,7 @@ function Shop.init(gui: ScreenGui)
 		if type(arg) == "string" and EvolutionItems.get(arg) then
 			selectedId = arg
 		end
-		Shop.render()
+		Shop.render(true)
 		refresh()
 	end, function()
 		return refs.selectedCard or refs.firstCard or refs.buyButton or window.firstSelectable()

@@ -86,7 +86,9 @@ function ShopService:Refresh(): boolean
 		local moveAt = (window + 1) * EvolutionItems.Merchant.Period
 		state:SetAttribute("MerchantMoveAt", moveAt)
 		state:SetAttribute("ShopRestockAt", moveAt) -- (pastille du HUD)
-		state:SetAttribute("MerchantPosition", self.position)
+		-- Position du COMPTOIR (même repère que IsNear) : le client ne montre jamais un bouton
+		-- ACHETER actif que le serveur refuserait.
+		state:SetAttribute("MerchantPosition", self:CounterPosition())
 		state:SetAttribute("MerchantSpot", self.spot)
 	end
 	return moved
@@ -114,7 +116,7 @@ function ShopService:GetState(player: Player)
 		moveAt = (self.window + 1) * EvolutionItems.Merchant.Period,
 		universeId = self:_universeId(),
 		spot = self.spot,
-		position = self.position,
+		position = self:CounterPosition(),
 		near = player and self:IsNear(player) or false,
 		items = items,
 	}

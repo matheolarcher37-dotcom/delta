@@ -456,8 +456,15 @@ end)
 -- Machine ROULER, arbre de compétences, cases d'unités, déco de base
 ------------------------------------------------------------------------
 
+-- Place le joueur devant sa machine ROULER (le remote Roll refuse ailleurs).
+local function toMachine(player)
+	local plot = services.PlotService:GetPlot(player)
+	player.Character:PivotTo(plot.cf * CFrame.new(services.PlotService.MachineOffset + Vector3.new(0, 3, -8)))
+end
+
 local function rollNow(player)
 	services.RollService:ResetCooldown(player)
+	toMachine(player)
 	return invoke("Roll", player)
 end
 
@@ -561,6 +568,7 @@ end)
 
 test("Machine ROULER : délai entre deux roulages", function()
 	services.RollService:ResetCooldown(alice)
+	toMachine(alice)
 	assert(invoke("Roll", alice), "1er roulage")
 	local ok = invoke("Roll", alice)
 	assert(not ok, "roulage sans délai accepté")
@@ -785,6 +793,52 @@ test("Achat automatique (passe AutoRollPlus) : achète les cibles, s'arrête san
 	services.RollService:RenderStage(alice)
 end)
 
+test("Auto-roulage : aucun perso précieux jeté, remote Roll seulement à la machine", function()
+	local data = DataService:Get(alice)
+	local RollService = services.RollService
+	table.clear(data.RolledQueue)
+	-- Remote Roll loin de la machine : refusé (le passe Lancer AFK reste nécessaire pour rouler à distance).
+	alice.Character:PivotTo(CFrame.new(0, 3, 0))
+	RollService:ResetCooldown(alice)
+	local okFar, why = invoke("Roll", alice)
+	assert(not okFar and type(why) == "string" and string.find(why, "machine"), "Roll accepté loin de la machine")
+	local ok, results = rollNow(alice)
+	assert(ok, "roulage à la machine refusé")
+	-- Un Légendaire non visé attend sur l'estrade : l'achat automatique s'arrête au lieu de le jeter.
+	local legendary = table.clone(results[1])
+	legendary.rarity = "legendary"
+	table.clear(data.RolledQueue)
+	table.insert(data.RolledQueue, legendary)
+	alice:SetAttribute("Pass_AutoRollPlus", true)
+	invoke("Roll_SaveAutoSettings", alice, { pauseRarities = { legendary = true, mythic = true }, buyCharacters = {}, buyRarities = { common = true } })
+	data.AutoBuy = true
+	data.AutoRoll = false
+	RollService:ResetCooldown(alice)
+	assert(not RollService:Roll(alice, true), "roulage auto par-dessus un Légendaire")
+	RollService:AutoStep(alice)
+	assert(data.AutoBuy == false, "l'achat automatique ne s'arrête pas sur un Légendaire non visé")
+	assert(#data.RolledQueue == 1 and data.RolledQueue[1] == legendary, "Légendaire jeté par l'achat automatique")
+	-- Relancer le Lancer AFK sans l'avoir collecté : nouvelle pause, toujours pas jeté.
+	alice:SetAttribute("Pass_AutoRoll", true)
+	data.AutoRoll = true
+	RollService:ResetCooldown(alice)
+	RollService:AutoStep(alice)
+	assert(data.AutoRoll == false and data.RolledQueue[1] == legendary, "Légendaire jeté au redémarrage du Lancer AFK")
+	-- Pause désactivée exprès pour les Légendaires : le joueur accepte de les laisser passer.
+	invoke("Roll_SaveAutoSettings", alice, { pauseRarities = { legendary = false, mythic = true, secret = true } })
+	data.AutoRoll = true
+	RollService:ResetCooldown(alice)
+	local count = data.RollCount
+	RollService:AutoStep(alice)
+	assert(data.RollCount == count + 1, "pause forcée malgré « Légendaire : Désactivé »")
+	data.AutoRoll = false
+	alice:SetAttribute("Pass_AutoRoll", nil)
+	alice:SetAttribute("Pass_AutoRollPlus", nil)
+	invoke("Roll_SaveAutoSettings", alice, { pauseRarities = { legendary = true, mythic = true }, buyRarities = {} })
+	table.clear(data.RolledQueue)
+	RollService:RenderStage(alice)
+end)
+
 test("Mutations : tirées à la machine, prix, apparence sur l'estrade et dans la base", function()
 	local data = DataService:Get(alice)
 	local RollService = services.RollService
@@ -866,7 +920,7 @@ test("Cases d'unités : « Remplacer l'unité », silhouettes verrouillées", fu
 	local data = DataService:Get(alice)
 	local plot = services.PlotService:GetPlot(alice)
 	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
-	assert(#plot.slots == 24, "24 cases attendues")
+	assert(#plot.slots == 26, "26 cases attendues (24 + 2 du passe)")
 	local display = Formulas.playerStats(data).display
 	assert(plot.slots[24].state == "locked" and plot.slots[24].silhouette.Enabled, "case 24 non verrouillée")
 	-- Choisit un perso hors équipe et le place sur la case 2.
@@ -1363,6 +1417,31 @@ test("Boîte à outils : « Kid Naruto » posé dans Workspace remplace Maruto",
 	end
 end)
 
+test("Galerie Studio : seuls les modèles retouchés (sans AutoGenere) sont repris", function()
+	local Server = Harness.find("ServerScriptService.Server")
+	local AvatarService = Harness.require(Server.Services.AvatarService)
+	local storage = game:GetService("ReplicatedStorage")
+	local gallery = Instance.new("Folder")
+	gallery.Name = "GaleriePersos"
+	gallery.Parent = game:GetService("Workspace")
+	local models = Instance.new("Folder")
+	models.Name = "ModelesPersos"
+	models.Parent = gallery
+	local generated = Instance.new("Model")
+	generated.Name = "test_genere"
+	generated:SetAttribute("AutoGenere", true)
+	generated.Parent = models
+	local edited = Instance.new("Model")
+	edited.Name = "test_retouche"
+	edited.Parent = models
+	assert(AvatarService:CollectGallery() == 1, "un seul modèle retouché attendu")
+	local target = storage:FindFirstChild("ModelesPersos")
+	assert(target and target:FindFirstChild("test_retouche"), "modèle retouché non repris")
+	assert(not target:FindFirstChild("test_genere"), "modèle généré recopié dans ReplicatedStorage")
+	assert(not game:GetService("Workspace"):FindFirstChild("GaleriePersos"), "galerie non retirée")
+	target.test_retouche:Destroy()
+end)
+
 test("Modèle perso (ModelesPersos) prioritaire sur le perso intégré", function()
 	local Shared = Harness.find("ReplicatedStorage.Shared")
 	local Factory = Harness.require(Shared.Modules.CharacterFactory)
@@ -1516,6 +1595,54 @@ test("Boutique Robux : vrais ids (fenêtre Roblox), id manquant hors Studio, pas
 	Robux.Passes.AutoRollPlus.id = 0
 end)
 
+test("Boutique Robux : passe couvert par un plus grand, Roblox qui ne répond pas, revenu des packs", function()
+	local Monetization = services.MonetizationService
+	-- Roulage x3 possédé : « Roulage x2 » n'est plus vendu (il n'ajouterait rien).
+	alice:SetAttribute("Pass_Roll3", true)
+	assert(Robux.passCovered(alice, "Roll2") and Robux.coveredBy(alice, "Roll2") == "Roll3", "Roll2 couvert par Roll3")
+	task.wait(0.7)
+	local ok, why = invoke("Robux_Buy", alice, "pass", "Roll2")
+	assert(not ok and type(why) == "string" and string.find(why, "inclus", 1, true), "Roll2 vendu avec Roll3 : " .. tostring(why))
+	-- UserOwnsGamePassAsync en erreur à l'arrivée : nouvel essai, le passe finit par être accordé.
+	local original = MarketplaceService.UserOwnsGamePassAsync
+	local calls = 0
+	MarketplaceService.UserOwnsGamePassAsync = function(_, _, id)
+		if id == 4343 then
+			calls += 1
+			if calls == 1 then
+				error("HTTP 429 (trop de requêtes)")
+			end
+			return true
+		end
+		return original(MarketplaceService, 0, id)
+	end
+	Robux.Passes.Coins2.id = 4343
+	local emma = addPlayer("Emma")
+	task.wait(0.3)
+	assert(emma:GetAttribute("Pass_Coins2") ~= true, "passe accordé sans réponse de Roblox")
+	task.wait(2.3)
+	assert(emma:GetAttribute("Pass_Coins2") == true, "passe jamais revérifié après une erreur de Roblox")
+	-- Fenêtre d'achat fermée avec « déjà possédé » : revérifié sans cache, accordé.
+	Robux.Passes.VIP.id = 4344
+	emma:SetAttribute("Pass_VIP", nil)
+	MarketplaceService.UserOwnsGamePassAsync = function(_, _, id)
+		return id == 4344 or id == 4343
+	end
+	MarketplaceService.PromptGamePassPurchaseFinished:Fire(emma, 4344, false)
+	task.wait(0.2)
+	assert(emma:GetAttribute("Pass_VIP") == true, "passe possédé non accordé après « déjà possédé »")
+	removePlayer(emma)
+	MarketplaceService.UserOwnsGamePassAsync = original
+	Robux.Passes.Coins2.id = 0
+	Robux.Passes.VIP.id = 0
+	-- Packs de pièces : revenu calculé depuis les données (attribut absent juste après l'arrivée).
+	local saved = alice:GetAttribute("IncomePerSec")
+	alice:SetAttribute("IncomePerSec", nil)
+	local income = services.CharacterService:IncomePerSec(alice)
+	assert(Monetization:_incomePerSec(alice) == income, "revenu des packs dépend de l'attribut IncomePerSec")
+	alice:SetAttribute("IncomePerSec", saved)
+end)
+
 test("Boutique Robux : ProcessReceipt idempotent et sauvegardé", function()
 	local data = DataService:Get(alice)
 	local Granted = roblox.Enum.ProductPurchaseDecision.PurchaseGranted
@@ -1583,7 +1710,22 @@ test("Boutique Robux : effets des passes Roulage x2 / x3, Lancer AFK et Emplacem
 	task.wait(0.7)
 	assert(invoke("Robux_Buy", dora, "pass", "Slots"), "achat simulé d'Emplacements +")
 	assert(data.RobuxSlots == Robux.SlotsBonus, "cases en plus non notées")
-	assert(Formulas.playerStats(data).display == math.min(display + Robux.SlotsBonus, Economy.MaxDisplaySlots), "cases de la base non ajoutées")
+	assert(Formulas.playerStats(data).display == display + Robux.SlotsBonus, "cases de la base non ajoutées")
+	-- Arbre terminé et toutes les améliorations : 24 cases sans le passe, 26 avec.
+	local full = { upgrades = {}, Skills = {} }
+	for _, upgrade in Economy.Upgrades do
+		full.upgrades[upgrade.id] = true
+	end
+	local SkillTree = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.SkillTree"))
+	for id in SkillTree.ById do
+		full.Skills[id] = true
+	end
+	assert(Formulas.playerStats(full).display == Economy.MaxDisplaySlots, "jeu gratuit au maximum : 24 cases")
+	full.RobuxSlots = Robux.SlotsBonus
+	assert(Formulas.playerStats(full).display == Economy.MaxDisplaySlots + Robux.SlotsBonus, "passe +2 Cases sans effet arbre terminé")
+	-- Les 2 cases du passe existent dans la base et s'ouvrent.
+	local PlotService = services.PlotService
+	assert(#PlotService.DisplaySlots == Economy.MaxDisplaySlots + Robux.SlotsBonus, "26 cases physiques attendues")
 	removePlayer(dora)
 end)
 
@@ -1832,6 +1974,8 @@ test("Zone anti-AFK : coups comptés, cadence plafonnée, paliers, un sac par jo
 	-- Voyage jusqu'à la zone
 	local okGo = invoke("QuestGoAfk", alice)
 	assert(okGo, "voyage vers la zone anti-AFK")
+	local okAgain = invoke("QuestGoAfk", alice)
+	assert(not okAgain, "voyage vers la zone anti-AFK sans cadence minimale")
 	removePlayer(bob)
 	task.wait(0.2)
 	assert(stations[2]:GetAttribute("OwnerId") == nil, "sac de Bob non libéré à sa déconnexion")

@@ -43,9 +43,11 @@ local playerPlots: { [Player]: any } = {}
 PlotService.Spots = Spots
 PlotService.PedestalSlots = Spots.pedestals
 PlotService.SpawnOffset = Spots.spawn
+PlotService.MachineOffset = Spots.machine -- centre de l'estrade ROULER (repère de la base)
 PlotService.StashOffset = Spots.chest + Vector3.new(0, 0, -5.5)
 
--- Cases d'unités (24) : la case 1 est devant au centre, puis on s'écarte et on recule.
+-- Cases d'unités (24 + 2) : la case 1 est devant au centre, puis on s'écarte et on recule.
+-- Les cases 25 et 26 (rangée d'honneur au fond) sont réservées au passe Robux « +2 Cases ».
 -- (Vector3 locaux, Y = dessus de la dalle.)
 PlotService.DisplaySlots = {}
 do
@@ -54,6 +56,9 @@ do
 		for _, col in order do
 			table.insert(PlotService.DisplaySlots, Vector3.new(Spots.slotCols[col], Spots.slotHeight, row))
 		end
+	end
+	for _, pos in Spots.passSlots do
+		table.insert(PlotService.DisplaySlots, Vector3.new(pos.X, Spots.slotHeight, pos.Z))
 	end
 end
 
@@ -701,7 +706,7 @@ for _, upgrade in Economy.Upgrades do
 	UPGRADE_SLOTS += upgrade.effect.display or 0
 end
 
--- Met à jour l'état des 24 cases (verrouillée « ??? », libre, occupée).
+-- Met à jour l'état des 26 cases (verrouillée « ??? », libre, occupée).
 function PlotService:RefreshSlots(player: Player, displayed: { [number]: string }?)
 	local plot = playerPlots[player]
 	local data = self.services.DataService:Get(player)
@@ -714,7 +719,8 @@ function PlotService:RefreshSlots(player: Player, displayed: { [number]: string 
 	for i, ref in plot.slots do
 		ref.uid = shown[i]
 		if i > stats.display then
-			Slots.setState(ref, "locked", i <= UPGRADE_SLOTS and "🔒 Améliore la cour" or "🔒 Arbre : Emplacements")
+			local caption = if i > Economy.MaxDisplaySlots then "🔒 Passe « +2 Cases »" elseif i <= UPGRADE_SLOTS then "🔒 Améliore la cour" else "🔒 Arbre : Emplacements"
+			Slots.setState(ref, "locked", caption)
 		elseif shown[i] then
 			Slots.setState(ref, "occupied")
 		else
