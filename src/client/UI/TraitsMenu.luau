@@ -1184,7 +1184,7 @@ end
 -- Tableau des chances : une colonne par rang (en-tête coloré, total, puis chaque trait avec
 -- son icône, son nom et sa chance ; le trait actuel est surligné).
 -- largeur des colonnes selon leurs noms (« Célérité III » chez les Rares, un seul trait Secret)
-local COLUMN_WIDTH = { 0.2, 0.215, 0.23, 0.17, 0.185 }
+local COLUMN_WIDTH = { 0.195, 0.21, 0.225, 0.185, 0.185 }
 
 local function chancesTable(parent: Instance, y: number)
 	local box = new("Frame", {
