@@ -1683,6 +1683,54 @@ test("Animations, auras et étiquettes (rendu de plusieurs images)", function()
 	expectNoNewWarnings(before, "animations")
 end)
 
+test("Kourama : créature animée (queues, marche, attaque) sans animations R6", function()
+	local before = #warnings
+	local Shared = Harness.find("ReplicatedStorage.Shared")
+	local Factory = Harness.require(Shared.Modules.CharacterFactory)
+	local Characters = Harness.require(Shared.Config.Characters)
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local CreatureAnimator = Harness.require(client.Controllers.CreatureAnimator)
+	local model = Factory.build("ninja_kourama", 1, Characters.Enemies.ninja_kourama.look, { scale = 4.2, humanoid = true, name = "KouramaTest" })
+	model:SetAttribute("Enemy", true)
+	model:SetAttribute("Boss", true)
+	model:SetAttribute("AttackTick", 0)
+	local origin = camera.CFrame.Position + camera.CFrame.LookVector * 40
+	model:PivotTo(CFrame.new(origin))
+	model.Parent = workspaceService
+	Harness.CollectionService:AddTag(model, "AnimeRig")
+	task.wait(0.1)
+	local st = CreatureAnimator._rigs[model]
+	assert(st, "Kourama non pris en charge par CreatureAnimator")
+	local tail = model:FindFirstChild("Tail5_6"):FindFirstChildOfClass("Motor6D")
+	local base = tail:GetAttribute("BaseC0")
+	local function frames(n, move)
+		for _ = 1, n do
+			if move then
+				model:PivotTo(model:GetPivot() + Vector3.new(0, 0, -0.25))
+			end
+			Harness.services.RunService.RenderStepped:Fire(1 / 60)
+		end
+	end
+	frames(20)
+	assert(tail.C0 ~= base, "les queues n'ondulent pas")
+	-- Marche : les pattes bougent.
+	frames(40, true)
+	assert(st.move > 0.3, "marche non détectée")
+	-- Attaques (griffe puis rugissement) : la mâchoire s'ouvre.
+	for i = 1, 3 do
+		model:SetAttribute("AttackTick", i)
+		frames(30)
+	end
+	model:SetAttribute("HitTick", 1)
+	frames(10)
+	for _, motor in { "RootJoint", "Neck", "Jaw", "LeftShoulder", "RightKnee", "LeftEarJoint" } do
+		assert(model:FindFirstChild(motor, true), "articulation manquante : " .. motor)
+	end
+	model:Destroy()
+	frames(2)
+	expectNoNewWarnings(before, "Kourama")
+end)
+
 test("Échange : la fenêtre s'ouvre et se ferme", function()
 	local before = #warnings
 	local bob = makePlayer("Bob", 4343)

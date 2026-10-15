@@ -50,7 +50,9 @@ local function attach(model: Instance)
 		gui.Adornee = root
 		local width = isBoss and 16 or 7
 		gui.Size = UDim2.new(width, 40, isBoss and 4 or 2.6, 18)
-		gui.StudsOffsetWorldSpace = Vector3.new(0, 4.6 * scale + (isBoss and 2 or 0.6), 0)
+		-- TagHeight : posé par les créatures (Kourama) pour passer au-dessus de l'éventail de queues.
+		local tagHeight = model:GetAttribute("TagHeight")
+		gui.StudsOffsetWorldSpace = Vector3.new(0, (tagHeight or 4.6 * scale) + (isBoss and 2 or 0.6), 0)
 		gui.LightInfluence = 0
 		gui.MaxDistance = isBoss and 220 or 85
 		gui.AlwaysOnTop = isBoss

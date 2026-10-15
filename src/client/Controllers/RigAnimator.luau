@@ -95,6 +95,9 @@ local function register(model: Instance)
 		if not stillHere or rigs[model :: Model] then
 			return
 		end
+		if model:GetAttribute("Creature") then
+			return -- créature (Kourama...) : animée par CreatureAnimator, pas d'animations R6
+		end
 		local motors = {}
 		for _, descendant in model:GetDescendants() do
 			if descendant:IsA("Motor6D") and table.find(JOINTS, descendant.Name) then
