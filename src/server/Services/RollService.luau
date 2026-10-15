@@ -13,7 +13,7 @@
 --   • « Lancer AFK » (passe AutoRoll, 29 Robux) : roule tout seul et s'arrête sur les raretés /
 --     mutations cochées ; « Achat automatique » (passe AutoRollPlus, 500 Robux) : roule tout seul
 --     et ACHÈTE chaque perso qui correspond aux cibles choisies, s'arrête si on ne peut plus payer.
--- Les reliques (HatchService) restent une source secondaire (butin du boss, marchand de reliques).
+-- Les reliques (HatchService) restent une source secondaire (butin du boss, autels de la base).
 --
 -- Remotes : Roll() → ok, résultats | message ; CollectRolled(clé) → ok, message ;
 -- SetAutoRoll(bool), Roll_SetAutoBuy(bool), Roll_SaveAutoSettings(réglages), Roll_SetMulti(n)

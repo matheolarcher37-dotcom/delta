@@ -195,7 +195,7 @@ local GUIDE = {
 	{
 		"gift",
 		"Les reliques",
-		"La Boutique vend les reliques de l'univers actuel. Pose-les sur un autel de ta base : après quelques secondes, ouvre-les pour obtenir une unité.",
+		"Les reliques (butin du boss, récompenses) se posent sur un autel de ta base : après quelques secondes, ouvre-les pour obtenir une unité. Le marchand ambulant, lui, vend les objets d'évolution (suis son rayon violet).",
 		Color3.fromRGB(64, 160, 255),
 	},
 	{

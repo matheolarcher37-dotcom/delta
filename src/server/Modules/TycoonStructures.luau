@@ -52,7 +52,7 @@ local Spots = {
 	board = Vector3.new(-30, 0, -57), -- grand compteur d'argent
 	skillTree = Vector3.new(46, 0, -44), -- arbre de compétences lumineux
 	lectern = Vector3.new(38, 0, -52), -- pupitre qui ouvre l'écran de l'arbre
-	merchant = Vector3.new(-32, 0, 54), -- marchand de reliques (ancienne machine à reliques)
+	merchant = Vector3.new(-32, 0, 54), -- comptoir du marchand ambulant (ancienne machine à reliques)
 	altar = Vector3.new(0, 0, 46), -- autel d'éveil (évolutions)
 	pedestals = { Vector3.new(-44, 0, 44), Vector3.new(-37, 0, 44), Vector3.new(-30, 0, 44), Vector3.new(-23, 0, 44) },
 	-- Cour des unités : 6 colonnes x 4 rangées de cases hexagonales.

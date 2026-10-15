@@ -533,7 +533,7 @@ local function objectiveText(data): string
 		elseif relicCount > 0 then
 			return "Pose ta relique sur l'autel de ta base (appuie sur E)"
 		else
-			return "Achète une relique dans la Boutique de ta base"
+			return "Fais tourner la machine ROULER de ta base"
 		end
 	end
 	if data.stats.kills == 0 then

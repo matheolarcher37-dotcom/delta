@@ -1,5 +1,5 @@
 -- Éléments fixes de la base (présents dès le départ) : arbre de compétences lumineux + pupitre,
--- marchand de reliques, autel d'éveil, autels de reliques.
+-- comptoir du marchand, autel d'éveil, autels de reliques.
 -- Tout est construit à partir d'un CFrame (repère de la base).
 
 local CollectionService = game:GetService("CollectionService")

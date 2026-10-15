@@ -82,7 +82,7 @@ local function renderPicker()
 		end
 	end
 	if order == 0 then
-		Components.emptyState(pickerList, "Tu n'as aucune relique ! La Boutique de ta base en vend.", "gift")
+		Components.emptyState(pickerList, "Tu n'as aucune relique ! Le boss en laisse parfois en butin.", "gift")
 	end
 end
 
