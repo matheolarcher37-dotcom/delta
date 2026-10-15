@@ -1245,8 +1245,8 @@ end
 -- MONARQUE
 ------------------------------------------------------------------------
 
-local MONARCH_RADIUS = 11.6 -- rang extérieur du demi-cercle des persos agenouillés
-local MONARCH_INNER = 7.4 -- rang intérieur
+local MONARCH_RADIUS = 10.5 -- rang extérieur du demi-cercle des persos agenouillés
+local MONARCH_INNER = 7 -- rang intérieur
 local MONARCH_COUNT = 8
 local DAIS_TOP = 1.2 -- l'unité se tient sur une estrade (2 marches)
 local HERO_SCALE = 1.1 -- un peu plus grande que les autres, sans remplir l'image
@@ -1260,10 +1260,10 @@ TraitCinematic.CrownBottom = 0.26 -- bas de la couronne sous le centre de l'anne
 -- l'unité, sur deux rangs décalés (comme une cour devant son roi), tous tournés vers elle.
 -- Angles mesurés depuis l'avant ; l'allée du milieu (tapis rouge) reste libre pour la caméra.
 local MONARCH_ROWS = {
-	{ angle = 26, radius = MONARCH_INNER },
-	{ angle = 12, radius = MONARCH_RADIUS },
-	{ angle = 74, radius = MONARCH_INNER },
-	{ angle = 50, radius = MONARCH_RADIUS },
+	{ angle = 22, radius = MONARCH_INNER },
+	{ angle = 37, radius = MONARCH_RADIUS },
+	{ angle = 52, radius = MONARCH_INNER },
+	{ angle = 68, radius = MONARCH_RADIUS },
 }
 function TraitCinematic.monarchSpots(): { Vector3 }
 	local spots = {}
@@ -1279,15 +1279,16 @@ end
 -- Trajet de la caméra :
 -- 1) plan large en plongée depuis derrière l'épaule de l'unité : la cour apparaît et s'agenouille
 --    face à elle (on voit les têtes s'incliner vers le monarque) ;
--- 2) raccord (coupe franche) sur un contrechamp bas, de face, entre les deux persos du premier
---    rang : la couronne descend sur l'unité ;
+-- 2) raccord (coupe franche) sur un contrechamp de face, juste derrière les deux persos du premier
+--    rang (à 2,6 studs de part et d'autre : leurs têtes inclinées encadrent le bas de l'image) :
+--    la couronne descend sur l'unité ;
 -- 3) recul et montée : tout le demi-cercle tient dans l'image, l'unité couronnée au centre.
 function TraitCinematic.monarchCamera(total: number): { { any } }
 	return {
-		{ 0, Vector3.new(5.5, 10.5, 9.5), Vector3.new(0, 1.6, -6), 62 },
-		{ 2.84, Vector3.new(7.5, 9.2, 7), Vector3.new(0, 1.6, -6.5), 58 },
-		{ 2.85, Vector3.new(0, 2.3, -13.2), Vector3.new(0, 6.6, 0), 56 },
-		{ 4.5, Vector3.new(0, 2.7, -14.2), Vector3.new(0, 6.4, 0), 54 },
+		{ 0, Vector3.new(8, 9.5, 12.5), Vector3.new(-0.5, 1.8, -6.5), 56 },
+		{ 2.84, Vector3.new(9.5, 8.8, 11), Vector3.new(-0.5, 1.8, -6.5), 54 },
+		{ 2.85, Vector3.new(0, 4.6, -10.6), Vector3.new(0, 5.6, 0), 55 },
+		{ 4.5, Vector3.new(0, 4.4, -11.4), Vector3.new(0, 5.6, 0), 54 },
 		{ 5.7, Vector3.new(0, 9, -27), Vector3.new(0, 4, 0), 58 },
 		{ math.max(total, 6), Vector3.new(0, 9.3, -27.6), Vector3.new(0, 4, 0), 58 },
 	}
@@ -1342,8 +1343,9 @@ local function monarchScene(scene)
 		local ray = part(scene, "Ray", Vector3.new(0.22, long and 6 or 3.6, 0.06), CFrame.new(0, haloY, 1.7), Color3.fromRGB(255, 236, 160), Enum.Material.Neon, nil, 1)
 		table.insert(rays, { part = ray, a = i / 16 * math.pi * 2, long = long })
 	end
-	-- Colonne de lumière du ciel sur l'unité (au moment où la couronne descend)
-	local sky = part(scene, "SkyBeam", Vector3.new(60, 2.6, 2.6), CFrame.new(0, headTop + 30, 0) * UPRIGHT, Color3.fromRGB(255, 236, 170), Enum.Material.Neon, CYL, 1)
+	-- Colonne de lumière du ciel sur l'unité (au moment où la couronne descend) : fine et très
+	-- translucide, la couronne et la tête restent lisibles dedans
+	local sky = part(scene, "SkyBeam", Vector3.new(60, 1.8, 1.8), CFrame.new(0, headTop + 30, 0) * UPRIGHT, Color3.fromRGB(255, 236, 170), Enum.Material.Neon, CYL, 1)
 	-- Les persos du cercle : d'abord invisibles, ils apparaissent dans une colonne de lumière
 	local kneelers = {}
 	for i, info in TraitCinematic.kneelerLooks(scene.entry and scene.entry.uid, MONARCH_COUNT) do
@@ -1388,6 +1390,8 @@ local function monarchScene(scene)
 	local crownTarget = hairTop + TraitCinematic.CrownGap + TraitCinematic.CrownBottom * crownScale
 	scene.crownScale = crownScale
 	scene.crownY = crownTarget
+	-- la colonne de lumière s'arrête au-dessus de la couronne posée : elle ne voile jamais la tête
+	sky.CFrame = scene.stage * CFrame.new(0, crownTarget + 0.5 * crownScale + 30, 0) * UPRIGHT
 	-- Étincelles dorées qui montent du sol
 	local motes = part(scene, "Motes", Vector3.new(0.2, 24, 24), CFrame.new(0, 0.4, 0) * FLAT, GOLD, Enum.Material.Neon, CYL, 1)
 	emitter(motes, {
@@ -1443,7 +1447,7 @@ local function monarchScene(scene)
 		local cf = smooth((t - 2.9) / 1.4)
 		local crownCf = scene.stage * CFrame.new(0, crownTarget + (1 - cf) * 9, 0) * CFrame.Angles(0, (1 - cf) * 5 + t * 0.4, 0)
 		placeAll(crownBase, crownCf)
-		sky.Transparency = 1 - 0.5 * math.clamp(math.min((t - 2.7) / 0.4, (4.4 - t) / 0.4), 0, 1)
+		sky.Transparency = 1 - 0.14 * math.clamp(math.min((t - 2.7) / 0.4, (4.4 - t) / 0.4), 0, 1)
 		if not crowned and t >= 4.3 then
 			crowned = true
 			flash(scene, Color3.fromRGB(255, 240, 190), 0.9, 0.8)
@@ -1555,16 +1559,17 @@ local function celesteScene(scene)
 		local length = 160 - bottom
 		local mid = bottom + length * 0.5
 		-- après l'impact, la colonne s'amincit et s'efface (l'unité apparaît) ; un rai reste derrière elle
-		-- montée progressive de l'intensité (0 -> 0,5 s), jamais plus opaque que 0,55
+		-- montée progressive de l'intensité (0 -> 0,5 s), jamais plus opaque que 0,7 de transparence,
+		-- et encore plus légère une fois posée (l'unité se voit dedans dès l'impact)
 		local fade = smooth((t - 1) / 0.9)
 		local grow = smooth(t / 0.5)
 		local width = 3 - 1.8 * fade
 		beam.Size = Vector3.new(length, width, width)
 		beam.CFrame = scene.stage * CFrame.new(0, mid, 0) * UPRIGHT
-		beam.Transparency = 1 - (1 - 0.55) * grow * (1 - fade)
+		beam.Transparency = 1 - (1 - 0.7) * grow * (1 - 0.8 * fade) * (1 - 0.4 * smooth((t - 0.9) / 0.3))
 		beamGlow.Size = Vector3.new(length, 5.4 + math.sin(t * 6) * 0.3, 5.4 + math.sin(t * 6) * 0.3)
 		beamGlow.CFrame = beam.CFrame
-		beamGlow.Transparency = 1 - (1 - 0.88) * grow * (1 - fade)
+		beamGlow.Transparency = 1 - (1 - 0.92) * grow * (1 - fade)
 		shaft.Transparency = 1 - 0.45 * smooth((t - 1.4) / 0.8)
 		if not landed and t >= 0.9 then
 			landed = true
