@@ -3873,6 +3873,22 @@ local function buildProps(ctx, props)
 			fire.EmissionDirection = Enum.NormalId.Top
 			fire.Parent = made
 		end
+		if p.dust and made and ctx.paint ~= "parts" then
+			-- Grains (sable de Gaaro...) qui s'échappent de la pièce : pas dans les aperçus des menus
+			local dust = Instance.new("ParticleEmitter")
+			dust.Name = "PropDust"
+			dust.Texture = "rbxasset://textures/particles/smoke_main.dds"
+			dust.Color = ColorSequence.new(p.dust)
+			dust.LightInfluence = 1
+			dust.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.12 * ctx.s), NumberSequenceKeypoint.new(1, 0.04 * ctx.s) })
+			dust.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+			dust.Lifetime = NumberRange.new(0.6, 1.2)
+			dust.Rate = p.dustRate or 15
+			dust.Speed = NumberRange.new(0.4 * ctx.s, 1.2 * ctx.s)
+			dust.Acceleration = Vector3.new(0, -2 * ctx.s, 0)
+			dust.SpreadAngle = Vector2.new(60, 60)
+			dust.Parent = made
+		end
 	end
 end
 
@@ -3917,6 +3933,11 @@ function buildOnce(look, options: BuildOptions?, roots: number, withRelief: bool
 	-- look.bodyScale : carrure propre au perso (Secrets, géants) ; pas dans les aperçus des menus
 	-- (cadrés à la même taille). BaseScale = échelle réelle (racine, animations, effets).
 	local s = (opts.scale or 1) * ((opts.paint ~= "parts" and look.bodyScale) or 1)
+	if opts.paint ~= "parts" and look.minScale then
+		-- look.minScale : taille plancher en jeu, appliquée APRÈS la taille de niveau
+		-- (Formulas.visualScale, 0.85 au niveau 1) : Kaydo le géant dépasse l'avatar dès le niveau 1
+		s = math.max(s, look.minScale)
+	end
 	local model = Instance.new("Model")
 	model.Name = opts.name or "Character"
 

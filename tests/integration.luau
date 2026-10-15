@@ -501,6 +501,31 @@ test("Pitié : Légendaire, Mythique et Secret garantis au seuil", function()
 	services.RollService:RenderStage(alice)
 end)
 
+test("Chaque palier de la machine a au moins un perso dans chaque univers", function()
+	-- Le palier « Peu commun » de la machine tire un perso de rareté Commun avec un trait garanti
+	-- (il n'existe pas de rareté de PERSO « Peu commun ») : la case « Peu commun » de l'auto-
+	-- roulage se rapporte donc au palier de la machine.
+	local Universes = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Universes"))
+	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
+	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	assert(Economy.RollRarities.uncommon.charRarity == "common", "palier Peu commun : perso Commun attendu")
+	local stats = Formulas.playerStats(DataService:Get(alice))
+	for tierId, info in Economy.RollRarities do
+		for _, universe in Universes.List do
+			local n = 0
+			for _, id in universe.characters do
+				if Characters.get(id).rarity == info.charRarity then
+					n += 1
+				end
+			end
+			assert(n >= 1, universe.id .. " : aucun perso pour le palier " .. tierId .. " (" .. info.charRarity .. ")")
+			local item = services.RollService:MakeItem(universe, tierId, stats)
+			assert(Characters.get(item.id).rarity == info.charRarity, universe.id .. " : palier " .. tierId .. " -> " .. item.id)
+		end
+	end
+end)
+
 test("Palier Secret : tire le perso Secret de chaque univers, jamais un autre", function()
 	local Universes = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Universes"))
 	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
