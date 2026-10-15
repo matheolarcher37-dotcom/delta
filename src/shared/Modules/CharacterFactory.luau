@@ -126,7 +126,17 @@ function CharacterFactory.prepare(model: Model, options)
 	return model
 end
 
+-- Applique une variété (Or, Diamant, Sakura...) à un modèle déjà construit. Sans effet si la
+-- variété est vide, inconnue ou déjà appliquée. Renvoie true si elle est appliquée.
+function CharacterFactory.applyVariety(model: Model, variety: string?): boolean
+	if type(variety) ~= "string" or variety == "" then
+		return false
+	end
+	return CharacterBuilder.applyVariety(model, variety)
+end
+
 -- Construit le modèle d'un perso (ou d'un ennemi) avec la meilleure source disponible.
+-- options.variety : variété tirée de l'unité (ex. { variety = unit.variety }).
 function CharacterFactory.build(id: string?, stars: number?, look, options)
 	local opts = options or {}
 	local template = CharacterFactory.templateFor(id, stars)
@@ -138,6 +148,9 @@ function CharacterFactory.build(id: string?, stars: number?, look, options)
 	else
 		model = CharacterBuilder.build(look, opts)
 	end
+	-- Variété (mutation) tirée : `options.variety` (ex. unit.variety enregistré par le
+	-- roulage) ou `look.variety`. S'applique aussi aux modèles personnalisés (gabarits).
+	CharacterFactory.applyVariety(model, opts.variety or (look and look.variety))
 	-- Chargement progressif (StreamingEnabled) : un perso arrive toujours en entier chez le
 	-- client (animations, étiquettes et effets ont besoin de toutes ses pièces).
 	pcall(function()
@@ -147,10 +160,13 @@ function CharacterFactory.build(id: string?, stars: number?, look, options)
 end
 
 -- Modèle ancré pour les aperçus des menus.
-function CharacterFactory.buildPreview(id: string?, stars: number?, look): Model
+-- `variety` (facultatif) : variété de l'unité, appliquée à l'aperçu.
+function CharacterFactory.buildPreview(id: string?, stars: number?, look, variety: string?): Model
 	local template = CharacterFactory.templateFor(id, stars)
 	if not template then
-		return CharacterBuilder.buildPreview(look)
+		local preview = CharacterBuilder.buildPreview(look)
+		CharacterFactory.applyVariety(preview, variety)
+		return preview
 	end
 	local model = template:Clone()
 	model.Name = "Preview"
@@ -170,6 +186,7 @@ function CharacterFactory.buildPreview(id: string?, stars: number?, look): Model
 	for _, gui in guis do
 		Painter.bakeToParts(gui)
 	end
+	CharacterFactory.applyVariety(model, variety or (look and look.variety))
 	local height = CharacterFactory.rootHeight(model)
 	model:PivotTo(CFrame.new(0, height, 0))
 	return model

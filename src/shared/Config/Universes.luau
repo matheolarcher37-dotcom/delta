@@ -36,7 +36,18 @@ Universes.List = {
 				odds = { rare = 20, epic = 50, legendary = 25, mythic = 5 },
 			},
 		},
-		characters = { "ninja_rokli", "ninja_konohamaro", "ninja_sakoura", "ninja_shikamaro", "ninja_sasuki", "ninja_kakashu", "ninja_maruto", "ninja_itochi" },
+		characters = {
+			"ninja_rokli",
+			"ninja_konohamaro",
+			"ninja_sakoura",
+			"ninja_shikamaro",
+			"ninja_sasuki",
+			"ninja_kakashu",
+			"ninja_maruto",
+			"ninja_itochi",
+			"ninja_hinato",
+			"ninja_jiriya",
+		},
 		enemies = { "ninja_son", "ninja_kabouto", "ninja_zabouza" },
 		boss = "ninja_kourama",
 		theme = {
@@ -129,7 +140,7 @@ Universes.List = {
 				odds = { rare = 20, epic = 50, legendary = 25, mythic = 5 },
 			},
 		},
-		characters = { "occ_toudo", "occ_inumako", "occ_nobora", "occ_megumo", "occ_yuzi", "occ_mako", "occ_goju", "occ_sukana" },
+		characters = { "occ_toudo", "occ_inumako", "occ_nobora", "occ_megumo", "occ_yuzi", "occ_mako", "occ_goju", "occ_sukana", "occ_nanamo", "occ_chosu" },
 		enemies = { "occ_fleau", "occ_jogou", "occ_mahitto" },
 		boss = "occ_kenjakou",
 		theme = {
@@ -222,7 +233,7 @@ Universes.List = {
 				odds = { rare = 20, epic = 50, legendary = 25, mythic = 5 },
 			},
 		},
-		characters = { "sai_yamcho", "sai_krilin", "sai_piccola", "sai_c81", "sai_vejeta", "sai_gohon", "sai_goko", "sai_beeros" },
+		characters = { "sai_yamcho", "sai_krilin", "sai_piccola", "sai_c81", "sai_vejeta", "sai_gohon", "sai_goko", "sai_beeros", "sai_trunk", "sai_brolo" },
 		enemies = { "sai_soldat", "sai_saibamon", "sai_celjr" },
 		boss = "sai_freezo",
 		theme = {
@@ -315,7 +326,7 @@ Universes.List = {
 				odds = { rare = 20, epic = 50, legendary = 25, mythic = 5 },
 			},
 		},
-		characters = { "oce_kobi", "oce_buggi", "oce_usupp", "oce_nomi", "oce_zoru", "oce_sanjo", "oce_loffy", "oce_shonks" },
+		characters = { "oce_kobi", "oce_buggi", "oce_usupp", "oce_nomi", "oce_zoru", "oce_sanjo", "oce_loffy", "oce_shonks", "oce_robine", "oce_ase" },
 		enemies = { "oce_pirate", "oce_marine", "oce_arlang" },
 		boss = "oce_akaino",
 		theme = {
@@ -408,7 +419,7 @@ Universes.List = {
 				odds = { rare = 20, epic = 50, legendary = 25, mythic = 5 },
 			},
 		},
-		characters = { "pou_genyo", "pou_kanoa", "pou_zenitso", "pou_inosoke", "pou_tanjiru", "pou_nezoko", "pou_rengoko", "pou_yoriichu" },
+		characters = { "pou_genyo", "pou_kanoa", "pou_zenitso", "pou_inosoke", "pou_tanjiru", "pou_nezoko", "pou_rengoko", "pou_yoriichu", "pou_shinobo", "pou_giyo" },
 		enemies = { "pou_demon", "pou_ruy", "pou_enmo" },
 		boss = "pou_akazo",
 		theme = {

@@ -325,6 +325,28 @@ local function update(st, dt: number, t: number)
 	pose(st, t)
 end
 
+-- Niveau de détail de la tenue (voir Painter.lod) : de près, la SurfaceGui légère qui double
+-- chaque face peinte est coupée (la peinture complète la recouvre déjà ; ça évite de la dessiner
+-- pour rien). Liste recalculée si les LOD ont été refaits (variété appliquée après coup).
+local function updateLods(st, distance: number)
+	local lods = st.lods
+	if not lods or (lods[1] and not lods[1].Parent) then
+		lods = {}
+		for _, d in st.model:GetDescendants() do
+			if d:IsA("SurfaceGui") and d:GetAttribute("LodNear") then
+				table.insert(lods, d)
+			end
+		end
+		st.lods = lods
+	end
+	for _, gui in lods do
+		local on = distance > (gui:GetAttribute("LodNear") or 55) - 4
+		if gui.Enabled ~= on then
+			gui.Enabled = on
+		end
+	end
+end
+
 function RigAnimator.init()
 	for _, model in CollectionService:GetTagged("AnimeRig") do
 		register(model)
@@ -352,6 +374,10 @@ function RigAnimator.init()
 			st.goneSince = nil
 			local distance = (st.root.Position - camPos).Magnitude
 			setActive(st, distance < FAR)
+			st.lodTick = (st.lodTick or 0) + 1
+			if st.lodTick % 10 == 1 then
+				updateLods(st, distance)
+			end
 			if st.active then
 				st.frame += 1
 				-- Les persos lointains sont mis à jour une image sur deux.

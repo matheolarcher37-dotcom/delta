@@ -10,6 +10,7 @@ local requireModule = Harness.require
 local find = Harness.find
 local test = Harness.test
 local countParts = Harness.countParts
+local Enum = Harness.roblox.Enum
 local fakeSignal = Harness.newSignal()
 
 local Shared = find("ReplicatedStorage.Shared")
@@ -159,7 +160,12 @@ test("Persos R6 classiques : proportions, tête, visage, budgets", function()
 		local head = model:FindFirstChild("Head")
 		assert(head and head.Size.X == 2 and head.Size.Y == 1 and head.Size.Z == 1, label .. " : tête classique 2x1x1 attendue")
 		local mesh = head:FindFirstChildOfClass("SpecialMesh")
-		assert(mesh and mesh.MeshType.Name == "Head" and math.abs(mesh.Scale.X - 1.25) < 1e-6, label .. " : maillage Head 1.25")
+		assert(
+			mesh
+				and mesh.MeshType.Name == "Head"
+				and math.abs(mesh.Scale.Y - 1.25 * (look.headScale and (typeof(look.headScale) == "Vector3" and look.headScale.Y or look.headScale) or 1)) < 1e-4,
+			label .. " : maillage Head 1.25 (x headScale)"
+		)
 		local torso = model:FindFirstChild("Torso")
 		assert(torso.Size.X == 2 and torso.Size.Y == 2 and torso.Size.Z == 1, label .. " : torse 2x2x1")
 		for _, limb in { "Left Arm", "Right Arm", "Left Leg", "Right Leg" } do
@@ -169,7 +175,7 @@ test("Persos R6 classiques : proportions, tête, visage, budgets", function()
 		for _, joint in CharacterBuilder.JointNames do
 			assert(model:FindFirstChild(joint, true), label .. " : articulation " .. joint)
 		end
-		local plates, frames, parts = 0, 0, 0
+		local plates, frames, parts, lodFrames, lods = 0, 0, 0, 0, 0
 		for _, d in model:GetDescendants() do
 			if d:IsA("BasePart") then
 				parts += 1
@@ -178,13 +184,23 @@ test("Persos R6 classiques : proportions, tête, visage, budgets", function()
 					assert(d.Transparency == 1 and d:FindFirstChildOfClass("SurfaceGui"), label .. " : plaque du visage")
 				end
 			elseif d:IsA("Frame") then
-				frames += 1
+				local gui = d:FindFirstAncestorOfClass("SurfaceGui")
+				if gui and gui:GetAttribute("LodNear") then
+					lodFrames += 1
+				else
+					frames += 1
+				end
+			elseif d:IsA("SurfaceGui") and d:GetAttribute("LodNear") then
+				lods += 1
+				assert(d.MaxDistance > d:GetAttribute("LodNear") and d.ZOffset < 1, label .. " : LOD affiché plus loin et sous la peinture complète")
 			end
 		end
+		assert(lods >= 6, label .. " : niveau de détail intermédiaire attendu (" .. lods .. ")")
+		assert(lodFrames <= 160, label .. " : LOD trop lourd (" .. lodFrames .. ")")
 		local boar = look.accessories and table.find(look.accessories, "boar_head")
 		assert(boar or plates == 6, label .. " : 6 plaques de visage attendues (" .. plates .. ")")
-		assert(parts <= 150, label .. " : trop de pièces (" .. parts .. ")")
-		assert(frames <= 450, label .. " : trop de Frames (" .. frames .. ")")
+		assert(parts <= 180, label .. " : trop de pièces (" .. parts .. ")")
+		assert(frames <= 520, label .. " : trop de Frames (" .. frames .. ")")
 		local preview = CharacterBuilder.buildPreview(look)
 		local previewParts = 0
 		for _, d in preview:GetDescendants() do
@@ -213,6 +229,296 @@ test("Construction des ennemis et boss", function()
 	for id, def in Characters.Enemies do
 		local model = CharacterBuilder.build(def.look, { scale = 4.2, humanoid = true })
 		assert(model.PrimaryPart, id)
+	end
+end)
+
+test("Boss lisibles (liseré, lumières, aura) et variétés des persos", function()
+	for id, def in Characters.Enemies do
+		if def.look.boss then
+			local model = CharacterBuilder.build(def.look, { scale = 4.2, humanoid = true })
+			assert(model:FindFirstChildOfClass("Highlight"), id .. " : liseré lumineux (Highlight) attendu")
+			local lights, guis = 0, 0
+			for _, d in model:GetDescendants() do
+				if d:IsA("PointLight") then
+					lights += 1
+				elseif d:IsA("SurfaceGui") then
+					guis += 1
+					assert(d.LightInfluence < 1, id .. " : peinture lisible dans la pénombre")
+					assert(d.Name ~= "ShirtFront" or d.PixelsPerStud < 70, id .. " : résolution des peintures adaptée à la taille")
+				end
+			end
+			assert(lights >= 2, id .. " : lumières sur le boss")
+			assert(guis > 10, id .. " : tenue peinte")
+		end
+	end
+	-- Les ennemis ordinaires n'ont pas de Highlight (limite de 31 par client)
+	local minion = CharacterBuilder.build(Characters.Enemies.sai_saibamon.look, { scale = 1 })
+	assert(not minion:FindFirstChildOfClass("Highlight"), "pas de Highlight hors boss")
+	local look = Formulas.describe({ id = "sai_goko", level = 1, stars = 1 }).look
+	for _, v in { "Or", "Diamant", "Sakura", "Angélique", "Ombre", "Galaxie", "Arc-en-ciel", "dore", "neant" } do
+		local model = CharacterBuilder.build(look, { scale = 1 })
+		assert(CharacterBuilder.applyVariety(model, v), "variété inconnue : " .. v)
+		assert(model:GetAttribute("Variety"), v .. " : attribut Variety")
+	end
+	local plain = CharacterBuilder.build(look, { scale = 1 })
+	assert(not CharacterBuilder.applyVariety(plain, "inconnue"), "variété inconnue refusée")
+	-- La fabrique applique la variété tirée de l'unité (options.variety) au modèle et à l'aperçu
+	local CharacterFactory = requireModule(Shared.Modules.CharacterFactory)
+	local fromUnit = CharacterFactory.build("sai_goko", 1, look, { scale = 1, variety = "Diamant" })
+	assert(fromUnit:GetAttribute("Variety") == "diamond", "fabrique : variété de l'unité appliquée")
+	local previewV = CharacterFactory.buildPreview("sai_goko", 1, look, "Sakura")
+	assert(previewV:GetAttribute("Variety") == "sakura", "fabrique : variété appliquée à l'aperçu")
+	local noVariety = CharacterFactory.build("sai_goko", 1, look, { scale = 1 })
+	assert(noVariety:GetAttribute("Variety") == nil, "fabrique : pas de variété par défaut")
+	-- Reliefs 3D génériques : col fourré de Maruto, ceinture du gi, semelles
+	local function named(model, name)
+		local n = 0
+		for _, d in model:GetDescendants() do
+			if d:IsA("BasePart") and d.Name == name then
+				n += 1
+			end
+		end
+		return n
+	end
+	local maruto = CharacterBuilder.build(Formulas.describe({ id = "ninja_maruto", level = 1, stars = 1 }).look, { scale = 1 })
+	assert(named(maruto, "ReliefCollarBack") == 1 and named(maruto, "ReliefCollarFront") == 2, "Maruto : col fourré en relief")
+	assert(named(maruto, "ReliefSole") == 2, "Maruto : semelles en relief")
+	local reliefs = 0
+	for id in Characters.List do
+		local m = CharacterBuilder.build(Formulas.describe({ id = id, level = 1, stars = 1 }).look, { scale = 1 })
+		if named(m, "ReliefBelt") > 0 then
+			reliefs += 1
+		end
+		m:Destroy()
+	end
+	assert(reliefs >= 8, "ceintures en relief sur les persos en gi/uniforme (" .. reliefs .. ")")
+	-- Or : peinture re-teintée (pas de voile qui noie les plis), cheveux en or poli, LOD refait
+	local goldLook = table.clone(look)
+	goldLook.variety = "Or"
+	local gold = CharacterBuilder.build(goldLook, { scale = 1 })
+	assert(gold:GetAttribute("Variety") == "gold", "une unité Or a l'attribut Variety = gold")
+	assert(not gold:FindFirstChild("VarietyTint", true), "Or : plus de voile par-dessus la peinture")
+	local foil, lodAfter = false, 0
+	for _, d in gold:GetDescendants() do
+		if d:IsA("BasePart") and string.sub(d.Name, 1, 4) == "Hair" and d.Material == Enum.Material.Foil then
+			foil = true
+		elseif d:IsA("SurfaceGui") and d:GetAttribute("LodNear") then
+			lodAfter += 1
+		end
+	end
+	assert(foil and lodAfter >= 6, "Or : cheveux Foil et LOD présents")
+	local shadow = CharacterBuilder.build(look, { scale = 1 })
+	CharacterBuilder.applyVariety(shadow, "Ombre")
+	local rim = shadow:FindFirstChild("VarietyRim")
+	assert(rim and rim:IsA("Highlight") and rim.FillTransparency == 1, "Ombre : liseré violet (contour seul)")
+	-- Boss : contour seul, lumière de face blanc chaud
+	local ken = CharacterBuilder.build(Characters.Enemies.occ_kenjakou.look, { scale = 4.2 })
+	local bossRim = ken:FindFirstChild("BossRim")
+	assert(bossRim and bossRim.FillTransparency == 1, "BossRim sans remplissage")
+	local key = ken:FindFirstChild("BossKey", true)
+	assert(key and key.Color.R > key.Color.B, "lumière de face blanc chaud")
+	assert(ken:FindFirstChild("BossFaceLight", true), "lumière douce sous le visage")
+	-- Auras d'évolution : particules depuis la surface d'une enveloppe + rayons, plus de plaques
+	local ssj = CharacterBuilder.build(Formulas.describe({ id = "sai_brolo", level = 1, stars = 2 }).look, { scale = 1 })
+	local beams, surface = 0, false
+	for _, d in ssj:GetDescendants() do
+		assert(d.Name ~= "AuraFlame", "plus de plaques d'aura")
+		if d:IsA("Beam") then
+			beams += 1
+		elseif d:IsA("ParticleEmitter") and d.ShapeStyle == Enum.ParticleEmitterShapeStyle.Surface then
+			surface = true
+		end
+	end
+	assert(beams >= 2 and surface, "aura : 2 rayons et des particules autour de la silhouette")
+	-- CHAQUE perso change à CHAQUE étoile (★1 -> ★2 -> ★3) : coiffure, yeux ou pièce de tenue
+	-- (une aura seule ne suffit pas), et la silhouette construite change (pièces/effets en plus)
+	local STRONG = {
+		"hair",
+		"hairColor",
+		"hairLength",
+		"eyes",
+		"pupil",
+		"eyeGlow",
+		"eyeMarks",
+		"eyeStyle",
+		"top",
+		"bottom",
+		"outfit",
+		"skin",
+		"markLarge",
+		"curseSpread",
+		"nails",
+		"armVeins",
+	}
+	local AURAS = { energy_aura = true, ssj_aura = true, steam = true }
+	local ids = {}
+	for id in Characters.List do
+		table.insert(ids, id)
+	end
+	table.sort(ids)
+	for _, id in ids do
+		for st = 1, 2 do
+			local la = Formulas.describe({ id = id, level = 1, stars = st }).look
+			local lb = Formulas.describe({ id = id, level = 1, stars = st + 1 }).look
+			local strong = false
+			for _, k in STRONG do
+				if la[k] ~= lb[k] then
+					strong = true
+				end
+			end
+			local accA, accB = {}, {}
+			for _, a in la.accessories or {} do
+				accA[a] = true
+			end
+			for _, a in lb.accessories or {} do
+				accB[a] = true
+			end
+			for a in accB do
+				if not accA[a] and not AURAS[a] then
+					strong = true
+				end
+			end
+			for a in accA do
+				if not accB[a] and not AURAS[a] then
+					strong = true
+				end
+			end
+			assert(strong, id .. " ★" .. st .. " -> ★" .. (st + 1) .. " : coiffure, yeux ou tenue doivent changer")
+		end
+	end
+	for _, id in ids do
+		local function names(stars)
+			local set = {}
+			local m = CharacterBuilder.build(Formulas.describe({ id = id, level = 1, stars = stars }).look, { scale = 1 })
+			-- Signature : noms des pièces et effets + nombre de pièces + boîte englobante arrondie
+			local n, top, wide = 0, 0, 0
+			for _, d in m:GetDescendants() do
+				if d:IsA("BasePart") or d:IsA("ParticleEmitter") then
+					set[d.Name] = true
+				end
+				if d:IsA("BasePart") then
+					n += 1
+					local p = d.CFrame.Position
+					top = math.max(top, p.Y + d.Size.Y / 2)
+					wide = math.max(wide, math.abs(p.X) + d.Size.X / 2)
+				end
+			end
+			set["#" .. n .. "/" .. math.floor(top * 10) .. "/" .. math.floor(wide * 10)] = true
+			return set
+		end
+		local sets = { names(1), names(2), names(3) }
+		for st = 1, 2 do
+			local a, b = sets[st], sets[st + 1]
+			local changed = false
+			for n in b do
+				if not a[n] then
+					changed = true
+				end
+			end
+			for n in a do
+				if not b[n] then
+					changed = true
+				end
+			end
+			assert(changed, id .. " ★" .. st .. " -> ★" .. (st + 1) .. " : la silhouette doit changer")
+		end
+	end
+	local withVariety = table.clone(look)
+	withVariety.variety = "Angélique"
+	local angel = CharacterBuilder.build(withVariety, { scale = 1 })
+	assert(angel:FindFirstChild("VarietyHalo"), "auréole de la variété Angélique")
+	assert(angel:GetAttribute("Variety") == "angelic", "look.variety appliqué à la construction")
+end)
+
+test("Nouveaux persos v3.2, uniformes personnalisés, boss Akaino/Freezo", function()
+	local NEW = {
+		ninja = { "ninja_hinato", "ninja_jiriya" },
+		occulte = { "occ_nanamo", "occ_chosu" },
+		saiyan = { "sai_trunk", "sai_brolo" },
+		ocean = { "oce_robine", "oce_ase" },
+		pourfendeur = { "pou_shinobo", "pou_giyo" },
+	}
+	local rarities = { common = true, rare = true, epic = true, legendary = true, mythic = true }
+	for _, universe in Universes.List do
+		assert(#universe.characters >= 10, universe.id .. " : au moins 10 persos attendus (" .. #universe.characters .. ")")
+		for _, id in NEW[universe.id] or {} do
+			assert(table.find(universe.characters, id), id .. " absent des tables de tirage de " .. universe.id)
+			local def = Characters.get(id)
+			assert(def and def.universe == universe.id and rarities[def.rarity], id .. " : univers ou rareté de base invalide")
+		end
+	end
+	local function partNamed(look, name)
+		local model = CharacterBuilder.build(look, { scale = 1 })
+		local count = 0
+		for _, d in model:GetDescendants() do
+			if d:IsA("BasePart") and d.Name == name then
+				count += 1
+			end
+		end
+		return count
+	end
+	local function look(id)
+		return Formulas.describe({ id = id, level = 1, stars = 1 }).look
+	end
+	assert(partNamed(look("pou_giyo"), "HaoriBack") == 2, "Giyo : haori coupé en deux moitiés")
+	assert(partNamed(look("ninja_jiriya"), "OilPlate") == 1, "Jiriya : plaque du bandeau à cornes")
+	assert(partNamed(look("oce_ase"), "HatCrown") == 1, "Ase : chapeau de cow-boy")
+	assert(partNamed(look("occ_nobora"), "Skirt") == 1, "Nobora : jupe plissée")
+	assert(partNamed(look("occ_yuzi"), "HoodCord") == 2, "Yuzi : capuche à cordons")
+	local akaino = Characters.Enemies.oce_akaino.look
+	assert(partNamed(akaino, "CoatSleeveShell") == 0 and partNamed(akaino, "CoatShoulder") == 0, "Akaino : plus de blocs aux épaules ni de coques de manches")
+	assert(partNamed(akaino, "CoatDrape") == 2 and partNamed(akaino, "CoatDrapeFall") == 2, "Akaino : manteau posé sur les épaules (pans fins + retombée)")
+	assert(partNamed(akaino, "EpauletteFringe") == 12, "Akaino : épaulettes fines à 6 franges")
+	assert(partNamed(akaino, "CoatPan") == 0, "Akaino : plus de panneaux latéraux")
+	assert(
+		partNamed(akaino, "MagmaSleeve") == 0 and partNamed(akaino, "MagmaFist") == 1 and partNamed(akaino, "MagmaRock") == 5,
+		"Akaino : poing de lave ajusté et croûtes de basalte"
+	)
+	do
+		local m = CharacterBuilder.build(akaino, { scale = 1 })
+		local fist = m:FindFirstChild("MagmaFist") :: BasePart
+		assert(fist.Size.X <= 1.21 and fist.Size.Z <= 1.21, "Akaino : poing pas plus gros que le bras + 0,2")
+		local lava = 0
+		for _, d in m:FindFirstChild("Right Arm"):GetChildren() do
+			if d:IsA("SurfaceGui") and d:GetAttribute("ZTop") then
+				lava += 1
+				assert(d.ZOffset == 1.5 and d.LightInfluence == 0, "Akaino : lave peinte par-dessus la manche, lumineuse")
+			end
+		end
+		assert(lava == 4, "Akaino : lave peinte sur les 4 faces de l'avant-bras")
+		local mesh = m.Head:FindFirstChild("Mesh") :: SpecialMesh
+		assert(mesh.Scale.X > 1.25 * 1.1, "Akaino : tête agrandie (headScale)")
+		assert(math.abs(m.Head.CFrame.Position.Y - m.Torso.CFrame.Position.Y - 1.5 - 0.6 * 0.13) < 0.01, "Akaino : la tête agrandie monte (le cou reste en place)")
+	end
+	local freezo = Characters.Enemies.sai_freezo.look
+	assert(partNamed(freezo, "GemShoulder") == 2 and partNamed(freezo, "GemShoulderBevel") == 0, "Freezo : épaulières bombées")
+	assert(partNamed(freezo, "Chin") == 2 and partNamed(freezo, "BrowRidge") == 2 and partNamed(freezo, "TailTip") == 1, "Freezo : menton, front en V, queue")
+	local kenjakou = Characters.Enemies.occ_kenjakou.look
+	assert(
+		partNamed(kenjakou, "KesaRing") == 0 and partNamed(kenjakou, "KesaKnot") == 1 and partNamed(kenjakou, "KesaTrim") == 0,
+		"Kenjakou : nœud de cordon, kesa sans planches en relief"
+	)
+	do
+		local m = CharacterBuilder.build(kenjakou, { scale = 1 })
+		assert((m:FindFirstChild("Kesa") :: BasePart).Size.X <= 0.55, "Kenjakou : kesa fin")
+	end
+	assert(look("occ_megumo").uniformStyle == "spiral", "Megumo : col à bouton spirale")
+	-- Coiffures à silhouette propre (cheveux noirs à pointes)
+	local hairs = {}
+	for _, id in { "sai_goko", "sai_vejeta", "occ_megumo", "sai_brolo", "sai_gohon" } do
+		local h = look(id).hair
+		assert(not hairs[h], id .. " : même coiffure que " .. tostring(hairs[h]))
+		hairs[h] = id
+	end
+	-- Chaque perso tirable figure dans une table de tirage
+	for id in Characters.List do
+		local found = false
+		for _, universe in Universes.List do
+			if table.find(universe.characters, id) then
+				found = true
+			end
+		end
+		assert(found, id .. " absent de toutes les tables de tirage")
 	end
 end)
 
