@@ -1121,7 +1121,7 @@ test("Décors des 5 univers", function()
 		ocean = "Navire",
 		pourfendeur = "PortePourfendeurs",
 	}
-	local BUDGET = 45000
+	local BUDGET = 40000 -- marge pour les autres domaines (marchand, défis, classements)
 	for _, universe in Universes.List do
 		local decor = UniverseDecor.apply(universe, zone)
 		local parts = countParts(decor)
@@ -1140,6 +1140,121 @@ test("Décors des 5 univers", function()
 		end
 		assert(universe.theme.sol and universe.theme.sol.herbe and universe.theme.ciel, universe.id .. " : sol / ciel absents")
 	end
+end)
+
+test("Lieux réservés dégagés (échanges, marchand, anti-AFK) dans les 5 univers", function()
+	local WorldBuilder = requireModule(Server.World.WorldBuilder)
+	local UniverseDecor = requireModule(Server.World.UniverseDecor)
+	local Layout = requireModule(Shared.Config.Layout)
+	local zone = Workspace.World.Zone
+	-- l'accès du coin des échanges (entre la promenade et son entrée) est réservé
+	assert(WorldBuilder.reserved(Layout.polar(0, 400), 0), "accès du coin des échanges non réservé")
+	assert(not WorldBuilder.reserved(Layout.polar(15, 600), 0), "zone libre marquée réservée")
+	local flat = { Patch = true, Pebble = true, Road = true, RoadPatch = true, Curb = true, Trail = true, Dirt = true, PathStone = true }
+	local function offenders(root: Instance, skip: { [string]: boolean }): { string }
+		local found = {}
+		for _, d in root:GetDescendants() do
+			if d:IsA("BasePart") and not flat[d.Name] and d.Transparency < 1 then
+				local pos = d.CFrame.Position
+				if pos.Y < 40 and WorldBuilder.reserved(pos, 0) then
+					local top = d
+					while top.Parent and top.Parent ~= root do
+						top = top.Parent
+					end
+					if not skip[top.Name] then
+						table.insert(found, top.Name .. "/" .. d:GetFullName())
+					end
+				end
+			end
+		end
+		return found
+	end
+	local fixed = offenders(Workspace.World, { TradeCorner = true, Paths = true, Boards = true, Zone = true, Plots = true })
+	assert(#fixed == 0, "carte fixe : objet dans un lieu réservé : " .. tostring(fixed[1]))
+	for _, universe in Universes.List do
+		local decor = UniverseDecor.apply(universe, zone)
+		local found = offenders(decor, {})
+		assert(#found == 0, universe.id .. " : objet dans un lieu réservé : " .. tostring(found[1]))
+		local dress = decor:FindFirstChild("Habillage", true)
+		assert(dress and (dress:GetAttribute("Elements") or 0) >= 30, universe.id .. " : île pas assez habillée")
+		assert((dress:GetAttribute("Landmarks") or 0) >= 8, universe.id .. " : pas assez de grands repères sur l'île")
+		-- semis de remplissage (touffes, fleurs, cailloux...) : plus de grandes pelouses unies
+		assert((dress:GetAttribute("Semis") or 0) >= 400, universe.id .. " : semis de remplissage absent")
+	end
+	-- un sentier pavé mène à chaque coin du marchand
+	local paths = Workspace.World:FindFirstChild("SentiersMarchand")
+	assert(paths and #paths:GetChildren() >= #Layout.MerchantSpots, "sentiers du marchand absents")
+	print("   aucun décor sur les lieux réservés ni sur leurs accès")
+end)
+
+test("Montagne des chefs (8 têtes sculptées) et enseignes artisanales", function()
+	local Hokage = requireModule(Server.World.Kit.Hokage)
+	local Archi = requireModule(Server.World.Kit.Archi)
+	local R = Harness.roblox
+	local folder = R.Instance.new("Folder")
+	folder.Parent = Workspace
+	local model = Hokage.mountain(folder, R.CFrame.new(0, 0, 2000), Harness.Random.new(3))
+	assert(model:GetAttribute("Slot") == "MontagneDesChefs", "emplacement remplaçable absent")
+	local heads = model:FindFirstChild("Tetes")
+	assert(heads and #heads:GetChildren() == 8, "il faut 8 têtes")
+	for _, head in heads:GetChildren() do
+		assert((head:GetAttribute("Pieces") or 0) >= 150, head.Name .. " : tête trop simple")
+		-- visage taillé en facettes (triangles faits de coins), pas en boules
+		local facets, balls = 0, 0
+		for _, d in head:GetDescendants() do
+			if d:IsA("WedgePart") and d.Name == "Facette" then
+				facets += 1
+			elseif d:IsA("Part") and d.Shape == R.Enum.PartType.Ball then
+				balls += 1
+			end
+		end
+		assert(facets >= 200, head.Name .. " : visage pas facetté (" .. facets .. ")")
+		assert(balls <= 6, head.Name .. " : trop de boules (" .. balls .. ")")
+	end
+	-- un triangle = deux coins dont les sommets retombent sur les trois points demandés
+	local tri = R.Instance.new("Folder")
+	local n = Hokage.triangle(tri, R.Vector3.new(0, 0, 0), R.Vector3.new(10, 0, 0), R.Vector3.new(3, 8, 0), R.Vector3.new(0, 0, -1), 1, R.Color3.new(1, 1, 1))
+	assert(n == 2 and #tri:GetChildren() == 2, "triangle : deux coins attendus")
+	-- chaque visage a son caractère : yeux ouverts (iris gravés), sourcils ; moustaches de Naruto
+	for _, head in heads:GetChildren() do
+		local iris, brows = 0, 0
+		for _, d in head:GetDescendants() do
+			if d.Name == "Iris" then
+				iris += 1
+			elseif d.Name == "Sourcil" then
+				brows += 1
+			end
+		end
+		assert(iris >= 2 and brows >= 1, head.Name .. " : yeux ouverts ou sourcils absents")
+	end
+	local whiskers = 0
+	for _, d in heads.Naruto:GetDescendants() do
+		if d.Name == "Moustache" then
+			whiskers += 1
+		end
+	end
+	assert(whiskers == 6, "Naruto : trois moustaches par joue attendues (" .. whiskers .. ")")
+	-- contour en dôme : bosse au centre, épaules qui descendent jusqu'au sol
+	assert(Hokage.topAt(0) > Hokage.topAt(Hokage.Width / 2) + 30, "sommet plat : pas de dôme")
+	assert(Hokage.topAt(Hokage.Reach - 2) < 40, "épaules : le relief ne descend pas jusqu'au sol")
+	local parts = countParts(model)
+	assert(parts < 5200, "montagne trop lourde : " .. parts)
+	print("   montagne : " .. parts .. " pièces dont têtes " .. heads:GetAttribute("Pieces"))
+	folder:Destroy()
+	assert(Archi.stripIcon("🤝 COIN DES ÉCHANGES") == "COIN DES ÉCHANGES", "émoji non retiré")
+	assert(Archi.stripIcon("天下一武道会") == "天下一武道会", "kanji retirés à tort")
+	assert(Archi.titleCase("FAIRE ÉVOLUER") == "Faire évoluer", Archi.titleCase("FAIRE ÉVOLUER"))
+	local stall = Workspace.World.Hub.Stalls:FindFirstChild("Stall_Forge")
+	local painted = false
+	for _, d in stall:GetDescendants() do
+		if d:IsA("TextLabel") then
+			assert(not string.find(d.Text, "🗡"), "émoji encore sur l'enseigne du forgeron")
+			if d.Text == "Forgeron" and d.Font == Harness.roblox.Enum.Font.Fondamento then
+				painted = true
+			end
+		end
+	end
+	assert(painted, "enseigne peinte du forgeron absente")
 end)
 
 test("Carte : le sol suit l'univers, éléments remplaçables", function()

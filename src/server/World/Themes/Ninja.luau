@@ -6,7 +6,8 @@
 --     lanternes au-dessus des rues, lanternes de pierre ; terrain d'entraînement, arbres géants ;
 --   * la grande porte du village (« あ » « ん ») avec son poste de garde, sur la route de la base 270° ;
 --   * sur l'île : la forêt d'arbres géants en bosquets, clairières d'entraînement, petit sanctuaire ;
---   * au bord de l'île : la montagne des chefs avec 5 visages sculptés dans la falaise ;
+--   * au bord de l'île : la montagne des chefs (Kit/Hokage) : grande falaise à strates avec 7 têtes
+--     sculptées sur deux rangs, végétation et arbres au sommet ;
 --   * à l'horizon : une couronne de montagnes vertes. Feuilles qui tombent.
 -- Les gros éléments sont des emplacements remplaçables (DecorSlot) : un modèle de la Boîte à
 -- outils rangé dans ServerStorage > ModelesDeco sous le même nom les remplace au lancement.
@@ -21,6 +22,8 @@ local Nature = require(script.Parent.Parent.Kit.Nature)
 local Archi = require(script.Parent.Parent.Kit.Archi)
 local Props = require(script.Parent.Parent.Kit.Props)
 local Relief = require(script.Parent.Parent.Kit.Relief)
+local Hokage = require(script.Parent.Parent.Kit.Hokage)
+local WorldBuilder = require(script.Parent.Parent.WorldBuilder)
 local Common = require(script.Parent.Common)
 
 local Ninja = {}
@@ -40,9 +43,6 @@ local TEAL_ROOF = rgb(62, 112, 106)
 local ORANGE_ROOF = rgb(214, 128, 62)
 local WOOD = rgb(140, 96, 62)
 local WOOD_DARK = rgb(86, 58, 42)
-local ROCK = rgb(170, 144, 112)
-local ROCK_LIGHT = rgb(192, 168, 134)
-local ROCK_DARK = rgb(116, 96, 76)
 
 local TOP_RING = Common.TOP_RING
 local TOP_PLAZA = Common.TOP_PLAZA
@@ -378,144 +378,6 @@ local function villageGate(parent: Instance, cf: CFrame): Model
 	return model
 end
 
--- Montagne des chefs : falaise de roche avec 5 visages sculptés. `cf` = pied de la falaise,
--- -Z local vers le village. Largeur ≈ 460, hauteur ≈ 150.
-local function chiefMountain(parent: Instance, cf: CFrame, rng: Random): Model
-	local model = Core.slot(parent, "MontagneDesChefs", cf, 160)
-	pcall(function()
-		model.LevelOfDetail = Enum.ModelLevelOfDetail.StreamingMesh
-	end)
-	-- corps de la falaise : grands piliers de roche en strates, inclinés (silhouette irrégulière)
-	local blocks = {
-		{ -205, 118, 104, 0.06 },
-		{ -128, 150, 112, -0.04 },
-		{ -42, 160, 104, 0.03 },
-		{ 44, 156, 110, -0.05 },
-		{ 130, 142, 104, 0.04 },
-		{ 210, 108, 90, -0.06 },
-	}
-	for i, b in blocks do
-		local x, h, w, tilt = b[1], b[2], b[3], b[4]
-		local layers = 4
-		for l = 0, layers - 1 do
-			local lh = h / layers
-			local inset = l * 3
-			Build.part(
-				model,
-				"Cliff",
-				Vector3.new(w - l * 4 + rng:NextNumber(-4, 4), lh + 2, 150 - inset),
-				cf * CFrame.new(x + rng:NextNumber(-3, 3), l * lh + lh / 2 - 2, 80 + inset / 2 + (i % 2) * 6) * CFrame.Angles(0, tilt + rng:NextNumber(-0.04, 0.04), tilt * 0.5),
-				shade(ROCK, ((i + l) % 2 == 0 and 0.04 or -0.05) + rng:NextNumber(-0.03, 0.03)),
-				{ Material = Enum.Material.Rock }
-			)
-		end
-		-- sommet herbeux et bosquets
-		Core.ellipsoid(model, "CliffTop", Vector3.new(w * 1.06, 40, 164), cf * CFrame.new(x, h - 8, 86), rgb(84, 132, 64), Enum.Material.Grass)
-		Core.ellipsoid(model, "CliffTop", Vector3.new(w * 0.6, 26, 90), cf * CFrame.new(x + rng:NextNumber(-12, 12), h + 4, 104), rgb(98, 146, 74), Enum.Material.Grass)
-		-- coulées de roche plus sombre (fissures verticales)
-		for _ = 1, 2 do
-			Build.deco(
-				model,
-				"Crack",
-				Vector3.new(rng:NextNumber(2, 4), h * rng:NextNumber(0.3, 0.6), 2),
-				cf * CFrame.new(x + rng:NextNumber(-w / 2.5, w / 2.5), h * rng:NextNumber(0.2, 0.45), 4.4),
-				ROCK_DARK,
-				{
-					Material = Enum.Material.Rock,
-				}
-			)
-		end
-	end
-	for _ = 1, 16 do
-		local x = rng:NextNumber(-220, 220)
-		local top = 0
-		for _, b in blocks do
-			if math.abs(x - b[1]) < b[3] / 2 then
-				top = math.max(top, b[2])
-			end
-		end
-		if top > 0 then
-			local species = rng:NextNumber() < 0.6 and "ArbreFeuillu" or "Sapin"
-			Nature.tree(
-				species,
-				model,
-				(cf * CFrame.new(x, top + 4, rng:NextNumber(60, 130))).Position,
-				{ rng = rng, height = rng:NextNumber(26, 36), palette = "foret", detail = "low" }
-			)
-		end
-	end
-	-- éboulis au pied
-	for _ = 1, 18 do
-		Nature.rock(model, (cf * CFrame.new(rng:NextNumber(-230, 230), 0, rng:NextNumber(-14, 2))).Position, rng:NextNumber(6, 16), {
-			rng = rng,
-			color = ROCK_DARK,
-			slot = "RocherFalaise",
-			moss = rgb(84, 126, 62),
-		})
-	end
-	-- les 5 visages (yeux, sourcils, nez, bouche, cheveux différents)
-	local faces = { -168, -84, 0, 84, 168 }
-	for i, x in faces do
-		local head = cf * CFrame.new(x, 92 + (i == 3 and 6 or 0), -4)
-		Core.ellipsoid(model, "Face", Vector3.new(40, 50, 22), head, ROCK_LIGHT, Enum.Material.Rock)
-		Core.ellipsoid(model, "Jaw", Vector3.new(28, 20, 16), head * CFrame.new(0, -20, -2), ROCK_LIGHT, Enum.Material.Rock)
-		for _, side in { -1, 1 } do
-			local tilt = side * math.rad(i % 2 == 0 and 12 or -6)
-			Build.part(model, "Brow", Vector3.new(13, 3.2, 5), head * CFrame.new(side * 9, 9, -9.5) * CFrame.Angles(0, 0, tilt), ROCK, { Material = Enum.Material.Rock })
-			Core.ellipsoid(model, "Eye", Vector3.new(9, 4.2, 3), head * CFrame.new(side * 9, 4, -9.6), shade(ROCK, -0.08), Enum.Material.Rock)
-			Build.part(model, "Pupil", Vector3.new(2.6, 2.6, 1.2), head * CFrame.new(side * 8.4, 3.8, -10.9), ROCK_DARK, { Material = Enum.Material.Rock })
-			Build.part(
-				model,
-				"Cheek",
-				Vector3.new(2, 8, 2),
-				head * CFrame.new(side * 13, -8, -9) * CFrame.Angles(0, 0, side * 0.3),
-				shade(ROCK, -0.1),
-				{ Material = Enum.Material.Rock }
-			)
-			Build.part(model, "Ear", Vector3.new(4, 10, 6), head * CFrame.new(side * 20.5, 0, 0), shade(ROCK, -0.04), { Material = Enum.Material.Rock })
-		end
-		Build.wedge(model, "Nose", Vector3.new(6, 11, 6), head * CFrame.new(0, -3, -12) * CFrame.Angles(0, math.pi, 0), ROCK_LIGHT, { Material = Enum.Material.Rock })
-		Build.part(model, "Mouth", Vector3.new(12, 1.6, 2), head * CFrame.new(0, -14, -10.5), shade(ROCK, -0.2), { Material = Enum.Material.Rock })
-		if i == 1 then
-			Core.ellipsoid(model, "Hair", Vector3.new(46, 24, 26), head * CFrame.new(0, 22, 2), ROCK, Enum.Material.Rock)
-			for _, side in { -1, 1 } do
-				Build.part(
-					model,
-					"HairSide",
-					Vector3.new(9, 52, 14),
-					head * CFrame.new(side * 22, -6, 4) * CFrame.Angles(0, 0, side * 0.06),
-					ROCK,
-					{ Material = Enum.Material.Rock }
-				)
-			end
-		elseif i == 2 then
-			for k = -2, 2 do
-				Build.wedge(model, "Spike", Vector3.new(10, 14, 12), head * CFrame.new(k * 8, 26, 0) * CFrame.Angles(0, 0, k * 0.25), ROCK, { Material = Enum.Material.Rock })
-			end
-			Core.ellipsoid(model, "Hair", Vector3.new(42, 16, 24), head * CFrame.new(0, 20, 2), ROCK, Enum.Material.Rock)
-		elseif i == 3 then
-			Core.ellipsoid(model, "Hat", Vector3.new(60, 10, 30), head * CFrame.new(0, 22, 0), ROCK, Enum.Material.Rock)
-			Core.ellipsoid(model, "HatTop", Vector3.new(30, 22, 22), head * CFrame.new(0, 30, 2), ROCK, Enum.Material.Rock)
-			Build.part(model, "Beard", Vector3.new(14, 8, 4), head * CFrame.new(0, -27, -6), ROCK, { Material = Enum.Material.Rock })
-		elseif i == 4 then
-			for k = -3, 3 do
-				local spike = head * CFrame.new(k * 7, 24 + (3 - math.abs(k)) * 1.5, -2) * CFrame.Angles(math.rad(-20), 0, k * 0.32)
-				Build.wedge(model, "Spike", Vector3.new(8, 18, 10), spike * CFrame.Angles(0, math.pi, 0), ROCK, { Material = Enum.Material.Rock })
-			end
-			for _, side in { -1, 1 } do
-				Build.wedge(model, "Bang", Vector3.new(8, 20, 8), head * CFrame.new(side * 19, 4, -4) * CFrame.Angles(0, 0, side * 0.2), ROCK, { Material = Enum.Material.Rock })
-			end
-		else
-			Core.ellipsoid(model, "Hair", Vector3.new(44, 22, 24), head * CFrame.new(0, 21, 2), ROCK, Enum.Material.Rock)
-			for _, side in { -1, 1 } do
-				Core.ellipsoid(model, "Pigtail", Vector3.new(10, 40, 12), head * CFrame.new(side * 25, -12, 4), ROCK, Enum.Material.Rock)
-			end
-			Build.part(model, "Mark", Vector3.new(3, 3, 1), head * CFrame.new(0, 12, -11) * CFrame.Angles(0, 0, math.rad(45)), ROCK_DARK, { Material = Enum.Material.Rock })
-		end
-	end
-	return model
-end
-
 -- Petit sanctuaire de forêt : torii, autel (hokora), lanternes, cordes sacrées.
 local function forestShrine(parent: Instance, cf: CFrame)
 	local model = Core.slot(parent, "Sanctuaire", cf, 14)
@@ -708,7 +570,7 @@ function Ninja.build(decor: Instance, rng: Random, _theme)
 	Core.scatter(rng, 22, Vector3.zero, 234, 245, function(p)
 		return Common.ringFree(p, 8)
 	end, function(p)
-		Nature.tree("ArbreFeuillu", ring, p + UP * TOP_RING, { rng = rng, height = rng:NextNumber(20, 28), detail = "normal" })
+		Nature.tree("ArbreFeuillu", ring, p + UP * TOP_RING, { rng = rng, height = rng:NextNumber(20, 28), detail = "low" })
 	end)
 	Core.scatter(rng, 70, Vector3.zero, Layout.RingInner + 6, Layout.RingOuter - 6, function(p)
 		return Common.ringFree(p, 4)
@@ -729,10 +591,35 @@ function Ninja.build(decor: Instance, rng: Random, _theme)
 
 	-- 6) Sur l'île : forêt d'arbres géants en bosquets, clairières et sanctuaire.
 	local mountainCF = facing(MOUNTAIN_ANGLE, MOUNTAIN_RADIUS)
-	local shrineAt = polar(60, 470)
+	-- petit sanctuaire en forêt, sur un endroit libre (jamais sur un lieu réservé : coin du
+	-- marchand, coin des échanges, zone anti-AFK, ni sur leurs accès)
+	local shrineAt = polar(75, 562)
+	for _, candidate in { polar(75, 562), polar(45, 575), polar(135, 575), polar(160, 600), polar(20, 600) } do
+		if WorldBuilder.isFree(candidate, 16) then
+			shrineAt = candidate
+			break
+		end
+	end
 	local free = Common.islandFree({ { polar(MOUNTAIN_ANGLE, 640), 240 }, { shrineAt, 22 } })
+	free = Common.dressIsland(island, rng, {
+		fillSpacing = 23,
+		wood = rgb(140, 98, 64),
+		stone = rgb(178, 170, 156),
+		rock = rgb(132, 126, 118),
+		moss = rgb(80, 124, 56),
+		flowers = { rgb(240, 140, 170), rgb(250, 230, 120), rgb(250, 250, 246) },
+		lanternGlow = rgb(255, 196, 120),
+		fence = "bambou",
+		arch = rgb(186, 52, 40),
+		archCap = rgb(44, 40, 44),
+		stalls = { { rgb(184, 64, 48), "bowls" }, { rgb(62, 112, 106), "masks" }, { rgb(214, 128, 62), "fruits" } },
+		extra = function(parent, cf, r)
+			Props.trainingPost(parent, cf.Position, r)
+		end,
+	}, free)
 	Common.forest(island, rng, {
-		groves = 34,
+		groves = 31,
+		rimGroves = 22,
 		perGrove = { 5, 9 },
 		radius = { 24, 44 },
 		free = free,
@@ -755,8 +642,8 @@ function Ninja.build(decor: Instance, rng: Random, _theme)
 		end
 	end
 
-	-- 7) Montagne des chefs au bord de l'île, derrière la base 270°.
-	chiefMountain(horizon, mountainCF, rng)
+	-- 7) Montagne des chefs (7 têtes sculptées) au bord de l'île, derrière la base 270°.
+	Hokage.mountain(horizon, mountainCF, rng)
 
 	-- 8) Couronne de montagnes vertes à l'horizon.
 	Common.horizon(horizon, rng, 24, { rock = rgb(126, 116, 102), grass = rgb(74, 122, 60), trees = rgb(44, 82, 46), skip = { { MOUNTAIN_ANGLE, 30 } } })

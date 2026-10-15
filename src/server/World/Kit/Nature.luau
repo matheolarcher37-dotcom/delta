@@ -179,9 +179,9 @@ end
 -- Construction des essences (dans le repère du modèle maître : pied en (0, 0, 0))
 ------------------------------------------------------------------------
 
-export type Detail = "hero" | "normal" | "low"
+export type Detail = "hero" | "normal" | "low" | "far"
 
-local PUFFS = { hero = 6, normal = 4, low = 3 }
+local PUFFS = { hero = 6, normal = 4, low = 3, far = 2 }
 
 -- Feuillu (chêne / hêtre stylisé). H = 30.
 local function buildBroadleaf(model: Model, rng: Random, pal: { Color3 }, detail: Detail, trunkColor: Color3)
@@ -466,7 +466,9 @@ end
 -- Touffe de bambous : tiges annelées de hauteurs variées et petits bouquets de feuilles. H = 30.
 local function buildBamboo(model: Model, rng: Random, pal: { Color3 }, detail: Detail, _trunkColor: Color3)
 	local H = 30
-	local stalks = detail == "low" and 5 or (detail == "hero" and 10 or 8)
+	-- version lointaine : 4 tiges, un nœud, deux feuilles en tête (≈ 16 pièces au lieu de 35)
+	local far = detail == "far"
+	local stalks = far and 4 or (detail == "low" and 5 or (detail == "hero" and 10 or 8))
 	for i = 1, stalks do
 		local base = hdir(rng:NextNumber(0, 6.28)) * rng:NextNumber(0, 3.2)
 		local h = H * rng:NextNumber(0.7, 1)
@@ -475,7 +477,7 @@ local function buildBamboo(model: Model, rng: Random, pal: { Color3 }, detail: D
 		local d = rng:NextNumber(0.55, 0.85)
 		local stalk = tone(pal, rng:NextNumber(0.35, 0.7), rng)
 		wood(model, "Stalk", base - UP * 0.4, top, d, stalk, i <= 3).Material = Enum.Material.SmoothPlastic
-		local nodes = detail == "low" and 2 or 3
+		local nodes = far and 1 or (detail == "low" and 2 or 3)
 		for k = 1, nodes do
 			local q = base:Lerp(top, k / (nodes + 1))
 			local node = cylinder(
@@ -489,7 +491,7 @@ local function buildBamboo(model: Model, rng: Random, pal: { Color3 }, detail: D
 			)
 			node.CanQuery = false
 		end
-		local leaves = detail == "low" and 1 or 2
+		local leaves = far and 0 or (detail == "low" and 1 or 2)
 		for k = 1, leaves do
 			local q = base:Lerp(top, 0.75 + k * 0.1)
 			local a = rng:NextNumber(0, 6.28)
@@ -503,7 +505,7 @@ local function buildBamboo(model: Model, rng: Random, pal: { Color3 }, detail: D
 				LEAF
 			)
 		end
-		for k = 1, 3 do
+		for k = 1, far and 2 or 3 do
 			local a = rng:NextNumber(0, 6.28) + k * 2.1
 			local pos = top + hdir(a) * 1.5 - UP * 0.4
 			Core.ellipsoid(
@@ -558,6 +560,46 @@ local function buildOrbTree(model: Model, rng: Random, pal: { Color3 }, detail: 
 	end
 end
 
+-- Version « lointaine » d'une essence (lisières et pourtour de l'île) : même silhouette et mêmes
+-- couleurs, en 5 à 7 pièces. Feuillus : tronc et couronne de boules ; conifères : étages
+-- coniques ; palmiers : tronc courbé et bouquet de palmes.
+local function buildFar(model: Model, rng: Random, pal: { Color3 }, trunkColor: Color3, kind: string, H: number)
+	if kind == "conifer" then
+		wood(model, "Trunk", Vector3.zero, UP * H * 0.3, H * 0.07, trunkColor)
+		for i = 0, 2 do
+			local w = H * (0.5 - i * 0.13)
+			Core.ellipsoid(model, "Leaves", Vector3.new(w, H * 0.34, w), CFrame.new(UP * H * (0.36 + i * 0.2)), tone(pal, 0.25 + i * 0.3, rng), LEAF)
+		end
+		return
+	end
+	if kind == "palm" then
+		local top = Vector3.new(H * 0.12, H * 0.9, 0)
+		wood(model, "Trunk", Vector3.zero, Vector3.new(H * 0.03, H * 0.45, 0), H * 0.07, trunkColor)
+		wood(model, "Trunk", Vector3.new(H * 0.03, H * 0.45, 0), top, H * 0.055, trunkColor)
+		for i = 0, 3 do
+			local a = i / 4 * math.pi * 2 + 0.4
+			local dir = Vector3.new(math.cos(a), -0.25, math.sin(a))
+			Core.ellipsoid(
+				model,
+				"Leaves",
+				Vector3.new(H * 0.42, H * 0.05, H * 0.13),
+				CFrame.lookAt(top + dir * H * 0.2, top + dir * H * 0.4) * CFrame.Angles(0, math.pi / 2, 0),
+				tone(pal, 0.4 + i * 0.1, rng),
+				LEAF
+			)
+		end
+		return
+	end
+	wood(model, "Trunk", Vector3.zero, UP * H * 0.5, H * 0.08, trunkColor)
+	local c = UP * H * 0.68
+	leaf(model, c, H * 0.55, tone(pal, 0.12, rng))
+	for i = 1, 3 do
+		local a = i / 3 * math.pi * 2 + rng:NextNumber(-0.3, 0.3)
+		leaf(model, c + Vector3.new(math.cos(a) * H * 0.2, H * rng:NextNumber(0.02, 0.1), math.sin(a) * H * 0.2), H * rng:NextNumber(0.34, 0.42), tone(pal, 0.45, rng))
+	end
+	leaf(model, c + UP * H * 0.2, H * 0.34, tone(pal, 0.85, rng))
+end
+
 local SPECIES = {
 	ArbreFeuillu = { build = buildBroadleaf, height = 30, palette = "feuillu", trunk = TRUNK },
 	ArbreGeant = { build = buildGiant, height = 70, palette = "foret", trunk = rgb(112, 82, 62) },
@@ -601,6 +643,9 @@ function Nature.tree(species: string, parent: Instance, base: Vector3 | CFrame, 
 	local rng = o.rng or Random.new()
 	local pal, palName = paletteOf(o.palette, spec.palette)
 	local detail: Detail = o.detail or "normal"
+	if detail == "far" and species == "ArbreMort" then
+		detail = "low" -- silhouette trop particulière pour la version lointaine
+	end
 	local variant = o.variant or rng:NextInteger(1, VARIANTS)
 	local trunkColor = o.trunk or spec.trunk
 	local slotName = o.slot or species
@@ -611,7 +656,12 @@ function Nature.tree(species: string, parent: Instance, base: Vector3 | CFrame, 
 		model:SetAttribute("Slot", slotName)
 		model:SetAttribute("TargetHeight", spec.height)
 		local mrng = Random.new(variant * 7919 + #species * 131 + #palName)
-		spec.build(model, mrng, pal, detail, trunkColor, spec.narrow == true)
+		if detail == "far" and species ~= "Bambou" then
+			local kind = (spec.build == buildConifer) and "conifer" or (spec.build == buildPalm and "palm" or "round")
+			buildFar(model, mrng, pal, trunkColor, kind, spec.height)
+		else
+			spec.build(model, mrng, pal, detail, trunkColor, spec.narrow == true)
+		end
 		return model
 	end)
 	local cf = Core.asCFrame(base, rng)

@@ -527,6 +527,19 @@ function Occulte.build(decor: Instance, rng: Random, _theme)
 	-- 6) Île : forêt de cèdres sombres, érables rouges, arbres morts, torii perdus.
 	local shrineCF = facing(SHRINE_ANGLE, SHRINE_RADIUS)
 	local free = Common.islandFree({ { polar(SHRINE_ANGLE, 650), 110 } })
+	free = Common.dressIsland(island, rng, {
+		wood = rgb(70, 58, 62),
+		stone = rgb(120, 112, 124),
+		rock = rgb(96, 90, 100),
+		moss = rgb(70, 90, 64),
+		flowers = { rgb(150, 90, 220), rgb(200, 60, 90), rgb(230, 230, 240) },
+		lanternGlow = rgb(170, 110, 255),
+		fence = "piquets",
+		arch = rgb(72, 64, 78),
+		tree = "Cedre",
+		treePalette = "nuit",
+		stalls = { { rgb(90, 50, 120), "masks" }, { rgb(60, 50, 70), "bowls" } },
+	}, free)
 	Common.forest(island, rng, {
 		groves = 42,
 		perGrove = { 5, 9 },
