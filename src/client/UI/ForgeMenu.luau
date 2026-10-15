@@ -79,9 +79,12 @@ local function swordViewport(parent: Instance, sword, spin: boolean?): ViewportF
 		-- Rotation lente autour de l'axe de la lame (centre de l'épée).
 		local around = CFrame.new(center)
 		local rest = around:Inverse() * base
-		Theme.onFrame(viewport, function(_dt, t)
+		-- Angle cumulé depuis l'ouverture (et non l'horloge globale) : pas de saut à l'apparition.
+		local angle = 0
+		Theme.onFrame(viewport, function(dt, _t)
 			if viewport.Visible then
-				model:PivotTo(around * CFrame.Angles(0, t * SPIN_SPEED, 0) * rest)
+				angle += math.min(dt, 0.1) * SPIN_SPEED
+				model:PivotTo(around * CFrame.Angles(0, angle, 0) * rest)
 			end
 		end)
 	else

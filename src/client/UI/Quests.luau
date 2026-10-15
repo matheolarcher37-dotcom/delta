@@ -1365,7 +1365,7 @@ local function trackerCard(info)
 			end)
 		end
 	end)
-	-- 4 bandeaux au plus
+	-- Quests.TrackerMax cartes au plus
 	local cards = {}
 	for _, child in trackerStack:GetChildren() do
 		if child:IsA("Frame") then
@@ -1375,7 +1375,7 @@ local function trackerCard(info)
 	table.sort(cards, function(a, b)
 		return a.LayoutOrder < b.LayoutOrder
 	end)
-	for i = 5, #cards do
+	for i = Quests.TrackerMax + 1, #cards do
 		cards[i]:Destroy()
 	end
 end
@@ -1702,14 +1702,18 @@ end
 Quests.ToastPositionWhileOpen = UDim2.new(0.5, 0, 1, -90)
 -- Dans la zone anti-AFK : sous le panneau compact du haut (jamais par-dessus).
 Quests.ToastPositionInZone = UDim2.new(0.5, 0, 0, 190)
+Quests.TrackerTop = 332 -- haut des cartes de suivi des défis (unités logiques du HUD)
+Quests.TrackerMax = 3 -- cartes de suivi affichées au plus
 
 function Quests.init(gui: ScreenGui)
 	buildWindow(gui)
 	trackerRoot = Theme.scaledRoot(gui, "QuestHUD", 6)
 	trackerStack = new("Frame", {
 		Name = "Tracker",
-		Position = UDim2.fromOffset(240, 214),
-		Size = UDim2.fromOffset(320, 300),
+		-- Sous la pile des bandeaux de notification (UI/Notifications, y 140 → ~320 pour 3
+		-- bandeaux) : les cartes de suivi ne passent jamais dessous, quelle que soit la largeur.
+		Position = UDim2.fromOffset(240, Quests.TrackerTop),
+		Size = UDim2.fromOffset(320, 230),
 		BackgroundTransparency = 1,
 		Parent = trackerRoot,
 	})

@@ -1005,6 +1005,12 @@ test("Migration d'une ancienne sauvegarde (v1)", function()
 	assert(v2.Pity.mythic == 300 and v2.Pity.legendary == nil and v2.Pity.secret == nil, "pitiés mal migrées")
 	assert(v2.AutoRoll == false and v2.X10Counter == 0, "auto-roulage / x10 non remis à zéro")
 	assert(#v2.RolledQueue == 3, "estrade non réduite à 3 persos : " .. #v2.RolledQueue)
+	-- Sauvegarde v3.1 (version 2) : les champs v3.2 doivent exister après la migration.
+	assert(type(v2.Items) == "table", "v3.1 : objets d'évolution (Items) manquants")
+	assert(type(v2.Quests) == "table" and type(v2.Quests.counters) == "table" and type(v2.Quests.daily) == "table", "v3.1 : défis manquants")
+	assert(type(v2.Receipts) == "table" and type(v2.RobuxOnce) == "table" and v2.RobuxSpent == 0, "v3.1 : champs Robux manquants")
+	assert(type(v2.AutoRollSettings) == "table" and v2.AutoBuy ~= true, "v3.1 : réglages d'auto-roulage manquants")
+	assert(type(v2.traitCrystals) == "number", "v3.1 : gemmes de trait manquantes")
 	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
 	for _, item in v2.RolledQueue do
 		assert(item.rarity == Characters.get(item.id).rarity, "rareté de base non rendue : " .. item.key)

@@ -338,7 +338,11 @@ test("Marchand : écran, achat sur place, objet requis à l'Évolution, onglet O
 	local firstId = Shop._state().items[1].id
 	local owned = data.Items[firstId] or 0
 	signalFor(buyButton, "Activated"):Fire()
-	task.wait(0.4)
+	-- Réponse du serveur : on attend jusqu'à 3 s (machine chargée pendant les tests).
+	local deadline = os.clock() + 3
+	repeat
+		task.wait(0.1)
+	until (data.Items[firstId] or 0) ~= owned or os.clock() > deadline
 	assert((data.Items[firstId] or 0) == owned + 1, "achat depuis l'écran non effectué")
 	Menus.close("Shop")
 	-- De loin : « Montrer le chemin » pose une flèche devant le joueur et des lumières au sol.
@@ -513,6 +517,11 @@ test("Défis : les 5 onglets, réclamer, suivi à l'écran", function()
 	local hud = gui:FindFirstChild("QuestHUD")
 	assert(hud and hud:FindFirstChild("Tracker_c_kill", true) and hud:FindFirstChild("Tracker_d_kill", true), "bandeaux de suivi manquants")
 	assert(hud:FindFirstChild("PunchPop", true), "annonce de palier manquante")
+	-- Les cartes de suivi commencent sous une pile de 3 bandeaux de notification (pas de chevauchement).
+	local trackerFrame = hud:FindFirstChild("Tracker")
+	local toastStack = gui:FindFirstChild("Toasts", true)
+	assert(trackerFrame and toastStack and toastStack.Position.Y.Scale == 0, "cadres de suivi / bandeaux introuvables")
+	assert(trackerFrame.Position.Y.Offset >= toastStack.Position.Y.Offset + 3 * 58, "les cartes de suivi passent sous les bandeaux")
 	expectNoNewWarnings(before, "défis")
 end)
 
