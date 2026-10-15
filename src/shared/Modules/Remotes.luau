@@ -24,14 +24,12 @@ local EVENTS = {
 }
 
 local FUNCTIONS = {
-	"BuyRelic", -- (relicId) -> ok, message
 	"PlaceRelic", -- (slot, relicId) -> ok, message
 	"EquipCharacter", -- (uid, equip) -> ok, message
 	"ToggleLock", -- (uid) -> ok
 	"SellCharacter", -- (uid) -> ok, message
 	"Evolve", -- (uid) -> ok, message
 	"Fuse", -- (uidA, uidB) -> ok, message
-	"GetShop", -- () -> état de la boutique
 	"AutoEquip", -- () -> équipe les meilleurs persos
 	"RerollTrait", -- (uid) -> ok, message, traitId
 	"BuyTraitCrystal", -- () -> ok, message
@@ -47,6 +45,8 @@ local FUNCTIONS = {
 	"PlaceUnit", -- (emplacement, uid | nil) -> ok, message (« Remplacer l'unité » d'une case de la base)
 	"Robux_Buy", -- ("pass" | "product", clé de Config/Robux) -> ok, message (ouvre l'achat Roblox)
 	"Robux_BuyPass", -- (clé du passe) -> ok, message (raccourci de Robux_Buy("pass", clé) pour les autres fenêtres)
+	"Merchant_GetStock", -- () -> état du marchand ambulant (coin, stock, compte à rebours)
+	"Merchant_Buy", -- (idObjet) -> ok, message, état (acheter un objet d'évolution)
 }
 
 local Remotes = {}

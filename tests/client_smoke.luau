@@ -167,6 +167,7 @@ workspaceService.CurrentCamera = camera
 
 local alice
 local services = {}
+local realIndexAt -- UniverseService.IndexAt d'origine (l'univers est figé pendant les menus)
 local Menus
 
 -- Détection du mode de jeu (clavier / manette) simulée.
@@ -208,6 +209,15 @@ test("Serveur démarré + joueur local connecté", function()
 	alice = makePlayer("Alice", 4242)
 	Players.LocalPlayer = alice
 	Harness.isServer = false
+	-- Univers figé pendant les tests de menus : un changement d'univers en plein test (passage
+	-- d'une demi-heure pile) lance la faille et ses effets, sans rapport avec le menu testé.
+	-- Rétabli avant le test « Rotation d'univers ».
+	local universeService = services.UniverseService
+	local frozen = universeService:IndexAt(universeService:Now())
+	realIndexAt = universeService.IndexAt
+	universeService.IndexAt = function()
+		return frozen
+	end
 end)
 
 test("Client démarré (Main.client)", function()
@@ -277,6 +287,167 @@ for _, menuName in { "Inventory", "Index", "Guide", "Shop", "Evolution", "Fusion
 		expectNoNewWarnings(before, menuName)
 	end)
 end
+
+test("Marchand : écran, achat sur place, objet requis à l'Évolution, onglet Objets", function()
+	local before = #warnings
+	local gui = alice.PlayerGui.AnimeTycoonUI
+	local EvolutionItems = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.EvolutionItems"))
+	local data = services.DataService:Get(alice)
+	local function find(name, root)
+		for _, d in (root or gui):GetDescendants() do
+			if d.Name == name then
+				return d
+			end
+		end
+		return nil
+	end
+	local function count(name, root)
+		local n = 0
+		for _, d in (root or gui):GetDescendants() do
+			if d.Name == name then
+				n += 1
+			end
+		end
+		return n
+	end
+	-- Devant le comptoir du marchand.
+	local merchant = game:GetService("Workspace").World.Merchant
+	local counter = merchant.Etal.Counter
+	alice.Character:PivotTo(counter.CFrame * CFrame.new(0, 1, -5))
+	Menus.open("Shop")
+	task.wait(0.4)
+	local shopWindow = find("WindowRoot_MARCHAND")
+	assert(shopWindow and shopWindow.Visible, "écran du marchand fermé")
+	assert(count("ItemCard", shopWindow) == EvolutionItems.Merchant.Slots, "objets du marchand manquants")
+	local buyButton = find("BuyButton", shopWindow)
+	assert(buyButton, "pas de bouton d'achat")
+	-- Étiquettes UTILE / SIGNATURE en bas de la vignette (jamais sur la pastille × N en haut).
+	for _, d in shopWindow:GetDescendants() do
+		if d.Name == "Tags" and d.Parent and d.Parent.Name == "Face" then
+			assert(d.AnchorPoint.Y == 1 and d.Position.Y.Scale > 0.5, "étiquettes du marchand en haut de la vignette")
+		end
+	end
+	-- Majuscules accentuées : « LÉGENDAIRE », jamais « LéGENDAIRE ».
+	for _, d in gui:GetDescendants() do
+		if d:IsA("TextLabel") and d:IsDescendantOf(shopWindow) then
+			assert(not string.find(d.Text, "LéG") and not string.find(d.Text, "PLANèTE"), "majuscule accentuée cassée : " .. d.Text)
+		end
+	end
+	local Shop = Harness.require(Harness.find("StarterPlayer.StarterPlayerScripts.Client.UI.Shop"))
+	local firstId = Shop._state().items[1].id
+	local owned = data.Items[firstId] or 0
+	signalFor(buyButton, "Activated"):Fire()
+	task.wait(0.4)
+	assert((data.Items[firstId] or 0) == owned + 1, "achat depuis l'écran non effectué")
+	Menus.close("Shop")
+	-- De loin : « Montrer le chemin » pose une flèche devant le joueur et des lumières au sol.
+	alice.Character:PivotTo(counter.CFrame * CFrame.new(0, 1, -160))
+	Menus.open("Shop")
+	task.wait(0.4)
+	signalFor(find("BuyButton", find("WindowRoot_MARCHAND")), "Activated"):Fire()
+	task.wait(0.2)
+	local guideFolder = game:GetService("Workspace"):FindFirstChild("MerchantGuide")
+	assert(guideFolder and guideFolder:FindFirstChild("GuideArrow"), "pas de flèche vers le marchand")
+	local wisps = 0
+	for _, d in guideFolder:GetChildren() do
+		if d.Name == "Wisp" and d.Transparency < 1 then
+			wisps += 1
+		end
+	end
+	assert(wisps >= 3, "chemin de lumières absent")
+	alice.Character:PivotTo(counter.CFrame * CFrame.new(0, 1, -5))
+	task.wait(1.3)
+	assert(not game:GetService("Workspace"):FindFirstChild("MerchantGuide"), "le guidage ne s'efface pas à l'arrivée")
+	-- Évolution de Goko : la Boule du Dragon est demandée, avec un lien vers le marchand.
+	local goko = services.CharacterService:CreateEntry("sai_goko")
+	goko.level = 30
+	local uid = services.CharacterService:AddCharacter(alice, goko)
+	data.Items.sai_dragon = nil
+	services.DataService:Sync(alice)
+	task.wait(0.3)
+	Menus.open("Evolution", uid)
+	task.wait(0.4)
+	local box = find("RequiredItem")
+	assert(box, "objet requis non affiché")
+	local found = false
+	for _, d in box:GetDescendants() do
+		if d:IsA("TextLabel") and string.find(d.Text, "Boule du Dragon") then
+			found = true
+		end
+	end
+	assert(found, "la Boule du Dragon n'est pas demandée pour Goko")
+	-- Sa carte n'affiche pas « PRÊT ! » mais « OBJET MANQUANT » (avec la Boule du Dragon).
+	local evoWindow = find("WindowRoot_ÉVOLUTION")
+	local gokoCard = nil
+	for _, d in evoWindow:GetDescendants() do
+		if d:GetAttribute("SelKey") == uid then
+			gokoCard = d
+		end
+	end
+	assert(gokoCard, "carte de Goko absente")
+	assert(gokoCard:FindFirstChild("MissingItem") and not gokoCard:FindFirstChild("Ready"), "Goko marqué PRÊT sans la Boule du Dragon")
+	-- Le ruban est en bas du portrait (le visage reste visible).
+	local ribbon = gokoCard.MissingItem
+	assert(ribbon.AnchorPoint.Y == 1 and ribbon.Position.Y.Scale >= 0.7, "ruban posé sur le visage")
+	local icon = find("ItemIcon", gokoCard)
+	assert(icon and icon:GetAttribute("ItemId") == "sai_dragon", "mini-icône de l'objet manquant")
+	-- L'aperçu « après » montre Goko ★★ en Super Guerrier (cheveux dorés).
+	local after = find("After", evoWindow)
+	assert(after and after:GetAttribute("Stars") == 2, "aperçu ★★ absent")
+	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
+	local gold = Characters.resolveLook("sai_goko", 2).hairColor
+	local golden = false
+	for _, d in after:GetDescendants() do
+		if d:IsA("BasePart") then
+			local c = d.Color
+			if math.abs(c.R - gold.R) + math.abs(c.G - gold.G) + math.abs(c.B - gold.B) < 0.06 then
+				golden = true
+			end
+		end
+	end
+	assert(golden, "l'aperçu ★★ de Goko n'a pas les cheveux de Super Guerrier")
+	local merchantButton = find("MerchantButton", box)
+	assert(merchantButton, "pas de lien vers le marchand")
+	signalFor(merchantButton, "Activated"):Fire()
+	task.wait(0.3)
+	assert(find("WindowRoot_MARCHAND").Visible, "le lien n'ouvre pas le marchand")
+	Menus.close("Shop")
+	-- Inventaire › Objets : l'objet acheté apparaît, avec sa fiche.
+	Menus.open("Inventory", "items")
+	task.wait(0.3)
+	local card = nil
+	for _, d in gui:GetDescendants() do
+		if d.Name == "ItemCard" and d:GetAttribute("SelKey") == "evo_" .. firstId then
+			card = d
+		end
+	end
+	assert(card, "objet d'évolution absent de l'inventaire")
+	-- Grille des objets en 4 colonnes plus larges, noms lisibles (12 px minimum).
+	local invWindow = find("WindowRoot_UNITÉS")
+	assert(find("Left", invWindow).Size.X.Scale > 0.5, "grille des objets trop étroite")
+	local title = card.Face.Strip.Title
+	local constraint = title:FindFirstChildOfClass("UITextSizeConstraint")
+	assert(constraint and constraint.MinTextSize >= 12, "nom d'objet sans taille minimale")
+	signalFor(card, "Activated"):Fire()
+	task.wait(0.3)
+	assert(find("MerchantButton", invWindow), "fiche de l'objet absente")
+	-- Bas de la fiche : les persos concernés en 3D.
+	local usedBy = find("UsedBy", invWindow)
+	assert(usedBy and #usedBy:GetChildren() >= 2, "persos concernés non affichés")
+	Menus.close("Inventory")
+	-- HUD : la pastille du marchand.
+	task.wait(0.4)
+	local chip = find("Shop", find("Chips"))
+	assert(chip and chip.Visible, "pastille du marchand absente")
+	local label = nil
+	for _, d in chip:GetDescendants() do
+		if d:IsA("TextLabel") and string.find(d.Text, "Marchand") then
+			label = d
+		end
+	end
+	assert(label, "la pastille n'affiche pas « Marchand : mm:ss »")
+	expectNoNewWarnings(before, "marchand")
+end)
 
 test("Inventaire : sélection et actions", function()
 	local before = #warnings
@@ -985,6 +1156,9 @@ end)
 
 test("Rotation d'univers vue par le client", function()
 	local before = #warnings
+	if realIndexAt then
+		services.UniverseService.IndexAt = realIndexAt
+	end
 	services.UniverseService:Skip()
 	task.wait(2.8)
 	for _ = 1, 5 do

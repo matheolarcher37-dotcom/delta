@@ -1,133 +1,235 @@
--- Machine à Reliques : vend les reliques de l'univers actuel. Stock renouvelé toutes les 5 minutes
--- (identique sur tous les serveurs, comme les boutiques de "Grow a ...").
+-- LE MARCHAND AMBULANT : il vend les OBJETS D'ÉVOLUTION (Config/EvolutionItems) contre des pièces.
+-- Toutes les 8 minutes, il change de coin de la carte (Layout.MerchantSpots) et renouvelle son
+-- stock (identique sur tous les serveurs). Un grand rayon violet monte de son échoppe jusqu'au
+-- ciel pour qu'on le trouve de partout. Il faut aller le voir pour acheter.
+-- (Remplace l'ancienne « Machine à Reliques » : les reliques ne sont plus vendues.)
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Economy = require(Shared.Config.Economy)
-local Universes = require(Shared.Config.Universes)
+local EvolutionItems = require(Shared.Config.EvolutionItems)
+local Layout = require(Shared.Config.Layout)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
+local WorldBuilder = require(script.Parent.Parent.World.WorldBuilder)
+local Merchant = require(script.Parent.Parent.World.Merchant)
 
 local ShopService = {}
 
 local Notify = Remotes.event("Notify")
+local OpenMenu = Remotes.event("OpenMenu")
 
 function ShopService:Init(services)
 	self.services = services
+	self.model = nil :: Model?
+	self.window = -1
+	self.stockKey = ""
+	self.stock = {}
+	self.spot = 1
+	self.position = Layout.MerchantSpots[1]
 end
 
-local function currentWindow(): number
-	return math.floor(os.time() / Economy.ShopRestock)
+local function now(): number
+	return os.time()
 end
 
--- Stock de la fenêtre actuelle pour une relique (déterministe).
-function ShopService:StockFor(relic, window: number): number
-	local tier = Economy.RelicTiers[relic.tier]
-	if tier.appearChance then
-		local rng = Random.new(window * 7919 + relic.tier * 31 + #relic.id)
-		if rng:NextNumber() > tier.appearChance then
-			return 0
-		end
+function ShopService:_universeId(): string?
+	local universe = self.services.UniverseService and self.services.UniverseService:GetCurrent()
+	return universe and universe.id or nil
+end
+
+-- Achats du joueur pendant le passage actuel (remis à zéro à chaque nouveau passage).
+local function boughtFor(data, window: number)
+	if type(data.shop) ~= "table" then
+		data.shop = { window = window, bought = {} }
 	end
-	return tier.stock
-end
-
-local function resetWindowIfNeeded(data)
-	local window = currentWindow()
-	if data.shop.window ~= window then
+	if data.shop.window ~= window or type(data.shop.bought) ~= "table" then
 		data.shop.window = window
 		data.shop.bought = {}
 	end
-	return window
+	return data.shop.bought
 end
 
-function ShopService:GetShop(player: Player)
-	local data = self.services.DataService:Get(player)
-	local universe = self.services.UniverseService:GetCurrent()
-	if not data or not universe then
-		return nil
+-- Met à jour le coin et le stock si le passage (ou l'univers) a changé. Retourne vrai si le
+-- marchand vient de changer de coin.
+function ShopService:Refresh(): boolean
+	local window = EvolutionItems.window(now())
+	local universeId = self:_universeId()
+	local key = window .. ":" .. tostring(universeId)
+	local moved = false
+	if window ~= self.window then
+		moved = self.window ~= -1
+		self.window = window
+		self.spot = EvolutionItems.spotIndex(window, #Layout.MerchantSpots)
+		if self.model then
+			local cf = Merchant.place(self.model, self.spot, WorldBuilder.groundY)
+			self.position = cf.Position
+		else
+			self.position = Merchant.spotCFrame(self.spot, WorldBuilder.groundY).Position
+		end
 	end
-	local window = resetWindowIfNeeded(data)
+	if key ~= self.stockKey then
+		self.stockKey = key
+		self.stock = EvolutionItems.stock(window, universeId)
+		if self.model then
+			local ids = {}
+			for _, entry in self.stock do
+				table.insert(ids, entry.id)
+			end
+			Merchant.setDisplay(self.model, ids)
+		end
+	end
+	local state = ReplicatedStorage:FindFirstChild("GameState")
+	if state then
+		local moveAt = (window + 1) * EvolutionItems.Merchant.Period
+		state:SetAttribute("MerchantMoveAt", moveAt)
+		state:SetAttribute("ShopRestockAt", moveAt) -- (pastille du HUD)
+		state:SetAttribute("MerchantPosition", self.position)
+		state:SetAttribute("MerchantSpot", self.spot)
+	end
+	return moved
+end
+
+-- État envoyé à l'écran du marchand.
+function ShopService:GetState(player: Player)
+	self:Refresh()
+	local data = self.services.DataService:Get(player)
+	local bought = data and boughtFor(data, self.window) or {}
 	local items = {}
-	for _, relic in universe.relics do
-		local stock = self:StockFor(relic, window)
-		local bought = data.shop.bought[relic.id] or 0
-		table.insert(items, {
-			relicId = relic.id,
-			price = Economy.RelicTiers[relic.tier].price,
-			stock = stock,
-			remaining = math.max(0, stock - bought),
-		})
+	for _, entry in self.stock do
+		local item = EvolutionItems.get(entry.id)
+		if item then
+			table.insert(items, {
+				id = entry.id,
+				price = item.price,
+				stock = entry.stock,
+				remaining = math.max(0, entry.stock - (bought[entry.id] or 0)),
+			})
+		end
 	end
 	return {
-		universeId = universe.id,
-		restockAt = (window + 1) * Economy.ShopRestock,
+		window = self.window,
+		moveAt = (self.window + 1) * EvolutionItems.Merchant.Period,
+		universeId = self:_universeId(),
+		spot = self.spot,
+		position = self.position,
+		near = player and self:IsNear(player) or false,
 		items = items,
 	}
 end
 
-function ShopService:Buy(player: Player, relicId: any)
-	local DataService = self.services.DataService
-	local data = DataService:Get(player)
-	local universe = self.services.UniverseService:GetCurrent()
-	if not data or type(relicId) ~= "string" then
-		return false, "Erreur."
+function ShopService:CounterPosition(): Vector3
+	if self.model and self.model.Parent then
+		return Merchant.counterPosition(self.model)
 	end
-	local relic = Universes.getRelic(relicId)
-	if not relic or relic.universe ~= universe.id then
-		return false, "Cette relique n'est plus en vente (l'univers a changé) !"
-	end
-	local plot = self.services.PlotService:GetPlot(player)
+	return self.position
+end
+
+function ShopService:IsNear(player: Player): boolean
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if plot and root and (root.Position - (plot.cf * CFrame.new(-16, 0, 36)).Position).Magnitude > 40 then
-		return false, "Approche-toi de ta Machine à Reliques."
+	if not root then
+		return false
 	end
-	local window = resetWindowIfNeeded(data)
-	local stock = self:StockFor(relic, window)
-	local bought = data.shop.bought[relic.id] or 0
-	if bought >= stock then
-		return false, "Rupture de stock ! Réapprovisionnement bientôt."
+	local delta = root.Position - self:CounterPosition()
+	return Vector3.new(delta.X, 0, delta.Z).Magnitude <= EvolutionItems.Merchant.BuyDistance
+end
+
+function ShopService:Buy(player: Player, itemId: any)
+	local DataService = self.services.DataService
+	local data = DataService:Get(player)
+	if not data or type(itemId) ~= "string" then
+		return false, "Erreur."
 	end
-	local price = Economy.RelicTiers[relic.tier].price
-	if data.coins < price then
-		return false, "Il te manque 💰 " .. Formulas.formatNumber(price - data.coins)
+	self:Refresh()
+	local item = EvolutionItems.get(itemId)
+	local entry
+	for _, candidate in self.stock do
+		if candidate.id == itemId then
+			entry = candidate
+		end
 	end
-	DataService:SpendCoins(player, price)
-	data.shop.bought[relic.id] = bought + 1
-	DataService:AddRelic(player, relic.id, 1)
-	return true, "Tu as acheté : " .. relic.name .. " ! Pose-la sur un autel."
+	if not item or not entry then
+		return false, "Le marchand n'a plus cet objet (il a changé de stock) !"
+	end
+	if not self:IsNear(player) then
+		return false, "Va voir le Marchand pour acheter : suis le rayon violet !"
+	end
+	local bought = boughtFor(data, self.window)
+	local already = bought[itemId] or 0
+	if already >= entry.stock then
+		return false, "Rupture de stock ! Le marchand en aura peut-être au prochain passage."
+	end
+	if data.coins < item.price then
+		return false, "Il te manque ¥ " .. Formulas.formatNumber(item.price - data.coins)
+	end
+	if not DataService:SpendCoins(player, item.price) then
+		return false, "Pas assez de pièces."
+	end
+	bought[itemId] = already + 1
+	DataService:AddItem(player, itemId, 1)
+	return true, "Tu as acheté : " .. item.name .. " !"
+end
+
+function ShopService:_ensureModel()
+	local world = Workspace:FindFirstChild("World")
+	if not world then
+		return
+	end
+	local model = world:FindFirstChild("Merchant")
+	if not model or not model:IsA("Model") then
+		-- Fichier construit avant l'arrivée du marchand : on le construit maintenant.
+		local ok, result = pcall(Merchant.build, world, WorldBuilder.groundY)
+		if not ok then
+			warn("[AnimeTycoon] Marchand non construit : " .. tostring(result))
+			return
+		end
+		model = result
+	end
+	self.model = model :: Model
+	local prompt = model:FindFirstChild("MerchantPrompt", true)
+	if prompt and prompt:IsA("ProximityPrompt") then
+		prompt.Triggered:Connect(function(player)
+			OpenMenu:FireClient(player, "Shop")
+		end)
+	end
 end
 
 function ShopService:Start()
-	Remotes.func("GetShop").OnServerInvoke = function(player)
-		return self:GetShop(player)
+	self:_ensureModel()
+	self:Refresh()
+
+	Remotes.func("Merchant_GetStock").OnServerInvoke = function(player)
+		return self:GetState(player)
 	end
-	Remotes.func("BuyRelic").OnServerInvoke = function(player, relicId)
-		local ok, message = self:Buy(player, relicId)
+	Remotes.func("Merchant_Buy").OnServerInvoke = function(player, itemId)
+		local ok, message = self:Buy(player, itemId)
 		if not ok and message then
 			Notify:FireClient(player, message, "error")
 		end
-		return ok, message, self:GetShop(player)
+		return ok, message, self:GetState(player)
 	end
 
-	-- Annonce du réapprovisionnement.
+	-- Déménagements du marchand + compte à rebours sur son étiquette.
 	task.spawn(function()
-		local lastWindow = currentWindow()
 		while true do
 			task.wait(1)
-			local window = currentWindow()
-			local state = ReplicatedStorage:FindFirstChild("GameState")
-			if state then
-				state:SetAttribute("ShopRestockAt", (window + 1) * Economy.ShopRestock)
+			local moved = self:Refresh()
+			if self.model then
+				local remaining = (self.window + 1) * EvolutionItems.Merchant.Period - now()
+				Merchant.setStatus(self.model, "Repart dans " .. Formulas.formatTime(remaining))
 			end
-			if window ~= lastWindow then
-				lastWindow = window
-				local universe = self.services.UniverseService:GetCurrent()
-				local legendary = universe.relics[#universe.relics]
-				local hasLegendary = self:StockFor(legendary, window) > 0
-				Notify:FireAllClients("🛒 La Machine à Reliques est réapprovisionnée !" .. (hasLegendary and (" (" .. legendary.name .. " en stock !)") or ""), "info")
+			if moved and #Players:GetPlayers() > 0 then
+				local best
+				for _, entry in self.stock do
+					local item = EvolutionItems.get(entry.id)
+					if item and item.tier == 3 and (not best or item.price > best.price) then
+						best = item
+					end
+				end
+				Notify:FireAllClients("Le Marchand s'est installé dans un autre coin : suis le rayon violet !" .. (best and (" (" .. best.name .. " en stock)") or ""), "info")
 			end
 		end
 	end)

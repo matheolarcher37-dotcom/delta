@@ -47,7 +47,8 @@ local function template()
 		index = {},
 		stash = 0,
 		stats = { kills = 0, bossKills = 0, hatched = 0, playtime = 0, fusions = 0, trades = 0, evolutions = 0 },
-		shop = { window = 0, bought = {} },
+		shop = { window = 0, bought = {} }, -- achats chez le MARCHAND pendant son passage actuel
+		Items = {}, -- objets d'évolution achetés au marchand : { [idObjet] = nombre } (Config/EvolutionItems)
 		isNew = true,
 		starterGiven = false,
 		firstJoin = os.time(),
@@ -193,6 +194,14 @@ local function migrate(data)
 		if type(value) ~= "string" and value ~= false then
 			data.DisplayPins[key] = nil -- uid, ou false = case laissée vide exprès
 		end
+	end
+	-- Objets d'évolution : uniquement des nombres entiers positifs.
+	for id, count in data.Items do
+		local n = math.floor(tonumber(count) or 0)
+		data.Items[id] = if type(id) == "string" and n > 0 then n else nil
+	end
+	if type(data.shop.bought) ~= "table" then
+		data.shop.bought = {}
 	end
 	data.Pity.mythic = math.max(0, math.floor(tonumber(data.Pity.mythic) or 0))
 	-- Boutique Robux
@@ -589,6 +598,20 @@ function DataService:AddRelic(player: Player, relicId: string, amount: number)
 	if data.relics[relicId] == 0 then
 		data.relics[relicId] = nil
 	end
+	self:Sync(player)
+end
+
+-- Objets d'évolution (marchand) : ajoute (ou retire, si `amount` < 0) des objets.
+function DataService:AddItem(player: Player, itemId: string, amount: number)
+	local data = self:Get(player)
+	if not data then
+		return
+	end
+	if type(data.Items) ~= "table" then
+		data.Items = {}
+	end
+	local count = math.max(0, (data.Items[itemId] or 0) + math.floor(amount))
+	data.Items[itemId] = if count > 0 then count else nil
 	self:Sync(player)
 end
 

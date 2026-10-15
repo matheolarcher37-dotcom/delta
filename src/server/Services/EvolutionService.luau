@@ -1,10 +1,13 @@
 -- Évolution (Éveil) : quand un perso atteint son niveau max, on le fait évoluer à l'Autel d'Éveil
--- avec les matériaux de SON univers (qu'on ne trouve que quand cet univers est actif !).
+-- avec les matériaux de SON univers (qu'on ne trouve que quand cet univers est actif !) ET
+-- l'OBJET D'ÉVOLUTION qu'il demande (vendu par le Marchand ambulant, voir Config/EvolutionItems) :
+-- par exemple une Boule du Dragon pour que Goko passe Super Guerrier.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Universes = require(Shared.Config.Universes)
+local EvolutionItems = require(Shared.Config.EvolutionItems)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 
@@ -43,9 +46,22 @@ function EvolutionService:Evolve(player: Player, uid: any)
 			return false, "Il te manque " .. (amount - (data.materials[materialId] or 0)) .. " × " .. (material and material.name or materialId)
 		end
 	end
-	DataService:SpendCoins(player, cost.coins)
+	local need = EvolutionItems.requirement(entry)
+	local item = need and EvolutionItems.get(need.item)
+	if need and item then
+		local owned = type(data.Items) == "table" and (data.Items[need.item] or 0) or 0
+		if owned < need.amount then
+			return false, "Il te manque " .. (need.amount - owned) .. " × " .. item.name .. " (en vente chez le Marchand ambulant)"
+		end
+	end
+	if not DataService:SpendCoins(player, cost.coins) then
+		return false, "Pas assez de pièces."
+	end
 	for materialId, amount in cost.materials do
 		DataService:AddMaterial(player, materialId, -amount)
+	end
+	if need and item then
+		DataService:AddItem(player, need.item, -need.amount)
 	end
 	entry.stars = cost.stars
 	entry.xp = 0

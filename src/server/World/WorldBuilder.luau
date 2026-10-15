@@ -33,6 +33,7 @@ local Archi = require(script.Parent.Kit.Archi)
 local Props = require(script.Parent.Kit.Props)
 local Relief = require(script.Parent.Kit.Relief)
 local LeaderboardBoards = require(script.Parent.LeaderboardBoards)
+local Merchant = require(script.Parent.Merchant)
 
 local WorldBuilder = {}
 
@@ -1407,6 +1408,7 @@ function WorldBuilder.build(options: { water: boolean? }?)
 	local zone = buildRing(world)
 	buildTradeCorner(world)
 	buildMerchantPaths(world)
+	Merchant.build(world, WorldBuilder.groundY) -- marchand ambulant (déplacé ensuite par ShopService)
 	buildBoards(world)
 	Build.folder(world, "Plots")
 	if not options or options.water ~= false then
