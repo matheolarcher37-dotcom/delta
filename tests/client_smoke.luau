@@ -10,6 +10,7 @@ local roblox = Harness.roblox
 local Instance = roblox.Instance
 local Vector3 = roblox.Vector3
 local CFrame = roblox.CFrame
+local Vector2 = roblox.Vector2
 local Color3 = roblox.Color3
 local game = Harness.game
 local test = Harness.test
@@ -402,6 +403,13 @@ test("Traits : écran, rouleau, relance avec une gemme et révélation renforcé
 	local root = gui:FindFirstChild("WindowRoot_TRAITS")
 	assert(root and root:FindFirstChild("TraitCard", true), "carte du trait manquante")
 	assert(root:FindFirstChild("Reel", true) and root:FindFirstChild("Emblem", true), "rouleau ou emblème du trait manquant")
+	-- au repos, seul le trait de la ligne du milieu se lit (les voisins sont effacés)
+	local restStrip = root:FindFirstChild("ReelStrip", true)
+	for _, name in { "Row1", "Row3" } do
+		local row = restStrip and restStrip:FindFirstChild(name)
+		assert(row and row.TextTransparency >= 0.8 and row:GetAttribute("Dimmed"), "rouleau au repos : la ligne voisine " .. name .. " doit être effacée")
+	end
+	assert(restStrip.Row2.TextTransparency < 0.1, "rouleau au repos : le trait actuel doit rester bien lisible")
 	assert(root:FindFirstChild("Chances", true) and root:FindFirstChild("Tier5", true), "tableau des chances manquant")
 	local bank = root:FindFirstChild("Bank", true)
 	assert(bank and bank:FindFirstChild("Count") and bank.Count.Text == "3", "réserve de gemmes : compteur faux")
@@ -458,6 +466,10 @@ test("Traits : écran, rouleau, relance avec une gemme et révélation renforcé
 	expectNoNewWarnings(before, "traits")
 end)
 
+local function tanVOf(camera)
+	return math.tan(math.rad(camera.FieldOfView) / 2)
+end
+
 test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, cadrage)", function()
 	local before = #warnings
 	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
@@ -497,11 +509,32 @@ test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, 
 	local headTop = head.CFrame.Position.Y + head.Size.Y * 0.5
 	local ringY = ring.CFrame.Position.Y
 	assert(math.abs(ringY - (stage.Position.Y + scene.crownY)) < 0.05, "la couronne n'est pas arrivée à sa place")
-	assert(ringY > headTop - 0.05 and ringY < headTop + 3, "la couronne doit être posée sur la tête (" .. ringY .. " / " .. headTop .. ")")
-	-- elle coiffe les cheveux : son anneau entoure la coiffure et n'est pas noyé dedans
-	assert(ringY >= stage.Position.Y + scene.heroHairTop - 0.6 * 2.6, "la couronne est cachée dans les cheveux")
-	assert(ring.Size.Y * 0.5 >= scene.heroHairRadius * 0.95 or ring.Size.Y >= 2.6 * 1.7, "la couronne est plus étroite que la coiffure")
-	local tanV = math.tan(math.rad(camera.FieldOfView) / 2)
+	-- elle flotte juste au-dessus de la coiffure (0,4 stud), sans cacher la tête ni les cheveux
+	local crownBottom = math.huge
+	for _, piece in crown:GetDescendants() do
+		if piece:IsA("BasePart") then
+			crownBottom = math.min(crownBottom, piece.CFrame.Position.Y - piece.Size.X * 0.5)
+		end
+	end
+	local hairTop = stage.Position.Y + math.max(scene.heroHairTop, headTop - stage.Position.Y)
+	assert(crownBottom >= hairTop + 0.3, "la couronne touche ou cache les cheveux (" .. crownBottom .. " / " .. hairTop .. ")")
+	assert(crownBottom <= hairTop + 0.6, "la couronne flotte trop haut (" .. crownBottom .. " / " .. hairTop .. ")")
+	-- le titre reste en haut de l'image, au-dessus de la couronne
+	local titleBlock = alice.PlayerGui.TraitCinematicUI:FindFirstChild("TitleBlock", true)
+	assert(titleBlock and titleBlock.Position.Y.Scale <= 0.07, "titre trop bas")
+	local crownView = camera.CFrame:PointToObjectSpace(ring.CFrame.Position + Vector3.new(0, ring.Size.Y * 0.5, 0))
+	local crownScreenY = 0.5 - (crownView.Y / -crownView.Z) / tanVOf(camera) * 0.5
+	assert(crownScreenY > 0.06 + 116 / 1080 + 0.02, "la couronne touche le titre (" .. crownScreenY .. ")")
+	-- les persos sont en demi-cercle DEVANT l'unité (côté -Z de la scène)
+	for _, spot in TraitCinematic.monarchSpots() do
+		assert(spot.Z < -1, "un perso n'est pas devant l'unité")
+	end
+	-- légendes lisibles de loin : phrase >= 26 px, badge >= 20 px
+	local sub = alice.PlayerGui.TraitCinematicUI:FindFirstChild("Subtitle", true)
+	assert(sub and not sub.TextScaled and sub.TextSize >= 26, "phrase de la cinématique trop petite")
+	local badgeText = alice.PlayerGui.TraitCinematicUI:FindFirstChild("BadgeText", true)
+	assert(badgeText and not badgeText.TextScaled and badgeText.TextSize >= 20, "badge de rang trop petit")
+	local tanV = tanVOf(camera)
 	local tanH = tanV * 16 / 9
 	-- boîte d'un perso dans le repère `frame` (repère du perso : boîtes orientées, plus justes
 	-- qu'une boîte alignée sur le monde pour des persos disposés en cercle)
@@ -535,8 +568,11 @@ test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, 
 					assert(math.abs(v.Y / -v.Z) < tanV * 0.8, "perso coupé par les bandes noires : " .. child.Name)
 				end
 			end
+			-- repère du perso : son orientation au sol (sans l'inclinaison du torse)
 			local torsoPart = child:FindFirstChild("Torso")
-			table.insert(boxes, { name = child.Name, model = child, frame = torsoPart and torsoPart.CFrame.Rotation or CFrame.new() })
+			local facing = torsoPart and torsoPart.CFrame.LookVector * Vector3.new(1, 0, 1)
+			local frame = (facing and facing.Magnitude > 0.1) and CFrame.lookAt(Vector3.zero, facing.Unit) or CFrame.new()
+			table.insert(boxes, { name = child.Name, model = child, frame = frame })
 			if string.sub(child.Name, 1, 7) == "Kneeler" then
 				kneelers += 1
 				local torso = child:FindFirstChild("Torso")
@@ -612,14 +648,18 @@ test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, 
 	local pose = TraitCinematic.kneelPose(model)
 	local torso = model:FindFirstChild("Torso")
 	assert(pose[torso] and pose[torso][2].Position.Y < pose[torso][1].Position.Y - 0.5, "le torse ne descend pas à genoux")
-	assert(pose[torso][2].UpVector.Y > 0.9, "le torse doit rester presque droit")
+	assert(pose[torso][2].UpVector.Y > 0.75, "le torse doit rester assez droit (révérence, pas couché)")
 	assert(pose[model:FindFirstChild("Head")][2].LookVector.Y < -0.3, "la tête doit être baissée")
-	for _, legName in { "Left Leg", "Right Leg" } do
-		local leg = model:FindFirstChild(legName)
-		local cf = pose[leg][2]
-		assert(math.abs(cf.UpVector.Y) < 0.2, legName .. " doit être repliée à plat")
-		assert(cf.Position.Y - leg.Size.X * 0.5 > -0.3 and cf.Position.Y < 1.2, legName .. " doit reposer au sol")
-	end
+	-- génuflexion : jambe droite vers l'avant (cuisse horizontale, genou levé), jambe gauche
+	-- presque verticale (genou au sol)
+	local rightLeg, leftLeg = model:FindFirstChild("Right Leg"), model:FindFirstChild("Left Leg")
+	local front, back = pose[rightLeg][2], pose[leftLeg][2]
+	assert(math.abs(front.UpVector.Y) < 0.2, "la jambe droite doit être à l'horizontale (genou levé)")
+	assert(front.Position.Z < pose[rightLeg][1].Position.Z - 0.6, "la jambe droite doit partir vers l'avant")
+	assert(front.Position.Y > 0.5 and front.Position.Y < 1.6, "le genou levé doit être à hauteur de cuisse")
+	assert(back.UpVector.Y > 0.9, "la jambe gauche doit rester presque verticale (genou au sol)")
+	assert(back.Position.Y < 0.4, "la jambe gauche doit être posée au sol")
+	assert(pose[torso][2].LookVector.Y < -0.4, "le torse doit s'incliner en révérence")
 	expectNoNewWarnings(before, "cinématique Monarque")
 end)
 
@@ -656,6 +696,11 @@ test("Traits : cinématiques Céleste, Midas, Vampire et résultat reçu du serv
 		local title = alice.PlayerGui.TraitCinematicUI:FindFirstChild("Title", true)
 		assert(title and title.Text == TraitCinematic.Titles[kind], kind .. " : titre manquant")
 		if kind == "celeste" then
+			-- la caméra démarre hors du faisceau (8 studs ou plus sur le côté)
+			local first = TraitCinematic.celesteCamera(6)[1][2]
+			assert(math.abs(first.X) >= 8, "Céleste : la caméra démarre dans le faisceau")
+			local beam = scene.folder:FindFirstChild("CelestialBeam")
+			assert(beam and beam.Transparency >= 0.55, "Céleste : faisceau trop opaque")
 			-- chaque aile part de son épaule vers l'extérieur (pas à travers le corps) et un peu en arrière
 			local stage = scene.stage
 			local count = 0
@@ -684,11 +729,34 @@ test("Traits : cinématiques Céleste, Midas, Vampire et résultat reçu du serv
 		if kind == "midas" then
 			local torso = scene.hero and scene.hero:FindFirstChild("Torso")
 			assert(torso and torso.Material == roblox.Enum.Material.Metal, "Midas : l'unité doit être changée en or")
+			-- aucune pièce ne tombe entre la caméra et l'unité (vue de dessus)
+			local keys = TraitCinematic.midasCamera(6)
+			local spots = TraitCinematic.coinSpots(keys, 70, 5)
+			assert(#spots >= 60, "Midas : trop peu de pièces")
+			for _, key in keys do
+				local eye = Vector2.new(key[2].X, key[2].Z)
+				assert(eye.Magnitude >= 12, "Midas : la caméra doit rester à 12 studs ou plus")
+				for _, spot in spots do
+					local p = Vector2.new(spot.X, spot.Z)
+					local along = p:Dot(eye.Unit)
+					if along >= 0 then
+						local side = (p - eye.Unit * math.min(along, eye.Magnitude)).Magnitude
+						assert(side >= 2.3, "Midas : une pièce tombe devant la caméra")
+					end
+				end
+			end
 		end
 		local lighting = game:GetService("Lighting")
 		if kind == "vampire" then
 			-- la nuit tombe chez ce joueur seulement (éclairage local), puis le jour revient
 			assert(lighting.ClockTime < 1 or lighting.ClockTime > 23.5, "Vampire : la nuit doit tomber (" .. lighting.ClockTime .. ")")
+			-- nuit rouge mais lisible : ambiance claire, contour rouge et rai de lune sur l'unité
+			local amb = lighting.OutdoorAmbient
+			assert(amb.R * 255 >= 70 and amb.G * 255 >= 25, "Vampire : ambiance de nuit trop sombre")
+			local outline = scene.hero and scene.hero:FindFirstChild("VampireOutline")
+			assert(outline and outline:IsA("Highlight") and outline.OutlineTransparency < 0.1, "Vampire : contour rouge de l'unité manquant")
+			local ray = scene.folder:FindFirstChild("MoonRay", true)
+			assert(ray and ray:IsA("SpotLight") and ray.Brightness >= 2.9, "Vampire : rai de lune manquant")
 		end
 		TraitCinematic.skip()
 		assert(scene.finished and not scene.folder.Parent, kind .. " : scène non nettoyée")

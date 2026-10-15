@@ -97,18 +97,20 @@ end
 ------------------------------------------------------------------------
 
 local LIMBS = { "Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "HumanoidRootPart" }
--- Avec des jambes R6 d'un seul bloc, la pose qui se lit le mieux est « à genoux, tibias au sol » :
--- les deux jambes à plat derrière, le torse incliné, la tête baissée et le poing droit posé au sol
--- devant (le salut du chevalier).
+-- Génuflexion R6 classique (le salut du chevalier devant son roi) : jambe droite vers l'avant,
+-- cuisse à l'horizontale et genou levé ; jambe gauche presque verticale, genou au sol (le bas de
+-- la jambe s'enfonce dans le sol, comme le tibia replié derrière) ; torse incliné, tête baissée,
+-- main droite posée sur le genou levé, bras gauche plié devant le torse.
 local KNEEL = {
-	frontLeg = -90, -- jambe droite à plat derrière (genou à terre)
-	backLeg = 90, -- jambe gauche à plat derrière (genou à terre)
-	torso = 24, -- torse incliné en révérence
-	head = 10, -- tête un peu plus baissée que le torse
-	fistLift = 22, -- bras droit vers l'avant : le poing touche le sol
-	fistYaw = 0,
-	leftArm = 10, -- bras gauche le long du corps
-	drop = 1.5, -- le corps descend de la longueur des jambes repliées
+	frontLeg = 90, -- jambe droite vers l'avant : cuisse à l'horizontale, genou levé
+	backLeg = 10, -- jambe gauche presque verticale, un peu en arrière : genou au sol
+	torso = 32, -- torse incliné en révérence
+	head = 20, -- tête baissée vers l'unité
+	rightArm = 24, -- bras droit vers l'avant : la main repose sur le genou levé
+	rightYaw = 0,
+	leftArm = 62, -- bras gauche plié devant le torse
+	leftYaw = -38, -- ... et ramené vers le milieu du corps
+	drop = 1.0, -- le corps descend de la longueur d'une cuisse
 }
 TraitCinematic.KneelAngles = KNEEL
 
@@ -171,8 +173,8 @@ function TraitCinematic.kneelPose(model: Model): { [BasePart]: { CFrame } }
 	local limbMove = {
 		["Right Leg"] = about(pivot("Right Leg", Vector3.new(0.5, -1, 0)), math.rad(KNEEL.frontLeg)),
 		["Left Leg"] = about(pivot("Left Leg", Vector3.new(-0.5, -1, 0)), -math.rad(KNEEL.backLeg)),
-		["Right Arm"] = arm(pivot("Right Arm", Vector3.new(1, 0.5, 0)), math.rad(KNEEL.fistYaw), math.rad(KNEEL.fistLift)),
-		["Left Arm"] = about(pivot("Left Arm", Vector3.new(-1, 0.5, 0)), math.rad(KNEEL.leftArm)),
+		["Right Arm"] = arm(pivot("Right Arm", Vector3.new(1, 0.5, 0)), math.rad(KNEEL.rightYaw), math.rad(KNEEL.rightArm)),
+		["Left Arm"] = arm(pivot("Left Arm", Vector3.new(-1, 0.5, 0)), math.rad(KNEEL.leftYaw), math.rad(KNEEL.leftArm)),
 		Head = about(pivot("Head", Vector3.new(0, 1, 0)), -math.rad(KNEEL.head)),
 	}
 	local bow = about(hipCenter, -math.rad(KNEEL.torso))
@@ -931,8 +933,9 @@ local function shake(scene, amount: number)
 	end
 end
 
--- Grand titre doré (dégradé qui ondule) juste sous la bande noire du haut ; sous-titre et badge
--- de rareté en bas de l'image (sur la bande du bas) : l'unité, au centre, n'est jamais cachée.
+-- Grand titre doré (dégradé qui ondule) en haut, à cheval sur la bande noire (jamais sur la
+-- couronne) ; petite phrase et badge de rareté en grand sur une bande sombre en dégradé posée
+-- juste au-dessus de la bande noire du bas : lisibles de loin (console), sans masquer la scène.
 local function title(scene, text: string, color: Color3, subtitle: string, badge: string?, y: number?)
 	local root = scene.root
 	if not root or not root.Parent then
@@ -941,7 +944,7 @@ local function title(scene, text: string, color: Color3, subtitle: string, badge
 	local holder = new("Frame", {
 		Name = "TitleBlock",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.fromScale(0.5, y or 0.108),
+		Position = UDim2.fromScale(0.5, y or 0.06),
 		Size = UDim2.fromOffset(980, 116),
 		BackgroundTransparency = 1,
 		ZIndex = 25,
@@ -969,42 +972,53 @@ local function title(scene, text: string, color: Color3, subtitle: string, badge
 	Theme.tween(scale, 0.45, { Scale = 1 }, Enum.EasingStyle.Back)
 	Theme.tween(label, 0.25, { TextTransparency = 0 })
 	Theme.sparkles(holder, 12, #text, 0.3, 27)
-	-- légende du bas : sous-titre entre deux traits fins, puis le badge de rareté
+	-- légende du bas : bande sombre en dégradé (transparente en haut) juste au-dessus de la bande
+	-- noire ; la phrase entre deux traits fins, puis le badge de rareté
 	local caption = new("Frame", {
 		Name = "Caption",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -14),
-		Size = UDim2.fromOffset(980, 80),
-		BackgroundTransparency = 1,
-		ZIndex = 25,
+		Position = UDim2.fromScale(0.5, 0.9),
+		Size = UDim2.new(1, 0, 0, 118),
+		BackgroundColor3 = BLACK,
+		BackgroundTransparency = 0.15,
+		BorderSizePixel = 0,
+		ZIndex = 24,
 		Parent = root,
 	})
-	for _, side in { -1, 1 } do
-		local line = new("Frame", {
-			Name = "Rule",
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, side * 340, 0, 18),
-			Size = UDim2.fromOffset(0, 3),
-			BackgroundColor3 = color,
-			BorderSizePixel = 0,
-			ZIndex = 26,
-			Parent = caption,
-		})
-		Theme.gradient({ color, color }, 0, side < 0 and { 1, 0 } or { 0, 1 }).Parent = line
-		Theme.tween(line, 0.6, { Size = UDim2.fromOffset(200, 3) })
-	end
+	new("UIGradient", {
+		Rotation = 90,
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.45, 0.45), NumberSequenceKeypoint.new(1, 0) }),
+		Parent = caption,
+	})
 	local sub = Theme.label({
 		Name = "Subtitle",
 		Text = subtitle,
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0, 18),
-		Size = UDim2.fromOffset(460, 34),
+		Position = UDim2.new(0.5, 0, 0, 50),
+		Size = UDim2.fromOffset(0, 38),
+		AutomaticSize = Enum.AutomaticSize.X,
+		TextScaled = false,
+		TextSize = 30,
 		FontFace = Theme.Faces.Heavy,
 		TextColor3 = WHITE,
 		StrokeThickness = 2.5,
 		ZIndex = 26,
 		Parent = caption,
 	})
+	for _, side in { -1, 1 } do
+		local line = new("Frame", {
+			Name = "Rule",
+			AnchorPoint = Vector2.new(side < 0 and 1 or 0, 0.5),
+			Position = UDim2.new(side < 0 and 0 or 1, side * 18, 0.5, 0),
+			Size = UDim2.fromOffset(0, 3),
+			BackgroundColor3 = color,
+			BorderSizePixel = 0,
+			ZIndex = 26,
+			Parent = sub,
+		})
+		Theme.gradient({ color, color }, 0, side < 0 and { 1, 0 } or { 0, 1 }).Parent = line
+		Theme.tween(line, 0.6, { Size = UDim2.fromOffset(160, 3) })
+	end
 	sub.TextTransparency = 1
 	task.delay(0.3, function()
 		if sub.Parent then
@@ -1015,19 +1029,24 @@ local function title(scene, text: string, color: Color3, subtitle: string, badge
 		local pill = new("Frame", {
 			Name = "Badge",
 			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.new(0.5, 0, 0, 44),
-			Size = UDim2.fromOffset(270, 30),
+			Position = UDim2.new(0.5, 0, 0, 74),
+			Size = UDim2.fromOffset(0, 36),
+			AutomaticSize = Enum.AutomaticSize.X,
 			BackgroundColor3 = BLACK,
-			BackgroundTransparency = 0.25,
+			BackgroundTransparency = 0.2,
 			ZIndex = 26,
 			Parent = caption,
 		})
 		Theme.round().Parent = pill
 		Theme.stroke(color, 2).Parent = pill
+		Theme.padding(18, 0).Parent = pill
 		Theme.label({
+			Name = "BadgeText",
 			Text = badge,
-			Size = UDim2.new(1, -16, 1, -6),
-			Position = UDim2.fromOffset(8, 3),
+			Size = UDim2.fromOffset(0, 36),
+			AutomaticSize = Enum.AutomaticSize.X,
+			TextScaled = false,
+			TextSize = 22,
 			FontFace = Theme.Faces.Heavy,
 			TextColor3 = Theme.light(color, 0.4),
 			StrokeThickness = 1.5,
@@ -1226,37 +1245,51 @@ end
 -- MONARQUE
 ------------------------------------------------------------------------
 
-local MONARCH_RADIUS = 9.4 -- cercle des persos agenouillés autour de l'unité
+local MONARCH_RADIUS = 11.6 -- rang extérieur du demi-cercle des persos agenouillés
+local MONARCH_INNER = 7.4 -- rang intérieur
 local MONARCH_COUNT = 8
 local DAIS_TOP = 1.2 -- l'unité se tient sur une estrade (2 marches)
-local HERO_SCALE = 1.3
+local HERO_SCALE = 1.1 -- un peu plus grande que les autres, sans remplir l'image
 TraitCinematic.MonarchRadius = MONARCH_RADIUS
 TraitCinematic.MonarchCount = MONARCH_COUNT
 TraitCinematic.HeroScale = HERO_SCALE
+TraitCinematic.CrownGap = 0.4 -- espace entre le sommet des cheveux et le bas de la couronne
+TraitCinematic.CrownBottom = 0.26 -- bas de la couronne sous le centre de l'anneau (x échelle)
 
--- Places des persos (repère de la scène) : un cercle autour de l'unité, ouvert du côté de la
--- caméra (devant, -Z) pour qu'aucun perso ne se tienne entre la caméra et l'unité. Angles mesurés
--- depuis l'avant : 4 de chaque côté, du flanc avant jusque derrière l'unité.
-local MONARCH_ANGLES = { 66, 98, 130, 162 }
+-- Places des persos (repère de la scène, l'unité regarde vers -Z) : un DEMI-CERCLE DEVANT
+-- l'unité, sur deux rangs décalés (comme une cour devant son roi), tous tournés vers elle.
+-- Angles mesurés depuis l'avant ; l'allée du milieu (tapis rouge) reste libre pour la caméra.
+local MONARCH_ROWS = {
+	{ angle = 26, radius = MONARCH_INNER },
+	{ angle = 12, radius = MONARCH_RADIUS },
+	{ angle = 74, radius = MONARCH_INNER },
+	{ angle = 50, radius = MONARCH_RADIUS },
+}
 function TraitCinematic.monarchSpots(): { Vector3 }
 	local spots = {}
-	for _, a in MONARCH_ANGLES do
+	for _, row in MONARCH_ROWS do
 		for _, side in { -1, 1 } do
-			local r = math.rad(a * side)
-			table.insert(spots, Vector3.new(math.sin(r) * MONARCH_RADIUS, 0, -math.cos(r) * MONARCH_RADIUS))
+			local r = math.rad(row.angle * side)
+			table.insert(spots, Vector3.new(math.sin(r) * row.radius, 0, -math.cos(r) * row.radius))
 		end
 	end
 	return spots
 end
 
--- Trajet de la caméra : vue large qui tourne au-dessus du cercle, puis plan de face un peu
--- au-dessus des persos inclinés (le cercle entier, l'unité couronnée au centre, plein cadre).
+-- Trajet de la caméra :
+-- 1) plan large en plongée depuis derrière l'épaule de l'unité : la cour apparaît et s'agenouille
+--    face à elle (on voit les têtes s'incliner vers le monarque) ;
+-- 2) raccord (coupe franche) sur un contrechamp bas, de face, entre les deux persos du premier
+--    rang : la couronne descend sur l'unité ;
+-- 3) recul et montée : tout le demi-cercle tient dans l'image, l'unité couronnée au centre.
 function TraitCinematic.monarchCamera(total: number): { { any } }
 	return {
-		{ 0, Vector3.new(16, 15, -20), Vector3.new(0, 2.5, 0), 55 },
-		{ 2.2, Vector3.new(-10, 10, -18), Vector3.new(0, 3, 0), 52 },
-		{ 3.6, Vector3.new(-2.5, 7.4, -20), Vector3.new(0, 5.5, 0), 52 },
-		{ math.max(total, 4), Vector3.new(0, 7.2, -20.5), Vector3.new(0, 5.5, 0), 50 },
+		{ 0, Vector3.new(5.5, 10.5, 9.5), Vector3.new(0, 1.6, -6), 62 },
+		{ 2.84, Vector3.new(7.5, 9.2, 7), Vector3.new(0, 1.6, -6.5), 58 },
+		{ 2.85, Vector3.new(0, 2.3, -13.2), Vector3.new(0, 6.6, 0), 56 },
+		{ 4.5, Vector3.new(0, 2.7, -14.2), Vector3.new(0, 6.4, 0), 54 },
+		{ 5.7, Vector3.new(0, 9, -27), Vector3.new(0, 4, 0), 58 },
+		{ math.max(total, 6), Vector3.new(0, 9.3, -27.6), Vector3.new(0, 4, 0), 58 },
 	}
 end
 
@@ -1264,12 +1297,12 @@ local function monarchScene(scene)
 	local total = scene.total
 	local s = scene.low and 0.6 or 1
 	-- Sol de cérémonie : grand disque de marbre clair cerclé d'or, runes lumineuses qui tournent
-	local floor = part(scene, "CeremonyFloor", Vector3.new(0.3, 24, 24), CFrame.new(0, 0.12, 0) * FLAT, CREAM, Enum.Material.Marble, CYL)
-	local floorRim = part(scene, "CeremonyRim", Vector3.new(0.32, 25, 25), CFrame.new(0, 0.1, 0) * FLAT, GOLD_DEEP, Enum.Material.Metal, CYL)
+	local floor = part(scene, "CeremonyFloor", Vector3.new(0.3, 27, 27), CFrame.new(0, 0.12, 0) * FLAT, CREAM, Enum.Material.Marble, CYL)
+	local floorRim = part(scene, "CeremonyRim", Vector3.new(0.32, 28, 28), CFrame.new(0, 0.1, 0) * FLAT, GOLD_DEEP, Enum.Material.Metal, CYL)
 	local runes = {}
 	for i = 0, 23 do
 		local a = i / 24 * math.pi * 2
-		local r = 10.6
+		local r = 13
 		local rune = part(scene, "Rune", Vector3.new(0.9, 0.06, 0.25), CFrame.new(math.cos(a) * r, 0.3, math.sin(a) * r) * CFrame.Angles(0, -a, 0), GOLD, Enum.Material.Neon)
 		table.insert(runes, { part = rune, a = a, r = r })
 	end
@@ -1345,16 +1378,18 @@ local function monarchScene(scene)
 		end
 	end
 	-- Couronne
-	-- la couronne coiffe les cheveux (une coiffure haute ou large ne la cache pas) : elle grandit
-	-- avec la coiffure et se pose dans le haut des cheveux, jamais sous le sommet du crâne
-	local crownScale = math.clamp((scene.heroHairRadius or 1) / 0.85, HERO_SCALE, 2.6)
+	-- la couronne flotte juste au-dessus de la coiffure (0,4 stud au-dessus du sommet de la boîte
+	-- tête + cheveux) : le visage et les cheveux restent entièrement visibles, quelle que soit la
+	-- coiffure ; elle est un peu plus large que la tête
+	local crownScale = math.clamp((scene.heroHairRadius or 1) / 1.1, 1.15, 1.9)
 	local crown = buildCrown(scene, crownScale)
 	local crownBase = scene.crownParts
-	-- posée haut (sur la coiffure, pas enfoncée jusqu'aux yeux) : le visage reste entièrement visible
-	local crownTarget = math.max(headTop + 0.3 * crownScale, (scene.heroHairTop or headTop) - 0.3 * crownScale)
+	local hairTop = math.max(scene.heroHairTop or headTop, headTop)
+	local crownTarget = hairTop + TraitCinematic.CrownGap + TraitCinematic.CrownBottom * crownScale
+	scene.crownScale = crownScale
 	scene.crownY = crownTarget
 	-- Étincelles dorées qui montent du sol
-	local motes = part(scene, "Motes", Vector3.new(0.2, 20, 20), CFrame.new(0, 0.4, 0) * FLAT, GOLD, Enum.Material.Neon, CYL, 1)
+	local motes = part(scene, "Motes", Vector3.new(0.2, 24, 24), CFrame.new(0, 0.4, 0) * FLAT, GOLD, Enum.Material.Neon, CYL, 1)
 	emitter(motes, {
 		Color = ColorSequence.new(Color3.fromRGB(255, 230, 150)),
 		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.35), NumberSequenceKeypoint.new(1, 0) }),
@@ -1439,11 +1474,13 @@ end
 -- CÉLESTE
 ------------------------------------------------------------------------
 
+-- La caméra démarre loin à côté du faisceau (jamais dedans) et regarde la colonne descendre, puis
+-- se recentre sur l'unité qui s'élève.
 function TraitCinematic.celesteCamera(total: number): { { any } }
 	return {
-		{ 0, Vector3.new(7, 1.8, -12), Vector3.new(0, 14, 0), 60 },
-		{ 1.4, Vector3.new(4, 2.6, -13), Vector3.new(0, 6, 0), 52 },
-		{ 3, Vector3.new(1, 4.2, -16.5), Vector3.new(0, 7.2, 0), 52 },
+		{ 0, Vector3.new(11, 3, -13), Vector3.new(0, 8.5, 0), 58 },
+		{ 1.4, Vector3.new(8.5, 3.4, -13.5), Vector3.new(0, 5.5, 0), 52 },
+		{ 3, Vector3.new(2, 4.2, -16.5), Vector3.new(0, 7.2, 0), 52 },
 		{ math.max(total, 3.5), Vector3.new(0, 4, -16), Vector3.new(0, 7.5, 0), 50 },
 	}
 end
@@ -1456,8 +1493,9 @@ local function celesteScene(scene)
 	spawnHero(scene, 1.2, 0)
 	local headTop = scene.heroHeadTop or 6
 	-- Le faisceau céleste (cœur + halo) descend du ciel jusqu'au sol
-	local beam = part(scene, "CelestialBeam", Vector3.new(1, 4.2, 4.2), CFrame.new(0, 200, 0) * UPRIGHT, SKY, Enum.Material.Neon, CYL, 0.35)
-	local beamGlow = part(scene, "CelestialGlow", Vector3.new(1, 8, 8), CFrame.new(0, 200, 0) * UPRIGHT, Color3.fromRGB(150, 220, 255), Enum.Material.Neon, CYL, 0.82)
+	-- (assez fin et translucide pour que l'unité reste visible dedans)
+	local beam = part(scene, "CelestialBeam", Vector3.new(1, 3, 3), CFrame.new(0, 200, 0) * UPRIGHT, SKY, Enum.Material.Neon, CYL, 1)
+	local beamGlow = part(scene, "CelestialGlow", Vector3.new(1, 5.4, 5.4), CFrame.new(0, 200, 0) * UPRIGHT, Color3.fromRGB(150, 220, 255), Enum.Material.Neon, CYL, 1)
 	local shaft = part(scene, "BackShaft", Vector3.new(160, 1.8, 1.8), CFrame.new(0, 80, 3.2) * UPRIGHT, Color3.fromRGB(225, 246, 255), Enum.Material.Neon, CYL, 1)
 	local ring = part(scene, "ImpactRing", Vector3.new(0.05, 4, 4), CFrame.new(0, 0.12, 0) * FLAT, SKY, Enum.Material.Neon, CYL, 1)
 	local pool = part(scene, "LightPool", Vector3.new(0.05, 9, 9), CFrame.new(0, 0.1, 0) * FLAT, Color3.fromRGB(230, 250, 255), Enum.Material.Neon, CYL, 1)
@@ -1517,14 +1555,16 @@ local function celesteScene(scene)
 		local length = 160 - bottom
 		local mid = bottom + length * 0.5
 		-- après l'impact, la colonne s'amincit et s'efface (l'unité apparaît) ; un rai reste derrière elle
+		-- montée progressive de l'intensité (0 -> 0,5 s), jamais plus opaque que 0,55
 		local fade = smooth((t - 1) / 0.9)
-		local width = 4.2 - 2.6 * fade
+		local grow = smooth(t / 0.5)
+		local width = 3 - 1.8 * fade
 		beam.Size = Vector3.new(length, width, width)
 		beam.CFrame = scene.stage * CFrame.new(0, mid, 0) * UPRIGHT
-		beam.Transparency = 0.35 + 0.65 * fade
-		beamGlow.Size = Vector3.new(length, 8 + math.sin(t * 6) * 0.4, 8 + math.sin(t * 6) * 0.4)
+		beam.Transparency = 1 - (1 - 0.55) * grow * (1 - fade)
+		beamGlow.Size = Vector3.new(length, 5.4 + math.sin(t * 6) * 0.3, 5.4 + math.sin(t * 6) * 0.3)
 		beamGlow.CFrame = beam.CFrame
-		beamGlow.Transparency = 0.82 + 0.18 * fade
+		beamGlow.Transparency = 1 - (1 - 0.88) * grow * (1 - fade)
 		shaft.Transparency = 1 - 0.45 * smooth((t - 1.4) / 0.8)
 		if not landed and t >= 0.9 then
 			landed = true
@@ -1593,13 +1633,58 @@ end
 -- MIDAS
 ------------------------------------------------------------------------
 
+-- Toujours à 12 studs ou plus de l'unité, cadrée sur le haut du torse (la tête n'est jamais coupée).
 function TraitCinematic.midasCamera(total: number): { { any } }
 	return {
-		{ 0, Vector3.new(-6, 12, -14), Vector3.new(0, 3, 0), 58 },
-		{ 1.6, Vector3.new(5, 5, -12), Vector3.new(0, 3.5, 0), 50 },
-		{ 3, Vector3.new(1.2, 4.4, -15.5), Vector3.new(0, 5, 0), 50 },
-		{ math.max(total, 3.5), Vector3.new(0, 4.2, -15), Vector3.new(0, 5, 0), 48 },
+		{ 0, Vector3.new(-7, 11, -15), Vector3.new(0, 4, 0), 55 },
+		{ 1.6, Vector3.new(6.5, 6, -13.5), Vector3.new(0, 4.4, 0), 55 },
+		{ 3, Vector3.new(1.4, 5, -15.5), Vector3.new(0, 4.8, 0), 52 },
+		{ math.max(total, 3.5), Vector3.new(0, 4.8, -15), Vector3.new(0, 4.8, 0), 50 },
 	}
+end
+
+-- Points de chute des pièces (repère de la scène) : un disque autour de l'unité, sauf dans le cône
+-- de vue de la caméra (bande de 2,4 studs autour de chaque ligne œil -> unité, vue de dessus) ;
+-- aucune pièce ne passe devant l'objectif ni entre la caméra et l'unité.
+function TraitCinematic.coinSpots(keys: { { any } }, count: number, seed: number?): { Vector3 }
+	local rng = Random.new(seed or 5)
+	local eyes = {}
+	for _, key in keys do
+		table.insert(eyes, Vector2.new(key[2].X, key[2].Z))
+	end
+	local function blocked(p: Vector2): boolean
+		for _, eye in eyes do
+			local len = eye.Magnitude
+			if len > 0.1 then
+				local dir = eye / len
+				local along = p:Dot(dir)
+				if along > -1 then
+					local side = (p - dir * math.clamp(along, 0, len)).Magnitude
+					if side < 2.4 + math.max(0, along) * 0.06 then
+						return true
+					end
+				end
+			end
+		end
+		return false
+	end
+	local spots = {}
+	for _ = 1, count do
+		local spot
+		for _ = 1, 30 do
+			local angle = rng:NextNumber(0, math.pi * 2)
+			local radius = math.sqrt(rng:NextNumber(0.02, 1)) * 9
+			local p = Vector2.new(math.cos(angle) * radius, math.sin(angle) * radius)
+			if not blocked(p) then
+				spot = p
+				break
+			end
+		end
+		if spot then
+			table.insert(spots, Vector3.new(spot.X, 0, spot.Y))
+		end
+	end
+	return spots
 end
 
 local MIDAS_GOLD = Color3.fromRGB(255, 196, 52)
@@ -1621,18 +1706,13 @@ local function midasScene(scene)
 	-- Pluie de pièces d'or (tombent, tournent, rebondissent puis restent au sol)
 	local rng = Random.new(5)
 	local coins = {}
-	for _ = 1, math.floor(70 * s) do
+	for _, spot in TraitCinematic.coinSpots(TraitCinematic.midasCamera(total), math.floor(70 * s), 5) do
 		local coin = part(scene, "Coin", Vector3.new(0.16, 1.1, 1.1), CFrame.new(), MIDAS_GOLD, Enum.Material.Metal, CYL, 1)
 		coin.Reflectance = 0.25
-		local angle = rng:NextNumber(0, math.pi * 2)
-		local radius = math.sqrt(rng:NextNumber(0.02, 1)) * 9
-		if math.sin(angle) < 0 then
-			radius = math.min(radius, 5.5) -- côté caméra : les pièces restent loin de l'objectif
-		end
 		table.insert(coins, {
 			part = coin,
-			x = math.cos(angle) * radius,
-			z = math.sin(angle) * radius,
+			x = spot.X,
+			z = spot.Z,
 			start = rng:NextNumber(0, 3.2),
 			y0 = rng:NextNumber(16, 30),
 			spin = rng:NextNumber(4, 10),
@@ -1737,6 +1817,7 @@ local BLOOD = Color3.fromRGB(150, 12, 32)
 -- Nuit locale (seulement chez ce joueur : un changement d'éclairage fait par le client ne se
 -- réplique pas). Rendue à la fin, sauf si le serveur a changé l'éclairage entre-temps (nouvel univers).
 local NIGHT_PROPS = { "ClockTime", "OutdoorAmbient", "Ambient", "FogColor" }
+TraitCinematic.NightAmbient = Color3.fromRGB(110, 48, 60)
 local function localNight(scene)
 	local saved = {}
 	for _, name in NIGHT_PROPS do
@@ -1785,12 +1866,12 @@ local function localNight(scene)
 			local clock = from + (target - from) * night
 			set("ClockTime", clock % 24)
 		end
-		local red = Color3.fromRGB(96, 34, 48)
+		-- ambiance rouge assez claire (jamais le quasi-noir) : l'unité et sa tenue restent lisibles
 		if typeof(saved.OutdoorAmbient) == "Color3" then
-			set("OutdoorAmbient", saved.OutdoorAmbient:Lerp(red, night))
+			set("OutdoorAmbient", saved.OutdoorAmbient:Lerp(TraitCinematic.NightAmbient, night))
 		end
 		if typeof(saved.Ambient) == "Color3" then
-			set("Ambient", saved.Ambient:Lerp(Color3.fromRGB(84, 36, 46), night))
+			set("Ambient", saved.Ambient:Lerp(TraitCinematic.NightAmbient, night))
 		end
 		if typeof(saved.FogColor) == "Color3" then
 			set("FogColor", saved.FogColor:Lerp(Color3.fromRGB(40, 8, 16), night))
@@ -1839,7 +1920,42 @@ local function vampireScene(scene)
 	light(glowPool, Color3.fromRGB(255, 40, 60), 2, 16)
 	-- lumière de lune pâle devant l'unité : elle reste lisible en pleine nuit
 	local moonKey = part(scene, "MoonKey", Vector3.new(0.2, 0.2, 0.2), CFrame.new(0, headTop - 1, -4.5), WHITE, Enum.Material.SmoothPlastic, nil, 1)
-	light(moonKey, Color3.fromRGB(255, 196, 206), 1.6, 12)
+	light(moonKey, Color3.fromRGB(255, 204, 212), 2.2, 14)
+	-- rai de lune rouge : projecteur venu du côté de la lune (haut, derrière) braqué sur l'unité
+	local moonSpot = part(
+		scene,
+		"MoonSpot",
+		Vector3.new(0.2, 0.2, 0.2),
+		CFrame.lookAt(Vector3.new(4, headTop + 12, 9), Vector3.new(0, headTop * 0.5, 0)),
+		WHITE,
+		Enum.Material.SmoothPlastic,
+		nil,
+		1
+	)
+	local spot = Instance.new("SpotLight")
+	spot.Name = "MoonRay"
+	spot.Color = Color3.fromRGB(255, 60, 70)
+	spot.Brightness = 0
+	spot.Range = 30
+	spot.Angle = 50
+	spot.Face = Enum.NormalId.Front
+	spot.Shadows = false
+	spot.Parent = moonSpot
+	-- contour rouge vif sur l'unité : sa silhouette se lit même en pleine nuit
+	local outline: Highlight? = nil
+	if scene.hero then
+		local h = Instance.new("Highlight")
+		h.Name = "VampireOutline"
+		h.Adornee = scene.hero
+		h.FillTransparency = 1
+		h.OutlineColor = Color3.fromRGB(255, 50, 64)
+		h.OutlineTransparency = 1
+		pcall(function()
+			h.DepthMode = Enum.HighlightDepthMode.Occluded
+		end)
+		h.Parent = scene.hero
+		outline = h
+	end
 	-- Chauves-souris : corps + deux ailes qui battent ; elles jaillissent de l'unité puis tournoient
 	local rng = Random.new(3)
 	local bats = {}
@@ -1866,10 +1982,14 @@ local function vampireScene(scene)
 		-- la nuit tombe (0 -> 1,2 s) : image plus sombre et rouge
 		local night = smooth(t / 1.2)
 		setNight(night)
-		grade.Brightness = -0.04 * night
-		grade.Contrast = 0.18 * night
-		grade.Saturation = -0.25 * night
-		grade.TintColor = WHITE:Lerp(Color3.fromRGB(255, 176, 176), night)
+		grade.Brightness = 0
+		grade.Contrast = 0.12 * night
+		grade.Saturation = -0.15 * night
+		grade.TintColor = WHITE:Lerp(Color3.fromRGB(255, 206, 206), night)
+		spot.Brightness = 3 * night
+		if outline then
+			outline.OutlineTransparency = 1 - night
+		end
 		-- la lune se lève
 		local m = smooth(t / 1.8)
 		moon.Transparency = 1 - m

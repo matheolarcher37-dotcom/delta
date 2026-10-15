@@ -411,9 +411,31 @@ local function paintTraitCard(trait)
 	refs.emblem = emblem(card, trait and trait.id, 40, UDim2.fromOffset(64, 58), 4, true)
 end
 
+-- Ligne voisine du rouleau (au repos) : très effacée et plus petite, pour qu'on ne croie pas que
+-- l'unité a plusieurs traits ; seul le trait de la ligne du milieu se lit.
+local function dimRow(label: Instance?)
+	if not label or not label:IsA("TextLabel") then
+		return
+	end
+	label.TextTransparency = 0.85
+	label:SetAttribute("Dimmed", true)
+	for _, child in label:GetChildren() do
+		if child:IsA("UIStroke") then
+			child.Transparency = 0.92
+		elseif child:IsA("UITextSizeConstraint") then
+			child.MaxTextSize = 18
+		end
+	end
+end
+
 local function restReel(trait)
 	local before, after = neighbours(trait and trait.id)
 	fillReel({ before, trait or false, after }, 2)
+	local strip = refs.reelStrip
+	if strip and strip.Parent then
+		dimRow(strip:FindFirstChild("Row1"))
+		dimRow(strip:FindFirstChild("Row3"))
+	end
 end
 
 local function buildTraitCard(parent: Instance, props: { [string]: any }, trait)
@@ -639,6 +661,9 @@ local function spinReel(finalId: string?, fast: boolean, fromId: string?)
 	end
 	strip.Position = UDim2.fromOffset(0, -(endRow - 2) * ROW)
 	play(stopSound)
+	-- arrêt : seul le résultat reste lisible
+	dimRow(strip:FindFirstChild("Row" .. (endRow - 1)))
+	dimRow(strip:FindFirstChild("Row" .. (endRow + 1)))
 end
 
 ------------------------------------------------------------------------
@@ -999,6 +1024,11 @@ local function reveal(trait, entry, desc, fast: boolean)
 		else
 			TraitsMenu.playReveal(trait, desc, fast and 1.4 or 2.6)
 		end
+	elseif level == 3 and fast and trait.tier < autoTarget then
+		-- relance auto : un trait rare mais sous le rang visé ne coupe pas le rythme (pas de plein écran)
+		flashCard(edge, 1)
+		sparkleBurst(refs.traitCard or gui, edge, 14)
+		play(rareSound)
 	elseif level == 3 then
 		flashCard(edge, 1)
 		sparkleBurst(refs.traitCard or gui, edge, 14)
