@@ -932,12 +932,13 @@ local function lookSignature(look): string
 	return table.concat(parts, ";")
 end
 
-function Components.characterModel(look, id: string?, stars: number?): Model
+-- `variety` : variété / mutation de l'unité (unit.variety ou unit.aura : Or, Diamant...).
+function Components.characterModel(look, id: string?, stars: number?, variety: string?): Model
 	local template = CharacterFactory.templateFor(id, stars)
-	local signature = lookSignature(look) .. (template and ("|" .. template:GetFullName()) or "")
+	local signature = lookSignature(look) .. (template and ("|" .. template:GetFullName()) or "") .. "|" .. tostring(variety or "")
 	local cached = previewCache[signature]
 	if not cached then
-		cached = CharacterFactory.buildPreview(id, stars, look)
+		cached = CharacterFactory.buildPreview(id, stars, look, variety)
 		previewCache[signature] = cached
 	end
 	local model = cached:Clone()
@@ -976,7 +977,7 @@ end
 -- `entry` (facultatif) permet d'utiliser le modèle personnalisé du perso s'il existe.
 -- `framing` : "full" (corps entier, défaut) ou "bust" (buste, plus proche).
 function Components.characterViewport(parent: Instance, look, spin: boolean?, entry: any?, framing: string?): ViewportFrame
-	local model = Components.characterModel(look, entry and entry.id, entry and entry.stars)
+	local model = Components.characterModel(look, entry and entry.id, entry and entry.stars, entry and (entry.aura or entry.variety))
 	if framing == "bust" then
 		return Components.viewport(parent, model, Vector3.new(0, 4.3, 0), 8.5, nil, spin)
 	end
@@ -1026,7 +1027,7 @@ function Components.rarityTag(parent: Instance, rarityId: string, props: { [stri
 		end)
 	end
 	Theme.label({
-		Text = string.upper(info.name),
+		Text = Formulas.upper(info.name),
 		Size = UDim2.new(1, -8, 1, -4),
 		Position = UDim2.fromOffset(4, 2),
 		FontFace = Theme.Faces.Title,

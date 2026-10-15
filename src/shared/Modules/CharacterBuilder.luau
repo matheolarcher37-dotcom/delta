@@ -4493,14 +4493,10 @@ function CharacterBuilder.applyVariety(model: Model, variety: string?): boolean
 		end
 	end
 	if spec.outline then
-		-- Liseré coloré (contour seul, sans remplissage : la peinture reste nette)
-		local rim = Instance.new("Highlight")
-		rim.Name = "VarietyRim"
-		rim.FillTransparency = 1
-		rim.OutlineColor = spec.outline
-		rim.OutlineTransparency = 0.25
-		rim.DepthMode = Enum.HighlightDepthMode.Occluded
-		rim.Parent = model
+		-- Liseré coloré : couleur notée sur le modèle ; le contour (Highlight) est posé CÔTÉ CLIENT
+		-- sur les persos proches seulement (Modules/Mutations.startClient : Roblox n'affiche que
+		-- 31 Highlight à la fois).
+		model:SetAttribute("VarietyRim", spec.outline)
 	end
 	if spec.fx and torso then
 		varietyFx(torso, spec.fx, s)

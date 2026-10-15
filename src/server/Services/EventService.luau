@@ -129,6 +129,7 @@ function EventService:_strike(def)
 		return
 	end
 	entry.aura = def.aura
+	entry.variety = def.aura -- la variété visible suit la mutation
 	DataService:Sync(pick.player)
 	self.services.CharacterService:Refresh(pick.player)
 	local desc = Formulas.describe(entry)

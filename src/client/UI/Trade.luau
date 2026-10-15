@@ -31,7 +31,7 @@ end
 
 local function offerColumn(column, side, mine: boolean)
 	Components.clear(column.list)
-	column.title.Text = mine and "TON OFFRE" or ("OFFRE DE " .. string.upper(side.name))
+	column.title.Text = mine and "TON OFFRE" or ("OFFRE DE " .. Formulas.upper(side.name))
 	column.ready.Visible = side.ready == true
 	for i, item in side.characters do
 		Components.characterCard(column.list, item.entry, {
@@ -65,7 +65,7 @@ local function render()
 	local mineKey = trade.you
 	local otherKey = mineKey == "A" and "B" or "A"
 	local mine, other = trade.sides[mineKey], trade.sides[otherKey]
-	window.title.Text = "ÉCHANGE AVEC " .. string.upper(other.name)
+	window.title.Text = "ÉCHANGE AVEC " .. Formulas.upper(other.name)
 	offerColumn(refs.mine, mine, true)
 	offerColumn(refs.other, other, false)
 

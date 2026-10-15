@@ -483,7 +483,7 @@ local function renderItemDetail()
 		})
 	end
 	resourceRow(2, C.Gold, "Pièces", "Gagnées par tes unités et en combat", data.coins, true)
-	resourceRow(3, C.Cyan, "Cristaux de Trait", "Pour relancer un trait (Autel des Traits)", data.traitCrystals or 0)
+	resourceRow(3, C.Cyan, "Gemmes de trait", "1 gemme = 1 relance de trait (menu Traits)", data.traitCrystals or 0)
 	for i, universe in Universes.List do
 		local material = universe.material
 		resourceRow(3 + i, material.color, material.name, "Ennemis de : " .. universe.name, data.materials[material.id] or 0)
@@ -588,7 +588,7 @@ local function renderItems()
 		Components.emptyState(grid, "Aucun objet pour l'instant.\nLe Marchand ambulant vend des objets d'évolution : suis le rayon violet !", "bag")
 	end
 	Components.setPillText(refs.teamPill, "Objets : " .. itemCount .. "  ·  Reliques : " .. relicCount)
-	window.subtitle.Text = itemCount .. " objets d'évolution  ·  " .. relicCount .. " reliques  ·  " .. (data.traitCrystals or 0) .. " cristaux"
+	window.subtitle.Text = itemCount .. " objets d'évolution  ·  " .. relicCount .. " reliques  ·  " .. (data.traitCrystals or 0) .. " gemmes"
 end
 
 ------------------------------------------------------------------------

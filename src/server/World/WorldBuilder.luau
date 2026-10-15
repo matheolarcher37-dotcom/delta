@@ -26,6 +26,8 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Layout = require(Shared.Config.Layout)
 local CharacterBuilder = require(Shared.Modules.CharacterBuilder)
+local SwordBuilder = require(Shared.Modules.SwordBuilder)
+local Swords = require(Shared.Config.Swords)
 local Build = require(script.Parent.Parent.Modules.Build)
 local Core = require(script.Parent.Kit.Core)
 local Nature = require(script.Parent.Kit.Nature)
@@ -591,12 +593,28 @@ local function counterProps(parent: Instance, stall, cf: CFrame)
 	if stall.id == "Forge" then
 		Build.part(parent, "Anvil", Vector3.new(2.4, 1, 1.2), top * CFrame.new(-5, 0.5, 0), rgb(70, 70, 80), { Material = Enum.Material.Metal })
 		Build.part(parent, "AnvilHorn", Vector3.new(1, 0.6, 0.7), top * CFrame.new(-6.4, 0.7, 0), rgb(70, 70, 80), { Material = Enum.Material.Metal, CanCollide = false })
-		for i = 0, 2 do
-			Build.deco(parent, "DisplaySword", Vector3.new(0.3, 3.4, 0.1), top * CFrame.new(2 + i * 1.6, 1.7, 0) * CFrame.Angles(0, 0, 0.15), rgb(210, 215, 225), {
-				Material = Enum.Material.Metal,
-				Reflectance = 0.2,
-			})
-			Build.deco(parent, "DisplayHilt", Vector3.new(1, 0.25, 0.25), top * CFrame.new(2 + i * 1.6, 0.2, 0), rgb(120, 70, 40))
+		-- Présentoir : trois vraies épées du Forgeron (mêmes modèles que l'outil en main, effet
+		-- adouci), debout sur un socle de bois au fond du stand.
+		local stand = shelf * CFrame.new(-0.4, 0, -0.5)
+		Build.part(parent, "SwordStand", Vector3.new(5.4, 0.6, 1.2), stand * CFrame.new(0, 0.3, 0), WOOD_DARK, { Material = Enum.Material.Wood })
+		Build.deco(parent, "SwordStandBack", Vector3.new(5.4, 0.3, 0.2), stand * CFrame.new(0, 3.2, 0.55), WOOD_DARK, { Material = Enum.Material.Wood })
+		for i, swordId in { "foudre", "celeste", "brume" } do
+			local sword = Swords.get(swordId)
+			if sword then
+				local ok, display = pcall(SwordBuilder.buildDisplay, sword)
+				if ok and display then
+					local bottom = display:GetAttribute("Bottom") or -0.6
+					local x = (i - 2) * 1.75
+					display:PivotTo(stand * CFrame.new(x, 0.6 - bottom, 0) * CFrame.Angles(0, 0, math.rad((i - 2) * -6)))
+					for _, d in display:GetDescendants() do
+						if d:IsA("BasePart") then
+							d.CanCollide = false
+							d.CanQuery = false
+						end
+					end
+					display.Parent = parent
+				end
+			end
 		end
 		-- forge rougeoyante au fond
 		Build.part(parent, "Furnace", Vector3.new(5, 5, 3), shelf * CFrame.new(-5, 2.5, 0), rgb(110, 70, 56), { Material = Enum.Material.Brick })

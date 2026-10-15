@@ -71,6 +71,7 @@ function CharacterService:BuildModel(player: Player, uid: string, entry, options
 		anchored = opts.anchored,
 		walkSpeed = opts.walkSpeed,
 		collisionGroup = opts.collisionGroup,
+		variety = entry.aura or entry.variety, -- variété (= mutation tirée, champ « aura »)
 	})
 	self:ApplyAttributes(model, player, uid, entry)
 	-- Mutation (variété) : teinte, reflets, particules (Modules/Mutations).
@@ -183,7 +184,8 @@ function CharacterService:CreateEntry(characterId: string, aura: string?, trait:
 		level = 1,
 		xp = 0,
 		stars = 1,
-		aura = aura,
+		aura = aura, -- mutation tirée (Config/Mutations), nom historique du champ
+		variety = aura, -- même valeur : la variété visible du perso (CharacterFactory)
 		trait = trait,
 		locked = false,
 		obtained = os.time(),

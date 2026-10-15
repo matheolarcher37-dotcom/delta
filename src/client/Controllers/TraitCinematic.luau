@@ -1116,7 +1116,7 @@ local function traitTitle(scene, kind: string)
 	local visual = trait and Traits.Visual[trait.id]
 	local name = scene.desc and scene.desc.name or "ton unité"
 	local tierName = trait and Traits.TierNames[trait.tier] or ""
-	local badge = trait and (string.upper(tierName) .. " · " .. (string.gsub(string.format("%.1f %%", Traits.chance(trait.id)), "%.", ",")) .. " de chance") or nil
+	local badge = trait and (Formulas.upper(tierName) .. " · " .. (string.gsub(string.format("%.1f %%", Traits.chance(trait.id)), "%.", ",")) .. " de chance") or nil
 	local subtitle = (visual and visual.motto or "") .. "  —  " .. name
 	return title(scene, TraitCinematic.Titles[kind], trait and trait.color or GOLD, subtitle, badge)
 end

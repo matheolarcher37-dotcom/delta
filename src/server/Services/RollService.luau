@@ -323,6 +323,7 @@ function RollService:MakeItem(universe, rarityId: string, stats, pools)
 		rarity = rarity,
 		stars = 1,
 		aura = mutation, -- mutation (nom historique du champ)
+		variety = mutation, -- variété visible du perso (CharacterFactory : options.variety)
 		trait = trait,
 		price = Formulas.rollPrice(rarity, mutation, trait, stats.rollDiscount),
 		dps = math.floor(Formulas.dps(entry) + 0.5),

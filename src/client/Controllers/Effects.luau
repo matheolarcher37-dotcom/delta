@@ -950,6 +950,7 @@ local function crescent(cf: CFrame, radius: number, thickness: number, color: Co
 	local sweep = o.sweep or life * 0.3
 	local core = o.core or lighten(color, 0.85)
 	local reverse = o.reverse == true
+	local minAlpha = o.minAlpha or 0 -- transparence minimale (croissant discret)
 	local segs = {}
 	for i = 1, n do
 		local t = (i - 0.5) / n
@@ -972,8 +973,8 @@ local function crescent(cf: CFrame, radius: number, thickness: number, color: Co
 			s.halo.CFrame = pos
 			s.core.Size = Vector3.new(s.len * grow, 0.08, s.w * 0.42 * (1 - fade * 0.7))
 			s.halo.Size = Vector3.new(s.len * grow, 0.05, s.w * (1 - fade * 0.5))
-			s.core.Transparency = visible and fade or 1
-			s.halo.Transparency = visible and (0.35 + 0.65 * fade) or 1
+			s.core.Transparency = visible and math.max(fade, minAlpha) or 1
+			s.halo.Transparency = visible and math.max(0.35 + 0.65 * fade, minAlpha) or 1
 		end
 		return nil
 	end)
@@ -1233,7 +1234,7 @@ local function banner(model: Model, text: string, color: Color3, duration: numbe
 	label.Position = UDim2.fromScale(0.5, 0.52)
 	label.Size = UDim2.fromScale(0.92, 0.72)
 	label.Rotation = -3
-	label.Text = string.upper(text) .. " !"
+	label.Text = Formulas.upper(text) .. " !"
 	label.Font = Enum.Font.LuckiestGuy
 	label.TextScaled = true
 	label.TextColor3 = WHITE
@@ -3448,7 +3449,21 @@ HANDLERS.SwordSlash = function(data)
 	local direction = data.direction or Vector3.new(0, 0, -1)
 	local radius = math.clamp((data.range or 7) * 0.45, 2.5, 6)
 	local base = CFrame.lookAt(position, position + flatDir(direction)) * CFrame.Angles(0, 0, math.rad(rng:NextNumber(-25, 25)))
-	crescent(base, radius, 1.3, color, 0.3, { segments = 12, arc = 160 })
+	-- Les épées du Forgeron ont leur propre traînée colorée (« SwingTrail ») : le croissant reste
+	-- alors discret pour ne pas faire double emploi.
+	local hasTrail = false
+	local owner = type(data.owner) == "number" and Players:GetPlayerByUserId(data.owner) or nil
+	local tool = owner and owner.Character and owner.Character:FindFirstChildOfClass("Tool")
+	local handle = tool and tool:FindFirstChild("Handle")
+	if handle then
+		for _, child in handle:GetChildren() do
+			if child:IsA("Trail") and string.sub(child.Name, 1, 10) == "SwingTrail" then
+				hasTrail = true
+				break
+			end
+		end
+	end
+	crescent(base, radius, 1.3, color, 0.3, { segments = 12, arc = 160, minAlpha = hasTrail and 0.6 or 0 })
 	local kind = data.kind
 	if kind == "lightning" then
 		for _ = 1, 2 do
@@ -3691,17 +3706,24 @@ HANDLERS.Rift = function(data)
 	flash.BorderSizePixel = 0
 	flash.ZIndex = 50
 	flash.Parent = screenGui
-	track(flash, 2.6)
+	track(flash, 3)
 	-- Le passage d'univers est un moment fort : flash plus doux si les flashs sont désactivés.
+	-- (pcall : le cadre peut déjà avoir été retiré, par exemple si l'interface est reconstruite.)
 	local peak = flashEnabled() and 0 or 0.6
 	job(0.6, function(p)
-		flash.BackgroundTransparency = 1 - (1 - peak) * p
+		pcall(function()
+			flash.BackgroundTransparency = 1 - (1 - peak) * p
+		end)
 		return nil
 	end)
 	after(0.9, function()
-		flash.BackgroundColor3 = color
+		pcall(function()
+			flash.BackgroundColor3 = color
+		end)
 		job(1.4, function(p)
-			flash.BackgroundTransparency = peak + (1 - peak) * p
+			pcall(function()
+				flash.BackgroundTransparency = peak + (1 - peak) * p
+			end)
 			return nil
 		end)
 	end)
@@ -3777,7 +3799,7 @@ local function onReward(kind: string, amount: number, position: Vector3?, extra:
 		light.Brightness = 2
 		light.Parent = gem
 		flyTo(gem, 0.9, function() end)
-		floatingText(origin + Vector3.new(0, 5, 0), "+" .. amount .. " CRISTAL DE TRAIT 💎", color, 1.2, 1.6)
+		floatingText(origin + Vector3.new(0, 5, 0), "+" .. amount .. (amount > 1 and " GEMMES DE TRAIT 💎" or " GEMME DE TRAIT 💎"), color, 1.2, 1.6)
 	end
 end
 

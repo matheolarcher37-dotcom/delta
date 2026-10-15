@@ -277,7 +277,7 @@ function RollReveal.show(payload)
 	if bestMutation then
 		local banner = Theme.label({
 			Name = "Mutation",
-			Text = "✦ MUTATION " .. string.upper(bestMutation.name) .. " ! ✦",
+			Text = "✦ MUTATION " .. Formulas.upper(bestMutation.name) .. " ! ✦",
 			Size = UDim2.new(1, 0, 0, 32),
 			FontFace = Theme.Faces.Title,
 			LayoutOrder = 2, -- sous les cartes (l'annonce géante occupe le haut)
@@ -321,7 +321,7 @@ function RollReveal.show(payload)
 			SoundService:PlayLocalSound(rareSound)
 			flashScreen(info.rainbow and WHITE or info.color)
 			Notifications.announce(
-				string.upper(info.name) .. " !",
+				Formulas.upper(info.name) .. " !",
 				(def and def.name or "Un perso rare") .. " t'attend sur l'estrade !",
 				info.rainbow and C.Magenta or info.color,
 				true

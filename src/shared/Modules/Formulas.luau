@@ -11,6 +11,32 @@ local SkillTree = require(Shared.Config.SkillTree)
 
 local Formulas = {}
 
+-- Majuscules françaises : string.upper ne touche pas aux lettres accentuées (« LéGENDAIRE »).
+-- Formulas.upper("Légendaire") → « LÉGENDAIRE ». À utiliser à la place de string.upper.
+local ACCENTS = {
+	{ "é", "É" },
+	{ "è", "È" },
+	{ "ê", "Ê" },
+	{ "ë", "Ë" },
+	{ "à", "À" },
+	{ "â", "Â" },
+	{ "î", "Î" },
+	{ "ï", "Ï" },
+	{ "ô", "Ô" },
+	{ "û", "Û" },
+	{ "ù", "Ù" },
+	{ "ü", "Ü" },
+	{ "ç", "Ç" },
+	{ "œ", "Œ" },
+}
+function Formulas.upper(text: string): string
+	local out = string.upper(tostring(text))
+	for _, pair in ACCENTS do
+		out = string.gsub(out, pair[1], pair[2])
+	end
+	return out
+end
+
 -- Accessoires portés sur la tête (utilisé pour mélanger les looks des fusions).
 local HEAD_ACCESSORIES = {
 	headband = true,

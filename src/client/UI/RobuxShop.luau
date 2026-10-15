@@ -760,7 +760,7 @@ local function boostCard(parent: Instance, key: string, size: UDim2, position: U
 	end
 	Theme.label({
 		Name = "Title",
-		Text = string.upper(combo and "Chance x2 + Argent x2" or product.name),
+		Text = Formulas.upper(combo and "Chance x2 + Argent x2" or product.name),
 		Size = UDim2.new(1, -24, 0, 34),
 		Position = UDim2.fromOffset(12, 166),
 		FontFace = Theme.Faces.Title,

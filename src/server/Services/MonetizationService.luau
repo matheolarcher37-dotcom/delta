@@ -375,7 +375,7 @@ function MonetizationService:_grantProduct(player: Player, key: string)
 	elseif product.kind == "crystals" then
 		data.traitCrystals = (tonumber(data.traitCrystals) or 0) + product.amount
 		details.amount = product.amount
-		details.text = product.amount .. " Cristaux de Trait"
+		details.text = product.amount .. " gemmes de trait"
 		DataService:Sync(player)
 	elseif product.kind == "boost" then
 		for _, boost in product.boosts do

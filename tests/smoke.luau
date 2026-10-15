@@ -550,8 +550,9 @@ test("Boss lisibles (liseré, lumières, aura) et variétés des persos", functi
 	assert(foil and lodAfter >= 6, "Or : cheveux Foil et LOD présents")
 	local shadow = CharacterBuilder.build(look, { scale = 1 })
 	CharacterBuilder.applyVariety(shadow, "Ombre")
-	local rim = shadow:FindFirstChild("VarietyRim")
-	assert(rim and rim:IsA("Highlight") and rim.FillTransparency == 1, "Ombre : liseré violet (contour seul)")
+	-- Le liseré est noté sur le modèle (contour posé côté client sur les persos proches).
+	assert(typeof(shadow:GetAttribute("VarietyRim")) == "Color3", "Ombre : couleur du liseré violet notée")
+	assert(shadow:FindFirstChildOfClass("Highlight") == nil, "Ombre : pas de Highlight posé par le serveur")
 	-- Boss : contour seul, lumière de face blanc chaud
 	local ken = CharacterBuilder.build(Characters.Enemies.occ_kenjakou.look, { scale = 4.2 })
 	local bossRim = ken:FindFirstChild("BossRim")
@@ -1594,7 +1595,7 @@ test("Lieux réservés dégagés (échanges, marchand, anti-AFK) dans les 5 univ
 		end
 		return found
 	end
-	local fixed = offenders(Workspace.World, { TradeCorner = true, Paths = true, Boards = true, Zone = true, Plots = true })
+	local fixed = offenders(Workspace.World, { TradeCorner = true, Paths = true, Boards = true, Zone = true, Plots = true, Merchant = true, AfkZone = true })
 	assert(#fixed == 0, "carte fixe : objet dans un lieu réservé : " .. tostring(fixed[1]))
 	for _, universe in Universes.List do
 		local decor = UniverseDecor.apply(universe, zone)

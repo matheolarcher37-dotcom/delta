@@ -114,7 +114,7 @@ Layout.MerchantSpots = { -- coins où le marchand peut s'installer
 Layout.ReservedZones = {
 	{ center = Layout.TradeCorner, radius = 50 },
 	{ center = Layout.AfkZone, radius = 42 },
-	{ center = Layout.Leaderboard, radius = 20 },
+	{ center = Layout.Leaderboard, radius = 40 }, -- 3 grands tableaux de classement
 	{ center = Layout.InfoBoard, radius = 20 },
 }
 for _, spot in Layout.MerchantSpots do

@@ -417,7 +417,7 @@ function PlotService:_assign(player: Player, data)
 	playerPlots[player] = chosen
 	chosen.model:SetAttribute("OwnerId", player.UserId)
 	player:SetAttribute("PlotIndex", chosen.index)
-	BaseDecor.setSign(chosen, "BASE DE " .. string.upper(player.DisplayName))
+	BaseDecor.setSign(chosen, "BASE DE " .. Formulas.upper(player.DisplayName))
 	self:RefreshOwnerContent(player)
 
 	local function onCharacter(character: Model)

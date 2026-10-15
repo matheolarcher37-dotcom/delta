@@ -183,7 +183,7 @@ local GUIDE = {
 	{
 		"gem",
 		"Les traits",
-		"Chaque unité peut avoir un trait (Vif, Génie, Monarque...). Relance-le avec un Cristal de Trait dans le menu Traits.",
+		"Chaque unité peut avoir un trait (Vif, Génie, Monarque...). Relance-le avec une gemme de trait dans le menu Traits (on en gagne en battant des ennemis, au punching-ball et en défis).",
 		Color3.fromRGB(50, 200, 240),
 	},
 	{

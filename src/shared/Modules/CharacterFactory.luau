@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CharacterBuilder = require(script.Parent.CharacterBuilder)
 local CreatureBuilder = require(script.Parent.CreatureBuilder) -- créatures (look.creature : Kourama...)
 local Painter = require(script.Parent.Painter)
+local MutationsFx = require(script.Parent.Mutations) -- mutations tirées (Or, Foudre, Diamant...) : voir Config/Mutations
 
 local CharacterFactory = {}
 
@@ -132,6 +133,12 @@ end
 function CharacterFactory.applyVariety(model: Model, variety: string?): boolean
 	if type(variety) ~= "string" or variety == "" then
 		return false
+	end
+	-- Mutation connue de Config/Mutations (clé ou nom) : apparence complète (teinte de
+	-- CharacterBuilder.applyVariety + signe propre à la mutation + particules).
+	local ok, done = pcall(MutationsFx.apply, model, variety)
+	if ok and done then
+		return true
 	end
 	return CharacterBuilder.applyVariety(model, variety)
 end

@@ -334,7 +334,7 @@ local function buildEvent(gui: ScreenGui)
 					Icons.make(iconName, eventRefs.heroIcon, { px = 90, ink = Theme.dark(color, 0.5) })
 				end
 				eventRefs.heroGradient.Color = Theme.sequence({ Theme.dark(color, 0.2), Theme.dark(color, 0.7) })
-				eventRefs.heroTitle.Text = current and string.upper(current.name) or "AUCUN ÉVÉNEMENT"
+				eventRefs.heroTitle.Text = current and Formulas.upper(current.name) or "AUCUN ÉVÉNEMENT"
 				eventRefs.heroDesc.Text = current and current.description or "Un nouvel événement arrive bientôt : orage, pluie d'or, éclipse ou lune de sang !"
 				eventRefs.heroTimer.Text = current and Formulas.formatTime((state:GetAttribute("EventEndsAt") or now) - now) or "--:--"
 				for id, card in eventRefs.cards do

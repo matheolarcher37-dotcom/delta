@@ -207,7 +207,8 @@ function Props.bindSkillTree(model: Model)
 end
 
 ------------------------------------------------------------------------
--- Marchand de reliques (ex-« Machine à Reliques »)
+-- Comptoir du marchand (ex-« Machine à Reliques ») : ouvre l'écran du marchand ambulant
+-- (achat s'il est tout près, sinon « Montrer le chemin » jusqu'à son coin de la carte).
 ------------------------------------------------------------------------
 
 -- `cf` = pied du stand, face (-Z) vers la cour. Renvoie (modèle, CFrame d'exposition de la relique).
@@ -243,11 +244,11 @@ function Props.relicMerchant(parent: Instance, cf: CFrame)
 	})
 	local _ = dome
 	local sign = Build.part(model, "Enseigne", Vector3.new(8, 1.8, 0.3), cf * CFrame.new(0, 9.2, -3.4), rgb(40, 30, 28), { Material = Enum.Material.Wood })
-	Build.surfaceText(sign, Enum.NormalId.Front, "RELIQUES", gold)
+	Build.surfaceText(sign, Enum.NormalId.Front, "MARCHAND", gold)
 	for _, x in { -4.6, 4.6 } do
 		Kit.paperLantern(model, cf * CFrame.new(x, 8.2, -3.6), red, 0.9)
 	end
-	prompt(model:FindFirstChild("Base") :: BasePart, "Acheter des reliques", "Marchand de Reliques", 12)
+	prompt(model:FindFirstChild("Base") :: BasePart, "Trouver le marchand", "Comptoir du marchand ambulant", 12)
 	return model, cf * CFrame.new(0, 7.2, -1.8)
 end
 

@@ -362,6 +362,17 @@ EvolutionItems.ByCharacter = {
 	oce_shonks = { [2] = { item = "oce_haki", amount = 1 }, [3] = { item = "oce_haki", amount = 2 } },
 	pou_tanjiru = { [2] = { item = "pou_marque", amount = 1 }, [3] = { item = "pou_soleil", amount = 1 } },
 	pou_yoriichu = { [2] = { item = "pou_soleil", amount = 1 }, [3] = { item = "pou_soleil", amount = 2 } },
+	-- Nouveaux persos v3.2 (Mythiques et Secrets)
+	ninja_minatu = { [2] = { item = "ninja_interdit", amount = 1 }, [3] = { item = "ninja_renard", amount = 1 } },
+	ninja_radama = { [2] = { item = "ninja_oeil", amount = 2 }, [3] = { item = "ninja_oeil_eternel", amount = 2 } },
+	occ_toja = { [2] = { item = "occ_prison", amount = 1 }, [3] = { item = "occ_infini", amount = 1 } },
+	occ_yuuto = { [2] = { item = "occ_doigt", amount = 2 }, [3] = { item = "occ_prison", amount = 2 } },
+	sai_jirene = { [2] = { item = "sai_boule_divine", amount = 1 }, [3] = { item = "sai_ki_divin", amount = 1 } },
+	sai_gojita = { [2] = { item = "sai_dragon", amount = 2 }, [3] = { item = "sai_ki_divin", amount = 2 } },
+	oce_lao = { [2] = { item = "oce_fruit", amount = 1 }, [3] = { item = "oce_haki", amount = 1 } },
+	oce_kaydo = { [2] = { item = "oce_fruit", amount = 2 }, [3] = { item = "oce_haki", amount = 2 } },
+	pou_muzon = { [2] = { item = "pou_lys", amount = 2 }, [3] = { item = "pou_soleil", amount = 2 } },
+	pou_doma = { [2] = { item = "pou_lys", amount = 1 }, [3] = { item = "pou_lys", amount = 2 } },
 }
 
 function EvolutionItems.get(id: string?)

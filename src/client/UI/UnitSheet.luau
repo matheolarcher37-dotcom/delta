@@ -271,7 +271,7 @@ function UnitSheet.build(parent: Instance, entry, actions: SheetActions?): Frame
 	local trait = Traits.get(entry.trait)
 	Theme.label({
 		Name = "Trait",
-		Text = trait and string.upper(trait.name) or "SANS TRAIT",
+		Text = trait and Formulas.upper(trait.name) or "SANS TRAIT",
 		Position = UDim2.fromOffset(14, 68),
 		Size = UDim2.new(1, -28, 0, 20),
 		FontFace = Theme.Faces.Title,

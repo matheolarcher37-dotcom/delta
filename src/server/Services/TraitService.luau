@@ -54,7 +54,7 @@ function TraitService:Reroll(player: Player, uid: any)
 	if trait and trait.tier >= 4 then
 		local desc = Formulas.describe(entry)
 		Announce:FireAllClients(
-			"💎 TRAIT " .. string.upper(trait.name) .. " 💎",
+			"💎 TRAIT " .. Formulas.upper(trait.name) .. " 💎",
 			player.DisplayName .. " l'a obtenu sur " .. (desc and desc.name or "un perso") .. " !",
 			trait.color
 		)

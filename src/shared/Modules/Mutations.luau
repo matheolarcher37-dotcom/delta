@@ -561,7 +561,9 @@ function MutationsFx.apply(model: Model, id: any): boolean
 		tintParts(model, look, not done)
 	end
 	-- 3) Signe propre à la mutation (repli) : ajouté APRÈS la teinte de la tenue.
-	if not done and not model:FindFirstChild("MutationSigne") then
+	--    Aussi quand applyVariety n'a fait que teinter les cheveux (Foudre, Givre, Néant, Flamme) :
+	--    le signe reste le moyen de reconnaître la mutation.
+	if (not done or not tinted) and not model:FindFirstChild("MutationSigne") then
 		if look.halo then
 			halo(model, scale)
 		end
@@ -591,7 +593,7 @@ function MutationsFx.apply(model: Model, id: any): boolean
 	-- 5) Contour lumineux des mutations x3 et plus : marqué ici, posé par le CLIENT sur les
 	--    persos proches seulement (startClient).
 	if (mutation.multiplier or 1) >= MutationsFx.GlowMultiplier then
-		model:SetAttribute("MutationColor", mutation.color)
+		model:SetAttribute("MutationColor", model:GetAttribute("VarietyRim") or mutation.color)
 		CollectionService:AddTag(model, "MutationGlow")
 	end
 	return true
