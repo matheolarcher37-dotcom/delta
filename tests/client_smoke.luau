@@ -671,6 +671,14 @@ test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, 
 	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
 	local TraitCinematic = Harness.require(client.Controllers.TraitCinematic)
 	local State = Harness.require(client.State)
+	-- La cour n'accueille ni créature (Kourama), ni géant / Secret (ils déborderaient).
+	local CharactersCfg = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
+	assert(not TraitCinematic.fitsCourt("ninja_kourama", CharactersCfg.resolveLook("ninja_kourama", 1)), "Kourama dans la cour")
+	assert(not TraitCinematic.fitsCourt("oce_kaydo", CharactersCfg.resolveLook("oce_kaydo", 1)), "Kaydo (Secret) dans la cour")
+	assert(TraitCinematic.fitsCourt("ninja_maruto", CharactersCfg.resolveLook("ninja_maruto", 1)), "Maruto refusé dans la cour")
+	for _, info in TraitCinematic.kneelerLooks(nil, TraitCinematic.MonarchCount) do
+		assert(TraitCinematic.fitsCourt(info.id, info.look), "perso trop grand dans la cour : " .. tostring(info.id))
+	end
 	local list = State.sortedCharacters()
 	local entry, desc = table.clone(list[1].entry), list[1].desc
 	entry.uid = list[1].uid
@@ -1861,20 +1869,6 @@ test("Notifications et annonces", function()
 	expectNoNewWarnings(before, "notifications")
 end)
 
-test("Rotation d'univers vue par le client", function()
-	local before = #warnings
-	if realIndexAt then
-		services.UniverseService.IndexAt = realIndexAt
-	end
-	services.UniverseService:Skip()
-	task.wait(2.8)
-	for _ = 1, 5 do
-		Harness.services.RunService.RenderStepped:Fire(1 / 60)
-	end
-	expectNoNewWarnings(before, "rotation")
-end)
-
-print(string.format("   %d avertissement(s) au total", #warnings))
 test("Révélation À LA MACHINE : pas de vignettes, la caméra cadre le podium (Légendaire et plus)", function()
 	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
 	local RollPanel = Harness.require(client.UI.RollPanel)
@@ -1889,7 +1883,10 @@ test("Révélation À LA MACHINE : pas de vignettes, la caméra cadre le podium 
 	assert(strip:FindFirstChild("Mutation"), "bandeau MUTATION absent")
 	assert(camera.CameraType == roblox.Enum.CameraType.Scriptable, "la caméra ne cadre pas le podium")
 	local t0 = os.clock()
-	while camera.CameraType == roblox.Enum.CameraType.Scriptable and os.clock() - t0 < 8 do
+	-- Dans Roblox le retour prend 1,8 s ; sous Lune, juste après la rotation d'univers (décor de
+	-- ~40 000 pièces reconstruit en tâche de fond, plus lourd encore dans le fichier pré-construit),
+	-- le planificateur prend du retard : on tolère jusqu'à 20 s.
+	while camera.CameraType == roblox.Enum.CameraType.Scriptable and os.clock() - t0 < 20 do
 		task.wait(0.1)
 	end
 	print(string.format("   caméra rendue après %.2f s", os.clock() - t0))
@@ -1901,5 +1898,20 @@ test("Révélation À LA MACHINE : pas de vignettes, la caméra cadre le podium 
 	RollPanel.forceNear(nil)
 	task.wait(3)
 end)
+
+test("Rotation d'univers vue par le client", function()
+	local before = #warnings
+	if realIndexAt then
+		services.UniverseService.IndexAt = realIndexAt
+	end
+	services.UniverseService:Skip()
+	task.wait(2.8)
+	for _ = 1, 5 do
+		Harness.services.RunService.RenderStepped:Fire(1 / 60)
+	end
+	expectNoNewWarnings(before, "rotation")
+end)
+
+print(string.format("   %d avertissement(s) au total", #warnings))
 
 Harness.finish()

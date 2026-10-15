@@ -1699,7 +1699,16 @@ test("Montagne des chefs (8 têtes sculptées) et enseignes artisanales", functi
 	for _, d in stall:GetDescendants() do
 		if d:IsA("TextLabel") then
 			assert(not string.find(d.Text, "🗡"), "émoji encore sur l'enseigne du forgeron")
-			if d.Text == "Forgeron" and d.Font == Harness.roblox.Enum.Font.Fondamento then
+			-- Dans le fichier pré-construit (bake), Lune ne relit pas toujours la propriété Font :
+			-- on regarde alors la famille de FontFace.
+			local okFont, font = pcall(function()
+				return d.Font
+			end)
+			local okFace, face = pcall(function()
+				return d.FontFace.Family
+			end)
+			local fondamento = (okFont and font == Harness.roblox.Enum.Font.Fondamento) or (okFace and type(face) == "string" and string.find(face, "Fondamento", 1, true) ~= nil)
+			if d.Text == "Forgeron" and fondamento then
 				painted = true
 			end
 		end

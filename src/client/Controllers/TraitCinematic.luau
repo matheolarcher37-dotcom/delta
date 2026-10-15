@@ -325,6 +325,20 @@ end
 
 -- Persos qui viennent s'agenouiller : d'abord d'autres unités du joueur, puis des ennemis de
 -- l'univers actuel, puis des persos au hasard.
+-- Un perso peut-il s'agenouiller dans la cour ? Pas les créatures (Kourama : pas de corps R6),
+-- ni les géants et les Secrets (taille plancher, Susanoo, massue, queue...) : ils déborderaient
+-- sur leurs voisins et voleraient la vedette au monarque.
+function TraitCinematic.fitsCourt(id: string?, look): boolean
+	if type(look) ~= "table" or look.creature ~= nil then
+		return false
+	end
+	if (tonumber(look.bodyScale) or 1) > 1.05 or (tonumber(look.minScale) or 1) > 1.05 then
+		return false
+	end
+	local def = id and Characters.get(id)
+	return not (def and def.rarity == "secret")
+end
+
 function TraitCinematic.kneelerLooks(exceptUid: string?, count: number): { { look: any, id: string?, stars: number? } }
 	local list = {}
 	local seen: { [string]: boolean } = {}
@@ -342,7 +356,13 @@ function TraitCinematic.kneelerLooks(exceptUid: string?, count: number): { { loo
 	local units = 0
 	local later = {}
 	for _, item in State.sortedCharacters() do
-		if item.uid ~= exceptUid and not item.entry.fusion and not seen[item.entry.id] and item.entry.id ~= exceptId then
+		if
+			item.uid ~= exceptUid
+			and not item.entry.fusion
+			and not seen[item.entry.id]
+			and item.entry.id ~= exceptId
+			and TraitCinematic.fitsCourt(item.entry.id, item.desc.look)
+		then
 			seen[item.entry.id] = true
 			if sameGroup(item.entry.id) then
 				table.insert(later, { look = item.desc.look, id = item.entry.id, stars = item.entry.stars })
@@ -368,7 +388,7 @@ function TraitCinematic.kneelerLooks(exceptUid: string?, count: number): { { loo
 		end
 		if not seen[id] then
 			local look = Characters.resolveLook(id, 1)
-			if look then
+			if look and TraitCinematic.fitsCourt(id, look) then
 				seen[id] = true
 				table.insert(list, { look = look, id = id, stars = 1 })
 			end
@@ -391,7 +411,7 @@ function TraitCinematic.kneelerLooks(exceptUid: string?, count: number): { { loo
 	while #list < count and #ids > 0 do
 		local id = table.remove(ids, rng:NextInteger(1, #ids))
 		local look = Characters.resolveLook(id, 1)
-		if look then
+		if look and TraitCinematic.fitsCourt(id, look) then
 			table.insert(list, { look = look, id = id, stars = 1 })
 		end
 	end
