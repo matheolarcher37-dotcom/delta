@@ -784,29 +784,110 @@ test("Roster v3.2 : 16 persos de plus, raretés de base, signatures, noms d'orig
 		assert((preview:GetAttribute("BaseScale") or 1) == 1, "Kaydo : aperçu des menus à l'échelle 1")
 		preview:Destroy()
 	end
-	-- Susanoo de Radama ★2 : crâne spectral (orbites, mâchoire) et colonne en flammèches bleues
-	do
-		local m = CharacterBuilder.build(Formulas.describe({ id = "ninja_radama", level = 1, stars = 2 }).look, { scale = 1 })
+	-- Susanoo de Radama ★2 : squelette en blocs et coins (aucune sphère, en jeu comme dans les
+	-- menus), colonne centrée, côtes symétriques qui contournent les bras, crâne centré derrière
+	-- la tête, colonne en flammèches bleues (en jeu seulement)
+	for _, mode in { "game", "parts" } do
+		local look = Formulas.describe({ id = "ninja_radama", level = 1, stars = 2 }).look
+		local m = mode == "parts" and CharacterBuilder.buildPreview(look) or CharacterBuilder.build(look, { scale = 1 })
+		local k = m:GetAttribute("BaseScale") or 1
+		local tag = "Susanoo (" .. mode .. ") : "
 		local spine = m:FindFirstChild("SusanooSpine", true)
-		assert(spine and spine:FindFirstChild("PropFlames"), "Susanoo : flammèches de la colonne absentes")
-		assert(m:FindFirstChild("SusanooSkull", true) and m:FindFirstChild("SusanooOrbit", true) and m:FindFirstChild("SusanooJaw", true), "Susanoo : crâne incomplet")
-		-- cage DERRIÈRE le torse : aucune côte ne passe devant l'armure, et la cage dépasse
-		-- nettement des deux côtés
+		assert(spine, tag .. "colonne absente")
+		if mode == "game" then
+			assert(spine:FindFirstChild("PropFlames"), tag .. "flammèches de la colonne absentes")
+		end
+		assert(m:FindFirstChild("SusanooSkull", true) and m:FindFirstChild("SusanooOrbit", true) and m:FindFirstChild("SusanooJaw", true), tag .. "crâne incomplet")
 		local torso = m:FindFirstChild("Torso")
-		local ribs, widest = 0, 0
+		local head = m:FindFirstChild("Head")
+		local left, right = {}, {}
+		local skullX, skullN = 0, 0
 		for _, d in m:GetDescendants() do
-			if d:IsA("BasePart") and d.Name == "SusanooRib" then
-				local rel = torso.CFrame:PointToObjectSpace(d.CFrame.Position)
-				assert(rel.Z > 0, "Susanoo : côte devant le torse (z = " .. rel.Z .. ")")
-				widest = math.max(widest, math.abs(rel.X))
-				ribs += 1
+			if d:IsA("BasePart") and string.sub(d.Name, 1, 7) == "Susanoo" then
+				assert(not d:FindFirstChildOfClass("SpecialMesh"), tag .. d.Name .. " en sphère")
+				assert(not (d:IsA("Part") and d.Shape == Enum.PartType.Ball), tag .. d.Name .. " en boule")
+				local rel = torso.CFrame:PointToObjectSpace(d.CFrame.Position) / k
+				if d.Name == "SusanooRib" then
+					-- devant le plan du dos : seulement à l'extérieur des bras (jamais devant l'armure)
+					if rel.Z < 0.5 then
+						assert(math.abs(rel.X) >= 1.95, tag .. "côte devant le torse (x = " .. rel.X .. ", z = " .. rel.Z .. ")")
+					end
+					table.insert(rel.X < 0 and left or right, rel)
+				elseif d.Name == "SusanooSpine" or d.Name == "SusanooVertebra" then
+					assert(math.abs(rel.X) < 0.05 and rel.Z > 0.5 and rel.Z < 1.0, tag .. "colonne décentrée")
+				elseif d.Name == "SusanooSkull" then
+					local h = head.CFrame:PointToObjectSpace(d.CFrame.Position) / k
+					skullX += h.X
+					skullN += 1
+					assert(h.Z > 0.5 and h.Y < 2.2, tag .. "crâne mal placé")
+				end
 			end
 		end
-		assert(ribs >= 24 and widest >= 1.6, "Susanoo : cage trop petite (" .. ribs .. " côtes, " .. widest .. ")")
-		-- le crâne est derrière la tête, à sa hauteur (pas au-dessus)
-		local head = m:FindFirstChild("Head")
-		local skull = head.CFrame:PointToObjectSpace(m:FindFirstChild("SusanooSkull", true).CFrame.Position)
-		assert(skull.Z > 0.5 and skull.Y < 1.2, "Susanoo : crâne mal placé")
+		-- côtes symétriques : même nombre de chaque côté, positions en miroir
+		assert(#left == #right and #left >= 16, tag .. "côtes asymétriques (" .. #left .. " / " .. #right .. ")")
+		local widest = 0
+		for _, r in right do
+			widest = math.max(widest, r.X)
+			local mirrored = false
+			for _, l in left do
+				if math.abs(l.X + r.X) + math.abs(l.Y - r.Y) + math.abs(l.Z - r.Z) < 0.03 then
+					mirrored = true
+					break
+				end
+			end
+			assert(mirrored, tag .. "côte sans pendant en miroir")
+		end
+		assert(widest >= 2.4, tag .. "cage trop étroite (" .. widest .. ")")
+		assert(skullN >= 3 and math.abs(skullX / skullN) < 0.05, tag .. "crâne décentré")
+		m:Destroy()
+	end
+	-- Kaydo : la massue n'est jamais devant ni derrière le visage (tenue verticale sur le flanc
+	-- droit) ; mèches latérales derrière les oreilles
+	for st = 1, 3 do
+		local look = Formulas.describe({ id = "oce_kaydo", level = 1, stars = st }).look
+		assert((look.hairSweep or 108) <= 95, "Kaydo : mèches latérales sur le visage")
+		for _, mode in { "game", "parts" } do
+			local m = mode == "parts" and CharacterBuilder.buildPreview(look) or CharacterBuilder.build(look, { scale = 1 })
+			local k = m:GetAttribute("BaseScale") or 1
+			local head = m:FindFirstChild("Head")
+			local n = 0
+			for _, d in m:GetDescendants() do
+				if d:IsA("BasePart") and d.Name == "Kanabo" then
+					n += 1
+					local rel = head.CFrame:PointToObjectSpace(d.CFrame.Position) / k
+					assert(math.abs(rel.X) > 1.3, "Kaydo ★" .. st .. " : massue dans l'axe de la tête (x = " .. rel.X .. ")")
+					assert(rel.Y < 0, "Kaydo ★" .. st .. " : massue à hauteur du visage")
+				end
+			end
+			assert(n >= 5, "Kaydo ★" .. st .. " : massue absente")
+			m:Destroy()
+		end
+	end
+	-- Kaydo ★2 (forme dragon) : se distingue du ★1 au premier coup d'œil
+	do
+		local l1 = Formulas.describe({ id = "oce_kaydo", level = 1, stars = 1 }).look
+		local l2 = Formulas.describe({ id = "oce_kaydo", level = 1, stars = 2 }).look
+		assert(l2.eyeGlow and not l1.eyeGlow, "Kaydo ★2 : yeux luisants attendus")
+		assert(l2.capeColor ~= l1.capeColor, "Kaydo ★2 : cape d'une autre teinte attendue")
+		local m = CharacterBuilder.build(l2, { scale = 1 })
+		local k = m:GetAttribute("BaseScale")
+		local torso = m:FindFirstChild("Torso")
+		local limbs, scales, horns, tailX = {}, 0, 0, 0
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") then
+				if d.Name == "KaydoScale" then
+					scales += 1
+					limbs[d.Parent and d.Parent.Name or "?"] = true
+				elseif d.Name == "KaydoHorn" then
+					horns += 1
+				elseif d.Name == "KaydoTail" then
+					tailX = math.min(tailX, torso.CFrame:PointToObjectSpace(d.CFrame.Position).X / k)
+				end
+			end
+		end
+		assert(scales >= 12, "Kaydo ★2 : écailles attendues sur les deux avant-bras, les épaules et les pommettes (" .. scales .. ")")
+		assert(horns >= 4, "Kaydo ★2 : cornes recourbées en deux segments attendues")
+		assert(tailX < -2.1, "Kaydo ★2 : la queue doit dépasser de la silhouette sur le côté")
 		m:Destroy()
 	end
 	-- Rika (Yuuto ★2) : tête, bouche peinte de dents, yeux rouges luisants
@@ -844,20 +925,107 @@ test("Roster v3.2 : 16 persos de plus, raretés de base, signatures, noms d'orig
 		assert(n == 2, "Hakaro : deux tempes rasées attendues")
 		m:Destroy()
 	end
-	-- Gaaro ★2/★3 : vague de sable (blocs et coins) avec grains, au plus 3 petites boules
+	-- Gaaro ★2/★3 : le sable sort de la gourde en petits blocs de Sable (aucune boule), avec
+	-- grains, jamais plus haut que l'épaule ; au ★3, bouclier mural sur le côté
 	for st = 2, 3 do
 		local look = Formulas.describe({ id = "ninja_gaaro", level = 1, stars = st }).look
 		local m = CharacterBuilder.build(look, { scale = 1 })
+		local k = m:GetAttribute("BaseScale") or 1
 		local wave = m:FindFirstChild("SandWave", true)
 		assert(wave and wave:FindFirstChild("PropDust"), "Gaaro ★" .. st .. " : vague de sable sans grains")
-		m:Destroy()
-		local balls = 0
-		for _, p in look.props do
-			if p.shape == "ball" and p.material == "Sand" then
-				balls += 1
+		local torso = m:FindFirstChild("Torso")
+		local sand, wall = 0, 0
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and (d.Name == "Sand" or d.Name == "SandWave" or d.Name == "SandWall") then
+				assert(d.Material == Enum.Material.Sand, "Gaaro : sable sans matériau Sable")
+				assert(not d:FindFirstChildOfClass("SpecialMesh"), "Gaaro : boule de sable")
+				local rel = torso.CFrame:PointToObjectSpace(d.CFrame.Position) / k
+				assert(rel.Y <= 1.6, "Gaaro ★" .. st .. " : sable plus haut que l'épaule (" .. rel.Y .. ")")
+				sand += 1
+				if d.Name == "SandWall" then
+					wall += 1
+				end
 			end
 		end
-		assert(balls <= 3, "Gaaro ★" .. st .. " : trop de boules de sable (" .. balls .. ")")
+		assert(sand >= 14, "Gaaro ★" .. st .. " : flot de sable trop maigre (" .. sand .. ")")
+		assert(st == 2 or wall >= 10, "Gaaro ★3 : bouclier mural attendu")
+		m:Destroy()
+	end
+	-- Coiffures : Muzon ★2 en vagues de coins (pas de boules), Tengan cheveux plaqués + bandeau
+	-- à gemmes en néon (pas de hérisson)
+	do
+		local look = Formulas.describe({ id = "pou_muzon", level = 1, stars = 2 }).look
+		for _, p in look.props do
+			if p.limb == "Head" then
+				assert(p.shape ~= "strand" and p.shape ~= "ball", "Muzon ★2 : boucles en boules")
+			end
+		end
+		local m = CharacterBuilder.build(look, { scale = 1 })
+		local curls = 0
+		for _, d in m:GetDescendants() do
+			if d.Name == "MuzonCurl" then
+				assert(d:IsA("WedgePart"), "Muzon : boucle qui n'est pas un coin")
+				curls += 1
+			end
+		end
+		assert(curls >= 15, "Muzon ★2 : boucles en vagues attendues")
+		m:Destroy()
+		local tl = Formulas.describe({ id = "pou_tengan", level = 1, stars = 1 }).look
+		assert(tl.hair ~= "hedgehog", "Tengan : hérisson interdit")
+		m = CharacterBuilder.build(tl, { scale = 1 })
+		local gems, locks = 0, 0
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and d.Name == "Gem" then
+				assert(d.Material == Enum.Material.Neon, "Tengan : gemme non lumineuse")
+				gems += 1
+			elseif d.Name == "TenganLock" then
+				locks += 1
+			end
+		end
+		assert(gems == 5 and locks >= 3 and locks <= 4, "Tengan : bandeau à gemmes et 3-4 mèches attendus")
+		m:Destroy()
+	end
+	-- Doma : mèches lisses et plates (aucun boudin), sang en éclaboussures plates sur le sommet
+	for st = 1, 3 do
+		local look = Formulas.describe({ id = "pou_doma", level = 1, stars = st }).look
+		local locks, blood = 0, 0
+		for _, p in look.props do
+			assert(p.shape ~= "strand", "Doma ★" .. st .. " : mèche en boudin")
+			if p.name == "DomaLock" then
+				locks += 1
+			elseif p.name == "DomaBlood" then
+				blood += 1
+				assert(p.shape == "wedge", "Doma : sang en relief")
+			end
+		end
+		assert(locks >= 14 and blood >= 4, "Doma ★" .. st .. " : mèches plates et sang attendus")
+	end
+	-- Jirène sans marques sur les joues ; crête de Cel symétrique (une lame de chaque côté)
+	assert(not Formulas.describe({ id = "sai_jirene", level = 1, stars = 1 }).look.jawShade, "Jirène : marques sur les joues")
+	do
+		local m = CharacterBuilder.build(Formulas.describe({ id = "sai_cel", level = 1, stars = 1 }).look, { scale = 1 })
+		local head = m:FindFirstChild("Head")
+		local xs = {}
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and string.sub(d.Name, 1, 8) == "CelCrest" then
+				table.insert(xs, head.CFrame:PointToObjectSpace(d.CFrame.Position).X)
+			end
+		end
+		local l, r = 0, 0
+		for _, x in xs do
+			if x < -0.1 then
+				l += 1
+			elseif x > 0.1 then
+				r += 1
+			end
+		end
+		assert(l > 0 and l == r, "Cel : crête asymétrique (" .. l .. " / " .. r .. ")")
+		m:Destroy()
+	end
+	-- Pas de bouche « rouge à lèvres » (grand sourire ouvert) pour Hakaro et Inel
+	for _, id in { "occ_hakaro", "oce_inel" } do
+		local style = Formulas.describe({ id = id, level = 1, stars = 1 }).look.mouthStyle
+		assert(style ~= "grin" and style ~= "wide_grin", id .. " : bouche ouverte rouge")
 	end
 	-- Dos de Minatu : « Quatrième Hokage » en colonne de caractères rouges
 	do

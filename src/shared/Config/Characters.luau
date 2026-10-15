@@ -116,7 +116,7 @@ end
 -- Massue à piques (kanabo) tenue en main : poignée, fût épais cerclé d'or, clous en losange.
 local function kanabo(limb: string, from: Vector3, dir: Vector3, length: number, thick: number)
 	local d = dir.Unit
-	local out = {
+	local out: { any } = {
 		{ shape = "cyl", limb = limb, at = from - d * 0.3, dir = d, size = V(1.0, thick * 0.42, 0), color = rgb(92, 62, 40) },
 		{ shape = "cyl", limb = limb, at = from + d * 0.6, dir = d, size = V(length - 0.6, thick, 0), color = METAL_DARK, material = "Metal" },
 		{ shape = "ball", limb = limb, at = from + d * (length - 0.25), dir = d, size = V(thick * 1.02, 0.5, thick * 1.02), color = METAL_DARK, material = "Metal" },
@@ -125,7 +125,7 @@ local function kanabo(limb: string, from: Vector3, dir: Vector3, length: number,
 		table.insert(out, { shape = "cyl", limb = limb, at = from + d * t, dir = d, size = V(0.14, thick * 1.08, 0), color = GOLD, material = "Metal" })
 	end
 	local a, b = across(d)
-	for i, t in { 1.2, 2.05, 2.9 } do
+	for i, t in { 1.3, 2.45 } do
 		if t < length - 0.3 then
 			for k, side in { a, b, -a, -b } do
 				local off = (i % 2 == 0) and (side + (k % 2 == 0 and a or b)).Unit or side
@@ -141,6 +141,9 @@ local function kanabo(limb: string, from: Vector3, dir: Vector3, length: number,
 				})
 			end
 		end
+	end
+	for _, p in out do
+		p.name = "Kanabo"
 	end
 	return out
 end
@@ -304,28 +307,57 @@ end
 -- Bandeau à gemmes (pilier du son) : bande argentée, gemmes rouges et bleues.
 local function gemHeadband()
 	local out = {
-		{ shape = "cyl", limb = "Head", at = V(0, 0.42, 0.02), rot = V(0, 0, 90), size = V(0.2, 1.42, 0), color = rgb(206, 206, 216), material = "Metal" },
+		-- bandeau métallique : bande autour de la tête + plaque frontale
+		{ shape = "cyl", limb = "Head", at = V(0, 0.42, 0.02), rot = V(0, 0, 90), size = V(0.2, 1.42, 0), color = rgb(206, 206, 216), material = "Metal", name = "GemBand" },
+		{ shape = "block", limb = "Head", at = V(0, 0.42, -0.7), size = V(0.78, 0.24, 0.06), color = rgb(220, 220, 230), material = "Metal", name = "GemBand" },
 	}
+	-- gemmes : petits losanges en néon (rouge au centre, bleues, vertes sur les côtés)
 	for i, g in
 		{
-			{ 0, -0.72, rgb(220, 40, 70) },
-			{ -0.42, -0.58, rgb(60, 140, 240) },
-			{ 0.42, -0.58, rgb(60, 140, 240) },
-			{ -0.66, -0.2, rgb(240, 200, 60) },
-			{ 0.66, -0.2, rgb(240, 200, 60) },
+			{ 0, -0.74, rgb(235, 40, 70) },
+			{ -0.27, -0.72, rgb(60, 140, 255) },
+			{ 0.27, -0.72, rgb(60, 140, 255) },
+			{ -0.6, -0.4, rgb(60, 220, 120) },
+			{ 0.6, -0.4, rgb(60, 220, 120) },
 		}
 	do
 		table.insert(out, {
-			shape = "ball",
+			shape = "block",
 			limb = "Head",
-			at = V(g[1], 0.42, g[2]),
-			size = i == 1 and V(0.24, 0.3, 0.12) or V(0.16, 0.2, 0.1),
-			rot = V(0, math.deg(math.atan2(g[1], -g[2])), 0),
+			cf = CFrame.new(g[1], 0.42, g[2]) * CFrame.Angles(0, math.atan2(g[1], -g[2]), 0) * CFrame.Angles(0, 0, math.rad(45)),
+			size = i == 1 and V(0.18, 0.18, 0.06) or V(0.13, 0.13, 0.06),
 			color = g[3],
-			material = "Glass",
+			material = "Neon",
+			name = "Gem",
 		})
 	end
 	return out
+end
+
+-- Mèches plates posées SUR le crâne (coins couchés sur la calotte) : `phi` = angle depuis le
+-- sommet, `a` = angle autour de la tête (0 = devant), `back` = la pointe file vers l'arrière
+-- (cheveux plaqués) au lieu de tomber.
+local function headLock(phi: number, a: number, r: number, size: Vector3, color: Color3, name: string, back: boolean?, twist: number?)
+	local ph, an = math.rad(phi), math.rad(a)
+	local out = V(math.sin(ph) * math.sin(an), math.cos(ph), -math.sin(ph) * math.cos(an))
+	local down = V(math.cos(ph) * math.sin(an), -math.sin(ph), -math.cos(ph) * math.cos(an))
+	local side = V(math.cos(an), 0, math.sin(an))
+	local tipDir = ((back and -down or down) + side * (twist or 0)).Unit
+	local z = -tipDir
+	local y = (out - z * out:Dot(z)).Unit
+	return {
+		shape = "wedge",
+		limb = "Head",
+		cf = CFrame.fromMatrix(V(0, 0.12, 0.02) + out * r, y:Cross(z), y, z),
+		size = size,
+		color = color,
+		name = name,
+	}
+end
+-- Tengan : cheveux blancs plaqués vers l'arrière, 4 mèches plates seulement (pas de hérisson)
+local TENGAN_LOCKS = {}
+for i, a in { -40, -14, 14, 40 } do
+	table.insert(TENGAN_LOCKS, headLock(30, a, 0.78, V(0.36, 0.14, 0.95), i % 2 == 0 and rgb(255, 255, 255) or rgb(226, 226, 234), "TenganLock", true, a / 120))
 end
 
 -- Éventail doré (ouvert : baleines en éventail ; fermé : simple latte) tenu dans la main.
@@ -515,165 +547,133 @@ for _, side in { { "Left Arm", -1 }, { "Right Arm", 1 } } do
 	table.insert(RADAMA_ARMOR, { shape = "block", limb = limb, at = V(0, -0.5, 0), size = V(1.08, 0.72, 1.08), color = RADAMA_RED })
 end
 
--- Radama ★2 : Susanoo squelettique — un squelette géant spectral DERRIÈRE lui : toute la cage
--- est reculée (centre à +0.75 derrière le torse) et bien plus large que lui (côtes qui dépassent
--- nettement de part et d'autre des bras) ; les côtes partent de la colonne et s'arrêtent sur
--- les côtés (elles ne passent jamais devant l'armure). Colonne en néon (vertèbres en boules,
--- flammèches bleues). Grand crâne spectral derrière la tête, à sa hauteur : la boîte crânienne
--- et les orbites dépassent au-dessus des cheveux, pommettes et mâchoire de part et d'autre.
--- Les pièces du dos (`noPreview`) sont omises dans les aperçus des menus (vus de face).
+-- Radama ★2 : Susanoo squelettique — un squelette géant spectral qui l'ENVELOPPE par derrière,
+-- entièrement en blocs et en coins (aucune sphère, ni en jeu ni dans les menus) :
+--   • colonne de vertèbres anguleuses CENTRÉE sur l'axe du torse, juste derrière le dos ;
+--   • côtes en planches fines (coins effilés au bout), symétriques (4 de chaque côté), qui partent
+--     de la colonne en descendant, contournent les bras par l'extérieur et s'enroulent vers
+--     l'avant : de face, leurs pointes encadrent Radama des deux côtés ;
+--   • crâne anguleux centré derrière la tête (boîte crânienne, arcade, orbites en coins sombres,
+--     pommettes et mâchoire en coins, rangée de dents, cornes plates vers l'arrière).
 local SUSANOO_BLUE = rgb(90, 130, 255)
 local SUSANOO_LIT = rgb(150, 185, 255)
-local SUSANOO_DEEP = rgb(60, 95, 235)
-local SUSANOO_Z = 0.75 -- recul de toute la cage derrière le torse
-local SUSANOO_RIBS = rods("Torso", { V(0, 1.85, SUSANOO_Z + 1.1), V(0, -1.3, SUSANOO_Z + 1.1) }, { 0.18 }, SUSANOO_LIT, { material = "Neon", transparency = 0.1 })
-SUSANOO_RIBS[1].noPreview = true
-SUSANOO_RIBS[1].light = SUSANOO_BLUE
-SUSANOO_RIBS[1].lightRange = 10
-SUSANOO_RIBS[1].flames = rgb(110, 160, 255)
-SUSANOO_RIBS[1].name = "SusanooSpine"
--- vertèbres : boules de 0.35 tous les 0.3 stud
-for k = 0, 9 do
-	table.insert(SUSANOO_RIBS, {
-		shape = "ball",
+local SUSANOO_Z = 0.78 -- axe de la colonne : juste derrière le dos (dos du torse à +0.5)
+local SUSANOO_RIBS = {
+	{
+		shape = "block",
 		limb = "Torso",
-		at = V(0, 1.75 - k * 0.3, SUSANOO_Z + 1.1),
-		size = V(0.36, 0.3, 0.36),
+		at = V(0, 0.3, SUSANOO_Z + 0.05),
+		size = V(0.14, 3.3, 0.14),
 		color = SUSANOO_LIT,
 		material = "Neon",
-		transparency = 0.15,
-		noPreview = true,
+		transparency = 0.2,
+		light = SUSANOO_BLUE,
+		lightRange = 10,
+		flames = rgb(110, 160, 255),
+		name = "SusanooSpine",
+	},
+}
+-- vertèbres : blocs plats anguleux, plus larges en haut
+for k = 0, 7 do
+	table.insert(SUSANOO_RIBS, {
+		shape = "block",
+		limb = "Torso",
+		at = V(0, 1.72 - k * 0.4, SUSANOO_Z),
+		size = V(0.5 - k * 0.02, 0.22, 0.3),
+		color = SUSANOO_LIT,
+		material = "Neon",
+		transparency = 0.2,
+		name = "SusanooVertebra",
 	})
 end
--- Côtes : demi-ellipses (vue de dessus) centrées derrière le torse, bien plus larges que lui (elles
--- dépassent des épaulières vues de face),
--- de la colonne jusqu'aux flancs (angle max 112° : la pointe s'arrête à côté des bras)
-local RIB_A, RIB_B = 2.8, 1.1
+-- Côtes : arcs d'ellipse (vue de dessus) centrés devant la colonne — de la colonne (θ = 8°) aux
+-- pointes devant lui (θ = 124°), en dehors des bras ; chaque côte descend le long de l'arc.
+local RIB_A, RIB_B, RIB_C = 3.1, 1.35, -0.45 -- demi-largeur, demi-profondeur, centre (z)
+local RIB_T = { 8, 38, 68, 96, 124 }
+local function ribPoint(s: number, y0: number, w: number, deg: number): Vector3
+	local th = math.rad(deg)
+	return V(s * RIB_A * w * math.sin(th), y0 - 0.8 * (deg / 124) ^ 1.25, RIB_C + RIB_B * math.cos(th))
+end
 for _, s in { -1, 1 } do
-	for k, y in { 1.45, 0.88, 0.31, -0.26 } do
-		local w = 1 - (k - 1) * 0.07
-		local points = {}
-		for i, t in { 0, 0.17, 0.34, 0.5, 0.62 } do
-			local th = t * math.pi
-			points[i] = V(s * RIB_A * w * math.sin(th), y - 1.45 * t ^ 1.3, SUSANOO_Z + RIB_B * math.cos(th))
-		end
-		-- côte plate (bande de 0.22 de haut sur 0.1 d'épaisseur) : plus dense près de la colonne,
-		-- qui s'estompe vers la pointe ; les segments du dos sont omis dans les menus
-		for i = 1, 4 do
-			local a0, a1 = points[i], points[i + 1]
-			local d = (a1 - a0).Unit
+	for k, y0 in { 1.42, 0.86, 0.3, -0.26 } do
+		local w = 1 - (k - 1) * 0.03
+		for i = 1, #RIB_T - 1 do
+			local a, b = ribPoint(s, y0, w, RIB_T[i]), ribPoint(s, y0, w, RIB_T[i + 1])
+			local d = (b - a).Unit
+			local up = (V(0, 1, 0) - d * d.Y).Unit
+			local len = (b - a).Magnitude + 0.06
+			local tip = i == #RIB_T - 1
 			table.insert(SUSANOO_RIBS, {
-				shape = "block",
+				shape = tip and "wedge" or "block",
 				limb = "Torso",
-				at = a0 - d * 0.05,
-				dir = d,
-				size = V(0.1, (a1 - a0).Magnitude + 0.1, 0.24 - i * 0.015),
-				color = i <= 2 and SUSANOO_LIT or SUSANOO_DEEP,
+				-- planche : longueur le long de l'arc, hauteur verticale, 0.08 d'épaisseur ; la
+				-- pointe est un coin qui s'effile vers l'avant
+				cf = tip and CFrame.fromMatrix((a + b) / 2, up:Cross(-d), up, -d) or CFrame.fromMatrix((a + b) / 2, d, up),
+				size = tip and V(0.08, 0.24, len) or V(len, 0.24 - i * 0.01, 0.08),
+				color = i <= 2 and SUSANOO_LIT or SUSANOO_BLUE,
 				material = "Neon",
-				-- segments du dos (derrière lui) : 0.5, l'armure reste lisible à travers ; pointes
-				-- sur les côtés (hors de sa silhouette) plus denses pour bien se détacher
-				transparency = i <= 2 and 0.5 or 0.3,
-				noPreview = i <= 2,
+				-- segments du dos (derrière lui) plus estompés : l'armure reste lisible à travers
+				transparency = i <= 2 and 0.45 or 0.25,
 				name = "SusanooRib",
 			})
 		end
 	end
 end
--- Grand crâne spectral derrière la tête (repère SKULL, dans le repère de la tête) : boîte
--- crânienne, orbites sombres en amande sous une arcade lumineuse, cavité nasale, pommettes,
--- rangée de dents et mâchoire, deux cornes plates vers l'arrière.
-local SKULL = CFrame.new(0, 0.42, 1.2)
-local SKULL_HOLE = rgb(24, 40, 120)
-local function skullAt(x: number, y: number, z: number): CFrame
-	return SKULL * CFrame.new(x, y, z)
+-- Crâne anguleux centré derrière la tête (repère de la tête, X = 0)
+local SKULL_HOLE = rgb(20, 30, 90)
+local SKULL_TEETH = rgb(205, 222, 255)
+local function skullPart(name: string, shape: string, cf: CFrame, size: Vector3, color: Color3, transparency: number)
+	table.insert(SUSANOO_RIBS, {
+		shape = shape,
+		limb = "Head",
+		cf = cf,
+		size = size,
+		color = color,
+		material = color == SKULL_HOLE and "SmoothPlastic" or "Neon",
+		transparency = transparency,
+		name = name,
+	})
 end
-table.insert(SUSANOO_RIBS, {
-	shape = "ball",
-	limb = "Head",
-	cf = skullAt(0, 0.2, 0.1),
-	size = V(2.7, 2.3, 2.5),
-	color = SUSANOO_BLUE,
-	material = "Neon",
-	transparency = 0.55,
-	name = "SusanooSkull",
-})
--- face du crâne (front, pommettes) : plus étroite, plus opaque
-table.insert(SUSANOO_RIBS, {
-	shape = "ball",
-	limb = "Head",
-	cf = skullAt(0, 0.35, -0.6),
-	size = V(2.3, 1.5, 1.1),
-	color = SUSANOO_BLUE,
-	material = "Neon",
-	transparency = 0.5,
-})
+-- Le crâne est un peu plus haut que la tête : de face, son visage (arcade lumineuse, orbites en
+-- coins sombres sous l'arcade, pommettes) se lit juste au-dessus des cheveux ; mâchoire et dents
+-- derrière la tête (visibles de profil et de 3/4).
+local SK_Y, SK_Z = 1.05, 0.35 -- hauteur du centre du crâne, plan du visage du crâne
+-- boîte crânienne + calotte en biseau (coins sur les arêtes du dessus et de l'arrière)
+skullPart("SusanooSkull", "block", CFrame.new(0, SK_Y, SK_Z + 0.8), V(1.9, 1.3, 1.6), SUSANOO_BLUE, 0.35)
 for _, s in { -1, 1 } do
-	-- orbite : creux sombre en amande inclinée (regard menaçant), sous une arcade lumineuse ;
-	-- elles sont écartées et hautes : on les voit de part et d'autre du sommet de la tête
-	table.insert(SUSANOO_RIBS, {
-		shape = "ball",
-		limb = "Head",
-		cf = skullAt(s * 0.66, 0.66, -1.0) * CFrame.Angles(0, 0, math.rad(s * 22)),
-		size = V(0.92, 0.36, 0.2),
-		color = SKULL_HOLE,
-		transparency = 0.2,
-		name = "SusanooOrbit",
-	})
-	table.insert(SUSANOO_RIBS, {
-		shape = "block",
-		limb = "Head",
-		cf = skullAt(s * 0.7, 1.06, -0.98) * CFrame.Angles(0, 0, math.rad(s * 18)),
-		size = V(1.02, 0.15, 0.24),
-		color = SUSANOO_LIT,
-		material = "Neon",
-		transparency = 0.15,
-	})
-	-- pommette saillante (de part et d'autre de la tête de Radama)
-	table.insert(SUSANOO_RIBS, {
-		shape = "block",
-		limb = "Head",
-		cf = skullAt(s * 1.05, -0.45, -0.75) * CFrame.Angles(0, math.rad(-s * 25), math.rad(s * 10)),
-		size = V(0.36, 0.5, 0.9),
-		color = SUSANOO_LIT,
-		material = "Neon",
-		transparency = 0.35,
-	})
+	skullPart("SusanooSkull", "wedge", CFrame.new(s * 0.62, SK_Y + 0.8, SK_Z + 0.8) * CFrame.Angles(0, math.rad(-s * 90), 0), V(1.6, 0.3, 0.66), SUSANOO_BLUE, 0.35)
+end
+skullPart("SusanooSkull", "block", CFrame.new(0, SK_Y + 0.8, SK_Z + 0.75), V(0.6, 0.3, 1.5), SUSANOO_BLUE, 0.35)
+-- arcade sourcilière lumineuse en « V » froncé (deux barres qui descendent vers le nez), un peu
+-- plus large que la boîte crânienne
+for _, s in { -1, 1 } do
+	skullPart("SusanooBrow", "block", CFrame.new(s * 0.52, SK_Y + 0.4, SK_Z - 0.04) * CFrame.Angles(0, 0, math.rad(s * 14)), V(1.08, 0.18, 0.3), SUSANOO_LIT, 0.15)
+end
+for _, s in { -1, 1 } do
+	-- orbites : creux sombres anguleux sous l'arcade (coin intérieur plus bas, regard dur)
+	skullPart("SusanooOrbit", "block", CFrame.new(s * 0.47, SK_Y + 0.13, SK_Z - 0.06) * CFrame.Angles(0, 0, math.rad(s * 12)), V(0.56, 0.3, 0.1), SKULL_HOLE, 0.1)
+	-- pommettes en coins, de part et d'autre du haut de la tête
+	skullPart("SusanooCheek", "wedge", CFrame.new(s * 0.98, SK_Y - 0.38, SK_Z + 0.25), V(0.3, 0.5, 0.8), SUSANOO_LIT, 0.3)
 	-- cornes plates recourbées vers l'arrière
 	table.insert(SUSANOO_RIBS, {
 		shape = "wedge",
 		limb = "Head",
-		at = SKULL.Position + V(s * 0.95, 1.05, 0.5),
-		dir = V(s * 0.35, 0.6, 1),
-		size = V(0.2, 1.4, 0.5),
+		at = V(s * 0.8, SK_Y + 0.75, SK_Z + 1.25),
+		dir = V(s * 0.3, 0.55, 1),
+		size = V(0.16, 1.3, 0.5),
 		color = SUSANOO_BLUE,
 		material = "Neon",
 		transparency = 0.3,
+		name = "SusanooHorn",
 	})
 end
--- cavité nasale
-table.insert(SUSANOO_RIBS, { shape = "wedge", limb = "Head", cf = skullAt(0, 0.3, -1.12), size = V(0.3, 0.34, 0.12), color = SKULL_HOLE })
--- rangée de dents (blocs clairs séparés) et mâchoire en coin dessous
-for i = -3, 3 do
-	table.insert(SUSANOO_RIBS, {
-		shape = "block",
-		limb = "Head",
-		cf = skullAt(i * 0.2, -0.78, -1.0),
-		size = V(0.15, 0.26, 0.12),
-		color = rgb(200, 220, 255),
-		material = "Neon",
-		transparency = 0.15,
-	})
+-- cavité nasale (coin sombre)
+skullPart("SusanooNose", "wedge", CFrame.new(0, SK_Y - 0.16, SK_Z - 0.05) * CFrame.Angles(0, math.rad(90), math.pi), V(0.1, 0.26, 0.24), SKULL_HOLE, 0.1)
+-- mâchoire en coin et rangée de dents (blocs clairs séparés), derrière la tête
+skullPart("SusanooJaw", "wedge", CFrame.new(0, SK_Y - 0.95, SK_Z + 0.6) * CFrame.Angles(math.pi, 0, 0), V(1.6, 0.4, 1.1), SUSANOO_BLUE, 0.35)
+for i = -2, 2 do
+	skullPart("SusanooTooth", "block", CFrame.new(i * 0.24, SK_Y - 0.58, SK_Z + 0.02), V(0.17, 0.26, 0.1), SKULL_TEETH, 0.15)
 end
-table.insert(SUSANOO_RIBS, {
-	shape = "wedge",
-	limb = "Head",
-	cf = skullAt(0, -1.12, -0.7) * CFrame.Angles(math.pi, 0, 0),
-	size = V(1.6, 0.36, 0.7),
-	color = SUSANOO_BLUE,
-	material = "Neon",
-	transparency = 0.35,
-	name = "SusanooJaw",
-})
 
 local TRUTH_ORBS = {}
 for k = 0, 5 do
@@ -681,71 +681,101 @@ for k = 0, 5 do
 	table.insert(TRUTH_ORBS, { shape = "ball", limb = "Torso", at = V(math.cos(a) * 1.55, 0.5 + math.sin(a) * 1.55, 1.2), size = V(0.5, 0.5, 0.5), color = rgb(18, 16, 24) })
 end
 
--- Gaaro ★2/★3 : vague de sable qui jaillit de la gourde, passe par-dessus l'épaule droite et
--- retombe devant lui — blocs et coins beiges irréguliers chaînés le long de l'arc (crêtes en
--- coin sur le dessus), qui s'affinent vers la pointe ; grains de sable qui s'en échappent
--- (particules) et seulement deux petites mottes en lévitation.
-local SAND = rgb(222, 196, 140)
-local SAND_DEEP = rgb(196, 164, 108)
-local SAND_SHIELD = {}
+-- Gaaro ★2/★3 : le sable SORT DE LA GOURDE (ouverture derrière l'épaule) et tourbillonne plus
+-- bas, autour du bras droit et du flanc (jamais plus haut que l'épaule) : beaucoup de petits blocs
+-- irréguliers en matériau Sable ocre (deux tons), tournés au hasard, avec des grains qui s'en
+-- échappent (particules). Au ★3, le sable forme en plus un bouclier mural sur son côté gauche.
+local SAND = rgb(194, 160, 100)
+local SAND_DEEP = rgb(166, 130, 76)
+local SAND_LIGHT = rgb(214, 184, 126)
+-- pseudo-hasard déterministe (même rendu à chaque construction)
+local function jitter(i: number, k: number): number
+	local x = math.sin(i * 12.9898 + k * 78.233) * 43758.5453
+	return (x - math.floor(x)) * 2 - 1
+end
+local function sandBlock(list, at: Vector3, size: number, i: number, name: string?)
+	table.insert(list, {
+		shape = "block",
+		limb = "Torso",
+		at = at,
+		rot = V(jitter(i, 1) * 40, jitter(i, 2) * 60, jitter(i, 3) * 40),
+		size = V(size * (1 + jitter(i, 4) * 0.25), size * (0.8 + jitter(i, 5) * 0.2), size * (1 + jitter(i, 6) * 0.2)),
+		color = i % 3 == 0 and SAND_DEEP or (i % 3 == 1 and SAND or SAND_LIGHT),
+		material = "Sand",
+		name = name or "Sand",
+	})
+end
+-- flot de sable le long d'un chemin : 3 petits blocs par segment (qui rapetissent vers le bout)
+-- autour de la ligne, plus des grains isolés
+local function sandStream(points, size0: number, seed: number)
+	local out = {}
+	local n = 0
+	for i = 1, #points - 1 do
+		local a0, a1 = points[i], points[i + 1]
+		for k = 0, 2 do
+			n += 1
+			local t = k / 3
+			local p = a0:Lerp(a1, t)
+			local sz = size0 * (1 - (i - 1 + t) / #points * 0.55)
+			local off = V(jitter(n + seed, 7), jitter(n + seed, 8), jitter(n + seed, 9)) * (sz * 0.45)
+			sandBlock(out, p + off, sz, n + seed)
+		end
+		-- grain détaché
+		n += 1
+		sandBlock(out, a0:Lerp(a1, 0.5) + V(jitter(n + seed, 10), 0.2 + jitter(n + seed, 11) * 0.2, jitter(n + seed, 12)) * 0.45, 0.15, n + seed)
+	end
+	out[1].name = "SandWave"
+	out[1].dust = SAND_LIGHT
+	out[1].dustRate = 18
+	return out
+end
+-- ★2 : de l'ouverture de la gourde (dos, derrière l'épaule droite), le sable descend en
+-- tourbillon autour du bras droit, passe devant la main et revient sur la hanche
+local SAND_SHIELD = sandStream({
+	V(0.3, 1.28, 0.95),
+	V(0.95, 1.2, 1.1),
+	V(1.75, 0.8, 0.85),
+	V(2.35, 0.25, 0.15),
+	V(2.3, -0.35, -0.7),
+	V(1.6, -0.8, -1.1),
+	V(0.95, -1.15, -0.9),
+}, 0.5, 0)
+-- ★3 : bouclier mural de sable sur le côté gauche (blocs empilés en mur légèrement courbé vers
+-- l'avant, arête du haut déchiquetée), alimenté par un flot qui part de la gourde
+local SAND_WALL = sandStream({ V(0.3, 1.28, 0.95), V(-0.6, 1.25, 1.15), V(-1.6, 0.95, 0.85), V(-2.35, 0.7, 0.25) }, 0.45, 40)
 do
-	local arc = {
-		V(0.3, 1.55, 1.0),
-		V(0.75, 2.2, 0.7),
-		V(1.3, 2.45, 0.1),
-		V(1.85, 2.15, -0.5),
-		V(2.2, 1.5, -0.95),
-		V(2.3, 0.75, -1.2),
-		V(2.15, 0.15, -1.3),
-	}
-	for i = 1, #arc - 1 do
-		local a0, a1 = arc[i], arc[i + 1]
-		local d = a1 - a0
-		local w = 0.95 - i * 0.1
-		-- corps de la vague : dalle large et plate, tournée de façon irrégulière autour de l'arc
-		-- (les arêtes dépassent d'un bloc à l'autre : surface cassée, pas un tube lisse)
-		table.insert(SAND_SHIELD, {
-			shape = "block",
-			limb = "Torso",
-			at = a0 - d.Unit * 0.08,
-			dir = d,
-			rot = V((i * 13) % 16 - 8, (i * 37) % 60 - 30, 0),
-			size = V(w * 1.45, d.Magnitude + 0.16, w * 0.42),
-			color = i % 2 == 0 and SAND or SAND_DEEP,
-			material = "Sand",
-			name = i == 1 and "SandWave" or "Prop",
-		})
-		-- crêtes : coins qui débordent vers l'extérieur de l'arc (bord de la vague qui déferle),
-		-- de tailles et d'angles différents
-		table.insert(SAND_SHIELD, {
-			shape = "wedge",
-			limb = "Torso",
-			at = a0 + V(0.18, 0.16, 0.05),
-			dir = d,
-			rot = V(0, 90 + ((i * 23) % 40) - 20, (i * 17) % 20 - 10),
-			size = V(w * 1.1, d.Magnitude * (0.6 + (i % 3) * 0.15), w * 0.6),
-			color = i % 2 == 0 and SAND_DEEP or SAND,
-			material = "Sand",
-		})
-		-- éclats de sable détachés le long de la vague (petits blocs)
-		if i % 2 == 1 then
-			local side = d.Unit:Cross(V(0, 1, 0))
-			table.insert(SAND_SHIELD, {
+	local n = 80
+	for row = 0, 3 do
+		for col = -1, 1 do
+			n += 1
+			local ang = math.rad(col * 22)
+			local at = V(-2.45 + (1 - math.cos(ang)) * 1.6, -2.35 + row * 0.82, -0.35 + math.sin(ang) * 1.6)
+			table.insert(SAND_WALL, {
 				shape = "block",
 				limb = "Torso",
-				at = a0 + side.Unit * (w * 0.9) + V(0, 0.15, 0),
-				rot = V(i * 31, i * 47, i * 19),
-				size = V(0.24, 0.2, 0.22),
-				color = SAND_DEEP,
+				at = at + V(jitter(n, 1) * 0.06, jitter(n, 2) * 0.08, 0),
+				rot = V(jitter(n, 3) * 6, 90 - col * 22 + jitter(n, 4) * 6, jitter(n, 5) * 6),
+				size = V(0.78 + jitter(n, 6) * 0.1, 0.84, 0.34 + jitter(n, 7) * 0.06),
+				color = (row + col) % 2 == 0 and SAND or SAND_DEEP,
 				material = "Sand",
+				name = "SandWall",
 			})
 		end
 	end
-	SAND_SHIELD[1].dust = SAND
-	SAND_SHIELD[1].dustRate = 15
-	-- deux petites mottes en lévitation
-	for _, e in { { V(-1.75, 0.8, 0.85), 0.32 }, { V(1.95, -1.05, 0.6), 0.28 } } do
-		table.insert(SAND_SHIELD, { shape = "ball", limb = "Torso", at = e[1], size = V(e[2] * 1.3, e[2], e[2] * 1.15), color = SAND_DEEP, material = "Sand" })
+	-- arête du haut déchiquetée : coins de hauteurs différentes
+	for col = -1, 1 do
+		n += 1
+		local ang = math.rad(col * 22)
+		table.insert(SAND_WALL, {
+			shape = "wedge",
+			limb = "Torso",
+			at = V(-2.45 + (1 - math.cos(ang)) * 1.6, 0.72 + 0.1 * (col % 2), -0.35 + math.sin(ang) * 1.6),
+			rot = V(0, 90 - col * 22 + (col == 0 and 180 or 0), 0),
+			size = V(0.34, 0.45 + 0.2 * (col % 2), 0.8),
+			color = SAND_LIGHT,
+			material = "Sand",
+			name = "SandWall",
+		})
 	end
 end
 -- Gaaro : cheveux rouge brique courts, en pointes courtes qui partent dans tous les sens depuis
@@ -1143,8 +1173,11 @@ local GOJITA_KIT = join({
 local CEL_SKIN, CEL_SPOT, CEL_BLACK = rgb(242, 228, 234), rgb(14, 22, 16), rgb(20, 24, 22)
 local function CEL_CREST(color: Color3, k: number)
 	local out = {
-		-- calotte : arrière et dessus du crâne seulement (front mauve dégagé jusqu'au sommet)
-		{ shape = "ball", limb = "Head", at = V(0, 0.3, 0.3), size = V(1.32, 1.02, 1.06), color = color },
+		-- calotte vert foncé : arrière, dessus du crâne et haut du front (le visage clair se
+		-- limite au masque, des sourcils au menton)
+		{ shape = "ball", limb = "Head", at = V(0, 0.32, 0.14), size = V(1.34, 1.04, 1.32), color = color, name = "CelCap" },
+		-- dessus du crâne : cylindre ajusté à la tête (rayon 0.665), du haut du front au sommet
+		{ shape = "cyl", limb = "Head", at = V(0, 0.42, 0), dir = V(0, 1, 0), size = V(0.24, 1.33, 0), color = color, name = "CelCap" },
 		{ shape = "ball", limb = "Head", at = V(0, -0.12, 0.3), size = V(1.28, 0.95, 0.92), color = color },
 	}
 	for _, s in { -1, 1 } do
@@ -1152,7 +1185,8 @@ local function CEL_CREST(color: Color3, k: number)
 		-- (~35°), pointes sous le sommet du crâne + 0.6 ; liseré noir derrière la lame verte
 		-- lame dans un plan presque vertical (vue de face : une fine pointe de chaque côté, pas
 		-- une oreille ; vue de profil : la nageoire entière)
-		local dir = V(s * 0.34, 0.6, 0.74).Unit
+		-- (écartées vers l'extérieur : de 3/4, la lame du côté opposé dépasse aussi de la tête)
+		local dir = V(s * 0.75, 0.7, 0.45).Unit
 		local right = V(s, 0, 0):Cross(dir).Unit
 		local L = 1.05 * k
 		for i, b in { { CEL_BLACK, L + 0.14, 0.7, 0.5 }, { color, L, 0.54, 0.56 } } do
@@ -1326,26 +1360,51 @@ for k = 0, 11 do
 	})
 end
 
--- Kaydo : cornes (taille selon l'évolution), moustache, moustaches de dragon, grande queue
-local function KAYDO_HORNS(k: number, color: Color3?)
+-- Kaydo : cornes (taille selon l'évolution), moustache tombante. Au ★2/★3 (`curl`), les cornes
+-- sont plus grandes et recourbées vers l'arrière (deux segments qui s'affinent + pointe).
+local function KAYDO_HORNS(k: number, color: Color3?, curl: boolean?)
 	local c = color or rgb(238, 230, 210)
+	local root = c:Lerp(rgb(90, 70, 50), 0.35)
 	local out = {}
 	for _, s in { -1, 1 } do
-		table.insert(out, { shape = "ball", limb = "Head", at = V(s * 0.38, 0.6, -0.2), size = V(0.34, 0.2, 0.34) * k, color = c:Lerp(rgb(90, 70, 50), 0.35) })
-		table.insert(out, { shape = "spike", limb = "Head", at = V(s * 0.38, 0.62, -0.2), dir = V(s * 0.45, 1, 0.32), length = 1.0 * k, width = 0.4 * k, color = c })
+		local p0 = V(s * 0.38, 0.6, -0.2)
+		if curl then
+			local p1 = p0 + V(s * 0.32, 0.72, 0.1) * k
+			local p2 = p1 + V(s * 0.12, 0.42, 0.42) * k
+			for _, r in rods("Head", { p0, p1, p2 }, { 0.32 * k, 0.24 * k }, c) do
+				r.name = "KaydoHorn"
+				table.insert(out, r)
+			end
+			table.insert(out, { shape = "spike", limb = "Head", at = p2 - V(0, 0, 0.05), dir = V(0, 0.25, 1), length = 0.6 * k, width = 0.22 * k, color = c })
+		else
+			table.insert(out, { shape = "ball", limb = "Head", at = p0, size = V(0.34, 0.2, 0.34) * k, color = root })
+			table.insert(out, { shape = "spike", limb = "Head", at = p0 + V(0, 0.02, 0), dir = V(s * 0.45, 1, 0.32), length = 1.0 * k, width = 0.4 * k, color = c })
+		end
 	end
 	return out
 end
-local KAYDO_FACE = {}
-for _, s in { -1, 1 } do
-	table.insert(
-		KAYDO_FACE,
-		{ shape = "strand", limb = "Head", at = V(s * 0.08, -0.2, -0.66), dir = V(s, -0.3, -0.1), length = 0.55, width = 0.09, depth = 0.09, color = rgb(26, 24, 30) }
-	)
-	table.insert(
-		KAYDO_FACE,
-		{ shape = "strand", limb = "Head", at = V(s * 0.52, -0.33, -0.6), dir = V(s * 0.3, -1, -0.1), length = 0.6, width = 0.08, depth = 0.08, color = rgb(26, 24, 30) }
-	)
+-- moustache : part sous le nez vers les côtés puis retombe le long des joues (plus longue au ★2,
+-- avec une barbiche au menton) ; rien devant les yeux
+local function KAYDO_FACE(k: number)
+	local ink = rgb(26, 24, 30)
+	local out = {}
+	for _, s in { -1, 1 } do
+		table.insert(out, { shape = "strand", limb = "Head", at = V(s * 0.08, -0.2, -0.66), dir = V(s, -0.3, -0.1), length = 0.55, width = 0.09, depth = 0.09, color = ink })
+		table.insert(out, {
+			shape = "strand",
+			limb = "Head",
+			at = V(s * 0.52, -0.33, -0.6),
+			dir = V(s * 0.3, -1, -0.1),
+			length = 0.6 * k,
+			width = 0.08 + 0.02 * (k - 1),
+			depth = 0.08,
+			color = ink,
+		})
+	end
+	if k > 1 then
+		table.insert(out, { shape = "strand", limb = "Head", at = V(0, -0.5, -0.58), dir = V(0, -1, -0.3), length = 0.55 * k, width = 0.2, depth = 0.12, color = ink })
+	end
+	return out
 end
 -- Kaydo : torse de colosse — deltoïdes et trapèze intégrés, pectoraux, abdos et cicatrices
 -- peints sur le torse nu (calque transparent, la peau du torse reste dessous)
@@ -1393,46 +1452,65 @@ for _, s in { -1, 1 } do
 		{ shape = "strand", limb = "Head", at = V(s * 0.5, 0.05, -0.5), dir = V(s, 0.25, -0.35), length = 1.5, width = 0.08, depth = 0.08, color = rgb(240, 200, 90) }
 	)
 end
--- Kaydo ★2/★3 (forme hybride du dragon) : écailles bleues PLATES le long des avant-bras —
--- petits coins triangulaires fins (0.08 d'épaisseur) plaqués sur la face extérieure, qui se
--- chevauchent comme des écailles (pas de pastilles ni de boules sur les épaules)
+-- Kaydo ★2/★3 (forme hybride du dragon) : écailles bleues PLATES — petits coins triangulaires
+-- fins (0.08 d'épaisseur) plaqués sur les deux avant-bras (face avant ET face extérieure), sur
+-- l'avant des épaules et sur les pommettes ; ils alternent de sens et de ton comme des écailles
+-- (pas de pastilles ni de boules).
 local KAYDO_SCALE_BLUE, KAYDO_SCALE_DEEP = rgb(80, 140, 210), rgb(56, 104, 170)
 local KAYDO_SCALES = {}
-for _, side in { { "Left Arm", -1 }, { "Right Arm", 1 } } do
-	for k = 0, 3 do
-		table.insert(KAYDO_SCALES, {
-			shape = "wedge",
-			limb = side[1],
-			at = V(side[2] * 0.53, -0.12 - k * 0.24, (k % 2 == 0) and -0.12 or 0.12),
-			rot = V(180, 0, 0),
-			size = V(0.08, 0.34, 0.42),
-			color = k % 2 == 0 and KAYDO_SCALE_BLUE or KAYDO_SCALE_DEEP,
-			name = "KaydoScale",
-		})
-	end
+local function kaydoScale(limb: string, at: Vector3, rot: Vector3, size: Vector3, k: number)
+	table.insert(KAYDO_SCALES, {
+		shape = "wedge",
+		limb = limb,
+		at = at,
+		rot = rot,
+		size = size,
+		color = k % 2 == 0 and KAYDO_SCALE_BLUE or KAYDO_SCALE_DEEP,
+		name = "KaydoScale",
+	})
 end
--- Queue du dragon : tiges cylindriques qui s'affinent (pas de boudins arrondis = « ballons »),
--- crête de piques ivoire le long du dessus et pointe en dard
-local KAYDO_TAIL_PTS = { V(0, -0.8, 0.5), V(0.08, -1.55, 1.45), V(0.4, -2.0, 2.5), V(0.95, -1.8, 3.35), V(1.4, -1.25, 3.85) }
+for _, side in { { "Left Arm", -1 }, { "Right Arm", 1 } } do
+	local limb, s = side[1], side[2]
+	for k = 0, 1 do
+		-- face extérieure de l'avant-bras
+		kaydoScale(limb, V(s * 0.53, -0.22 - k * 0.4, (k % 2 == 0) and -0.12 or 0.12), V(180, 0, 0), V(0.08, 0.46, 0.5), k)
+	end
+	for k = 0, 1 do
+		-- face avant de l'avant-bras (bien visibles de face)
+		kaydoScale(limb, V((k % 2 == 0) and -0.13 or 0.13, -0.26 - k * 0.36, -0.53), V(0, (k % 2 == 0) and 90 or -90, 0), V(0.08, 0.4, 0.44), k + 1)
+	end
+	-- avant de l'épaule (sur le deltoïde)
+	kaydoScale(limb, V(s * 0.1, 0.74, -0.62), V(0, s * 90, 0), V(0.08, 0.46, 0.56), 1)
+	-- pommette (petites écailles plaquées sur le visage, sous l'œil)
+	kaydoScale("Head", V(s * 0.46, -0.08, -0.6), V(0, s * 90, 0), V(0.05, 0.2, 0.26), (s + 1) / 2)
+end
+-- Queue du dragon : part du bas du dos, plonge derrière lui puis REMONTE en S sur son flanc
+-- gauche (du côté opposé à la massue) et dépasse de sa silhouette de face ; tiges cylindriques
+-- qui s'affinent et crête de piques ivoire sur le dessus
+local KAYDO_TAIL_PTS = { V(-0.2, -0.85, 0.5), V(-0.75, -1.5, 1.25), V(-1.75, -1.3, 1.55), V(-2.45, -0.35, 1.0), V(-2.6, 0.85, 0.35) }
 local KAYDO_TAIL = rods("Torso", KAYDO_TAIL_PTS, { 0.62, 0.5, 0.38, 0.27 }, rgb(70, 128, 200))
-for i = 2, #KAYDO_TAIL_PTS - 1 do
+for _, r in KAYDO_TAIL do
+	r.name = "KaydoTail"
+end
+for i = 2, #KAYDO_TAIL_PTS - 2 do
 	local a, b = KAYDO_TAIL_PTS[i], KAYDO_TAIL_PTS[i + 1]
 	local d = (b - a).Unit
-	local up = d:Cross(V(1, 0, 0)).Unit
-	if up.Y < 0 then
-		up = -up
-	end
-	-- piques dorsales, plus petites vers le bout
+	-- côté « dessus » de la queue : vers l'arrière et l'extérieur (crête bien visible)
+	local up = (V(-0.6, 0.3, 0.75) - d * d:Dot(V(-0.6, 0.3, 0.75))).Unit
 	table.insert(KAYDO_TAIL, {
 		shape = "spike",
 		limb = "Torso",
-		at = a + d * 0.3 + up * (0.27 - i * 0.04),
-		dir = (up + d * 0.6).Unit,
-		length = 0.6 - i * 0.07,
-		width = 0.28 - i * 0.03,
+		at = (a + b) / 2 + up * (0.3 - i * 0.04),
+		dir = (up + d * 0.5).Unit,
+		length = 0.62 - i * 0.08,
+		width = 0.3 - i * 0.04,
 		color = rgb(240, 236, 224),
 	})
 end
+
+-- Massue de Kaydo tenue VERTICALE le long de son flanc droit, tête cloutée posée au sol (jamais
+-- devant le visage ni derrière la tête, sous aucun angle)
+local KAYDO_CLUB = kanabo("Right Arm", V(0.72, 0.25, -0.15), V(0.1, -1, -0.04), 3.35, 0.56)
 
 -- Muzon : cravate rouge ; fouets de chair dans le dos (★2/★3)
 local MUZON_TIE = {
@@ -1458,48 +1536,86 @@ local function MUZON_WHIPS(n: number)
 	return out
 end
 
--- Muzon ★2 : cheveux noirs ondulés jusqu'à la nuque (courtes mèches courbées, pas des boules)
+-- Muzon ★2/★3 : boucles courtes et serrées en VAGUES — petits coins plats couchés sur le crâne
+-- (pointe vers le bas, sens alterné gauche/droite d'une boucle à l'autre), en rangées autour de
+-- la tête, deux tons ; pas de sphères ni de boudins.
 local MUZON_CURLS = {}
-for i, m in
-	{
-		{ V(-0.4, 0.82, -0.35), V(-0.6, 0.2, -0.8) },
-		{ V(0.05, 0.92, -0.4), V(0.3, 0.25, -0.9) },
-		{ V(0.42, 0.8, -0.3), V(0.8, 0.1, -0.6) },
-		{ V(-0.62, 0.45, -0.1), V(-0.7, -1, -0.2) },
-		{ V(0.62, 0.45, -0.1), V(0.7, -1, -0.2) },
-		{ V(-0.55, 0.4, 0.35), V(-0.5, -1, 0.5) },
-		{ V(0.55, 0.4, 0.35), V(0.5, -1, 0.5) },
-		{ V(-0.2, 0.55, 0.6), V(-0.2, -1, 0.6) },
-		{ V(0.2, 0.55, 0.6), V(0.25, -1, 0.6) },
-		{ V(0.0, 1.0, 0.15), V(0.1, 0.4, 1) },
-	}
 do
-	table.insert(MUZON_CURLS, {
-		shape = "strand",
-		limb = "Head",
-		at = m[1],
-		dir = m[2],
-		length = 0.55,
-		width = 0.3,
-		depth = 0.16,
-		color = i % 3 == 0 and rgb(60, 56, 72) or rgb(20, 18, 24),
-	})
+	local n = 0
+	for _, row in { { 16, 5, 0.75, false }, { 46, 9, 0.75, false }, { 76, 9, 0.72, true } } do
+		for j = 0, row[2] - 1 do
+			local a = j * 360 / row[2] + (row[1] == 48 and 20 or 0)
+			-- rangée basse : rien devant le visage (front et yeux dégagés)
+			if not (row[4] and math.cos(math.rad(a)) > 0.55) then
+				n += 1
+				local color = n % 3 == 0 and rgb(58, 54, 70) or rgb(20, 18, 24)
+				table.insert(MUZON_CURLS, headLock(row[1], a, row[3], V(0.4, 0.1, 0.42), color, "MuzonCurl", false, n % 2 == 0 and 0.75 or -0.75))
+			end
+		end
+	end
 end
 
--- Doma : coulures de sang sur le dessus des cheveux (fines traînées plaquées sur la chevelure,
--- comme versé sur sa tête : pas de calotte rouge)
+-- Doma : cheveux blond très pâle LISSES — mèches longues et PLATES (planches fines effilées au
+-- bout, comme des rubans) qui encadrent le visage et tombent dans le dos, frange plate en
+-- quatre mèches couchées sur le front, et sommet du crâne taché de sang (éclaboussures plates
+-- posées sur la calotte, pas de boudins).
+local DOMA_HAIR, DOMA_HAIR_DEEP = rgb(240, 232, 212), rgb(214, 202, 176)
 local DOMA_BLOOD = {}
-for _, d in
+-- mèche plate : planche (largeur w, épaisseur 0.07) de `top` vers le bas, tournée vers `facing`,
+-- terminée par un coin qui s'effile
+local function flatLock(top: Vector3, dir: Vector3, length: number, w: number, facing: Vector3, color: Color3)
+	local d = dir.Unit
+	local n = (facing - d * facing:Dot(d)).Unit
+	local x = d:Cross(n).Unit -- largeur de la mèche
+	local body = length * 0.78
+	local tipLen = length - body
+	table.insert(DOMA_BLOOD, {
+		shape = "block",
+		limb = "Head",
+		cf = CFrame.fromMatrix(top + d * (body / 2), x, d, n),
+		size = V(w, body, 0.07),
+		color = color,
+		name = "DomaLock",
+	})
+	-- pointe : coin couché dans le plan de la mèche (s'effile vers le bas)
+	table.insert(DOMA_BLOOD, {
+		shape = "wedge",
+		limb = "Head",
+		cf = CFrame.fromMatrix(top + d * (body + tipLen / 2 - 0.02), n, d),
+		size = V(0.07, tipLen, w),
+		color = color,
+		name = "DomaLock",
+	})
+end
+-- nappe du dos : grande plaque lisse jusqu'au milieu du dos, et deux plaques sur les côtés
+table.insert(DOMA_BLOOD, { shape = "block", limb = "Head", at = V(0, -0.5, 0.66), size = V(1.3, 1.9, 0.14), color = DOMA_HAIR_DEEP, name = "DomaLock" })
+for _, s in { -1, 1 } do
+	table.insert(DOMA_BLOOD, { shape = "block", limb = "Head", at = V(s * 0.66, -0.2, 0.22), size = V(0.14, 1.3, 0.8), color = DOMA_HAIR_DEEP, name = "DomaLock" })
+end
+for _, s in { -1, 1 } do
+	-- mèches qui encadrent le visage (devant les oreilles, jusqu'à la poitrine)
+	flatLock(V(s * 0.66, 0.5, -0.3), V(s * 0.08, -1, -0.03), 1.55, 0.3, V(s * 0.6, 0, -0.8), DOMA_HAIR)
+end
+for i, x in { -0.45, -0.15, 0.15, 0.45 } do
+	-- mèches du dos, sur la nappe (deux tons alternés)
+	flatLock(V(x, 0.42, 0.76), V(x * 0.12, -1, 0.06), 1.95, 0.34, V(x * 0.5, 0, 1), i % 2 == 0 and DOMA_HAIR or DOMA_HAIR_DEEP)
+end
+-- frange : quatre mèches plates plaquées sur le front, pointe vers le bas (yeux dégagés)
+for i, x in { -0.36, -0.12, 0.12, 0.36 } do
+	flatLock(V(x, 0.62, -0.64), V(x * 0.25, -1, -0.12), 0.48, 0.28, V(x * 0.3, 0.2, -1), i % 2 == 0 and DOMA_HAIR or rgb(255, 250, 236))
+end
+-- sang sur le sommet : éclaboussures plates de tailles différentes + deux coulures
+for _, b in
 	{
-		{ V(-0.05, 0.93, -0.05), V(-0.05, -0.3, -1), 0.75, 0.15 },
-		{ V(0.24, 0.9, -0.02), V(0.25, -0.5, -1), 0.7, 0.12 },
-		{ V(-0.3, 0.88, 0.0), V(-0.35, -0.55, -1), 0.6, 0.11 },
-		{ V(0.05, 0.93, 0.08), V(0.05, -0.4, 1), 0.7, 0.13 },
-		{ V(0.44, 0.76, 0.02), V(1, -1.1, -0.2), 0.5, 0.08 },
-		{ V(0.14, 0.82, -0.5), V(0.05, -1, -0.35), 0.4, 0.06 },
+		{ 6, 0, V(0.62, 0.06, 0.62) },
+		{ 22, -60, V(0.4, 0.05, 0.5) },
+		{ 24, 70, V(0.36, 0.05, 0.44) },
+		{ 30, 170, V(0.44, 0.05, 0.5) },
+		{ 40, 25, V(0.18, 0.04, 0.42) },
+		{ 44, -110, V(0.16, 0.04, 0.4) },
 	}
 do
-	table.insert(DOMA_BLOOD, { shape = "strand", limb = "Head", at = d[1], dir = d[2], length = d[3], width = d[4], depth = 0.04, color = rgb(168, 18, 30) })
+	table.insert(DOMA_BLOOD, headLock(b[1], b[2], 0.8, b[3], rgb(168, 18, 30), "DomaBlood", false, 0))
 end
 -- Doma ★3 : cristaux de glace sur les épaules
 local ICE_CRYSTALS = {}
@@ -3604,7 +3720,7 @@ Characters.List = {
 				accessories = { "energy_fists", "ssj_aura" },
 				energyColor = rgb(222, 190, 120),
 				auraColor = rgb(240, 210, 140),
-				props = join(GAARO_HAIR, { GAARO_KANJI }, gourd(rgb(214, 186, 136)), SAND_SHIELD),
+				props = join(GAARO_HAIR, { GAARO_KANJI }, gourd(rgb(214, 186, 136)), SAND_WALL),
 			},
 		},
 		attack = { kind = "shadow", color = rgb(222, 190, 120), name = "Cercueil de Sable" },
@@ -3738,7 +3854,7 @@ Characters.List = {
 			eyes = rgb(60, 50, 40),
 			face = "smirk",
 			eyeStyle = "bold",
-			mouthStyle = "grin",
+			mouthStyle = "teeth", -- dents blanches cerclées de noir (pas de bouche rouge)
 			browStyle = "bold",
 			accessories = { "earrings_gold" },
 			props = HAKARO_HAIR(HAKARO_SILVER),
@@ -3846,7 +3962,7 @@ Characters.List = {
 			browStyle = "none",
 			accessories = { "claws" },
 			accColor = rgb(50, 110, 64),
-			props = join(CEL_CREST(rgb(70, 110, 60), 0.85), CEL_BODY(rgb(110, 150, 84)), CEL_TAIL),
+			props = join(CEL_CREST(rgb(46, 82, 42), 0.85), CEL_BODY(rgb(110, 150, 84)), CEL_TAIL),
 		},
 		evolve = {
 			-- ★★ : forme parfaite (crête plus haute, vert franc, plastron net, plus de queue)
@@ -3860,7 +3976,7 @@ Characters.List = {
 				mouthStyle = "smirk",
 				accessories = { "claws" },
 				accColor = rgb(70, 150, 90),
-				props = join(CEL_CREST(rgb(84, 176, 96), 1.15), CEL_BODY(rgb(150, 222, 130))),
+				props = join(CEL_CREST(rgb(48, 118, 60), 1.15), CEL_BODY(rgb(150, 222, 130))),
 			},
 			-- ★★★ : super parfait (carrure massive, plastron pâle, yeux luisants, arcs électriques et
 			-- aura bleus qui crépitent autour de lui)
@@ -3874,7 +3990,7 @@ Characters.List = {
 				eyeGlow = true,
 				accessories = { "claws", "energy_aura" },
 				auraColor = rgb(90, 170, 255),
-				props = join(CEL_CREST(rgb(120, 206, 120), 1.25), CEL_BODY(rgb(196, 240, 176), rgb(26, 34, 60)), CEL_SPARKS, brawn(rgb(150, 220, 140), rgb(150, 220, 140), 1.06)),
+				props = join(CEL_CREST(rgb(72, 150, 82), 1.25), CEL_BODY(rgb(196, 240, 176), rgb(26, 34, 60)), CEL_SPARKS, brawn(rgb(150, 220, 140), rgb(150, 220, 140), 1.06)),
 			},
 		},
 		attack = { kind = "beam", color = rgb(110, 190, 255), name = "Kaméha Parfait" },
@@ -3905,7 +4021,6 @@ Characters.List = {
 			eyeStyle = "wide",
 			mouthStyle = "frown",
 			browStyle = "none",
-			jawShade = true,
 			accessories = { "brow_ridge" },
 			accColor = rgb(240, 240, 240),
 			props = join(JIRENE_HEAD, cuffs(rgb(244, 244, 244), 0.62, -0.68), brawn(rgb(30, 30, 36), rgb(200, 30, 40), 1.06)),
@@ -3963,7 +4078,8 @@ Characters.List = {
 			eyes = rgb(40, 34, 30),
 			face = "smirk",
 			eyeStyle = "narrow",
-			mouthStyle = "wide_grin",
+			mouthStyle = "teeth", -- large rictus de dents (pas de bouche rouge)
+			mouthWidth = 0.24,
 			browStyle = "raised",
 			accessories = { "bandana", "earrings_gold", "rope_belt" },
 			accColor = rgb(244, 244, 240),
@@ -4051,6 +4167,7 @@ Characters.List = {
 			hair = "heavy_long",
 			hairColor = rgb(26, 24, 30),
 			hairLength = 1.7,
+			hairSweep = 92, -- mèches latérales derrière les oreilles (rien sur le visage)
 			top = rgb(230, 186, 148),
 			bottom = rgb(232, 228, 216),
 			outfit = "shirtless",
@@ -4072,13 +4189,19 @@ Characters.List = {
 			accColor = rgb(232, 226, 210),
 			beltColor = rgb(222, 200, 150),
 			capeColor = rgb(96, 70, 140),
-			props = join(KAYDO_HORNS(1), KAYDO_FACE, KAYDO_BODY, kanabo("Right Arm", V(0.1, -1.0, -0.3), V(0.25, 0.82, 0.5), 3.6, 0.56)),
+			props = join(KAYDO_HORNS(1), KAYDO_FACE(1), KAYDO_BODY, KAYDO_CLUB),
 		},
 		evolve = {
-			-- ★★ : forme hybride du dragon (cornes plus grandes, grande queue et écailles bleues)
+			-- ★★ : forme hybride du dragon — cornes plus grandes recourbées, yeux dorés luisants,
+			-- écailles bleues (avant-bras, épaules, pommettes), longue moustache et barbiche, queue
+			-- de dragon qui remonte sur son flanc, cape bleu-vert
 			[2] = {
+				eyes = rgb(250, 196, 60),
+				eyeGlow = true,
 				accessories = { "rope_belt", "cape" },
-				props = join(KAYDO_HORNS(1.45), KAYDO_FACE, KAYDO_BODY, KAYDO_SCALES, KAYDO_TAIL, kanabo("Right Arm", V(0.1, -1.0, -0.3), V(0.25, 0.82, 0.5), 3.6, 0.56)),
+				capeColor = rgb(38, 104, 124),
+				beltColor = rgb(150, 210, 230),
+				props = join(KAYDO_HORNS(1.5, nil, true), KAYDO_FACE(1.8), KAYDO_BODY, KAYDO_SCALES, KAYDO_TAIL, KAYDO_CLUB),
 			},
 			-- ★★★ : haki du conquérant (cornes dorées, griffes, yeux rouges, éclairs noirs et rouges)
 			[3] = {
@@ -4087,15 +4210,7 @@ Characters.List = {
 				accessories = { "rope_belt", "cape", "ssj_aura", "steam" },
 				auraColor = rgb(230, 40, 50),
 				steamColor = rgb(80, 40, 60),
-				props = join(
-					KAYDO_HORNS(1.7, rgb(240, 200, 90)),
-					KAYDO_FACE,
-					KAYDO_BODY,
-					KAYDO_WHISKERS,
-					KAYDO_SCALES,
-					KAYDO_TAIL,
-					kanabo("Right Arm", V(0.1, -1.0, -0.3), V(0.25, 0.82, 0.5), 3.6, 0.56)
-				),
+				props = join(KAYDO_HORNS(1.65, rgb(240, 200, 90), true), KAYDO_FACE(1.8), KAYDO_BODY, KAYDO_WHISKERS, KAYDO_SCALES, KAYDO_TAIL, KAYDO_CLUB),
 			},
 		},
 		attack = { kind = "flame", color = rgb(255, 100, 40), name = "Souffle du Dragon" },
@@ -4135,7 +4250,7 @@ Characters.List = {
 		evolve = {
 			-- ★★ : chapeau ôté, cheveux ondulés, fouets de chair dans le dos, griffes
 			[2] = {
-				hair = "short",
+				hair = "slick", -- calotte lisse sous les boucles en vagues
 				accessories = { "earrings_stud", "claws" },
 				clawColor = rgb(180, 20, 40),
 				props = join(MUZON_CURLS, MUZON_TIE, MUZON_WHIPS(4)),
@@ -4163,12 +4278,12 @@ Characters.List = {
 		rarity = "mythic",
 		look = {
 			skin = rgb(250, 234, 224),
-			hair = "long",
-			hairLength = 1.7,
-			hairColor = rgb(238, 230, 210),
+			-- calotte lisse ; toute la chevelure (nappe du dos, mèches, frange) est faite de mèches
+			-- plates (DOMA_BLOOD) : aucun boudin
+			hair = "slick",
+			hairColor = DOMA_HAIR,
 			hairShine = rgb(255, 250, 236),
 			hairUnder = rgb(196, 178, 148), -- nappe du dos plus sombre (les mèches s'y détachent)
-			fringeLength = 0.62, -- frange courte : les yeux arc-en-ciel restent bien visibles
 			irisRainbow = true,
 			top = rgb(34, 30, 36),
 			topAccent = rgb(170, 30, 40),
@@ -4218,7 +4333,7 @@ Characters.List = {
 		look = {
 			headScale = Vector3.new(1.0, 1.03, 1.0),
 			skin = rgb(246, 214, 186),
-			hair = "hedgehog",
+			hair = "slick", -- plaqués vers l'arrière (+ 4 mèches plates)
 			hairColor = rgb(240, 240, 246),
 			top = rgb(24, 24, 34),
 			topAccent = rgb(235, 232, 225),
@@ -4236,14 +4351,14 @@ Characters.List = {
 			browStyle = "bold",
 			accessories = { "earrings_gold", "wristbands" },
 			accColor = rgb(160, 160, 170),
-			props = join(gemHeadband(), crossedCleavers()),
+			props = join(gemHeadband(), TENGAN_LOCKS, crossedCleavers()),
 		},
 		evolve = {
 			-- ★★ : partition de combat : un couperet dans chaque main, chaîne tendue
 			[2] = {
 				accessories = { "earrings_gold", "wristbands", "energy_aura" },
 				auraColor = rgb(255, 150, 80),
-				props = join(gemHeadband(), TENGAN_DUAL),
+				props = join(gemHeadband(), TENGAN_LOCKS, TENGAN_DUAL),
 			},
 			-- ★★★ : cheveux lâchés, œil balafré, perles explosives
 			[3] = {

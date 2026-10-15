@@ -24,7 +24,8 @@ NomsOriginaux.List = {
 	{ id = "ninja_hinato", names = { "hinata", "hyuga" } },
 	{ id = "ninja_jiriya", names = { "jiraiya", "ero sennin" } },
 	{ id = "ninja_gaaro", names = { "gaara" }, variants = { [3] = { "kazekage" } } },
-	{ id = "ninja_minatu", names = { "minato", "namikaze" }, variants = { [3] = { "kurama mode", "kyubi mode", "chakra mode" } } },
+	-- (évolution : mots propres à Minato ; « kurama mode » et « chakra mode » désignent Maruto)
+	{ id = "ninja_minatu", names = { "minato", "namikaze" }, variants = { [3] = { "kcm", "kyubi mode" } } },
 	{ id = "ninja_radama", names = { "madara" }, variants = { [3] = { "six paths", "rikudo", "sage of six paths" } } },
 	{ id = "ninja_kourama", names = { "kurama", "kyubi", "kyuubi", "nine tails" } },
 	{ id = "ninja_kabouto", names = { "kabuto" } },
@@ -77,9 +78,11 @@ NomsOriginaux.List = {
 	{ id = "oce_kobi", names = { "koby", "coby" } },
 	{ id = "oce_shonks", names = { "shanks" } },
 	{ id = "oce_robine", names = { "robin", "nico robin" } },
-	{ id = "oce_ase", names = { "ace", "portgas" } },
+	-- (« ace » n'est reconnu qu'en mot entier : « Face », « Place » ou « Space » ne comptent pas)
+	{ id = "oce_ase", names = { "portgas", "ace" } },
 	{ id = "oce_inel", names = { "enel", "eneru" } },
-	{ id = "oce_lao", names = { "trafalgar", "trafalgar law", "law" } },
+	-- (pas « law » seul : trop courant dans les noms de modèles, ex. « Law Enforcement »)
+	{ id = "oce_lao", names = { "trafalgar law", "trafalgar" } },
 	{ id = "oce_kaydo", names = { "kaido", "kaidou" }, variants = { [2] = { "hybrid", "dragon" } } },
 	{ id = "oce_arlang", names = { "arlong" } },
 	{ id = "oce_akaino", names = { "akainu", "sakazuki" } },

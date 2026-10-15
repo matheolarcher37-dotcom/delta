@@ -1317,8 +1317,12 @@ HAIR.heavy_long = function(ctx, c, look)
 			{ segments = 2, facing = Vector3.new(x, 1, 0), thickness = 0.2, point = false }
 		)
 	end
-	-- Lourdes mèches qui tombent (des côtés de la tête jusque dans le dos ; jamais devant le visage)
-	for i, a in { -108, -82, -54, -24, 0, 24, 54, 82, 108 } do
+	-- Lourdes mèches qui tombent (des côtés de la tête jusque dans le dos ; jamais devant le visage).
+	-- `look.hairSweep` (degrés, 108 par défaut) resserre l'éventail vers l'arrière : à 92, les
+	-- mèches latérales partent derrière les oreilles.
+	local sweep = (look.hairSweep or 108) / 108
+	for i, a0 in { -108, -82, -54, -24, 0, 24, 54, 82, 108 } do
+		local a = a0 * sweep
 		local r = math.rad(a)
 		-- a = angle depuis l'arrière (0 = dos), + vers la droite du perso
 		local out = Vector3.new(math.sin(r), 0, math.cos(r))

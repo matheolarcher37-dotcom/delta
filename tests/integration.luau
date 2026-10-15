@@ -1012,6 +1012,17 @@ test("Noms d'origine : les modèles de la Boîte à outils sont reconnus", funct
 		["Tengen Uzui"] = "pou_tengan",
 		["Bruit de fond"] = false,
 		["Model"] = false,
+		-- mots courts reconnus seulement en mot entier, pas à l'intérieur d'un autre mot
+		["Dragon Claw"] = false,
+		["Outlaw Lawn Chair"] = false,
+		["Law Enforcement Car"] = false,
+		["Face Place Space"] = false,
+		["Portgas D. Ace"] = "oce_ase",
+		["Ace"] = "oce_ase",
+		-- « Kurama Mode » / « Chakra Mode » seuls = Maruto (pas Minatu)
+		["Naruto Chakra Mode"] = "ninja_maruto_3",
+		["Minato KCM"] = "ninja_minatu_3",
+		["Kurama Mode"] = "ninja_kourama",
 	}
 	for name, expected in cases do
 		local got = Noms.match(name)
