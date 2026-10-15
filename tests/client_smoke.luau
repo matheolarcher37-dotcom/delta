@@ -883,6 +883,95 @@ test("Échange : la fenêtre s'ouvre et se ferme", function()
 	expectNoNewWarnings(before, "échange")
 end)
 
+test("Boutique Robux : onglets, barre de droite, achat simulé", function()
+	local before = #warnings
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local RobuxShop = Harness.require(client.UI.RobuxShop)
+	local HUD = Harness.require(client.UI.HUD)
+	local gui = alice.PlayerGui.AnimeTycoonUI
+	local function frames(n)
+		for _ = 1, n do
+			Harness.services.RunService.RenderStepped:Fire(1 / 60)
+		end
+	end
+	local bar = gui:FindFirstChild("RobuxSideBar", true)
+	assert(bar and bar:FindFirstChild("Offer_Coins2") and bar:FindFirstChild("OpenShop"), "barre de droite absente")
+	-- Le bouton « Boutique » du HUD ouvre la boutique Robux.
+	local found = false
+	for _, info in HUD.Tiles do
+		found = found or (info.text == "Boutique" and info.menu == "RobuxShop")
+	end
+	assert(found, "la tuile Boutique n'ouvre pas la boutique Robux")
+	Menus.open("RobuxShop", "passes")
+	task.wait(0.3)
+	frames(10)
+	local root = gui:FindFirstChild("WindowRoot_BOUTIQUE ROBUX")
+	assert(root and root.Visible, "boutique Robux non ouverte")
+	for _, key in { "AutoRollPlus", "Roll2", "Roll3", "Coins2", "Luck2", "AutoRoll", "Slots", "VIP" } do
+		assert(root:FindFirstChild("Pass_" .. key, true), "carte manquante : " .. key)
+	end
+	assert(root:FindFirstChild("Pack_Starter", true), "carte « Pack de départ » absente")
+	-- Boutique ouverte : HUD caché, voile sombre, indications manette sur une pastille sombre.
+	assert(HUD.root() and not HUD.root().Visible, "le HUD reste visible derrière la boutique")
+	local dim = root:FindFirstChild("Dim")
+	assert(dim and dim.Visible and dim.Active, "pas de voile derrière la boutique") -- (fondu : tween)
+	local hints = root:FindFirstChild("PadHints", true)
+	assert(hints and hints.BackgroundTransparency < 0.5, "indications manette sans fond")
+	RobuxShop.render("packs")
+	assert(root:FindFirstChild("Pack_CoinsXL", true) and root:FindFirstChild("Pack_GemsL", true), "onglet Packs")
+	RobuxShop.render("boosts")
+	frames(40)
+	assert(root:FindFirstChild("Boost_BoostCombo", true), "onglet Boosts")
+	Menus.close()
+	assert(HUD.root().Visible and bar.Visible, "HUD ou barre de droite non revenus après la boutique")
+	-- Une autre fenêtre : la barre du bas, la bannière d'univers et la barre Robux se cachent.
+	Menus.open("Options")
+	task.wait(0.1)
+	assert(HUD.root().Visible and not bar.Visible, "barre Robux visible sous une fenêtre")
+	local banner = HUD.root():FindFirstChild("UniverseBanner")
+	local travel = HUD.root():FindFirstChild("Travel")
+	assert(banner and not banner.Visible and travel and not travel.Visible, "bannière ou barre du bas visibles sous une fenêtre")
+	Menus.close()
+	assert(bar.Visible and banner.Visible and travel.Visible, "HUD non rétabli après la fenêtre")
+	-- Achat (simulé dans Studio) directement depuis la barre de droite.
+	signalFor(bar:FindFirstChild("Offer_Coins2"), "Activated"):Fire()
+	task.wait(0.3)
+	assert(alice:GetAttribute("Pass_Coins2") == true, "achat simulé non accordé")
+	frames(45)
+	assert(not bar:FindFirstChild("Offer_Coins2"), "un passe possédé est encore proposé")
+	expectNoNewWarnings(before, "boutique Robux")
+end)
+
+test("Annonces en bandeau pendant un menu, boutique ouverte par le serveur", function()
+	local before = #warnings
+	local Remotes = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Remotes"))
+	local gui = alice.PlayerGui.AnimeTycoonUI
+	-- Le serveur demande la boutique (passe manquant) : elle s'ouvre sur les passes.
+	Menus.close()
+	signalFor(Remotes.event("Robux_OpenShop"), "OnClientEvent"):Fire("passes", "AutoRoll")
+	task.wait(0.2)
+	local root = gui:FindFirstChild("WindowRoot_BOUTIQUE ROBUX")
+	assert(root and root.Visible and Menus.current() == "RobuxShop", "boutique non ouverte par Robux_OpenShop")
+	-- Une annonce pendant la boutique : petit bandeau en haut, jamais par-dessus la fenêtre.
+	signalFor(Remotes.event("Announce"), "OnClientEvent"):Fire("BANDEAU TEST", "pendant un menu", Color3.new(1, 0, 0))
+	local announce = gui:FindFirstChild("Announce", true)
+	assert(announce, "cadre d'annonce absent")
+	local title = announce:FindFirstChild("Title")
+	local waited = 0
+	while not (announce.Visible and title.Text == "BANDEAU TEST") and waited < 14 do
+		task.wait(0.25)
+		waited += 0.25
+	end
+	assert(title.Text == "BANDEAU TEST", "annonce jamais affichée")
+	assert(announce.Position.Y.Scale == 0 and announce.Position.Y.Offset <= 60, "annonce au centre pendant un menu")
+	Menus.close()
+	task.wait(0.1)
+	if announce.Visible then
+		assert(announce.Position.Y.Scale > 0.2, "l'annonce ne revient pas au centre après le menu")
+	end
+	expectNoNewWarnings(before, "annonces")
+end)
+
 test("Notifications et annonces", function()
 	local before = #warnings
 	local Remotes = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Remotes"))

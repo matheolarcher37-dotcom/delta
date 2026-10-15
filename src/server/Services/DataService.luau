@@ -70,6 +70,13 @@ local function template()
 		RolledQueue = {}, -- persos du dernier roulage, sur l'estrade : { key, id, rarity, aura? (= mutation), trait?, price, dps }
 		DisplayPins = {}, -- { ["numéro de case"] = uid } : unités placées à la main sur les cases de la base
 		FirstCollectDone = false,
+		-- Boutique Robux (MonetizationService)
+		Receipts = {}, -- { [PurchaseId] = os.time() } reçus déjà accordés (achats jamais donnés deux fois)
+		RobuxPasses = {}, -- { [clé] = "studio" } passes simulés dans Studio (jamais appliqués en ligne)
+		RobuxBoosts = {}, -- { [clé du boost] = heure de fin (os.time()) }
+		RobuxSpent = 0, -- total de Robux dépensés dans le jeu (classement)
+		RobuxSlots = 0, -- cases d'unités en plus (passe « Emplacements + », recalculé à chaque arrivée)
+		RobuxOnce = {}, -- { [clé du produit] = os.time() } offres à achat unique déjà prises (Pack de départ)
 	}
 end
 
@@ -188,6 +195,24 @@ local function migrate(data)
 		end
 	end
 	data.Pity.mythic = math.max(0, math.floor(tonumber(data.Pity.mythic) or 0))
+	-- Boutique Robux
+	for key, value in data.Receipts do
+		if type(key) ~= "string" or type(value) ~= "number" then
+			data.Receipts[key] = nil
+		end
+	end
+	for key, value in data.RobuxBoosts do
+		if type(key) ~= "string" or type(value) ~= "number" then
+			data.RobuxBoosts[key] = nil
+		end
+	end
+	for key, value in data.RobuxOnce do
+		if type(key) ~= "string" or type(value) ~= "number" then
+			data.RobuxOnce[key] = nil
+		end
+	end
+	data.RobuxSpent = math.max(0, math.floor(tonumber(data.RobuxSpent) or 0))
+	data.RobuxSlots = math.clamp(math.floor(tonumber(data.RobuxSlots) or 0), 0, 4)
 	data.RollCount = math.max(0, math.floor(tonumber(data.RollCount) or 0))
 	data.X10Counter = math.max(0, math.floor(tonumber(data.X10Counter) or 0))
 	if version < 3 then
@@ -279,27 +304,33 @@ local function loadData(player: Player)
 	return nil
 end
 
-local function saveData(player: Player, release: boolean)
+local function saveData(player: Player, release: boolean): boolean
 	local profile = profiles[player]
 	if not profile or not profile.loaded or not storeAvailable or not store then
-		return
+		return false
 	end
 	local snapshot = deepCopy(profile.data)
 	snapshot.lock = if release then nil else { jobId = game.JobId, time = os.time() }
+	local written = false
 	local ok, err = pcall(function()
 		(store :: DataStore):UpdateAsync(keyFor(player), function(current)
 			if current and current.lock and current.lock.jobId ~= game.JobId and os.time() - (current.lock.time or 0) < LOCK_TIMEOUT then
 				-- Un autre serveur a la main : on n'écrase pas.
+				written = false
 				return nil
 			end
+			written = true
 			return snapshot
 		end)
 	end)
-	if ok then
+	if ok and written then
 		profile.dirty = false
-	else
+		return true
+	end
+	if not ok then
 		warn("[AnimeTycoon] Échec de la sauvegarde de " .. player.Name .. " : " .. tostring(err))
 	end
+	return false
 end
 
 function DataService:Start()
@@ -488,10 +519,23 @@ function DataService:SaveNow(player: Player)
 	task.spawn(saveData, player, false)
 end
 
+-- Sauvegarde tout de suite et attend le résultat (achats Robux : on ne valide un achat
+-- qu'une fois enregistré). Sans DataStore : vrai seulement dans Studio (rien à sauvegarder).
+function DataService:SaveAndWait(player: Player): boolean
+	if not storeAvailable or not store then
+		return RunService:IsStudio() and self:IsLoaded(player)
+	end
+	return saveData(player, false)
+end
+
 function DataService:Reset(player: Player)
 	local profile = profiles[player]
 	if profile and profile.loaded then
 		local fresh = template()
+		-- Les achats Robux ne sont jamais effacés (un reçu ne doit pas être accordé deux fois).
+		for _, key in { "Receipts", "RobuxPasses", "RobuxBoosts", "RobuxSpent", "RobuxSlots", "RobuxOnce" } do
+			fresh[key] = profile.data[key]
+		end
 		for key in profile.data do
 			profile.data[key] = nil
 		end

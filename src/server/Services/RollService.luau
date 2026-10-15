@@ -29,6 +29,7 @@ local Mutations = require(Shared.Config.Mutations)
 local Traits = require(Shared.Config.Traits)
 local SkillTree = require(Shared.Config.SkillTree)
 local Universes = require(Shared.Config.Universes)
+local Robux = require(Shared.Config.Robux)
 local Formulas = require(Shared.Modules.Formulas)
 local CharacterFactory = require(Shared.Modules.CharacterFactory)
 local Remotes = require(Shared.Modules.Remotes)
@@ -254,7 +255,9 @@ function RollService:_universe()
 end
 
 function RollService:_luck(player: Player, stats): number
-	return Formulas.rollLuck(stats, player, os.time())
+	-- x2 Chance (Pass_Luck2) et potion (Boost_Luck) sont dans Formulas.rollLuck ; le VIP ajoute +10 %.
+	local vip = Robux.hasPass(player, "VIP") and (Robux.VIP.luck or 1) or 1
+	return Formulas.rollLuck(stats, player, os.time(), vip)
 end
 
 -- Tire une rareté (chances × chance du joueur) ; pitié du Mythique uniquement.
@@ -492,6 +495,8 @@ function RollService:SetAutoRoll(player: Player, enabled: boolean)
 	if enabled and not canAfk(player) then
 		data.AutoRoll = false
 		self.services.DataService:Sync(player)
+		-- Passe Robux « Lancer AFK » : on ouvre la boutique Robux sur l'onglet des passes.
+		Remotes.event("Robux_OpenShop"):FireClient(player, "passes", "AutoRoll")
 		return false, "🔒 Le Lancer AFK demande le passe « " .. priceText("AutoRoll") .. " »."
 	end
 	data.AutoRoll = enabled

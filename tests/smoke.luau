@@ -1645,4 +1645,62 @@ test("Base : panneaux d'achat dégagés, sans chevauchement (entrée, coffre)", 
 	assert(#problems == 0, "panneaux qui se recouvrent :\n  " .. table.concat(problems, "\n  "))
 end)
 
+test("Boutique Robux : configuration (passes, produits, aides)", function()
+	local Robux = requireModule(Shared.Config.Robux)
+	for key, pass in Robux.Passes do
+		assert(type(pass.id) == "number" and pass.price > 0 and pass.name and pass.desc and pass.icon and pass.color, "passe incomplet : " .. key)
+	end
+	for _, key in Robux.PassOrder do
+		assert(Robux.Passes[key], "passe inconnu dans PassOrder : " .. key)
+	end
+	assert(Robux.Passes.AutoRoll.price == 29, "Lancer AFK = 29 Robux")
+	assert(Robux.Passes.AutoRollPlus.price == 500, "Roulement automatique + = 500 Robux")
+	for _, key in { "Roll2", "Roll3", "Coins2", "Luck2", "VIP" } do
+		assert(Robux.Passes[key], "passe manquant : " .. key)
+	end
+	local ids = {}
+	for key, product in Robux.Products do
+		assert(type(product.id) == "number" and product.price > 0 and product.name, "produit incomplet : " .. key)
+		assert(product.kind == "coins" or product.kind == "crystals" or product.kind == "boost" or product.kind == "bundle", "type inconnu : " .. key)
+		if product.kind == "boost" then
+			for _, boost in product.boosts do
+				assert(Robux.Boosts[boost], "boost inconnu : " .. boost)
+			end
+		end
+		if product.id > 0 then
+			assert(not ids[product.id], "id en double : " .. product.id)
+			ids[product.id] = true
+		end
+	end
+	for _, list in { Robux.CoinPacks, Robux.GemPacks, Robux.BoostPacks } do
+		for _, key in list do
+			assert(Robux.Products[key], "produit manquant : " .. key)
+		end
+	end
+	-- Aides : attributs Pass_ / Boost_ lus sur n'importe quel objet.
+	local attrs = {}
+	local fake = {
+		GetAttribute = function(_, name)
+			return attrs[name]
+		end,
+	}
+	assert(Robux.coinMultiplier(fake) == 1 and Robux.luckMultiplier(fake) == 1 and Robux.rollsPerPull(fake) == 1, "valeurs de base")
+	attrs.Pass_Coins2 = true
+	attrs.Boost_Coins = os.time() + 60
+	assert(Robux.coinMultiplier(fake) == 4, "x2 Argent + boost")
+	attrs.Boost_Coins = os.time() - 1
+	assert(Robux.coinMultiplier(fake) == 2, "boost expiré")
+	attrs.Pass_Roll2 = true
+	assert(Robux.rollsPerPull(fake) == 2, "Roll2")
+	attrs.Pass_Roll3 = true
+	assert(Robux.rollsPerPull(fake) == 3, "Roll3")
+	attrs.Boost_Luck = os.time() + 100
+	assert(Robux.boostLeft(fake, "Luck") > 90 and Robux.luckMultiplier(fake) == 2, "boost de chance")
+	-- Packs de pièces : minimum, puis minutes de revenus, arrondi lisible.
+	assert(Robux.coinPackAmount(Robux.Products.CoinsS, 0) == 5000, "minimum du pack")
+	local big = Robux.coinPackAmount(Robux.Products.CoinsM, 12345)
+	assert(big >= 12345 * 30 * 60 * 0.9 and big <= 12345 * 30 * 60, "pack selon les revenus : " .. big)
+	assert(Robux.passKeyById(0) == nil and Robux.productKeyById(-1) == nil, "id 0 jamais reconnu")
+end)
+
 Harness.finish()

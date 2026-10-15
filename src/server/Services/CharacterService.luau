@@ -8,6 +8,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local AttackFx = require(Shared.Config.AttackFx)
 local Economy = require(Shared.Config.Economy)
 local Rarities = require(Shared.Config.Rarities)
+local Robux = require(Shared.Config.Robux)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 local CharacterFactory = require(Shared.Modules.CharacterFactory)
@@ -152,7 +153,7 @@ function CharacterService:_tick(player: Player, s)
 		return
 	end
 	local stats = Formulas.playerStats(data)
-	local coinMult = self.services.EventService and self.services.EventService:CoinMultiplier() or 1
+	local coinMult = (self.services.EventService and self.services.EventService:CoinMultiplier() or 1) * Robux.coinMultiplier(player) -- x2 Argent, boost, VIP
 	local total = 0
 	local xpGain = Economy.PassiveXP * stats.xp
 	for _, uid in self:GetDisplayed(player) do

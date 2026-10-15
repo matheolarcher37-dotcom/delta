@@ -117,6 +117,25 @@ Harness.services.Debris = {
 		end)
 	end,
 }
+-- Faux MarketplaceService (boutique Robux) : enregistre les fenêtres d'achat ouvertes.
+local marketPrompts = {}
+local MarketplaceService = {
+	PromptGamePassPurchaseFinished = newSignal(),
+	ProcessReceipt = nil,
+}
+function MarketplaceService:PromptGamePassPurchase(player, id)
+	table.insert(marketPrompts, { kind = "pass", player = player, id = id })
+end
+function MarketplaceService:PromptProductPurchase(player, id)
+	table.insert(marketPrompts, { kind = "product", player = player, id = id })
+end
+function MarketplaceService:UserOwnsGamePassAsync(_, id)
+	return id == 4242 -- « possédé » sur Roblox
+end
+function MarketplaceService:GetProductInfo()
+	error("pas d'accès web dans les tests")
+end
+Harness.services.MarketplaceService = MarketplaceService
 Harness.gameOverrides.BindToClose = function() end
 Harness.gameOverrides.JobId = "job-test"
 Harness.gameOverrides.CreatorType = roblox.Enum.CreatorType.User
@@ -1238,6 +1257,214 @@ test("Modèle perso (ModelesPersos) prioritaire sur le perso intégré", functio
 	end
 end)
 
+------------------------------------------------------------------------
+-- Boutique Robux
+------------------------------------------------------------------------
+
+local Robux = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Robux"))
+
+test("Boutique Robux : passes simulés dans Studio, x2 Argent, x2 Chance", function()
+	local data = DataService:Get(alice)
+	assert(type(MarketplaceService.ProcessReceipt) == "function", "ProcessReceipt non branché")
+	-- Revenus de référence (sans passe).
+	services.CharacterService:_tick(alice, { syncTimer = 0 })
+	local incomeBefore = alice:GetAttribute("IncomePerSec") or 0
+	local ok, message = invoke("Robux_Buy", alice, "pass", "Coins2")
+	assert(ok, "achat simulé : " .. tostring(message))
+	assert(alice:GetAttribute("Pass_Coins2") == true, "attribut Pass_Coins2 absent")
+	assert(data.RobuxPasses.Coins2 == "studio", "passe simulé non noté")
+	assert(lastEvent("Robux_Granted", alice), "pas de célébration côté client")
+	assert(Robux.coinMultiplier(alice) == 2, "x2 Argent : " .. Robux.coinMultiplier(alice))
+	services.CharacterService:_tick(alice, { syncTimer = 0 })
+	local incomeAfter = alice:GetAttribute("IncomePerSec") or 0
+	if incomeBefore > 10 then
+		assert(math.abs(incomeAfter - 2 * incomeBefore) <= 2, "revenus non doublés : " .. incomeBefore .. " -> " .. incomeAfter)
+	end
+	task.wait(0.7)
+	local again, already = invoke("Robux_Buy", alice, "pass", "Coins2")
+	assert(not again and string.find(already, "déjà"), "passe acheté deux fois")
+	task.wait(0.7)
+	assert(invoke("Robux_Buy", alice, "pass", "Luck2"), "x2 Chance")
+	assert(Robux.luckMultiplier(alice) == 2, "x2 Chance non appliqué")
+	task.wait(0.7)
+	assert(not invoke("Robux_Buy", alice, "pass", "Inconnu"), "passe inconnu accepté")
+	-- Roulage avec la chance doublée : la machine tourne toujours.
+	services.RollService:ResetCooldown(alice)
+	data.RolledQueue = {}
+	assert(services.RollService:Roll(alice), "roulage impossible avec x2 Chance")
+end)
+
+test("Boutique Robux : packs et boosts (simulés), VIP", function()
+	local data = DataService:Get(alice)
+	task.wait(0.7)
+	local crystals = data.traitCrystals
+	assert(invoke("Robux_Buy", alice, "product", "GemsM"), "pack de gemmes")
+	assert(data.traitCrystals == crystals + 50, "gemmes non données")
+	task.wait(0.7)
+	local coins = data.coins
+	assert(invoke("Robux_Buy", alice, "product", "CoinsS"), "pack de pièces")
+	assert(data.coins - coins >= 5000, "pièces non données")
+	task.wait(0.7)
+	assert(invoke("Robux_Buy", alice, "product", "BoostLuck"), "boost")
+	local finish = alice:GetAttribute("Boost_Luck")
+	assert(type(finish) == "number" and finish > os.time() + 800, "Boost_Luck absent")
+	assert(Robux.luckMultiplier(alice) == 4, "boost + passe : " .. Robux.luckMultiplier(alice))
+	-- (Lune range les attributs en flottants 32 bits : on compare les données, exactes.)
+	local firstEnd = data.RobuxBoosts.Luck
+	task.wait(0.7)
+	assert(invoke("Robux_Buy", alice, "product", "BoostLuck"), "boost (2)")
+	assert(data.RobuxBoosts.Luck == firstEnd + 900, "les boosts ne s'additionnent pas")
+	-- Pack de départ : pièces + 20 gemmes + Chance x2, un seul achat par joueur.
+	task.wait(0.7)
+	local beforeCoins, beforeGems, beforeLuck = data.coins, data.traitCrystals, data.RobuxBoosts.Luck
+	assert(invoke("Robux_Buy", alice, "product", "Starter"), "pack de départ")
+	assert(data.coins - beforeCoins >= 25000, "pièces du pack de départ")
+	assert(data.traitCrystals == beforeGems + 20, "gemmes du pack de départ")
+	assert(data.RobuxBoosts.Luck == beforeLuck + 900, "Chance x2 du pack de départ")
+	assert(Robux.onceTaken(data, "Starter"), "pack de départ non noté")
+	task.wait(0.7)
+	local again, why = invoke("Robux_Buy", alice, "product", "Starter")
+	assert(not again and type(why) == "string" and string.find(why, "un seul achat"), "pack de départ racheté")
+	task.wait(0.7)
+	assert(invoke("Robux_Buy", alice, "pass", "VIP"), "VIP")
+	local head = alice.Character:FindFirstChild("Head")
+	if head then
+		assert(head:FindFirstChild("TagVIP"), "pas de couronne VIP")
+	end
+	assert(math.abs(Robux.coinMultiplier(alice) - 2.5) < 1e-6, "bonus VIP sur l'argent")
+end)
+
+test("Boutique Robux : vrais ids (fenêtre Roblox), id manquant hors Studio, passes possédés", function()
+	-- Id configuré : la fenêtre d'achat Roblox s'ouvre.
+	Robux.Passes.Roll3.id = 999
+	task.wait(0.7)
+	local ok = invoke("Robux_Buy", alice, "pass", "Roll3")
+	assert(ok and #marketPrompts > 0 and marketPrompts[#marketPrompts].id == 999, "fenêtre d'achat non ouverte")
+	assert(alice:GetAttribute("Pass_Roll3") ~= true, "passe donné avant l'achat")
+	-- Achat terminé : passe accordé + Robux dépensés comptés.
+	local spent = DataService:Get(alice).RobuxSpent
+	MarketplaceService.PromptGamePassPurchaseFinished:Fire(alice, 999, true)
+	task.wait(0.1)
+	assert(alice:GetAttribute("Pass_Roll3") == true, "passe non accordé après l'achat")
+	assert(DataService:Get(alice).RobuxSpent == spent + Robux.Passes.Roll3.price, "Robux dépensés non comptés")
+	assert(Robux.rollsPerPull(alice) == 3, "Roll3 -> 3 persos")
+	Robux.Passes.Roll3.id = 0
+	-- Hors Studio, un id à 0 affiche un message clair.
+	local RunService = Harness.services.RunService
+	local isStudio = RunService.IsStudio
+	RunService.IsStudio = function()
+		return false
+	end
+	task.wait(0.7)
+	local okMissing, text = invoke("Robux_Buy", alice, "pass", "AutoRoll")
+	RunService.IsStudio = isStudio
+	assert(not okMissing and string.find(text, "pas encore configuré"), "message « pas encore configuré » absent")
+	-- Passe acheté sur Roblox : reconnu à l'arrivée (UserOwnsGamePassAsync).
+	Robux.Passes.AutoRollPlus.id = 4242
+	local carla = addPlayer("Carla")
+	task.wait(0.3)
+	assert(carla:GetAttribute("Pass_AutoRollPlus") == true, "passe possédé non reconnu")
+	assert(carla:GetAttribute("Pass_Coins2") ~= true, "passe d'un autre joueur donné")
+	removePlayer(carla)
+	Robux.Passes.AutoRollPlus.id = 0
+end)
+
+test("Boutique Robux : ProcessReceipt idempotent et sauvegardé", function()
+	local data = DataService:Get(alice)
+	local Granted = roblox.Enum.ProductPurchaseDecision.PurchaseGranted
+	local NotYet = roblox.Enum.ProductPurchaseDecision.NotProcessedYet
+	Robux.Products.GemsS.id = 5555
+	local crystals, spent = data.traitCrystals, data.RobuxSpent
+	local receipt = { PlayerId = alice.UserId, ProductId = 5555, PurchaseId = "R-TEST-1", CurrencySpent = 25 }
+	assert(MarketplaceService.ProcessReceipt(receipt) == Granted, "reçu non accordé")
+	assert(data.traitCrystals == crystals + 10, "contenu non donné")
+	assert(data.Receipts["R-TEST-1"], "reçu non noté")
+	assert(data.RobuxSpent == spent + 25, "Robux dépensés")
+	-- Roblox rappelle le même reçu : rien n'est donné une 2e fois.
+	assert(MarketplaceService.ProcessReceipt(receipt) == Granted, "rappel du reçu")
+	assert(data.traitCrystals == crystals + 10, "reçu accordé deux fois !")
+	assert(data.RobuxSpent == spent + 25, "Robux comptés deux fois")
+	-- Le reçu est bien dans la sauvegarde.
+	local saved = stores.AnimeTycoon_v1 and stores.AnimeTycoon_v1["player_" .. alice.UserId]
+	assert(saved and saved.Receipts["R-TEST-1"], "reçu non sauvegardé avant PurchaseGranted")
+	-- Joueur absent ou produit inconnu : on réessaiera plus tard.
+	assert(MarketplaceService.ProcessReceipt({ PlayerId = 999999, ProductId = 5555, PurchaseId = "R-X" }) == NotYet, "joueur absent")
+	assert(MarketplaceService.ProcessReceipt({ PlayerId = alice.UserId, ProductId = 1, PurchaseId = "R-Y" }) == NotYet, "produit inconnu")
+	Robux.Products.GemsS.id = 0
+end)
+
+test("Boutique Robux : effets des passes Roulage x2 / x3, Lancer AFK et Emplacements +", function()
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
+	local RollService = services.RollService
+	local dora = addPlayer("Dora")
+	task.wait(0.3)
+	local data = DataService:Get(dora)
+	assert(data, "données de Dora")
+	local function rollCount()
+		RollService:ResetCooldown(dora)
+		data.RolledQueue = {}
+		local ok, results = RollService:Roll(dora)
+		assert(ok, "roulage : " .. tostring(results))
+		return #results
+	end
+	-- Sans passe : UN perso par roulage (retour 6).
+	assert(rollCount() == 1, "sans passe : 1 perso attendu")
+	dora:SetAttribute("Pass_Roll2", true)
+	assert(rollCount() == 2, "Roulage x2 : 2 persos attendus")
+	dora:SetAttribute("Pass_Roll3", true)
+	assert(rollCount() == 3, "Roulage x3 : 3 persos attendus")
+	dora:SetAttribute("Pass_Roll2", nil)
+	dora:SetAttribute("Pass_Roll3", nil)
+	-- Lancer AFK : refusé sans le passe, et la boutique Robux s'ouvre sur les passes.
+	local okAuto, message = RollService:SetAutoRoll(dora, true)
+	assert(not okAuto and string.find(message, "Lancer AFK", 1, true), "auto-roulage sans passe : " .. tostring(message))
+	local open = lastEvent("Robux_OpenShop", dora)
+	assert(open and open.args[1] == "passes", "boutique non ouverte")
+	task.wait(0.7)
+	assert(invoke("Robux_BuyPass", dora, "AutoRoll"), "achat simulé de Lancer AFK")
+	assert(dora:GetAttribute("Pass_AutoRoll") == true, "Pass_AutoRoll absent")
+	assert(RollService:SetAutoRoll(dora, true), "auto-roulage refusé avec le passe")
+	local before = data.RollCount
+	RollService:ResetCooldown(dora)
+	data.RolledQueue = {}
+	task.wait(0.6)
+	assert(data.RollCount > before, "la machine ne roule pas toute seule avec Lancer AFK")
+	RollService:SetAutoRoll(dora, false)
+	-- Emplacements + : 2 cases d'unités en plus dans la base.
+	local display = Formulas.playerStats(data).display
+	task.wait(0.7)
+	assert(invoke("Robux_Buy", dora, "pass", "Slots"), "achat simulé d'Emplacements +")
+	assert(data.RobuxSlots == Robux.SlotsBonus, "cases en plus non notées")
+	assert(Formulas.playerStats(data).display == math.min(display + Robux.SlotsBonus, Economy.MaxDisplaySlots), "cases de la base non ajoutées")
+	removePlayer(dora)
+end)
+
+test("Classements : trois tableaux (Robux, pièces, perso le plus fort)", function()
+	local boards = game:GetService("Workspace").World.Boards
+	for _, name in { "Classement_Robux", "Classement_Pieces", "Classement_Perso" } do
+		local model = boards:FindFirstChild(name)
+		assert(model, "tableau absent : " .. name)
+		assert(model.Panel.Display.Fond:FindFirstChild("Row10"), "10 lignes attendues : " .. name)
+	end
+	local Leaderboard = services.LeaderboardService
+	Leaderboard:_render()
+	local row = boards.Classement_Robux.Panel.Display.Fond.Row1
+	assert(row.Nom.Text == "Alice", "classement Robux : " .. row.Nom.Text)
+	assert(string.find(row.Valeur.Text, "R$", 1, true), "valeur Robux : " .. row.Valeur.Text)
+	local coinsRow = boards.Classement_Pieces.Panel.Display.Fond.Row1
+	assert(coinsRow.Nom.Text ~= "—", "classement pièces vide")
+	local powerRow = boards.Classement_Perso.Panel.Display.Fond.Row1
+	assert(string.find(powerRow.Valeur.Text, "⚔", 1, true), "classement perso : " .. powerRow.Valeur.Text)
+	-- Classement mondial (OrderedDataStore) : envoi puis lecture.
+	Leaderboard:_push(alice)
+	Leaderboard:_fetch()
+	local list = Leaderboard:List("Robux")
+	assert(list[1] and list[1].value == DataService:Get(alice).RobuxSpent, "classement mondial Robux")
+	assert(stores.AnimeTycoon_Coins_v1[tostring(alice.UserId)], "pièces non envoyées")
+	assert(stores.AnimeTycoon_BestUnit_v1[tostring(alice.UserId)], "meilleure unité non envoyée")
+end)
+
 test("Commandes admin", function()
 	local AdminService = services.AdminService
 	AdminService:Run(alice, "argent 5000")
@@ -1274,6 +1501,11 @@ test("Sauvegarde à la déconnexion puis rechargement", function()
 		reloadedCount += 1
 	end
 	assert(reloadedCount == count, "persos perdus")
+	-- Achats Robux gardés : reçus, total dépensé, boost encore actif.
+	assert(reloaded.Receipts["R-TEST-1"], "reçus perdus")
+	assert(reloaded.RobuxSpent > 0, "Robux dépensés perdus")
+	assert(type(again:GetAttribute("Boost_Luck")) == "number", "boost non restauré")
+	assert(again:GetAttribute("Pass_Coins2") == true, "passe simulé (Studio) non restauré")
 end)
 
 Harness.finish()

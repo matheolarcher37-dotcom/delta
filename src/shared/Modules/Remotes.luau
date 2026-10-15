@@ -14,6 +14,8 @@ local EVENTS = {
 	"TradeState", -- état de l'échange en cours (ou nil)
 	"OpenMenu", -- (nomDuMenu, argument?) ouvre un menu côté client (prompts de proximité)
 	"RollResult", -- { results = { {id, stars, rarity, aura (mutation), price, dps, ...} }, pity = { mythic = n } } (machine ROULER)
+	"Robux_Granted", -- (type "pass" | "product", clé, détails) achat Robux validé (célébration côté client)
+	"Robux_OpenShop", -- (onglet "passes" | "packs" | "boosts", clé?) ouvre la boutique Robux (passe manquant)
 
 	-- Client -> Serveur
 	"SetTarget", -- (ennemi) cible prioritaire de l'équipe
@@ -43,6 +45,8 @@ local FUNCTIONS = {
 	"Roll_SaveAutoSettings", -- (réglages de la fenêtre « Roulement automatique ») -> ok, message
 	"Roll_SetMulti", -- (1 | 2 | 3) -> ok, message (persos par roulage, selon les passes x2 / x3)
 	"PlaceUnit", -- (emplacement, uid | nil) -> ok, message (« Remplacer l'unité » d'une case de la base)
+	"Robux_Buy", -- ("pass" | "product", clé de Config/Robux) -> ok, message (ouvre l'achat Roblox)
+	"Robux_BuyPass", -- (clé du passe) -> ok, message (raccourci de Robux_Buy("pass", clé) pour les autres fenêtres)
 }
 
 local Remotes = {}

@@ -18,6 +18,7 @@ local Icons = require(script.Parent.Icons)
 local Components = require(script.Parent.Components)
 local Console = require(script.Parent.Console)
 local Menus = require(script.Parent.Menus)
+local RobuxSideBar = require(script.Parent.RobuxSideBar)
 local State = require(script.Parent.Parent.State)
 
 local HUD = {}
@@ -33,7 +34,7 @@ local displayed = { coins = 0, crystals = 0 }
 -- Tuiles de la grille du HUD (comme la capture de référence) : nom du menu, texte, icône, couleurs.
 HUD.Tiles = {
 	{ menu = "SkillTree", text = "Améliorations", icon = "upgrade", color = Color3.fromRGB(240, 170, 30), color2 = Color3.fromRGB(150, 80, 10) },
-	{ menu = "Shop", text = "Boutique", icon = "shop", color = Color3.fromRGB(200, 50, 230), color2 = Color3.fromRGB(100, 20, 150) },
+	{ menu = "RobuxShop", text = "Boutique", icon = "shop", color = Color3.fromRGB(200, 50, 230), color2 = Color3.fromRGB(100, 20, 150) },
 	{ menu = "Inventory", text = "Unités", icon = "unit", color = Color3.fromRGB(40, 190, 80), color2 = Color3.fromRGB(16, 100, 50) },
 	{ menu = "Inventory", arg = "items", text = "Objets", icon = "bag", color = Color3.fromRGB(40, 150, 240), color2 = Color3.fromRGB(20, 70, 160) },
 	{ menu = "Index", text = "Indice", icon = "book", color = Color3.fromRGB(230, 40, 90), color2 = Color3.fromRGB(130, 10, 50) },
@@ -672,11 +673,27 @@ function HUD.init(gui: ScreenGui)
 	buildBanner(root)
 	buildTeamPanel(root)
 	buildBottom(root)
+	-- Barre de droite : offres Robux (x2 Argent, x2 Chance, Roulage x3...).
+	local okBar, barError = pcall(RobuxSideBar.init, root)
+	if not okBar then
+		warn("[AnimeTycoon] Échec de la barre Robux : " .. tostring(barError))
+	end
 	layoutForDevice()
 	Console.onModeChanged(layoutForDevice)
-	-- L'arbre de compétences occupe tout l'écran : le HUD se cache pendant ce temps.
+	-- L'arbre de compétences et la boutique Robux occupent tout l'écran : le HUD se cache pendant
+	-- ce temps. Pour les autres fenêtres, la barre du bas (objectif, voyages), la bannière d'univers et
+	-- la barre Robux de droite se cachent : rien ne passe sous la fenêtre ni sous ses indications manette.
 	Menus.onChanged(function(name)
-		root.Visible = name ~= "SkillTree"
+		root.Visible = name ~= "SkillTree" and name ~= "RobuxShop"
+		local free = name == nil
+		refs.objectiveFrame.Visible = free
+		refs.travel.Visible = free
+		-- La bannière d'univers laisse sa place en haut au bandeau des annonces (Notifications).
+		refs.banner.Visible = free
+		local bar = RobuxSideBar.holder()
+		if bar then
+			bar.Visible = free
+		end
 	end)
 
 	local lastTeamKey = ""
@@ -751,7 +768,7 @@ function HUD.init(gui: ScreenGui)
 			local restock = state:GetAttribute("ShopRestockAt")
 			refs.shopChip.Visible = restock ~= nil
 			if restock then
-				refs.shopLabel.Text = "Boutique : " .. Formulas.formatTime(restock - now)
+				refs.shopLabel.Text = "Reliques : " .. Formulas.formatTime(restock - now)
 			end
 			refs.objective.Text = objectiveText(State.data)
 			updateTeamHealth()

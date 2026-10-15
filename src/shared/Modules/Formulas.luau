@@ -290,7 +290,13 @@ end
 
 -- Statistiques complètes d'un joueur (améliorations + arbre) à partir de ses données.
 function Formulas.playerStats(data)
-	return Formulas.upgradeStats(data and data.upgrades, data and data.Skills)
+	local stats = Formulas.upgradeStats(data and data.upgrades, data and data.Skills)
+	-- Passe Robux « Emplacements + » (data.RobuxSlots, posé par MonetizationService).
+	local bonus = data and tonumber(data.RobuxSlots) or 0
+	if bonus > 0 then
+		stats.display = math.min(stats.display + math.floor(bonus), Economy.MaxDisplaySlots)
+	end
+	return stats
 end
 
 ------------------------------------------------------------------------

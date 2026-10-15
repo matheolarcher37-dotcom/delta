@@ -9,6 +9,7 @@ local Remotes = require(Shared.Modules.Remotes)
 
 local Theme = require(script.Parent.Theme)
 local Icons = require(script.Parent.Icons)
+local Menus = require(script.Parent.Menus)
 
 local Notifications = {}
 
@@ -26,6 +27,18 @@ local KINDS = {
 local toastContainer: Frame
 local announceFrame: Frame
 local announceQueue = {}
+-- Annonce affichée en grand au centre, ou en petit bandeau en haut quand un menu est ouvert
+-- (elle ne doit jamais cacher la boutique ou une autre fenêtre). Pendant un menu, le HUD cache sa
+-- bannière d'univers : le bandeau prend sa place sans se superposer.
+local ANNOUNCE_CENTER = UDim2.fromScale(0.5, 0.33)
+local ANNOUNCE_TOP = UDim2.new(0.5, 0, 0, 40)
+local ANNOUNCE_TOP_SCALE = 0.5
+local function announceLayout(): (UDim2, number)
+	if Menus.current() ~= nil then
+		return ANNOUNCE_TOP, ANNOUNCE_TOP_SCALE
+	end
+	return ANNOUNCE_CENTER, 1
+end
 local announcing = false
 local toastCount = 0
 
@@ -105,6 +118,18 @@ function Notifications.init(gui: ScreenGui)
 		StrokeThickness = 2.5,
 		Parent = announceFrame,
 	})
+
+	-- Un menu s'ouvre ou se ferme pendant une annonce : elle change de place.
+	Menus.onChanged(function()
+		if announceFrame.Visible then
+			local position, size = announceLayout()
+			announceFrame.Position = position
+			local scale = announceFrame:FindFirstChildOfClass("UIScale")
+			if scale and scale.Scale > 0.05 then
+				Theme.tween(scale, 0.2, { Scale = size }, Enum.EasingStyle.Quad)
+			end
+		end
+	end)
 
 	Remotes.event("Notify").OnClientEvent:Connect(function(text, kind)
 		Notifications.toast(text, kind)
@@ -226,10 +251,12 @@ local function showNext()
 		gradient.Color = Theme.sequence({ Theme.light(color, 0.7), Theme.light(color, 0.15), color })
 	end
 	local scale = announceFrame:FindFirstChildOfClass("UIScale") :: UIScale
+	local position, size = announceLayout()
+	announceFrame.Position = position
 	announceFrame.Visible = true
 	announceFrame.Rotation = -4
-	scale.Scale = 0.3
-	Theme.tween(scale, 0.4, { Scale = 1 }, Enum.EasingStyle.Back)
+	scale.Scale = 0.3 * size
+	Theme.tween(scale, 0.4, { Scale = size }, Enum.EasingStyle.Back)
 	Theme.tween(announceFrame, 0.4, { Rotation = 0 }, Enum.EasingStyle.Back)
 	if item.fanfare then
 		SoundService:PlayLocalSound(fanfare)

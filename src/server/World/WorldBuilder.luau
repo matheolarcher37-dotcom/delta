@@ -32,6 +32,7 @@ local Nature = require(script.Parent.Kit.Nature)
 local Archi = require(script.Parent.Kit.Archi)
 local Props = require(script.Parent.Kit.Props)
 local Relief = require(script.Parent.Kit.Relief)
+local LeaderboardBoards = require(script.Parent.LeaderboardBoards)
 
 local WorldBuilder = {}
 
@@ -1301,7 +1302,8 @@ local function buildBoards(world: Folder)
 		end)
 		return model
 	end
-	board("Leaderboard", Layout.Leaderboard, "🏆 LES PLUS PUISSANTS", rgb(230, 170, 40))
+	-- Trois classements (Robux dépensés, pièces, perso le plus fort) : World/LeaderboardBoards.
+	LeaderboardBoards.build(boards, Layout.Leaderboard)
 	board("InfoBoard", Layout.InfoBoard, "🌀 UNIVERS ACTUEL", rgb(120, 90, 230))
 end
 

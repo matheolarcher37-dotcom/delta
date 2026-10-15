@@ -11,6 +11,7 @@ local Economy = require(Shared.Config.Economy)
 local Characters = require(Shared.Config.Characters)
 local Layout = require(Shared.Config.Layout)
 local Formulas = require(Shared.Modules.Formulas)
+local Robux = require(Shared.Config.Robux)
 local SkillTree = require(Shared.Config.SkillTree)
 local Remotes = require(Shared.Modules.Remotes)
 local CharacterFactory = require(Shared.Modules.CharacterFactory)
@@ -417,7 +418,7 @@ local function coinMultiplier(self, player: Player): number
 	local data = self.services.DataService:Get(player)
 	local stats = data and Formulas.playerStats(data)
 	local eventMult = self.services.EventService and self.services.EventService:CoinMultiplier() or 1
-	return (stats and stats.combatCoins or 1) * eventMult
+	return (stats and stats.combatCoins or 1) * eventMult * Robux.coinMultiplier(player) -- x2 Argent, boost, VIP
 end
 
 function CombatService:_reward(player: Player, record, universe, position: Vector3, info)
