@@ -1142,16 +1142,61 @@ test("Épées : épée rouillée de départ, Forgeron, coup d'épée", function(
 	assert(data.equippedSword == "vent", "épée non équipée")
 	tool = backpack:FindFirstChildOfClass("Tool")
 	assert(tool and tool:GetAttribute("SwordId") == "vent", "nouvelle épée absente")
+	local sheaths = 0
+	for _, child in alice.Character:GetChildren() do
+		if child.Name == "SwordSheath" then
+			sheaths += 1
+			assert(child:GetAttribute("SwordId") == "vent", "mauvais fourreau")
+		end
+	end
+	assert(sheaths == 1, "fourreau absent ou en double : " .. sheaths)
 	local enemy = services.CombatService:NearestEnemy(Vector3.zero, 500)
 	assert(enemy, "pas d'ennemi")
 	local pos = enemy.root.CFrame.Position
 	alice.Character:PivotTo(CFrame.lookAt(pos + Vector3.new(4, 0, 0), pos))
 	tool.Parent = alice.Character
 	local hp = enemy.hp
+	tool.Equipped:Fire()
+	task.wait()
+	local sheath = alice.Character:FindFirstChild("SwordSheath")
+	assert(sheath.PrimaryPart.Transparency == 1, "poignée rangée encore visible épée en main")
 	services.SwordService:Swing(alice, tool)
+	assert(tool.Handle.SwingTrail.Enabled and tool.AuraVolume.SwingBurst.Enabled, "traînée / gerbe du coup inactives")
 	task.wait(0.3)
 	assert(enemy.hp < hp or not enemy.alive, "l'épée n'a pas touché")
+	task.wait(0.2)
+	assert(not tool.Handle.SwingTrail.Enabled, "traînée restée active")
+	tool.Unequipped:Fire()
+	task.wait()
+	assert(sheath.PrimaryPart.Transparency == 0, "poignée rangée invisible")
 	assert(lastEvent("CombatFX") ~= nil, "pas d'effet de coup")
+	-- Lueur : inchangée quand on sort l'épée, ×2,2 seulement le temps d'un coup.
+	local SwordBuilderModule = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.SwordBuilder"))
+	local SwordsConfig = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Swords"))
+	local bright = SwordBuilderModule.buildTool(SwordsConfig.get("celeste"))
+	local spineInHand = bright.Grip:Inverse():VectorToWorldSpace(Vector3.new(1, 0, 0))
+	assert(bright.Grip.RightVector:Dot(SwordBuilderModule.GRIP.RightVector) > 0.999 and spineInHand.Y > 0.5, "prise de l'épée (lame de chant)")
+	-- Présentoir du hub : modèle ancré, effet adouci, sans lueur.
+	local display = SwordBuilderModule.buildDisplay(SwordsConfig.get("foudre"))
+	assert(display.Name == "DisplaySword" and display.PrimaryPart.Anchored and not display.AuraVolume.Glow.Enabled, "épée d'exposition")
+	-- Maîtrise : tirée des ennemis vaincus, l'épée est reforgée avec un effet plus fort.
+	assert(SwordsConfig.mastery(0) == 1 and SwordsConfig.mastery(SwordsConfig.MasteryStep) == 2 and SwordsConfig.mastery(1e9) == SwordsConfig.MasteryMax, "paliers de maîtrise")
+	local strong = SwordBuilderModule.buildTool(SwordsConfig.get("rouillee"), SwordsConfig.MasteryMax)
+	local weak = SwordBuilderModule.buildTool(SwordsConfig.get("rouillee"), 1)
+	assert(strong:GetAttribute("Power") > weak:GetAttribute("Power"), "maîtrise : effet pas plus fort")
+	assert(services.SwordService:GetMastery(alice) >= 1, "maîtrise du joueur")
+	-- Épée rangée sur le perso : réduite (WORN_SCALE).
+	local worn = alice.Character:FindFirstChild("SwordSheath")
+	assert(worn and worn:GetAttribute("WornScale") == SwordBuilderModule.WORN_SCALE, "épée portée non réduite")
+	local glow = bright.AuraVolume.Glow
+	local base = glow.Brightness
+	services.SwordService:Flash(bright, 0.1, false)
+	assert(glow.Brightness == base, "la lueur s'intensifie en sortant l'épée")
+	services.SwordService:Flash(bright, 0.1)
+	assert(math.abs(glow.Brightness - base * 2.2) < 1e-6, "pas d'éclat de lueur au coup")
+	task.wait(0.2)
+	assert(glow.Brightness == base, "lueur non rétablie après le coup")
+	bright:Destroy()
 	local okExpensive = invoke("BuySword", alice, "celeste")
 	assert(not okExpensive, "épée achetée sans assez d'argent")
 	assert(invoke("EquipSword", alice, "rouillee"), "rééquiper l'épée rouillée")

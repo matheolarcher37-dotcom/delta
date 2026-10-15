@@ -1044,6 +1044,61 @@ test("Traits : cinématiques Céleste, Midas, Vampire et résultat reçu du serv
 	expectNoNewWarnings(before, "cinématiques des traits")
 end)
 
+test("Forgeron : vignettes inclinées à 45°, grand aperçu qui tourne, nom d'effet court", function()
+	local before = #warnings
+	Menus.open("Forge")
+	task.wait(0.3)
+	local gui = alice.PlayerGui.AnimeTycoonUI
+	local thumbs, bigs = {}, {}
+	for _, d in gui:GetDescendants() do
+		if d:IsA("ViewportFrame") then
+			local model = d:FindFirstChildOfClass("Model")
+			local handle = model and model:FindFirstChild("Handle")
+			if handle and model:GetAttribute("Top") then
+				local inGrid, inDetail = false, false
+				local node = d.Parent
+				while node and node ~= gui do
+					if node.Name == "Grid" then
+						inGrid = true
+					elseif node.Name == "DetailHolder" then
+						inDetail = true
+					end
+					node = node.Parent
+				end
+				if inGrid then
+					table.insert(thumbs, handle)
+				elseif inDetail then
+					table.insert(bigs, { model = model, handle = handle })
+				end
+			end
+		end
+	end
+	assert(#thumbs >= 8, "vignettes d'épées : " .. #thumbs)
+	for _, handle in thumbs do
+		-- La lame (-Z de la poignée) part en diagonale (45°) dans le plan de l'écran.
+		local blade = handle.CFrame.LookVector
+		assert(math.abs(math.abs(blade.X) - 0.7071) < 0.02 and math.abs(math.abs(blade.Y) - 0.7071) < 0.02, "vignette non inclinée")
+	end
+	assert(#bigs == 1, "grand aperçu : " .. #bigs)
+	local big = bigs[1]
+	local start = big.handle.CFrame
+	for _ = 1, 10 do
+		Harness.services.RunService.RenderStepped:Fire(0.1)
+	end
+	local turned = big.handle.CFrame
+	local angle = math.deg(math.acos(math.clamp(start.RightVector:Dot(turned.RightVector), -1, 1)))
+	assert(angle > 5 and angle < 60, "le grand aperçu ne tourne pas lentement (" .. angle .. "°)")
+	local effect = nil
+	for _, d in gui:GetDescendants() do
+		if d:IsA("TextLabel") and string.find(d.Text, "Effet : ", 1, true) and d:IsDescendantOf(gui) then
+			effect = d.Text
+		end
+	end
+	assert(effect and not string.find(effect, "Cristaux", 1, true), "nom d'effet : " .. tostring(effect))
+	Menus.close("Forge")
+	expectNoNewWarnings(before, "forgeron")
+end)
+
 test("Inventaire : sélection et actions", function()
 	local before = #warnings
 	Menus.open("Inventory")

@@ -1894,4 +1894,185 @@ test("Boutique Robux : configuration (passes, produits, aides)", function()
 	assert(Robux.passKeyById(0) == nil and Robux.productKeyById(-1) == nil, "id 0 jamais reconnu")
 end)
 
+test("Épées du Forgeron : détaillées, effet propre, fourreau", function()
+	local Swords = requireModule(Shared.Config.Swords)
+	local SwordBuilder = requireModule(Shared.Modules.SwordBuilder)
+	local styles = {}
+	for _, sword in Swords.List do
+		assert(not styles[sword.look.style], "deux épées ont la même forme : " .. sword.look.style)
+		styles[sword.look.style] = true
+		local tool = SwordBuilder.buildTool(sword)
+		local handle = tool:FindFirstChild("Handle")
+		assert(handle and handle:FindFirstChild("SwingTrail") and handle:FindFirstChild("TrailTip"), sword.id .. " : traînée manquante")
+		local parts = countParts(tool)
+		assert(parts >= 25 and parts <= 80, sword.id .. " : " .. parts .. " pièces (attendu 25 à 80)")
+		-- Lame orientée vers -Z de la poignée.
+		assert(tool:GetAttribute("SwordTip") < -sword.look.length * 0.8, sword.id .. " : lame mal orientée")
+		local volume = tool:FindFirstChild("AuraVolume")
+		assert(volume and volume.Transparency == 1, sword.id .. " : volume d'effet manquant")
+		local auras, burst = 0, nil
+		for _, child in volume:GetChildren() do
+			if child:IsA("ParticleEmitter") then
+				if child.Name == "SwingBurst" then
+					burst = child
+				elseif child.Enabled then
+					auras += 1
+				end
+			end
+		end
+		assert(auras >= 1 and burst and not burst.Enabled, sword.id .. " : effet permanent ou gerbe de coup manquant")
+		local model = SwordBuilder.buildModel(sword)
+		assert(model:GetAttribute("Top") > model:GetAttribute("Bottom"), sword.id .. " : cadrage d'aperçu")
+		local sheath = SwordBuilder.buildSheath(sword)
+		local hilt, other = 0, 0
+		for _, part in sheath:GetDescendants() do
+			if part:IsA("BasePart") then
+				if part:GetAttribute("Hilt") then
+					hilt += 1
+				else
+					other += 1
+				end
+			end
+		end
+		assert(hilt >= 5, sword.id .. " : poignée rangée manquante")
+		assert(sheath:GetAttribute("Carry") == "back" or other >= 3, sword.id .. " : fourreau manquant")
+		print(string.format("   %-22s %2d pièces · fourreau %d", sword.name, parts, hilt + other))
+	end
+	-- Effet plus intense pour les meilleures épées.
+	assert(Swords.power(Swords.List[1]) == 0 and Swords.power(Swords.List[#Swords.List]) == 1, "intensité des effets")
+end)
+
+local Vector3 = Harness.roblox.Vector3
+local CFrame = Harness.roblox.CFrame
+local Instance = Harness.roblox.Instance
+local Enum = Harness.roblox.Enum
+
+test("Épées : tenues de chant, Neon discret, lueur plafonnée", function()
+	local Swords = requireModule(Shared.Config.Swords)
+	local SwordBuilder = requireModule(Shared.Modules.SwordBuilder)
+	for _, sword in Swords.List do
+		local tool = SwordBuilder.buildTool(sword)
+		-- La lame reste le long de -Z de la poignée ; la prise la tient de chant (dos +X vers le haut
+		-- du repère de la main), levée devant et vers la droite, roulée pour montrer un peu le plat.
+		local inv = tool.Grip:Inverse()
+		local blade = inv:VectorToWorldSpace(Vector3.new(0, 0, -1))
+		local spine = inv:VectorToWorldSpace(Vector3.new(1, 0, 0))
+		assert(blade.Z < -0.6 and blade.Y > math.sin(math.rad(15)) and blade.X > 0.2, sword.id .. " : prise : lame pas levée devant")
+		assert(spine.Y > math.cos(math.rad(55)) and spine.Y < math.cos(math.rad(10)), sword.id .. " : lame tenue à plat ou pas roulée")
+		for _, part in tool:GetDescendants() do
+			if part:IsA("BasePart") and part.Material == Enum.Material.Neon and not part:FindFirstChildOfClass("SpecialMesh") then
+				local s = part.Size
+				local thin = math.min(s.X, s.Y, s.Z)
+				local mid = s.X + s.Y + s.Z - thin - math.max(s.X, s.Y, s.Z)
+				assert(mid <= 0.2 or thin <= 0.036, sword.id .. " : Neon trop large (" .. part.Name .. ")")
+			end
+		end
+		local light = tool.AuraVolume:FindFirstChild("Glow")
+		if light then
+			assert(light.Brightness <= 1.5 and light.Range <= 8, sword.id .. " : lueur trop forte")
+		end
+		assert(sword.look.effectName and #sword.look.effectName <= 14, sword.id .. " : nom d'effet manquant ou trop long")
+	end
+	assert(SwordBuilder.buildTool(Swords.get("celeste")).AuraVolume.Glow.Brightness <= 1.21, "Céleste : lueur trop forte")
+end)
+
+test("Épées : portées à la hanche ou dans le dos, hors du corps et du sol (R6)", function()
+	local Swords = requireModule(Shared.Config.Swords)
+	local SwordBuilder = requireModule(Shared.Modules.SwordBuilder)
+	-- Gabarit R6 dans le repère du torse (centre du torse à 3 studs du sol). Le bras et la jambe
+	-- gauches sont testés au repos (aucun contact toléré) et balancés comme à la marche (±0,5 rad
+	-- autour de l'épaule / de la hanche : léger frôlement toléré, 0,2 stud au plus).
+	local limbs = {}
+	local function limb(name, center, pivot, half)
+		for _, a in { -0.5, -0.25, 0, 0.25, 0.5 } do
+			local cf = CFrame.new(pivot) * CFrame.Angles(a, 0, 0) * CFrame.new(center - pivot)
+			table.insert(limbs, { name = name, rest = a == 0, inv = cf:Inverse(), half = half })
+		end
+	end
+	for _, side in { -1, 1 } do
+		local name = side < 0 and "gauche" or "droit"
+		limb("bras " .. name, Vector3.new(side * 1.5, 0, 0), Vector3.new(side * 1.5, 0.5, 0), Vector3.new(0.5, 1, 0.5))
+		limb("jambe " .. name, Vector3.new(side * 0.5, -2, 0), Vector3.new(side * 0.5, -1, 0), Vector3.new(0.5, 1, 0.5))
+	end
+	table.insert(limbs, { name = "Torso", rest = true, inv = CFrame.new(), half = Vector3.new(1, 1, 0.5) })
+	table.insert(limbs, { name = "tête", rest = true, inv = CFrame.new(0, -1.5, 0), half = Vector3.new(0.62, 0.5, 0.62) })
+	local carries = {}
+	local problems = {}
+	for _, sword in Swords.List do
+		local character = Instance.new("Model")
+		local torso = Instance.new("Part")
+		torso.Name = "Torso"
+		torso.Size = Vector3.new(2, 2, 1)
+		torso.CFrame = CFrame.new(10, 3, 5) * CFrame.Angles(0, math.rad(30), 0)
+		torso.Parent = character
+		local sheath = SwordBuilder.buildSheath(sword)
+		assert(SwordBuilder.attachSheath(sheath, character, sword, false), sword.id .. " : fourreau non accroché")
+		local carry = sheath:GetAttribute("Carry")
+		carries[carry] = (carries[carry] or 0) + 1
+		local lowest = math.huge
+		local extent = Vector3.new(-math.huge, -math.huge, -math.huge)
+		local extentLo = Vector3.new(math.huge, math.huge, math.huge)
+		local worst = {}
+		for _, part in sheath:GetDescendants() do
+			if part:IsA("BasePart") then
+				local rel = torso.CFrame:ToObjectSpace(part.CFrame)
+				local h = part.Size / 2
+				-- Surface de la pièce échantillonnée tous les 0,1 stud (boîte orientée de la pièce).
+				local function steps(size)
+					return math.clamp(math.ceil(size / 0.1), 1, 40)
+				end
+				local nx, ny, nz = steps(part.Size.X), steps(part.Size.Y), steps(part.Size.Z)
+				for i = 0, nx do
+					for j = 0, ny do
+						for k = 0, nz do
+							if i == 0 or j == 0 or k == 0 or i == nx or j == ny or k == nz then
+								local q = rel * Vector3.new(h.X * (2 * i / nx - 1), h.Y * (2 * j / ny - 1), h.Z * (2 * k / nz - 1))
+								lowest = math.min(lowest, q.Y)
+								extent, extentLo = extent:Max(q), extentLo:Min(q)
+								for _, l in limbs do
+									local p = l.inv * q
+									local pen = math.min(l.half.X - math.abs(p.X), l.half.Y - math.abs(p.Y), l.half.Z - math.abs(p.Z))
+									if pen > 0 then
+										local key = l.name .. (l.rest and " (repos)" or " (marche)")
+										if pen > (worst[key] or 0) then
+											worst[key] = pen
+										end
+									end
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+		assert(lowest > -2.85, sword.id .. " : le fourreau touche le sol (" .. lowest .. ")")
+		for key, pen in worst do
+			local limit = string.find(key, "repos", 1, true) and 0.03 or 0.2
+			if pen > limit then
+				table.insert(problems, string.format("%s : traverse %s de %.2f", sword.id, key, pen))
+			end
+		end
+		-- Pas de « lance » : l'épée rangée ne dépasse pas loin devant / derrière ni sur les côtés.
+		assert(extent.Z < 2.6 and extentLo.Z > -2.4, sword.id .. string.format(" : dépasse trop devant/derrière (%.2f / %.2f)", extentLo.Z, extent.Z))
+		assert(extent.X < 3 and extentLo.X > -3, sword.id .. string.format(" : dépasse trop sur les côtés (%.2f / %.2f)", extentLo.X, extent.X))
+		if carry == "hip" then
+			-- Fourreau nettement incliné vers le bas (pas presque à plat).
+			local tipZ = sheath:GetAttribute("TipZ")
+			local tipWorld = sheath.PrimaryPart.CFrame * Vector3.new(0, 0, tipZ)
+			local mouthWorld = sheath.PrimaryPart.CFrame * Vector3.new(0, 0, sheath:GetAttribute("MouthZ"))
+			local dir = torso.CFrame:VectorToObjectSpace(tipWorld - mouthWorld).Unit
+			assert(math.deg(math.asin(-dir.Y)) >= 28, sword.id .. string.format(" : fourreau trop à plat (%.0f°)", math.deg(math.asin(-dir.Y))))
+		end
+		print(
+			string.format("   %-22s %-4s · pointe à %.2f du sol · étendue x %.1f..%.1f z %.1f..%.1f", sword.name, carry, lowest + 3, extentLo.X, extent.X, extentLo.Z, extent.Z)
+		)
+	end
+	assert((carries.hip or 0) >= 2 and (carries.back or 0) >= 2, "ports de l'épée (hanche / dos)")
+	assert(SwordBuilder.carryOf(Swords.get("celeste")) == "back" and SwordBuilder.carryOf(Swords.get("rouillee")) == "hip", "port selon la longueur")
+	for _, c in problems do
+		print("   !! " .. c)
+	end
+	assert(#problems == 0, #problems .. " collisions")
+end)
+
 Harness.finish()
