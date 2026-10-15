@@ -97,24 +97,31 @@ end
 ------------------------------------------------------------------------
 
 local LIMBS = { "Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "HumanoidRootPart" }
--- Génuflexion R6 classique (le salut du chevalier devant son roi) : jambe droite vers l'avant,
--- cuisse à l'horizontale et genou levé ; jambe gauche presque verticale, genou au sol (le bas de
--- la jambe s'enfonce dans le sol, comme le tibia replié derrière) ; torse incliné, tête baissée,
--- main droite posée sur le genou levé, bras gauche plié devant le torse.
+-- Génuflexion R6 « chevalier » (lisible de tous les côtés avec des membres d'un seul bloc) :
+-- la jambe ARRIÈRE (gauche) est couchée au sol derrière le perso (genou et tibia posés) ; la jambe
+-- AVANT (droite) reste presque verticale sous le bassin, comme le tibia du genou levé ; le bassin
+-- descend jusqu'à ce que le bout de la jambe arrière touche le sol. Torse incliné en révérence,
+-- main droite posée sur la cuisse avant, bras gauche le long du corps ; la tête s'incline ensuite.
 local KNEEL = {
-	frontLeg = 90, -- jambe droite vers l'avant : cuisse à l'horizontale, genou levé
-	backLeg = 10, -- jambe gauche presque verticale, un peu en arrière : genou au sol
-	torso = 32, -- torse incliné en révérence
-	head = 20, -- tête baissée vers l'unité
-	rightArm = 24, -- bras droit vers l'avant : la main repose sur le genou levé
+	frontLeg = 6, -- jambe droite presque verticale (tibia du genou levé)
+	backLeg = 78, -- jambe gauche couchée vers l'arrière, le bout posé au sol
+	torso = 28, -- torse incliné en révérence
+	head = 25, -- tête baissée vers l'unité (2e temps de l'animation)
+	rightArm = 18, -- main droite posée sur la cuisse avant
 	rightYaw = 0,
-	leftArm = 62, -- bras gauche plié devant le torse
-	leftYaw = -38, -- ... et ramené vers le milieu du corps
-	drop = 1.0, -- le corps descend de la longueur d'une cuisse
+	leftArm = 4, -- bras gauche le long du corps
+	leftYaw = 0,
+	drop = 1.0, -- descente minimale du bassin (sinon : calculée pour poser la jambe arrière au sol)
+	-- animation en deux temps : le corps descend, puis la tête s'incline ; vague d'un perso à l'autre
+	downTime = 0.35,
+	bowTime = 0.25,
+	bowDelay = 0.05,
+	stagger = 0.08,
 }
 TraitCinematic.KneelAngles = KNEEL
 
--- Renvoie { [pièce] = { debout, à genoux } } dans le repère du modèle.
+-- Renvoie { [pièce] = { debout, à genoux (tête droite), à genoux tête baissée } } dans le repère
+-- du modèle.
 function TraitCinematic.kneelPose(model: Model): { [BasePart]: { CFrame } }
 	local parentOf: { [BasePart]: BasePart } = {}
 	local function find(p: BasePart): BasePart
@@ -170,15 +177,31 @@ function TraitCinematic.kneelPose(model: Model): { [BasePart]: { CFrame } }
 		return CFrame.new(p) * CFrame.fromAxisAngle(up, yaw) * CFrame.fromAxisAngle(right, forward) * CFrame.new(-p)
 	end
 	local hipCenter = tcf:PointToWorldSpace(Vector3.new(0, -1, 0))
+	local backPivot = pivot("Left Leg", Vector3.new(-0.5, -1, 0))
 	local limbMove = {
 		["Right Leg"] = about(pivot("Right Leg", Vector3.new(0.5, -1, 0)), math.rad(KNEEL.frontLeg)),
-		["Left Leg"] = about(pivot("Left Leg", Vector3.new(-0.5, -1, 0)), -math.rad(KNEEL.backLeg)),
+		["Left Leg"] = about(backPivot, -math.rad(KNEEL.backLeg)),
 		["Right Arm"] = arm(pivot("Right Arm", Vector3.new(1, 0.5, 0)), math.rad(KNEEL.rightYaw), math.rad(KNEEL.rightArm)),
 		["Left Arm"] = arm(pivot("Left Arm", Vector3.new(-1, 0.5, 0)), math.rad(KNEEL.leftYaw), math.rad(KNEEL.leftArm)),
-		Head = about(pivot("Head", Vector3.new(0, 1, 0)), -math.rad(KNEEL.head)),
 	}
+	local headMove = about(pivot("Head", Vector3.new(0, 1, 0)), -math.rad(KNEEL.head))
 	local bow = about(hipCenter, -math.rad(KNEEL.torso))
-	local down = CFrame.new(0, -KNEEL.drop, 0)
+	-- descente : le point le plus bas de la jambe arrière couchée touche le sol (y = 0)
+	local lowest = math.huge
+	local backLeg = model:FindFirstChild("Left Leg")
+	if backLeg and backLeg:IsA("BasePart") then
+		local moved = limbMove["Left Leg"] * backLeg.CFrame
+		local half = backLeg.Size * 0.5
+		for _, sx in { -1, 1 } do
+			for _, sy in { -1, 1 } do
+				for _, sz in { -1, 1 } do
+					lowest = math.min(lowest, moved:PointToWorldSpace(Vector3.new(half.X * sx, half.Y * sy, half.Z * sz)).Y)
+				end
+			end
+		end
+	end
+	local drop = if lowest == math.huge then KNEEL.drop else math.max(KNEEL.drop, lowest + 0.04)
+	local down = CFrame.new(0, -drop, 0)
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") then
 			local limb = limbOfRoot[find(d)] or "Torso"
@@ -187,18 +210,31 @@ function TraitCinematic.kneelPose(model: Model): { [BasePart]: { CFrame } }
 			if limbMove[limb] then
 				target = limbMove[limb] * target
 			end
+			local bowed = target
+			if limb == "Head" then
+				bowed = headMove * target
+			end
 			if limb ~= "Left Leg" and limb ~= "Right Leg" then
 				target = bow * target
+				bowed = bow * bowed
 			end
-			result[d] = { cf, down * target }
+			result[d] = { cf, down * target, down * bowed }
 		end
 	end
 	return result
 end
 
-local function applyPose(pose: { [BasePart]: { CFrame } }, place: CFrame, f: number)
+-- f = descente (0 debout -> 1 à genoux), bowF = inclinaison de la tête (0 -> 1).
+local function applyPose(pose: { [BasePart]: { CFrame } }, place: CFrame, f: number, bowF: number?)
+	local b = bowF or 0
 	for part, pair in pose do
-		part.CFrame = place * (if f <= 0 then pair[1] elseif f >= 1 then pair[2] else pair[1]:Lerp(pair[2], f))
+		local cf
+		if b > 0 then
+			cf = if b >= 1 then pair[3] else pair[2]:Lerp(pair[3], b)
+		else
+			cf = if f <= 0 then pair[1] elseif f >= 1 then pair[2] else pair[1]:Lerp(pair[2], f)
+		end
+		part.CFrame = place * cf
 	end
 end
 
@@ -297,14 +333,25 @@ function TraitCinematic.kneelerLooks(exceptUid: string?, count: number): { { loo
 		exceptId = State.data.characters[exceptUid].id
 		seen[exceptId] = true
 	end
+	-- jamais une copie du héros ; les persos de son univers (même uniforme, même silhouette) ne
+	-- viennent qu'en dernier, pour que le monarque se distingue de sa cour
+	local heroGroup = exceptId and string.match(exceptId, "^(%a+)_") or nil
+	local function sameGroup(id: string): boolean
+		return heroGroup ~= nil and string.match(id, "^(%a+)_") == heroGroup
+	end
 	local units = 0
+	local later = {}
 	for _, item in State.sortedCharacters() do
-		if item.uid ~= exceptUid and not item.entry.fusion and not seen[item.entry.id] then
+		if item.uid ~= exceptUid and not item.entry.fusion and not seen[item.entry.id] and item.entry.id ~= exceptId then
 			seen[item.entry.id] = true
-			table.insert(list, { look = item.desc.look, id = item.entry.id, stars = item.entry.stars })
-			units += 1
-			if units >= math.ceil(count * 0.6) then
-				break
+			if sameGroup(item.entry.id) then
+				table.insert(later, { look = item.desc.look, id = item.entry.id, stars = item.entry.stars })
+			else
+				table.insert(list, { look = item.desc.look, id = item.entry.id, stars = item.entry.stars })
+				units += 1
+				if units >= math.ceil(count * 0.6) then
+					break
+				end
 			end
 		end
 	end
@@ -327,9 +374,15 @@ function TraitCinematic.kneelerLooks(exceptUid: string?, count: number): { { loo
 			end
 		end
 	end
+	for _, info in later do
+		if #list >= count then
+			break
+		end
+		table.insert(list, info)
+	end
 	local ids = {}
 	for id in Characters.List do
-		if not seen[id] then
+		if not seen[id] and not sameGroup(id) then
 			table.insert(ids, id)
 		end
 	end
@@ -933,19 +986,20 @@ local function shake(scene, amount: number)
 	end
 end
 
--- Grand titre doré (dégradé qui ondule) en haut, à cheval sur la bande noire (jamais sur la
--- couronne) ; petite phrase et badge de rareté en grand sur une bande sombre en dégradé posée
+-- Grand titre doré (dégradé qui ondule) posé entièrement SUR la bande noire du haut (jamais coupé
+-- par sa limite, jamais sur la couronne ni sur la scène) ; petite phrase et badge de rareté en grand sur une bande sombre en dégradé posée
 -- juste au-dessus de la bande noire du bas : lisibles de loin (console), sans masquer la scène.
 local function title(scene, text: string, color: Color3, subtitle: string, badge: string?, y: number?)
 	local root = scene.root
 	if not root or not root.Parent then
 		return
 	end
+	-- bande noire = 10 % de la hauteur : bloc centré à 5 %, haut de 8 % (marge en haut et en bas)
 	local holder = new("Frame", {
 		Name = "TitleBlock",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.fromScale(0.5, y or 0.06),
-		Size = UDim2.fromOffset(980, 116),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, y or 0.05),
+		Size = UDim2.new(0, 980, 0.08, 0),
 		BackgroundTransparency = 1,
 		ZIndex = 25,
 		Parent = root,
@@ -953,9 +1007,9 @@ local function title(scene, text: string, color: Color3, subtitle: string, badge
 	local label = Theme.label({
 		Name = "Title",
 		Text = text,
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.fromScale(0.5, 0),
-		Size = UDim2.fromOffset(980, 116),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(1, 1),
 		FontFace = Theme.Faces.Title,
 		TextColor3 = WHITE,
 		StrokeThickness = 5,
@@ -1245,11 +1299,11 @@ end
 -- MONARQUE
 ------------------------------------------------------------------------
 
-local MONARCH_RADIUS = 11 -- rang extérieur du demi-cercle des persos agenouillés
-local MONARCH_INNER = 7.4 -- rang intérieur
+local MONARCH_RADIUS = 12.5 -- rang extérieur du demi-cercle des persos agenouillés
+local MONARCH_INNER = 8 -- rang intérieur
 local MONARCH_COUNT = 8
 local DAIS_TOP = 1.2 -- l'unité se tient sur une estrade (2 marches)
-local HERO_SCALE = 1.1 -- un peu plus grande que les autres, sans remplir l'image
+local HERO_SCALE = 1.25 -- plus grande que les persos de sa cour
 TraitCinematic.MonarchRadius = MONARCH_RADIUS
 TraitCinematic.MonarchCount = MONARCH_COUNT
 TraitCinematic.HeroScale = HERO_SCALE
@@ -1260,10 +1314,10 @@ TraitCinematic.CrownBottom = 0.26 -- bas de la couronne sous le centre de l'anne
 -- l'unité, sur deux rangs décalés (comme une cour devant son roi), tous tournés vers elle.
 -- Angles mesurés depuis l'avant ; l'allée du milieu (tapis rouge) reste libre pour la caméra.
 local MONARCH_ROWS = {
-	{ angle = 24, radius = MONARCH_INNER },
-	{ angle = 45, radius = MONARCH_RADIUS },
-	{ angle = 66, radius = MONARCH_INNER },
-	{ angle = 84, radius = MONARCH_RADIUS },
+	{ angle = 30, radius = MONARCH_INNER },
+	{ angle = 50, radius = MONARCH_RADIUS },
+	{ angle = 70, radius = MONARCH_INNER },
+	{ angle = 88, radius = MONARCH_RADIUS },
 }
 function TraitCinematic.monarchSpots(): { Vector3 }
 	local spots = {}
@@ -1277,20 +1331,20 @@ function TraitCinematic.monarchSpots(): { Vector3 }
 end
 
 -- Trajet de la caméra :
--- 1) plan large en plongée depuis derrière l'épaule de l'unité : la cour apparaît et s'agenouille
---    face à elle (on voit les têtes s'incliner vers le monarque) ;
--- 2) raccord (coupe franche) sur un contrechamp de face, juste derrière les deux persos du premier
---    rang (à 3 studs de part et d'autre : leurs têtes inclinées encadrent le bas de l'image) :
---    la couronne descend sur l'unité ;
--- 3) recul et montée : tout le demi-cercle tient dans l'image, l'unité couronnée au centre.
+-- 1) plan large en plongée (y >= 11) depuis derrière l'épaule GAUCHE de l'unité : aucun perso de la
+--    cour n'est entre l'objectif et elle ; on voit la cour apparaître et s'agenouiller face à elle ;
+-- 2) raccord (coupe franche) sur un contrechamp de face, dans l'allée du tapis rouge, entre les deux
+--    persos du premier rang : la couronne descend sur l'unité ;
+-- 3) plan final proche et bas, dans l'allée : l'unité couronnée occupe ~40 % de la hauteur de
+--    l'image, les dos inclinés de la cour encadrent le bas de l'image.
 function TraitCinematic.monarchCamera(total: number): { { any } }
 	return {
-		{ 0, Vector3.new(8, 9.5, 12.5), Vector3.new(-0.5, 1.8, -6.5), 56 },
-		{ 2.84, Vector3.new(9.5, 8.8, 11), Vector3.new(-0.5, 1.8, -6.5), 54 },
-		{ 2.85, Vector3.new(0, 4.6, -10.6), Vector3.new(0, 5.6, 0), 55 },
-		{ 4.5, Vector3.new(0, 4.4, -11.4), Vector3.new(0, 5.6, 0), 54 },
-		{ 5.7, Vector3.new(0, 9, -27), Vector3.new(0, 4, 0), 58 },
-		{ math.max(total, 6), Vector3.new(0, 9.3, -27.6), Vector3.new(0, 4, 0), 58 },
+		{ 0, Vector3.new(-7, 12.5, 13), Vector3.new(0.6, 1.6, -6.8), 56 },
+		{ 2.84, Vector3.new(-8.6, 11.6, 11.4), Vector3.new(0.6, 1.6, -6.8), 54 },
+		{ 2.85, Vector3.new(0, 5.4, -12.5), Vector3.new(0, 6.6, 0), 50 },
+		{ 4.5, Vector3.new(0, 5.3, -13.2), Vector3.new(0, 6.5, 0), 49 },
+		{ 5.7, Vector3.new(0, 5.5, -17), Vector3.new(0, 5.2, 0), 50 },
+		{ math.max(total, 6), Vector3.new(0, 5.6, -17.4), Vector3.new(0, 5.2, 0), 50 },
 	}
 end
 
@@ -1298,12 +1352,12 @@ local function monarchScene(scene)
 	local total = scene.total
 	local s = scene.low and 0.6 or 1
 	-- Sol de cérémonie : grand disque de marbre clair cerclé d'or, runes lumineuses qui tournent
-	local floor = part(scene, "CeremonyFloor", Vector3.new(0.3, 27, 27), CFrame.new(0, 0.12, 0) * FLAT, CREAM, Enum.Material.Marble, CYL)
-	local floorRim = part(scene, "CeremonyRim", Vector3.new(0.32, 28, 28), CFrame.new(0, 0.1, 0) * FLAT, GOLD_DEEP, Enum.Material.Metal, CYL)
+	local floor = part(scene, "CeremonyFloor", Vector3.new(0.3, 31, 31), CFrame.new(0, 0.12, 0) * FLAT, CREAM, Enum.Material.Marble, CYL)
+	local floorRim = part(scene, "CeremonyRim", Vector3.new(0.32, 32, 32), CFrame.new(0, 0.1, 0) * FLAT, GOLD_DEEP, Enum.Material.Metal, CYL)
 	local runes = {}
 	for i = 0, 23 do
 		local a = i / 24 * math.pi * 2
-		local r = 13
+		local r = 15
 		local rune = part(scene, "Rune", Vector3.new(0.9, 0.06, 0.25), CFrame.new(math.cos(a) * r, 0.3, math.sin(a) * r) * CFrame.Angles(0, -a, 0), GOLD, Enum.Material.Neon)
 		table.insert(runes, { part = rune, a = a, r = r })
 	end
@@ -1374,7 +1428,7 @@ local function monarchScene(scene)
 				pillar = pillar,
 				spark = spark,
 				appear = 0.45 + (i - 1) * 0.13,
-				kneel = 1.55 + ((i - 1) % 4) * 0.12 + (i > 4 and 0.06 or 0),
+				kneel = 1.55 + (i - 1) * KNEEL.stagger,
 				done = false,
 			})
 		end
@@ -1393,7 +1447,7 @@ local function monarchScene(scene)
 	-- la colonne de lumière s'arrête au-dessus de la couronne posée : elle ne voile jamais la tête
 	sky.CFrame = scene.stage * CFrame.new(0, crownTarget + 0.5 * crownScale + 30, 0) * UPRIGHT
 	-- Étincelles dorées qui montent du sol
-	local motes = part(scene, "Motes", Vector3.new(0.2, 24, 24), CFrame.new(0, 0.4, 0) * FLAT, GOLD, Enum.Material.Neon, CYL, 1)
+	local motes = part(scene, "Motes", Vector3.new(0.2, 28, 28), CFrame.new(0, 0.4, 0) * FLAT, GOLD, Enum.Material.Neon, CYL, 1)
 	emitter(motes, {
 		Color = ColorSequence.new(Color3.fromRGB(255, 230, 150)),
 		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.35), NumberSequenceKeypoint.new(1, 0) }),
@@ -1436,9 +1490,11 @@ local function monarchScene(scene)
 			local pt = t - k.appear
 			k.pillar.Transparency = pt < 0 and 1 or math.clamp(0.15 + pt * 1.6, 0.15, 1)
 			if k.model.Parent and not k.done then
-				local f = smooth((t - k.kneel) / 0.7)
-				applyPose(k.pose, k.place, f)
-				if f >= 1 then
+				-- 1er temps : le corps descend (0,35 s) ; 2e temps : la tête s'incline (0,25 s)
+				local f = smooth((t - k.kneel) / KNEEL.downTime)
+				local b = smooth((t - k.kneel - KNEEL.downTime - KNEEL.bowDelay) / KNEEL.bowTime)
+				applyPose(k.pose, k.place, f, b)
+				if b >= 1 then
 					k.done = true
 				end
 			end
@@ -1496,10 +1552,24 @@ local function celesteScene(scene)
 	local LIFT = 2.2
 	spawnHero(scene, 1.2, 0)
 	local headTop = scene.heroHeadTop or 6
-	-- Le faisceau céleste (cœur + halo) descend du ciel jusqu'au sol
-	-- (assez fin et translucide pour que l'unité reste visible dedans)
-	local beam = part(scene, "CelestialBeam", Vector3.new(1, 3, 3), CFrame.new(0, 200, 0) * UPRIGHT, SKY, Enum.Material.Neon, CYL, 1)
-	local beamGlow = part(scene, "CelestialGlow", Vector3.new(1, 5.4, 5.4), CFrame.new(0, 200, 0) * UPRIGHT, Color3.fromRGB(150, 220, 255), Enum.Material.Neon, CYL, 1)
+	-- Le faisceau céleste descend du ciel jusqu'au sol : un tube LARGE (rayon 3,5 studs, plus que
+	-- les épaules) en champ de force très translucide, autour de l'unité et non sur elle ; le corps
+	-- n'est jamais « dans la matière » et reste lisible, détaché par un contour blanc
+	local BEAM_D = 7
+	local beam = part(scene, "CelestialBeam", Vector3.new(1, BEAM_D, BEAM_D), CFrame.new(0, 200, 0) * UPRIGHT, SKY, Enum.Material.ForceField, CYL, 1)
+	local beamGlow =
+		part(scene, "CelestialGlow", Vector3.new(1, BEAM_D + 1.4, BEAM_D + 1.4), CFrame.new(0, 200, 0) * UPRIGHT, Color3.fromRGB(150, 220, 255), Enum.Material.ForceField, CYL, 1)
+	if scene.hero then
+		local outline = Instance.new("Highlight")
+		outline.Name = "CelestialOutline"
+		outline.FillColor = WHITE
+		outline.FillTransparency = 0.8
+		outline.OutlineColor = Color3.fromRGB(235, 250, 255)
+		outline.OutlineTransparency = 0.25
+		outline.DepthMode = Enum.HighlightDepthMode.Occluded
+		outline.Adornee = scene.hero
+		outline.Parent = scene.hero
+	end
 	local shaft = part(scene, "BackShaft", Vector3.new(160, 1.8, 1.8), CFrame.new(0, 80, 3.2) * UPRIGHT, Color3.fromRGB(225, 246, 255), Enum.Material.Neon, CYL, 1)
 	local ring = part(scene, "ImpactRing", Vector3.new(0.05, 4, 4), CFrame.new(0, 0.12, 0) * FLAT, SKY, Enum.Material.Neon, CYL, 1)
 	local pool = part(scene, "LightPool", Vector3.new(0.05, 9, 9), CFrame.new(0, 0.1, 0) * FLAT, Color3.fromRGB(230, 250, 255), Enum.Material.Neon, CYL, 1)
@@ -1563,13 +1633,15 @@ local function celesteScene(scene)
 		-- et encore plus légère une fois posée (l'unité se voit dedans dès l'impact)
 		local fade = smooth((t - 1) / 0.9)
 		local grow = smooth(t / 0.5)
-		local width = 3 - 1.8 * fade
+		local width = BEAM_D - 1.2 * fade
 		beam.Size = Vector3.new(length, width, width)
 		beam.CFrame = scene.stage * CFrame.new(0, mid, 0) * UPRIGHT
-		beam.Transparency = 1 - (1 - 0.7) * grow * (1 - 0.8 * fade) * (1 - 0.4 * smooth((t - 0.9) / 0.3))
-		beamGlow.Size = Vector3.new(length, 5.4 + math.sin(t * 6) * 0.3, 5.4 + math.sin(t * 6) * 0.3)
+		-- jamais plus opaque que 0,85 de transparence, encore plus léger une fois posé
+		beam.Transparency = 1 - (1 - 0.85) * grow * (1 - 0.6 * fade)
+		local glowD = BEAM_D + 1.4 + math.sin(t * 6) * 0.3
+		beamGlow.Size = Vector3.new(length, glowD, glowD)
 		beamGlow.CFrame = beam.CFrame
-		beamGlow.Transparency = 1 - (1 - 0.92) * grow * (1 - fade)
+		beamGlow.Transparency = 1 - (1 - 0.94) * grow * (1 - fade)
 		shaft.Transparency = 1 - 0.45 * smooth((t - 1.4) / 0.8)
 		if not landed and t >= 0.9 then
 			landed = true
@@ -1693,6 +1765,7 @@ function TraitCinematic.coinSpots(keys: { { any } }, count: number, seed: number
 end
 
 local MIDAS_GOLD = Color3.fromRGB(255, 196, 52)
+local MIDAS_SKIN = Color3.fromRGB(255, 200, 60) -- dorure de l'unité (or poli, brillant)
 
 local function midasScene(scene)
 	local total = scene.total
@@ -1737,7 +1810,35 @@ local function midasScene(scene)
 		EmissionDirection = Enum.NormalId.Right,
 		SpreadAngle = Vector2.new(40, 40),
 	})
-	local sweepRing = part(scene, "GoldSweep", Vector3.new(0.12, 3.6, 3.6), CFrame.new(0, 0.2, 0) * FLAT, Color3.fromRGB(255, 236, 150), Enum.Material.Neon, CYL, 1)
+	-- Anneau lumineux qui monte le long du corps : un cerceau fin de segments (pas un disque plein
+	-- qui cacherait les jambes)
+	local hoop = {}
+	for i = 0, 19 do
+		local seg = part(scene, "GoldSweep", Vector3.new(0.62, 0.1, 0.1), CFrame.new(), Color3.fromRGB(255, 236, 150), Enum.Material.Neon, nil, 1)
+		table.insert(hoop, { part = seg, a = i / 20 * math.pi * 2 })
+	end
+	-- Deux petits tas de pièces bas posés sur les côtés (piles de pièces de 0,2 stud, 0,8 stud au plus)
+	local heapRng = Random.new(9)
+	for _, side in { -1, 1 } do
+		local cx, cz = side * 3.4, 1.2
+		for _ = 1, 5 do
+			local px = cx + heapRng:NextNumber(-0.9, 0.9)
+			local pz = cz + heapRng:NextNumber(-0.7, 0.7)
+			local count = heapRng:NextInteger(1, 4)
+			for level = 1, count do
+				part(
+					scene,
+					"CoinHeap",
+					Vector3.new(0.2, 1.05, 1.05),
+					CFrame.new(px + heapRng:NextNumber(-0.06, 0.06), 0.1 + (level - 0.5) * 0.2, pz) * FLAT,
+					MIDAS_GOLD,
+					Enum.Material.Metal,
+					CYL
+				).Reflectance =
+					0.3
+			end
+		end
+	end
 	scene.cameraKeys = TraitCinematic.midasCamera(total)
 	local grade = scene.grade
 	local swept, titled = false, false
@@ -1769,16 +1870,50 @@ local function midasScene(scene)
 		-- l'unité se change en or (1,2 -> 2,6 s), une bague lumineuse monte le long du corps
 		local g = smooth((t - 1.2) / 1.4)
 		local height = g * (headTop + 0.5)
-		sweepRing.Transparency = (g <= 0 or g >= 1) and 1 or 0.2
-		sweepRing.CFrame = scene.stage * CFrame.new(0, height, 0) * FLAT
+		for _, seg in hoop do
+			local a = seg.a + t * 2
+			seg.part.Transparency = (g <= 0 or g >= 1) and 1 or 0.15
+			seg.part.CFrame = scene.stage * CFrame.new(math.cos(a) * 1.9, height, math.sin(a) * 1.9) * CFrame.Angles(0, -a + math.pi / 2, 0)
+		end
 		for _, hp in heroParts do
 			if hp.y <= height and not hp.gold then
 				hp.gold = true
 				local lum = hp.color.R * 0.3 + hp.color.G * 0.59 + hp.color.B * 0.11
-				hp.part.Color = MIDAS_GOLD:Lerp(Color3.fromRGB(255, 244, 190), math.clamp(lum - 0.35, 0, 0.6))
-				hp.part.Material = Enum.Material.Metal
+				hp.part.Color = MIDAS_SKIN:Lerp(Color3.fromRGB(255, 240, 170), math.clamp(lum - 0.4, 0, 0.5))
+				hp.part.Material = Enum.Material.Foil
 				pcall(function()
-					hp.part.Reflectance = 0.25
+					hp.part.Reflectance = 0.35
+				end)
+			end
+		end
+		-- une fois entièrement dorée : contour d'or et étincelles sur le torse pendant 1,5 s
+		if g >= 1 and not scene.midasShine and scene.hero then
+			scene.midasShine = true
+			local glow = Instance.new("Highlight")
+			glow.Name = "MidasGlow"
+			glow.FillColor = MIDAS_SKIN
+			glow.FillTransparency = 0.6
+			glow.OutlineColor = Color3.fromRGB(255, 230, 120)
+			glow.OutlineTransparency = 0
+			glow.DepthMode = Enum.HighlightDepthMode.Occluded
+			glow.Adornee = scene.hero
+			glow.Parent = scene.hero
+			local torso = scene.hero:FindFirstChild("Torso")
+			if torso and torso:IsA("BasePart") then
+				local shine = emitter(torso, {
+					Texture = "rbxasset://textures/particles/sparkles_main.dds",
+					Color = ColorSequence.new(Color3.fromRGB(255, 240, 170)),
+					LightEmission = 1,
+					Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.7), NumberSequenceKeypoint.new(1, 0) }),
+					Rate = scene.low and 15 or 30,
+					Lifetime = NumberRange.new(0.5, 0.9),
+					Speed = NumberRange.new(1.5, 3.5),
+					SpreadAngle = Vector2.new(180, 180),
+				})
+				task.delay(1.5, function()
+					if shine.Parent then
+						shine.Enabled = false
+					end
 				end)
 			end
 		end
@@ -1939,7 +2074,8 @@ local function vampireScene(scene)
 	)
 	local spot = Instance.new("SpotLight")
 	spot.Name = "MoonRay"
-	spot.Color = Color3.fromRGB(255, 60, 70)
+	-- rose pâle plutôt que rouge pur : la tenue garde ses couleurs sous la lune
+	spot.Color = Color3.fromRGB(255, 150, 160)
 	spot.Brightness = 0
 	spot.Range = 30
 	spot.Angle = 50
@@ -1991,7 +2127,7 @@ local function vampireScene(scene)
 		grade.Contrast = 0.12 * night
 		grade.Saturation = -0.15 * night
 		grade.TintColor = WHITE:Lerp(Color3.fromRGB(255, 206, 206), night)
-		spot.Brightness = 3 * night
+		spot.Brightness = 2.2 * night
 		if outline then
 			outline.OutlineTransparency = 1 - night
 		end

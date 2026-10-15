@@ -51,6 +51,7 @@ local INK = Color3.fromRGB(14, 14, 20)
 local PAGE_SIZE = 6
 local AUTO_TARGETS = { 3, 4, 5 } -- rangs d'arrêt de la relance auto
 local ROW = 32 -- hauteur d'une ligne du rouleau (3 lignes visibles)
+local CARD_H = ROW * 3 + 108 -- hauteur de la carte du trait (rouleau, rang, description, pastilles)
 
 local gui: ScreenGui
 local window
@@ -559,7 +560,7 @@ local function buildTraitCard(parent: Instance, props: { [string]: any }, trait)
 	refs.traitTier = Theme.label({
 		Name = "TraitTier",
 		Size = UDim2.new(1, -142, 0, 22),
-		Position = UDim2.fromOffset(128, ROW * 3 + 14),
+		Position = UDim2.fromOffset(128, ROW * 3 + 12),
 		FontFace = Theme.Faces.Heavy,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		StrokeThickness = 2,
@@ -567,21 +568,24 @@ local function buildTraitCard(parent: Instance, props: { [string]: any }, trait)
 		ZIndex = 5,
 		Parent = card,
 	})
+	-- description lisible de loin (console, téléphone) : grande, sur deux lignes au besoin
 	refs.traitDesc = Theme.label({
 		Name = "TraitDesc",
-		Size = UDim2.new(1, -28, 0, 20),
-		Position = UDim2.fromOffset(14, ROW * 3 + 40),
+		Size = UDim2.new(1, -28, 0, 36),
+		Position = UDim2.fromOffset(14, ROW * 3 + 36),
 		FontFace = Theme.Faces.Bold,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Center,
+		TextWrapped = true,
 		StrokeThickness = 1.5,
-		MaxSize = 17,
+		MaxSize = 15,
 		ZIndex = 5,
 		Parent = card,
 	})
 	refs.traitChips = new("Frame", {
 		Name = "Chips",
 		Size = UDim2.new(1, -28, 0, 26),
-		Position = UDim2.fromOffset(14, ROW * 3 + 64),
+		Position = UDim2.fromOffset(14, ROW * 3 + 76),
 		BackgroundTransparency = 1,
 		ZIndex = 5,
 		Parent = card,
@@ -598,6 +602,51 @@ local function buildTraitCard(parent: Instance, props: { [string]: any }, trait)
 	paintTraitCard(trait)
 	restReel(trait)
 	return card
+end
+
+-- Pendant le rouleau, la carte ne montre plus l'ancien trait (sinon on lirait deux traits à la
+-- fois) : emblème « ? » qui tourne, rang « … », description et pastilles vidées, surbrillance du
+-- tableau des chances retirée. paintTraitCard(résultat) repeint tout à l'arrêt.
+local function suspendTraitCard()
+	local card = refs.traitCard
+	if not card or not card.Parent then
+		return
+	end
+	refs.traitStroke.Color = C.Edge
+	refs.traitGradient.Color = Theme.sequence({ Color3.fromRGB(52, 50, 72), Color3.fromRGB(30, 28, 44), Color3.fromRGB(16, 16, 26) })
+	refs.traitTier.Text = "…   TIRAGE EN COURS   …"
+	refs.traitTier.TextColor3 = C.TextDim
+	refs.traitDesc.Text = ""
+	Components.clear(refs.traitChips)
+	if refs.emblem then
+		refs.emblem:Destroy()
+	end
+	local holder = emblem(card, nil, 40, UDim2.fromOffset(64, 58), 4, true)
+	refs.emblem = holder
+	local box = holder:FindFirstChild("IconBox")
+	if box then
+		box:ClearAllChildren()
+		local mark = Theme.label({
+			Name = "Mystery",
+			Text = "?",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(1.3, 1.3),
+			FontFace = Theme.Faces.Title,
+			TextColor3 = WHITE,
+			StrokeThickness = 3,
+			ZIndex = 6,
+			Parent = box,
+		})
+		Theme.onFrame(mark, function(_, t)
+			mark.Rotation = math.sin(t * 9) * 14
+			mark.TextTransparency = 0.15 + 0.15 * math.sin(t * 12)
+		end)
+	end
+	for _, item in refs.chanceMine or {} do
+		pcall(item)
+	end
+	refs.chanceMine = nil
 end
 
 -- Fait défiler le rouleau puis l'arrête sur `finalId`. Plus le trait est rare, plus le rouleau
@@ -626,6 +675,7 @@ local function spinReel(finalId: string?, fast: boolean, fromId: string?)
 	if not strip or not strip.Parent then
 		return
 	end
+	suspendTraitCard()
 	strip:ClearAllChildren()
 	for i, trait in list do
 		reelRow(strip, trait, i)
@@ -1179,7 +1229,15 @@ local function chancesTable(parent: Instance, y: number)
 			Parent = row,
 		})
 		Theme.corner(12).Parent = col
-		Theme.stroke(isCurrent and WHITE or Theme.dark(color, 0.25), isCurrent and 3 or 2).Parent = col
+		local colStroke = Theme.stroke(isCurrent and WHITE or Theme.dark(color, 0.25), isCurrent and 3 or 2)
+		colStroke.Parent = col
+		if isCurrent then
+			refs.chanceMine = refs.chanceMine or {}
+			table.insert(refs.chanceMine, function()
+				colStroke.Color = Theme.dark(color, 0.25)
+				colStroke.Thickness = 2
+			end)
+		end
 		Theme.gradient({ Theme.dark(color, 0.62), Color3.fromRGB(16, 16, 24), Color3.fromRGB(12, 12, 18) }, 90).Parent = col
 		-- en-tête
 		local head = new("Frame", {
@@ -1236,47 +1294,68 @@ local function chancesTable(parent: Instance, y: number)
 		})
 		local list = new("Frame", { Name = "List", Size = UDim2.new(1, -10, 1, -42), Position = UDim2.fromOffset(5, 42), BackgroundTransparency = 1, Parent = col })
 		Theme.list(Enum.FillDirection.Vertical, 2, Enum.HorizontalAlignment.Left).Parent = list
+		-- lignes lisibles de loin (TV, téléphone) : nom en grand, chance en gras ; une barre de la
+		-- couleur du trait remplace l'icône pour laisser toute la place au texte
 		for i, trait in items do
 			local mine = currentTrait == trait
 			local line = new("Frame", {
 				Name = "Line",
-				Size = UDim2.new(1, 0, 0, 22),
+				Size = UDim2.new(1, 0, 0, 25),
 				BackgroundColor3 = mine and Theme.dark(color, 0.2) or BLACK,
 				BackgroundTransparency = mine and 0.1 or 0.6,
 				LayoutOrder = i,
 				Parent = list,
 			})
 			Theme.corner(7).Parent = line
-			if mine then
-				Theme.stroke(WHITE, 1.5).Parent = line
-			end
-			local ib = new("Frame", { Name = "Icon", Position = UDim2.fromOffset(3, 2), Size = UDim2.fromOffset(18, 18), BackgroundTransparency = 1, Parent = line })
-			Icons.make(iconOf(trait.id), ib, { px = 18, color = Theme.light(trait.color, 0.25), ink = INK, zindex = 2 })
-			Theme.label({
+			local lineStroke = Theme.stroke(WHITE, 1.5)
+			lineStroke.Enabled = mine
+			lineStroke.Parent = line
+			local bar = new("Frame", {
+				Name = "Bar",
+				Position = UDim2.fromOffset(3, 4),
+				Size = UDim2.new(0, 4, 1, -8),
+				BackgroundColor3 = Theme.light(trait.color, 0.2),
+				BorderSizePixel = 0,
+				ZIndex = 2,
+				Parent = line,
+			})
+			Theme.round().Parent = bar
+			local name = Theme.label({
+				Name = "TraitName",
 				Text = trait.name,
-				Size = UDim2.new(1, -64, 1, -4),
-				Position = UDim2.fromOffset(24, 2),
+				Size = UDim2.new(1, -64, 1, -2),
+				Position = UDim2.fromOffset(11, 1),
 				FontFace = Theme.Faces.Heavy,
 				TextColor3 = mine and WHITE or Theme.light(trait.color, 0.4),
 				TextXAlignment = Enum.TextXAlignment.Left,
 				StrokeThickness = 1.5,
-				MaxSize = 12, -- même taille pour tous les noms (les plus longs tiennent à 12)
+				MaxSize = 14,
 				ZIndex = 2,
 				Parent = line,
 			})
 			Theme.label({
+				Name = "Chance",
 				Text = percent(Traits.chance(trait.id)),
 				AnchorPoint = Vector2.new(1, 0),
-				Size = UDim2.new(0, 38, 1, -4),
-				Position = UDim2.new(1, -4, 0, 2),
+				Size = UDim2.new(0, 50, 1, -2),
+				Position = UDim2.new(1, -3, 0, 1),
 				FontFace = Theme.Faces.Heavy,
 				TextColor3 = WHITE,
 				TextXAlignment = Enum.TextXAlignment.Right,
 				StrokeThickness = 1.5,
-				MaxSize = 11,
+				MaxSize = 13,
 				ZIndex = 2,
 				Parent = line,
 			})
+			if mine then
+				refs.chanceMine = refs.chanceMine or {}
+				table.insert(refs.chanceMine, function()
+					line.BackgroundColor3 = BLACK
+					line.BackgroundTransparency = 0.6
+					lineStroke.Enabled = false
+					name.TextColor3 = Theme.light(trait.color, 0.4)
+				end)
+			end
 		end
 	end
 end
@@ -1327,6 +1406,7 @@ local function renderDetail()
 	Components.clear(holder)
 	refs.traitCard = nil
 	refs.emblem = nil
+	refs.chanceMine = nil
 	local data = State.data
 	local entry = data and selected and data.characters[selected]
 	local sheet = Components.sheet(holder, { Size = UDim2.fromScale(1, 1) })
@@ -1445,10 +1525,10 @@ local function renderDetail()
 		MaxSize = 15,
 		Parent = right,
 	})
-	buildTraitCard(right, { Size = UDim2.new(1, 0, 0, ROW * 3 + 98), Position = UDim2.fromOffset(0, 28) }, trait)
+	buildTraitCard(right, { Size = UDim2.new(1, 0, 0, CARD_H), Position = UDim2.fromOffset(0, 28) }, trait)
 	local uid = selected :: string
 	local count = gems()
-	local buttonsY = 28 + ROW * 3 + 98 + 10
+	local buttonsY = 28 + CARD_H + 8
 	refs.rollButton = Components.button({
 		Text = "RELANCER",
 		Icon = "dice",
@@ -1726,6 +1806,11 @@ function TraitsMenu.init(screenGui: ScreenGui)
 	})
 	local content = window.content
 	refs.windowPanel = content:FindFirstAncestor("Window")
+	-- fenêtre remontée : la barre d'aides manette (A Choisir / B Fermer), posée sous la fenêtre,
+	-- reste entièrement dans l'écran
+	if refs.windowPanel then
+		refs.windowPanel.Position = UDim2.new(0.5, 0, 0.5, -16)
+	end
 	local left = new("Frame", { Name = "Left", Size = UDim2.new(0, 376, 1, 0), BackgroundTransparency = 1, Parent = content })
 	buildBank(left)
 	refs.grid = Components.cardGrid(left, Vector2.new(112, 150), { Name = "Grid", Size = UDim2.new(1, 0, 1, -184), Position = UDim2.fromOffset(0, 82) }, 8)
