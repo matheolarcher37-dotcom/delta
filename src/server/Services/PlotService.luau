@@ -19,6 +19,7 @@ local Mutations = require(Shared.Config.Mutations)
 local Universes = require(Shared.Config.Universes)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
+local Robux = require(Shared.Config.Robux)
 local Modules = script.Parent.Parent.Modules
 local Build = require(Modules.Build)
 local Kit = require(Modules.TycoonKit)
@@ -723,7 +724,7 @@ function PlotService:RefreshSlots(player: Player, displayed: { [number]: string 
 	local stats = Formulas.playerStats(data)
 	local CharacterService = self.services.CharacterService
 	local shown = displayed or (CharacterService and CharacterService.GetDisplayed and CharacterService:GetDisplayed(player)) or {}
-	local passOwned = (tonumber(data.RobuxSlots) or 0) > 0 or player:GetAttribute("Pass_Slots") == true
+	local passOwned = (tonumber(data.RobuxSlots) or 0) > 0 or Robux.hasPass(player, "Slots")
 	local passCaption = passOwned and PlotService.PassSlotsOwnedCaption or "🔒 Passe « +2 Cases »"
 	for i, ref in plot.slots do
 		ref.uid = shown[i]

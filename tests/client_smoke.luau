@@ -2102,8 +2102,14 @@ test("Kourama : créature animée (queues, marche, attaque) sans animations R6",
 	model:PivotTo(CFrame.new(origin))
 	model.Parent = workspaceService
 	Harness.CollectionService:AddTag(model, "AnimeRig")
-	task.wait(0.1)
-	local st = CreatureAnimator._rigs[model]
+	-- (CreatureAnimator le prend en charge à l'image suivante : sous Lune, un planificateur chargé
+	-- peut reprendre l'attente de ce test avant cette image ; on laisse jusqu'à 2 s)
+	local st = nil
+	local waitStart = os.clock()
+	repeat
+		task.wait(0.05)
+		st = CreatureAnimator._rigs[model]
+	until st or os.clock() - waitStart > 2
 	assert(st, "Kourama non pris en charge par CreatureAnimator")
 	local tail = model:FindFirstChild("Tail5_6"):FindFirstChildOfClass("Motor6D")
 	local base = tail:GetAttribute("BaseC0")

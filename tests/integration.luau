@@ -853,6 +853,7 @@ test("Auto-roulage : sauvegarde groupée (2 s) loin de la machine, tout de suite
 	-- Roulage manuel juste après un roulage auto loin de la machine : pas retardé par l'envoi
 	-- groupé en attente.
 	alice.Character:PivotTo(plot.cf * CFrame.new(0, 3, 120))
+	flush()
 	table.clear(data.RolledQueue)
 	RollService:ResetCooldown(alice)
 	RollService:AutoStep(alice)
@@ -1804,7 +1805,7 @@ test("Boutique Robux : reçu rejoué à la connexion, passes vérifiés avant le
 	end
 	Robux.Passes.Coins2.id = 4350
 	Robux.Products.CoinsS.id = 5560
-	local slow = 1
+	local slow = 3 -- (addPlayer attend 1,1 s : la vérification est encore en cours après)
 	MarketplaceService.UserOwnsGamePassAsync = function(_, _, id)
 		if id == 4350 then
 			task.wait(slow) -- Roblox lent à répondre à l'arrivée

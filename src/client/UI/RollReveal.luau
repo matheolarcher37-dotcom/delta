@@ -206,8 +206,12 @@ RollReveal.CardGap = 14
 
 -- Modules requis à la demande (ils ne requièrent pas celui-ci, mais sont chargés après lui).
 local function sibling(name: string): any
-	local ok, module = pcall(require, (script.Parent :: any)[name])
-	return ok and module or nil
+	local module = script.Parent and script.Parent:FindFirstChild(name)
+	if not module then
+		return nil
+	end
+	local ok, result = pcall(require, module)
+	return ok and result or nil
 end
 
 -- À la machine : bas du bandeau MUTATION, au-dessus de la carte du perso tiré, elle-même posée

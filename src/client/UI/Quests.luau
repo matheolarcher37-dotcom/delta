@@ -31,7 +31,7 @@ local WHITE = Color3.new(1, 1, 1)
 local ACCENT = Color3.fromRGB(255, 170, 40)
 local GEM = QuestsConfig.Gems.Color
 local READY = Color3.fromRGB(70, 214, 96)
-local WINDOW_SIZE = Vector2.new(1180, 640) -- fenêtre Défis (px logiques 1280 x 720)
+local WINDOW_SIZE = Vector2.new(1180, 640) -- fenêtre Défis (unités logiques : même taille à toutes les résolutions)
 local fmt = QuestsConfig.formatNumber
 
 -- string.upper ne gère pas les lettres accentuées (UTF-8) : « Planète » → « PLANÈTE ».
