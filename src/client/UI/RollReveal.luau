@@ -203,6 +203,18 @@ RollReveal.FocusTime = 1.5 -- durée du cadrage de la caméra sur le podium (Lé
 RollReveal.AwayTop = 232 -- loin de la machine : haut des cartes au plus haut (unités logiques)
 RollReveal.CardSize = Vector2.new(176, 240)
 RollReveal.CardGap = 14
+RollReveal.BannerMinWidth = 360 -- loin de la machine : largeur minimale du bandeau MUTATION
+
+-- Loin de la machine : largeur occupée par la révélation (unités logiques, avant réduction).
+-- Le bandeau MUTATION (sous les cartes, texte centré mis à l'échelle de son cadre) est aussi
+-- large que les cartes, et au moins BannerMinWidth pour rester lisible avec une seule carte.
+function RollReveal.awayWidth(cards: number, mutation: boolean): number
+	local width = cards * RollReveal.CardSize.X + (cards - 1) * RollReveal.CardGap
+	if mutation then
+		width = math.max(width, RollReveal.BannerMinWidth)
+	end
+	return width
+end
 
 -- Modules requis à la demande (ils ne requièrent pas celui-ci, mais sont chargés après lui).
 local function sibling(name: string): any
@@ -239,19 +251,21 @@ end
 -- Loin de la machine : les cartes se posent sous la pile du haut de l'écran (pastille
 -- d'auto-roulage, panneau de la zone anti-AFK, bandeaux : UI/Quests), rapetissent s'il le faut
 -- pour rester au-dessus des boutons de voyage, et glissent à droite des cartes de suivi des
--- défis si elles les croiseraient. Renvoie (haut, échelle, décalage horizontal).
+-- défis si elles (ou le bandeau MUTATION, voir awayWidth) les croiseraient. Renvoie (haut,
+-- échelle, décalage horizontal).
 local awayCards = 1
 local awayMutation = false
 function RollReveal.awayLayout(cards: number?, mutation: boolean?): (number, number, number)
 	local n = math.max(1, cards or awayCards)
+	local muted = if mutation == nil then awayMutation else mutation
 	local Quests = sibling("Quests")
 	local stack = Quests and Quests.stackBottom and Quests.stackBottom() or 130
 	local top = math.max(RollReveal.AwayTop, stack + 8)
 	local screen = screenSize()
-	local height = RollReveal.CardSize.Y + 4 + ((if mutation == nil then awayMutation else mutation) and 36 or 0)
+	local height = RollReveal.CardSize.Y + 4 + (muted and 36 or 0)
 	local limit = screen.Y - 132 - 8 -- haut des boutons de voyage (HUD, bas centre)
 	local scale = math.clamp((limit - top) / height, 0.3, 1)
-	local width = (n * RollReveal.CardSize.X + (n - 1) * RollReveal.CardGap) * scale
+	local width = RollReveal.awayWidth(n, muted) * scale
 	local dx = 0
 	if Quests and Quests.trackerBounds then
 		local _, trackerTop, trackerRight, trackerBottom = Quests.trackerBounds()
@@ -352,10 +366,12 @@ function RollReveal.show(payload)
 		end
 	end
 	if bestMutation then
+		-- (loin de la machine : largeur des cartes, au moins BannerMinWidth, comptée par
+		-- awayLayout pour ne pas passer sur les cartes de suivi des défis)
 		local banner = Theme.label({
 			Name = "Mutation",
 			Text = "✦ MUTATION " .. Formulas.upper(bestMutation.name) .. " ! ✦",
-			Size = UDim2.new(1, 0, 0, 32),
+			Size = if atMachine then UDim2.new(1, 0, 0, 32) else UDim2.fromOffset(RollReveal.awayWidth(#payload.results, true), 32),
 			FontFace = Theme.Faces.Title,
 			LayoutOrder = 2, -- sous les cartes (l'annonce géante occupe le haut)
 			StrokeThickness = 3,

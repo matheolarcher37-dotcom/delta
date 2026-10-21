@@ -53,8 +53,9 @@ local RollResult = Remotes.event("RollResult")
 -- HatchReveal) partent tout de suite par leurs propres remotes ; loin de la machine, l'écran
 -- n'affiche de la sauvegarde que le compteur de pièces (qui ne bouge qu'à un achat auto, déjà
 -- annoncé par un message). À la machine, la carte du perso tiré (prix, « Collecter ») et la
--- pitié sont lues dans la sauvegarde : envoi normal (0,25 s), rien ne semble figé. Le roulage
--- manuel reste à 0,25 s.
+-- pitié sont lues dans la sauvegarde : envoi normal (0,25 s), rien ne semble figé ; en arrivant
+-- à la machine, l'envoi groupé en attente part tout de suite (AutoStep). Le roulage manuel
+-- reste à 0,25 s.
 RollService.AutoSyncWindow = 2
 
 local rng = Random.new()
@@ -693,6 +694,14 @@ function RollService:AutoStep(player: Player)
 	end
 	if not (data.AutoRoll or data.AutoBuy) then
 		return
+	end
+	-- Arrivée à la machine pendant l'auto-roulage : l'envoi groupé encore en attente (jusqu'à
+	-- AutoSyncWindow s) part tout de suite. La carte du perso tiré (prix, « Collecter ») est
+	-- lue dans la sauvegarde : elle montre aussitôt le perso de l'estrade, pas un ancien.
+	local DataService = self.services.DataService
+	local pending = DataService:PendingSyncDelay(player)
+	if pending and pending > 0.25 and self:IsAtMachine(player) then
+		DataService:Sync(player, 0)
 	end
 	-- Un perso à garder attend déjà sur l'estrade (pause précédente non collectée, Mythique
 	-- de la pitié...) : on s'arrête au lieu de le laisser passer.

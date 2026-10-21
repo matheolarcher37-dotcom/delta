@@ -552,9 +552,10 @@ end
 -- une fenêtre plus longue pour ne pas renvoyer toute la sauvegarde à chaque fois : coups de
 -- punching-ball (2 s, QuestService) et auto-roulage loin de la machine (2 s,
 -- RollService.AutoSyncWindow : le roulage auto, et l'achat auto via WithSyncWindow ; à la
--- machine, envoi normal). Ce qui doit se voir tout de suite a ses propres remotes (RollResult,
--- HatchReveal, Notify...). Un appel normal (0,25 s) reste prioritaire : il avance l'envoi déjà
--- prévu, une action du joueur n'est donc jamais retardée.
+-- machine, envoi normal, et l'envoi en attente part dès l'arrivée à la machine). Ce qui doit
+-- se voir tout de suite a ses propres remotes (RollResult, HatchReveal, Notify...). Un appel
+-- normal (0,25 s) reste prioritaire : il avance l'envoi déjà prévu, une action du joueur n'est
+-- donc jamais retardée.
 function DataService:Sync(player: Player, window: number?)
 	local profile = profiles[player]
 	if not profile or not profile.loaded then
@@ -594,7 +595,8 @@ function DataService:WithSyncWindow(player: Player, window: number, fn: (...any)
 	return table.unpack(results, 2, results.n)
 end
 
--- Secondes avant le prochain envoi prévu au client (nil si aucun) : pour les tests.
+-- Secondes avant le prochain envoi prévu au client (nil si aucun) : RollService (arrivée à la
+-- machine pendant l'auto-roulage) et tests.
 function DataService:PendingSyncDelay(player: Player): number?
 	local due = pendingSync[player]
 	return due and math.max(0, due - os.clock()) or nil

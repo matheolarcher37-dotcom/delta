@@ -841,8 +841,14 @@ test("Auto-roulage : sauvegarde groupée (2 s) loin de la machine, tout de suite
 	assert(revealed, "révélation du roulage auto pas envoyée tout de suite")
 	local delay = DataService:PendingSyncDelay(alice)
 	assert(delay and delay > 1.5, "roulage auto : toute la sauvegarde part tout de suite (" .. tostring(delay) .. ")")
-	-- À la machine (il regarde l'estrade et la carte du perso tiré) : envoi normal.
+	-- Il arrive à la machine avant l'envoi groupé : la sauvegarde part aussitôt (la carte du perso
+	-- tiré montre le perso de l'estrade, pas un ancien), sans roulage de plus.
 	toMachine(alice)
+	RollService:AutoStep(alice)
+	assert(data.RollCount == count + 1, "roulage auto avant la fin du temps de recharge")
+	delay = DataService:PendingSyncDelay(alice)
+	assert(not delay or delay <= 0.01, "arrivée à la machine : sauvegarde encore retardée (" .. tostring(delay) .. ")")
+	-- À la machine (il regarde l'estrade et la carte du perso tiré) : envoi normal.
 	flush()
 	table.clear(data.RolledQueue)
 	RollService:ResetCooldown(alice)
@@ -1806,9 +1812,13 @@ test("Boutique Robux : reçu rejoué à la connexion, passes vérifiés avant le
 	Robux.Passes.Coins2.id = 4350
 	Robux.Products.CoinsS.id = 5560
 	local slow = 3 -- (addPlayer attend 1,1 s : la vérification est encore en cours après)
+	local answerNow = false -- vrai : Roblox répond aussitôt (fin de l'attente)
 	MarketplaceService.UserOwnsGamePassAsync = function(_, _, id)
 		if id == 4350 then
-			task.wait(slow) -- Roblox lent à répondre à l'arrivée
+			local deadline = os.clock() + slow -- Roblox lent à répondre à l'arrivée
+			while not answerNow and os.clock() < deadline do
+				task.wait(0.05)
+			end
 			return slow < 5 -- (réponse trop tardive : sans effet sur le joueur parti)
 		end
 		return original(MarketplaceService, 0, id)
@@ -1833,7 +1843,11 @@ test("Boutique Robux : reçu rejoué à la connexion, passes vérifiés avant le
 	assert(MarketplaceService.ProcessReceipt({ PlayerId = hugo.UserId, ProductId = 5560, PurchaseId = "R-REJOUE-2", CurrencySpent = 19 }) == Granted, "reçu bloqué")
 	assert(os.clock() - started < 2.5, "reçu bloqué par une vérification des passes sans fin (" .. (os.clock() - started) .. " s)")
 	Monetization.PassCheckWait = wait
+	-- Hugo part avant la réponse de Roblox : la fin de la vérification ne le garde pas en mémoire.
 	removePlayer(hugo)
+	answerNow = true
+	task.wait(0.3)
+	assert(not Monetization:PassesChecked(hugo), "joueur parti gardé en mémoire par la vérification des passes")
 	MarketplaceService.UserOwnsGamePassAsync = original
 	Monetization._incomePerSec = originalIncome
 	Robux.Passes.Coins2.id = 0

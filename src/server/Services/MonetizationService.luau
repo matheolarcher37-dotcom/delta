@@ -31,7 +31,7 @@ local ownsCache: { [number]: { [number]: boolean } } = {} -- [UserId][passId] = 
 local processing: { [string]: boolean } = {} -- reçus en cours de traitement
 local lastRequest: { [Player]: number } = {}
 local passListeners: { (Player, string) -> () } = {}
-local passesChecked: { [Player]: boolean } = {} -- 1re vérification des passes terminée à l'arrivée
+local passesChecked: { [Player]: boolean } = {} -- 1re vérification des passes : false = en cours, true = finie
 
 -- Un reçu rejoué à la connexion (pack de pièces acheté hors ligne...) attend au plus ce temps
 -- (secondes) la 1re vérification des passes : x2 Argent et VIP comptent dans le montant du pack.
@@ -132,7 +132,7 @@ function MonetizationService:_setup(player: Player, data)
 	-- Passes achetés sur Roblox (vérifiés un par un, sans bloquer l'arrivée). Si Roblox ne
 	-- répond pas (erreur passagère), on réessaie avec une attente croissante : un passe payé
 	-- ne doit jamais manquer pour toute la session.
-	passesChecked[player] = nil
+	passesChecked[player] = if player.Parent then false else nil
 	task.spawn(function()
 		local pending = {}
 		local ok, err = pcall(function()
@@ -152,7 +152,11 @@ function MonetizationService:_setup(player: Player, data)
 			end
 		end)
 		-- 1re vérification finie (même en erreur) : les reçus en attente peuvent être accordés.
-		passesChecked[player] = true
+		-- (joueur parti pendant l'attente de Roblox : PlayerRemoving a déjà vidé son entrée, on
+		-- ne la recrée pas, sinon elle garderait le joueur en mémoire pour toujours)
+		if passesChecked[player] == false and player.Parent then
+			passesChecked[player] = true
+		end
 		if not ok then
 			warn("[AnimeTycoon] Vérification des passes de " .. player.Name .. " : " .. tostring(err))
 		end
@@ -208,8 +212,11 @@ function MonetizationService:Owns(player: Player, passId: number): (boolean, boo
 	if not ok then
 		return false, false
 	end
-	ownsCache[player.UserId] = cache or {}
-	ownsCache[player.UserId][passId] = owns == true
+	-- (joueur parti pendant l'attente : pas de cache recréé, PlayerRemoving l'a déjà vidé)
+	if player.Parent then
+		ownsCache[player.UserId] = cache or {}
+		ownsCache[player.UserId][passId] = owns == true
+	end
 	return owns == true, true
 end
 

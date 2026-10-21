@@ -1455,7 +1455,8 @@ test("Haut de l'écran : pastille d'auto-roulage, panneau AFK, bandeaux, persos 
 		task.wait(0.35)
 		assert(panel.Visible == inZone, "panneau AFK " .. (inZone and "absent dans la zone" or "affiché hors de la zone"))
 		for _, withPill in { false, true } do
-			for count = 0, 3 do
+			for step = 0, 7 do
+				local count, single = math.floor(step / 2), step % 2 == 1
 				-- bandeaux : exactement `count`
 				for _, child in toasts:GetChildren() do
 					if child.Name == "Toast" then
@@ -1477,16 +1478,16 @@ test("Haut de l'écran : pastille d'auto-roulage, panneau AFK, bandeaux, persos 
 						QuestsUI.trackerCard({ kind = "progress", id = "pile_" .. k, title = "Défi de test " .. k, progress = k, goal = 10 })
 					end
 				end
-				-- persos tirés loin de la machine (3 cartes + bandeau MUTATION)
-				RollReveal.show({
-					results = {
+				-- persos tirés loin de la machine (3 cartes, ou 1 seule, + bandeau MUTATION : avec une
+				-- carte, c'est le bandeau qui est le plus large)
+				local results = if single
+					then { { id = "ninja_maruto", stars = 1, rarity = "epic", price = 900, dps = 80, aura = "arcenciel" } }
+					else {
 						{ id = "ninja_maruto", stars = 1, rarity = "epic", price = 900, dps = 80, aura = "or" },
 						{ id = "occ_goju", stars = 1, rarity = "rare", price = 500, dps = 50 },
 						{ id = "sai_goko", stars = 1, rarity = "rare", price = 500, dps = 50 },
-					},
-					count = 3,
-					auto = true,
-				})
+					}
+				RollReveal.show({ results = results, count = #results, auto = true })
 				pill.Visible = withPill
 				frames(4)
 				-- (le panneau ROULER peut remettre la pastille à jour entre deux images : on la repose,
@@ -1494,7 +1495,7 @@ test("Haut de l'écran : pastille d'auto-roulage, panneau AFK, bandeaux, persos 
 				pill.Visible = withPill
 				Harness.services.RunService.RenderStepped:Fire(1 / 60)
 				Harness.services.RunService.RenderStepped:Fire(1 / 60)
-				local label = (inZone and "zone AFK" or "hors zone") .. (withPill and ", pastille" or "") .. ", " .. count .. " bandeau(x)"
+				local label = (inZone and "zone AFK" or "hors zone") .. (withPill and ", pastille" or "") .. ", " .. count .. " bandeau(x), " .. #results .. " carte(s)"
 				local list = {}
 				if withPill then
 					table.insert(list, centered("pastille", pill, pill.Size.X.Offset, pill.Size.Y.Offset))
@@ -1509,9 +1510,15 @@ test("Haut de l'écran : pastille d'auto-roulage, panneau AFK, bandeaux, persos 
 				end
 				assert(strip.Visible, label .. " : persos tirés non affichés")
 				local scale = strip:FindFirstChildOfClass("UIScale").Scale
-				local cardsWidth = (3 * 176 + 2 * 14) * scale
+				-- largeur : celle des cartes ou celle du cadre du bandeau MUTATION (son texte, mis à
+				-- l'échelle du cadre, est centré dedans), la plus grande des deux
+				local banner = strip:FindFirstChild("Mutation")
+				assert(banner, label .. " : bandeau MUTATION absent")
+				local bannerWidth = banner.Size.X.Scale * strip.Size.X.Offset + banner.Size.X.Offset
+				local revealWidth = math.max(#results * 176 + (#results - 1) * 14, bannerWidth) * scale
 				local stripHeight = (244 + 4 + 32) * scale
-				table.insert(list, centered("persos tirés", strip, cardsWidth, stripHeight, strip.Position.X.Offset))
+				table.insert(list, centered("persos tirés", strip, revealWidth, stripHeight, strip.Position.X.Offset))
+				assert(list[#list].x1 <= W, label .. " : persos tirés hors de l'écran à droite")
 				assert(strip.Position.Y.Offset + stripHeight <= H - 132 - 8 + 0.5, label .. " : persos tirés sur les boutons de voyage")
 				if not inZone then
 					assert(tracker.Visible, label .. " : cartes de suivi cachées hors de la zone")
