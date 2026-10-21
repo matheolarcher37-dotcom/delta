@@ -550,10 +550,11 @@ end
 -- Marque les données comme modifiées et programme une synchro vers le client.
 -- `window` (secondes, 0,25 par défaut) : délai de regroupement. Les sources fréquentes passent
 -- une fenêtre plus longue pour ne pas renvoyer toute la sauvegarde à chaque fois : coups de
--- punching-ball (2 s, QuestService) et auto-roulage (RollService.AutoSyncWindow : le roulage
--- auto et l'achat auto, via WithSyncWindow). Ce qui doit se voir tout de suite a ses propres
--- remotes (RollResult, HatchReveal, Notify...). Un appel normal (0,25 s) reste prioritaire :
--- il avance l'envoi déjà prévu, une action du joueur n'est donc jamais retardée.
+-- punching-ball (2 s, QuestService) et auto-roulage loin de la machine (2 s,
+-- RollService.AutoSyncWindow : le roulage auto, et l'achat auto via WithSyncWindow ; à la
+-- machine, envoi normal). Ce qui doit se voir tout de suite a ses propres remotes (RollResult,
+-- HatchReveal, Notify...). Un appel normal (0,25 s) reste prioritaire : il avance l'envoi déjà
+-- prévu, une action du joueur n'est donc jamais retardée.
 function DataService:Sync(player: Player, window: number?)
 	local profile = profiles[player]
 	if not profile or not profile.loaded then

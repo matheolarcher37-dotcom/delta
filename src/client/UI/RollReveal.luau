@@ -199,9 +199,64 @@ local function flashScreen(color: Color3)
 	end)
 end
 
--- À la machine : bas du bandeau MUTATION (au-dessus de la barre ROULER et de la carte du perso).
-RollReveal.MachineBannerBottom = 96 + 132 + 8 + 86 + 8
 RollReveal.FocusTime = 1.5 -- durée du cadrage de la caméra sur le podium (Légendaire et plus)
+RollReveal.AwayTop = 232 -- loin de la machine : haut des cartes au plus haut (unités logiques)
+RollReveal.CardSize = Vector2.new(176, 240)
+RollReveal.CardGap = 14
+
+-- Modules requis à la demande (ils ne requièrent pas celui-ci, mais sont chargés après lui).
+local function sibling(name: string): any
+	local ok, module = pcall(require, (script.Parent :: any)[name])
+	return ok and module or nil
+end
+
+-- À la machine : bas du bandeau MUTATION, au-dessus de la carte du perso tiré, elle-même posée
+-- sur la barre ROULER. Calculé à l'affichage : la barre est plus haute en tactile (au-dessus du
+-- bouton de saut, RollPanel.panelBottom()).
+function RollReveal.machineBannerBottom(): number
+	local RollPanel = sibling("RollPanel")
+	if RollPanel and RollPanel.panelBottom and RollPanel.PanelSize then
+		return RollPanel.panelBottom() + RollPanel.PanelSize.Y + 8 + (RollPanel.PullHeight or 86) + 8
+	end
+	return 96 + 132 + 8 + 86 + 8
+end
+
+-- Taille logique de l'écran (la racine est à l'échelle de l'interface) ; 1280 x 770 à défaut.
+local function screenSize(): Vector2
+	local ok, size = pcall(function()
+		return root.AbsoluteSize / math.max(0.1, Theme.getScale())
+	end)
+	if ok and typeof(size) == "Vector2" and size.X >= 600 and size.Y >= 300 then
+		return size
+	end
+	return Vector2.new(1280, 770)
+end
+
+-- Loin de la machine : les cartes se posent sous la pile du haut de l'écran (pastille
+-- d'auto-roulage, panneau de la zone anti-AFK, bandeaux : UI/Quests), rapetissent s'il le faut
+-- pour rester au-dessus des boutons de voyage, et glissent à droite des cartes de suivi des
+-- défis si elles les croiseraient. Renvoie (haut, échelle, décalage horizontal).
+local awayCards = 1
+local awayMutation = false
+function RollReveal.awayLayout(cards: number?, mutation: boolean?): (number, number, number)
+	local n = math.max(1, cards or awayCards)
+	local Quests = sibling("Quests")
+	local stack = Quests and Quests.stackBottom and Quests.stackBottom() or 130
+	local top = math.max(RollReveal.AwayTop, stack + 8)
+	local screen = screenSize()
+	local height = RollReveal.CardSize.Y + 4 + ((if mutation == nil then awayMutation else mutation) and 36 or 0)
+	local limit = screen.Y - 132 - 8 -- haut des boutons de voyage (HUD, bas centre)
+	local scale = math.clamp((limit - top) / height, 0.3, 1)
+	local width = (n * RollReveal.CardSize.X + (n - 1) * RollReveal.CardGap) * scale
+	local dx = 0
+	if Quests and Quests.trackerBounds then
+		local _, trackerTop, trackerRight, trackerBottom = Quests.trackerBounds()
+		if trackerTop and trackerRight and trackerBottom and trackerTop < top + height * scale and trackerBottom > top then
+			dx = math.max(0, trackerRight + 12 - (screen.X / 2 - width / 2))
+		end
+	end
+	return top, scale, dx
+end
 
 -- Cadre la caméra sur le podium de la machine pendant FocusTime secondes, puis la rend.
 local focusing = false
@@ -235,6 +290,19 @@ function RollReveal.focusPodium(): boolean
 	return true
 end
 
+-- Place les cartes (à chaque image tant qu'elles sont affichées : la pile du haut peut bouger).
+local stripAtMachine = false
+local function placeStrip()
+	if stripAtMachine then
+		strip.Position = UDim2.new(1, -16, 1, -RollReveal.machineBannerBottom())
+		stripScale.Scale = 1
+	else
+		local top, scale, dx = RollReveal.awayLayout()
+		strip.Position = UDim2.new(0.5, dx, 0, top)
+		stripScale.Scale = scale
+	end
+end
+
 function RollReveal.show(payload)
 	if type(payload) ~= "table" or type(payload.results) ~= "table" or #payload.results == 0 then
 		return
@@ -250,11 +318,16 @@ function RollReveal.show(payload)
 		return require(script.Parent.RollPanel).isNear()
 	end)
 	local atMachine = okNear and near == true
+	stripAtMachine = atMachine
+	awayCards = #payload.results
+	awayMutation = false
+	for _, result in payload.results do
+		awayMutation = awayMutation or Mutations.get(result.aura) ~= nil
+	end
 	strip.AnchorPoint = atMachine and Vector2.new(1, 1) or Vector2.new(0.5, 0)
-	strip.Position = atMachine and UDim2.new(1, -16, 1, -RollReveal.MachineBannerBottom) or UDim2.new(0.5, 0, 0, 232)
 	-- (à la machine : hauteur = contenu seul, le bandeau se pose juste au-dessus de la carte)
 	strip.Size = atMachine and UDim2.fromOffset(640, 0) or UDim2.fromOffset(640, 280)
-	stripScale.Scale = 1
+	placeStrip()
 	local stripAlign = atMachine and Enum.HorizontalAlignment.Right or Enum.HorizontalAlignment.Center
 	local stripLayout = strip:FindFirstChildOfClass("UIListLayout")
 	if stripLayout then
@@ -372,6 +445,11 @@ function RollReveal.init(gui: ScreenGui)
 	})
 	Theme.list(Enum.FillDirection.Vertical, 4, Enum.HorizontalAlignment.Center).Parent = strip
 	stripScale = new("UIScale", { Parent = strip })
+	Theme.onFrame(strip, function()
+		if strip.Visible then
+			placeStrip()
+		end
+	end)
 	local remote = State.remoteEvent("RollResult")
 	if remote then
 		remote.OnClientEvent:Connect(RollReveal.show)

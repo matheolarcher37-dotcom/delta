@@ -1,10 +1,16 @@
 -- Fabrique de modèles de persos : choisit la meilleure source disponible.
 --   1) ReplicatedStorage.ModelesPersos : TES modèles (faits ou retouchés dans Studio).
---      Nom du modèle = identifiant du perso, avec ou sans étoiles : "ninja_maruto_2", "ninja_maruto".
+--      Chaque étoile se retouche à part : "ninja_maruto" (ou "ninja_maruto_1") pour le ★1,
+--      "ninja_maruto_2" pour le ★★, "ninja_maruto_3" pour le ★★★. Une étoile sans modèle à elle
+--      garde le perso intégré (avec son look d'évolution). Pour qu'un seul modèle serve à toutes
+--      les étoiles, donne-lui l'attribut « ToutesEtoiles » (case cochée) ; un perso de la Boîte
+--      à outils reconnu par son nom (AvatarService) le reçoit tout seul.
 --      Dans le fichier fourni, ces modèles sont visibles dans Workspace > GaleriePersos pendant
---      l'édition : modifie-les directement, le jeu les reprend au lancement.
+--      l'édition : retouche celui de l'étoile voulue et supprime son attribut AutoGenere, le jeu
+--      le reprend au lancement.
 --   2) ReplicatedStorage.AvatarsCatalogue : avatars construits depuis Config/Avatars.luau
---      (objets du catalogue Roblox : cheveux, vêtements, visage...).
+--      (objets du catalogue Roblox : cheveux, vêtements, visage...). Là, une étoile sans version
+--      à elle reprend la version de l'étoile en dessous (voir Config/Avatars.luau).
 --   3) CharacterBuilder : le perso R6 "peint" intégré.
 -- Les modèles perso doivent être des rigs R6 (Torso, Head, "Left Arm"...) avec un HumanoidRootPart.
 
@@ -19,7 +25,24 @@ local CharacterFactory = {}
 
 CharacterFactory.Folders = { "ModelesPersos", "AvatarsCatalogue" }
 
+-- Attribut d'un modèle de ModelesPersos qui sert à toutes les étoiles du perso.
+CharacterFactory.AllStarsAttribute = "ToutesEtoiles"
+
 local function lookup(folder: Instance, id: string, stars: number): Instance?
+	if folder.Name == "ModelesPersos" then
+		-- Modèle de CETTE étoile ; le modèle sans suffixe est celui du ★1, sauf s'il est marqué
+		-- pour toutes les étoiles. Sinon : perso intégré (son look d'évolution est gardé).
+		local exact = folder:FindFirstChild(id .. "_" .. stars)
+		if exact then
+			return exact
+		end
+		local base = folder:FindFirstChild(id)
+		if base and (stars <= 1 or base:GetAttribute(CharacterFactory.AllStarsAttribute) == true) then
+			return base
+		end
+		return nil
+	end
+	-- Avatars du catalogue : une étoile sans version à elle reprend celle d'en dessous.
 	for s = stars, 1, -1 do
 		local found = folder:FindFirstChild(id .. "_" .. s)
 		if found then

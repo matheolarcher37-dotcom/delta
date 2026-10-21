@@ -707,9 +707,11 @@ for _, upgrade in Economy.Upgrades do
 end
 
 -- Légende des cases 25 et 26 (rangée d'honneur au fond) quand le passe « +2 Cases » est déjà
--- acheté : ses 2 cases comptent tout de suite (les cases s'ouvrent dans l'ordre, de devant vers
--- le fond, Formulas.playerStats), donc ces deux-là ne s'ouvrent qu'après toutes les autres.
-PlotService.PassSlotsOwnedCaption = "✅ Passe actif : +2 cases déjà ouvertes\n🔒 Ici, après les cases de devant"
+-- acheté : ses 2 cases s'ajoutent tout de suite au nombre de cases ouvertes (Formulas.playerStats :
+-- cases de la cour + de l'arbre + 2), et les cases s'ouvrent dans l'ordre, de devant vers le
+-- fond. Les 2 cases en plus sont donc déjà ouvertes dans la grille de devant ; ces deux-là, au
+-- fond, s'ouvrent en dernier, avec les dernières améliorations de la cour et de l'arbre.
+PlotService.PassSlotsOwnedCaption = "✅ Passe actif : +2 cases déjà ouvertes devant\n🔒 Celles-ci s'ouvrent en dernier (cour + arbre)"
 
 -- Met à jour l'état des 26 cases (verrouillée « ??? », libre, occupée).
 function PlotService:RefreshSlots(player: Player, displayed: { [number]: string }?)

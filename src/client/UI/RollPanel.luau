@@ -153,6 +153,7 @@ local PANEL_RIGHT = 16
 local PANEL_BOTTOM = 96 -- au-dessus de l'équipe (bas droite du HUD, 84 px de haut)
 local PANEL_BOTTOM_TOUCH = 200 -- tactile : au-dessus du bouton de saut de Roblox (bas droite)
 RollPanel.PanelSize = Vector2.new(PANEL_W, PANEL_H)
+RollPanel.PullHeight = 86 -- carte(s) du perso tiré, posée(s) 8 au-dessus de la barre
 
 -- Marge du bas selon l'appareil (sur téléphone, l'équipe passe en haut mais le coin bas droit
 -- appartient au bouton de saut : la barre ne doit jamais être posée dessus).
@@ -315,7 +316,7 @@ local function build(root: Frame)
 		Name = "Tirage",
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -PANEL_RIGHT, 1, -RollPanel.panelBottom() - PANEL_H - 8),
-		Size = UDim2.fromOffset(3 * 212 + 2 * 10, 86),
+		Size = UDim2.fromOffset(3 * 212 + 2 * 10, RollPanel.PullHeight),
 		BackgroundTransparency = 1,
 		Visible = false,
 		Parent = root,
@@ -388,7 +389,7 @@ local function pullCard(parent: Instance, item, index: number)
 	local free = Formulas.rollCollectFree(State.data, rarityId)
 	local card = new("Frame", {
 		Name = "Tire" .. index,
-		Size = UDim2.fromOffset(212, 86),
+		Size = UDim2.fromOffset(212, RollPanel.PullHeight),
 		BackgroundColor3 = WHITE,
 		LayoutOrder = index,
 		Parent = parent,

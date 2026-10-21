@@ -1472,6 +1472,13 @@ local function autoPillBottom(): number?
 	return nil
 end
 
+-- Haut du panneau AFK : sous la pastille d'auto-roulage si elle est là (jamais sur son bouton
+-- « Arrêter »), sinon sous les pastilles du HUD.
+local function afkPanelTop(): number
+	local pillBottom = autoPillBottom()
+	return pillBottom and (pillBottom + 8) or Quests.AfkPanelTop
+end
+
 -- Version compacte, en haut au centre sous la bannière d'univers : elle ne cache ni les sacs ni
 -- le perso pendant qu'on tape (et les cartes de suivi des défis sont masquées dans la zone).
 local function buildAfkPanel(root: Frame)
@@ -1592,12 +1599,11 @@ local function updateAfkPanel()
 	if not inside then
 		return
 	end
-	-- Sous la pastille d'auto-roulage si elle est là ; les bandeaux suivent le panneau.
-	local pillBottom = autoPillBottom()
-	local top = pillBottom and (pillBottom + 8) or Quests.AfkPanelTop
+	-- Sous la pastille d'auto-roulage si elle est là ; les bandeaux suivent le panneau (voir
+	-- layoutStack, à chaque image).
+	local top = afkPanelTop()
 	if panel.Position.Y.Offset ~= top then
 		panel.Position = UDim2.new(0.5, 0, 0, top)
-		Quests.ToastPositionInZone = UDim2.new(0.5, 0, 0, top + Quests.AfkPanelHeight + 12)
 	end
 	-- Mon punching-ball ? (son compteur, posé par le serveur à chaque coup, est plus frais
 	-- que la sauvegarde, synchronisée toutes les 2 s pendant qu'on tape)
@@ -1795,21 +1801,102 @@ end
 -- Position des bandeaux de notification quand l'écran Défis est ouvert : dans la marge du bas
 -- de la fenêtre, sous la liste (ni sur les onglets ni sur les boutons Réclamer).
 Quests.ToastPositionWhileOpen = UDim2.new(0.5, 0, 1, -90)
--- Dans la zone anti-AFK : sous le panneau compact du haut (jamais par-dessus). Suit le panneau
--- quand il descend sous la pastille « auto-roulage en cours » (voir updateAfkPanel).
-Quests.ToastPositionInZone = UDim2.new(0.5, 0, 0, Quests.AfkPanelTop + Quests.AfkPanelHeight + 12)
-Quests.TrackerTop = 332 -- haut des cartes de suivi des défis (unités logiques du HUD)
+Quests.HudPillsBottom = 130 -- bas de la rangée des pastilles du HUD (Marchand, Boss : y 98 → 130)
+Quests.TrackerTop = 332 -- haut des cartes de suivi des défis au plus haut (unités logiques du HUD)
+Quests.TrackerLeft = 240
+Quests.TrackerWidth = 320
+Quests.TrackerCardHeight = 66
+Quests.TrackerGap = 8
 Quests.TrackerMax = 3 -- cartes de suivi affichées au plus
+
+-- PILE DU HAUT DE L'ÉCRAN (unités logiques du HUD), recalculée à chaque image pour que rien ne
+-- se chevauche, quel que soit le nombre de bandeaux. Au centre, de haut en bas :
+--   1. pastille « auto-roulage en cours » (RollPanel, y 138 → 178) si l'auto-roulage tourne loin
+--      de la machine ;
+--   2. panneau de la zone anti-AFK (80 de haut) : sous la pastille (y 186 → 266), sinon y 138 ;
+--   3. bandeaux de notification (UI/Notifications, 52 de haut + 6 d'écart, 4 au plus) : à y 140,
+--      ou 8 sous la pastille, ou 12 sous le panneau AFK ;
+--   4. révélation des persos tirés loin de la machine (UI/RollReveal) : sous Quests.stackBottom().
+-- À gauche, les cartes de suivi des défis (cachées dans la zone et quand l'écran Défis est
+-- ouvert) passent sous les bandeaux : y = max(TrackerTop, bas de la pile + 8). Exemples, hors de
+-- la zone avec la pastille : 0 bandeau → cartes à 332 ; 1 → bandeaux 186 → 238, cartes 332 ;
+-- 2 → 186 → 296, cartes 332 ; 3 → 186 → 354, cartes 362. Dans la zone avec la pastille : panneau
+-- 186 → 266 ; 0 bandeau → révélation à 274 ; 1 → bandeaux 278 → 330, révélation à 338 ; 2 → 278
+-- → 388, révélation 396 ; 3 → 278 → 446, révélation 454 (réduite pour tenir au-dessus des
+-- boutons de voyage).
+local stackBottom = Quests.HudPillsBottom
+
+-- Bas de la pile du centre (pastille, panneau AFK, bandeaux) : la révélation se pose dessous.
+function Quests.stackBottom(): number
+	return stackBottom
+end
+
+-- Cadre des cartes de suivi affichées (gauche, haut, droite, bas), ou nil s'il n'y en a pas.
+function Quests.trackerBounds(): (number?, number?, number?, number?)
+	if not trackerStack or not trackerStack.Visible then
+		return nil
+	end
+	local count = 0
+	for _, child in trackerStack:GetChildren() do
+		if child:IsA("Frame") then
+			count += 1
+		end
+	end
+	if count == 0 then
+		return nil
+	end
+	local top = trackerStack.Position.Y.Offset
+	local left = trackerStack.Position.X.Offset
+	return left, top, left + Quests.TrackerWidth, top + count * Quests.TrackerCardHeight + (count - 1) * Quests.TrackerGap
+end
+
+-- Place la pile (voir plus haut). `open` : écran Défis ouvert.
+local function layoutStack(toastFrame: GuiObject?, toastHome: UDim2?, open: boolean)
+	local inZone = afk.panel ~= nil and afk.panel.Visible
+	local pillBottom = autoPillBottom()
+	local bottom = pillBottom or Quests.HudPillsBottom
+	local nextTop = pillBottom and (pillBottom + 8) or nil
+	if inZone then
+		local top = afkPanelTop()
+		if afk.panel.Position.Y.Offset ~= top then
+			afk.panel.Position = UDim2.new(0.5, 0, 0, top)
+		end
+		bottom = top + Quests.AfkPanelHeight
+		nextTop = bottom + 12
+	end
+	if toastFrame and toastHome then
+		local wanted = toastHome
+		if open then
+			wanted = Quests.ToastPositionWhileOpen
+		elseif nextTop and toastHome.Y.Offset < nextTop then
+			wanted = UDim2.new(toastHome.X.Scale, toastHome.X.Offset, toastHome.Y.Scale, nextTop)
+		end
+		if toastFrame.Position ~= wanted then
+			toastFrame.Position = wanted
+		end
+		local height = Notifications.stackHeight()
+		if not open and height > 0 then
+			bottom = math.max(bottom, wanted.Y.Offset + height)
+		end
+	end
+	stackBottom = bottom
+	if trackerStack then
+		local top = math.max(Quests.TrackerTop, bottom + 8)
+		if trackerStack.Position.Y.Offset ~= top then
+			trackerStack.Position = UDim2.fromOffset(Quests.TrackerLeft, top)
+		end
+	end
+end
 
 function Quests.init(gui: ScreenGui)
 	buildWindow(gui)
 	trackerRoot = Theme.scaledRoot(gui, "QuestHUD", 6)
 	trackerStack = new("Frame", {
 		Name = "Tracker",
-		-- Sous la pile des bandeaux de notification (UI/Notifications, y 140 → ~320 pour 3
-		-- bandeaux) : les cartes de suivi ne passent jamais dessous, quelle que soit la largeur.
-		Position = UDim2.fromOffset(240, Quests.TrackerTop),
-		Size = UDim2.fromOffset(320, 230),
+		-- Sous la pile des bandeaux de notification (UI/Notifications) : les cartes de suivi ne
+		-- passent jamais dessous, quelle que soit la largeur (layoutStack les descend au besoin).
+		Position = UDim2.fromOffset(Quests.TrackerLeft, Quests.TrackerTop),
+		Size = UDim2.fromOffset(Quests.TrackerWidth, 230),
 		BackgroundTransparency = 1,
 		Parent = trackerRoot,
 	})
@@ -1857,18 +1944,8 @@ function Quests.init(gui: ScreenGui)
 			toastFrame = gui:FindFirstChild("Toasts", true) :: GuiObject?
 			toastHome = toastFrame and toastFrame.Position or nil
 		end
-		if toastFrame and toastHome then
-			local inZone = afk.panel ~= nil and afk.panel.Visible
-			local wanted = open and Quests.ToastPositionWhileOpen or inZone and Quests.ToastPositionInZone or toastHome
-			-- Pastille « auto-roulage en cours » affichée : les bandeaux passent dessous.
-			local pillBottom = not open and not inZone and autoPillBottom()
-			if pillBottom and toastHome.Y.Offset < pillBottom + 8 then
-				wanted = UDim2.new(toastHome.X.Scale, toastHome.X.Offset, toastHome.Y.Scale, pillBottom + 8)
-			end
-			if toastFrame.Position ~= wanted then
-				toastFrame.Position = wanted
-			end
-		end
+		-- Pile du haut : pastille d'auto-roulage, panneau AFK, bandeaux, cartes de suivi.
+		layoutStack(toastFrame, toastHome, open)
 	end)
 	-- Gemme de trait gagnée : une petite gemme vole de l'ennemi vers le compteur du HUD.
 	Remotes.event("Reward").OnClientEvent:Connect(function(kind, amount, position)

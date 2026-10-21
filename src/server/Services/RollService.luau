@@ -46,11 +46,15 @@ local Announce = Remotes.event("Announce")
 local HatchReveal = Remotes.event("HatchReveal")
 local RollResult = Remotes.event("RollResult")
 
--- Synchro de la sauvegarde pendant l'auto-roulage (roulage auto + achat auto) : regroupée sur
--- 2 s au lieu de 0,25 s. Même avec la machine la plus rapide (1,8 s avec tout l'arbre),
--- l'auto-roulage n'envoie pas la sauvegarde plus d'une fois toutes les 2 s. La révélation
--- (RollResult), l'estrade (pièces du monde) et les messages (Notify, HatchReveal) partent tout
--- de suite par leurs propres remotes. Le roulage manuel reste à 0,25 s.
+-- Synchro de la sauvegarde pendant l'auto-roulage LOIN de la machine (roulage auto + achat
+-- auto) : regroupée sur 2 s au lieu de 0,25 s. Même avec la machine la plus rapide (1,8 s avec
+-- tout l'arbre), l'auto-roulage n'envoie pas la sauvegarde plus d'une fois toutes les 2 s. La
+-- révélation (RollResult), le perso sur l'estrade (pièces du monde) et les messages (Notify,
+-- HatchReveal) partent tout de suite par leurs propres remotes ; loin de la machine, l'écran
+-- n'affiche de la sauvegarde que le compteur de pièces (qui ne bouge qu'à un achat auto, déjà
+-- annoncé par un message). À la machine, la carte du perso tiré (prix, « Collecter ») et la
+-- pitié sont lues dans la sauvegarde : envoi normal (0,25 s), rien ne semble figé. Le roulage
+-- manuel reste à 0,25 s.
 RollService.AutoSyncWindow = 2
 
 local rng = Random.new()
@@ -377,6 +381,15 @@ function RollService:IsAtMachine(player: Player): boolean
 	return math.abs(p.X) <= zone.halfX + margin and p.Z >= zone.zMin - margin and p.Z <= zone.zMax + margin and p.Y <= zone.maxY + margin
 end
 
+-- Fenêtre de synchro de l'auto-roulage pour ce joueur (voir AutoSyncWindow) : nil (envoi
+-- normal) quand il se tient à sa machine, AutoSyncWindow sinon.
+function RollService:AutoSyncWindowFor(player: Player): number?
+	if self:IsAtMachine(player) then
+		return nil
+	end
+	return RollService.AutoSyncWindow
+end
+
 -- Perso de l'estrade sur lequel l'auto-roulage (Lancer AFK ou Achat automatique) doit
 -- s'arrêter au lieu de le laisser passer : rareté ou mutation cochée dans « Pause sur... »,
 -- ou Légendaire et mieux tant que le joueur n'a pas désactivé la pause pour cette rareté.
@@ -442,7 +455,7 @@ function RollService:Roll(player: Player, auto: boolean?)
 		table.insert(data.RolledQueue, item)
 		table.insert(results, item)
 	end
-	DataService:Sync(player, auto and RollService.AutoSyncWindow or nil)
+	DataService:Sync(player, if auto then self:AutoSyncWindowFor(player) else nil)
 	Machine.press(plot.machine, false)
 	self:RenderStage(player, results)
 	self:UpdatePanels(player)
@@ -702,8 +715,15 @@ function RollService:AutoStep(player: Player)
 		local filter = { characters = settings.buyCharacters, rarities = settings.buyRarities, mutations = settings.buyMutations }
 		for _, item in results do
 			if Formulas.rollMatches(item, filter) then
-				-- Synchros de l'achat (pièces, inventaire, estrade) regroupées avec celle du roulage.
-				local bought, message, reason = self.services.DataService:WithSyncWindow(player, RollService.AutoSyncWindow, self.Collect, self, player, item.key)
+				-- Loin de la machine, synchros de l'achat (pièces, inventaire, estrade) regroupées
+				-- avec celle du roulage ; à la machine, envoi normal.
+				local window = self:AutoSyncWindowFor(player)
+				local bought, message, reason
+				if window then
+					bought, message, reason = self.services.DataService:WithSyncWindow(player, window, self.Collect, self, player, item.key)
+				else
+					bought, message, reason = self:Collect(player, item.key)
+				end
 				if bought then
 					Notify:FireClient(player, "🛒 " .. message, "success")
 				elseif reason == "coins" or reason == "full" then

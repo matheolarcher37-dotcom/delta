@@ -339,8 +339,11 @@ function TraitCinematic.fitsCourt(id: string?, look): boolean
 	return not (def and def.rarity == "secret")
 end
 
-function TraitCinematic.kneelerLooks(exceptUid: string?, count: number): { { look: any, id: string?, stars: number? } }
+-- `spare` (facultatif) : candidats de réserve ajoutés au bout de la liste (count + spare au plus),
+-- pour remplacer ceux qui ne tiennent pas à leur place (voir monarchScene).
+function TraitCinematic.kneelerLooks(exceptUid: string?, count: number, spare: number?): { { look: any, id: string?, stars: number? } }
 	local list = {}
+	local wanted = count + (spare or 0)
 	local seen: { [string]: boolean } = {}
 	local exceptId = nil
 	if exceptUid and State.data and State.data.characters[exceptUid] then
@@ -383,7 +386,7 @@ function TraitCinematic.kneelerLooks(exceptUid: string?, count: number): { { loo
 		end
 	end
 	for _, id in pool do
-		if #list >= count then
+		if #list >= wanted then
 			break
 		end
 		if not seen[id] then
@@ -395,7 +398,7 @@ function TraitCinematic.kneelerLooks(exceptUid: string?, count: number): { { loo
 		end
 	end
 	for _, info in later do
-		if #list >= count then
+		if #list >= wanted then
 			break
 		end
 		table.insert(list, info)
@@ -408,7 +411,7 @@ function TraitCinematic.kneelerLooks(exceptUid: string?, count: number): { { loo
 	end
 	table.sort(ids)
 	local rng = Random.new(#ids)
-	while #list < count and #ids > 0 do
+	while #list < wanted and #ids > 0 do
 		local id = table.remove(ids, rng:NextInteger(1, #ids))
 		local look = Characters.resolveLook(id, 1)
 		if look and TraitCinematic.fitsCourt(id, look) then
@@ -1322,10 +1325,14 @@ end
 local MONARCH_RADIUS = 12.5 -- rang extérieur du demi-cercle des persos agenouillés
 local MONARCH_INNER = 8 -- rang intérieur
 local MONARCH_COUNT = 8
+local MONARCH_SPARE = 6 -- candidats de réserve (un perso qui ne tient pas à sa place cède la place)
+local MONARCH_REACH = 4.5 -- portée horizontale max d'un perso à genoux autour de sa place (studs)
+local MONARCH_GAP = 0.05 -- jeu minimal entre deux persos de la cour (studs)
 local DAIS_TOP = 1.2 -- l'unité se tient sur une estrade (2 marches)
 local HERO_SCALE = 1.25 -- plus grande que les persos de sa cour
 TraitCinematic.MonarchRadius = MONARCH_RADIUS
 TraitCinematic.MonarchCount = MONARCH_COUNT
+TraitCinematic.MonarchReach = MONARCH_REACH
 TraitCinematic.HeroScale = HERO_SCALE
 TraitCinematic.CrownGap = 0.4 -- espace entre le sommet des cheveux et le bas de la couronne
 TraitCinematic.CrownBottom = 0.26 -- bas de la couronne sous le centre de l'anneau (x échelle)
@@ -1348,6 +1355,99 @@ function TraitCinematic.monarchSpots(): { Vector3 }
 		end
 	end
 	return spots
+end
+
+-- Silhouette d'un perso de la cour pour vérifier qu'il tient à sa place : boîtes de ses pièces
+-- visibles (pose finale si `pose` est donnée : à genoux, tête baissée ; sinon pièces telles
+-- quelles), sphère englobante et portée horizontale autour de `center` (sa place).
+local CORNERS = {}
+for _, sx in { -1, 1 } do
+	for _, sy in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			table.insert(CORNERS, Vector3.new(sx, sy, sz))
+		end
+	end
+end
+function TraitCinematic.courtShape(model: Model, pose: { [BasePart]: { CFrame } }?, place: CFrame?, center: Vector3)
+	local boxes = {}
+	local sum = Vector3.zero
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d.Transparency < 1 then
+			local pair = pose and pose[d]
+			local cf = (pair and place) and place * pair[3] or d.CFrame
+			local half = d.Size * 0.5
+			table.insert(boxes, { cf = cf, half = half, radius = half.Magnitude })
+			sum += cf.Position
+		end
+	end
+	local middle = #boxes > 0 and sum / #boxes or center
+	local radius, reach = 0, 0
+	for _, box in boxes do
+		radius = math.max(radius, (box.cf.Position - middle).Magnitude + box.radius)
+		for _, corner in CORNERS do
+			local p = box.cf:PointToWorldSpace(box.half * corner) - center
+			reach = math.max(reach, Vector2.new(p.X, p.Z).Magnitude)
+		end
+	end
+	return { boxes = boxes, center = middle, radius = radius, reach = reach }
+end
+
+-- Deux boîtes orientées se touchent-elles (à `gap` près) ? Test des axes séparateurs.
+local function boxesTouch(a, b, gap: number): boolean
+	local d = b.cf.Position - a.cf.Position
+	if d.Magnitude > a.radius + b.radius + gap then
+		return false
+	end
+	local ax = { a.cf.XVector, a.cf.YVector, a.cf.ZVector }
+	local bx = { b.cf.XVector, b.cf.YVector, b.cf.ZVector }
+	local function separated(axis: Vector3): boolean
+		local length = axis.Magnitude
+		if length < 1e-4 then
+			return false
+		end
+		local u = axis / length
+		local ra = a.half.X * math.abs(ax[1]:Dot(u)) + a.half.Y * math.abs(ax[2]:Dot(u)) + a.half.Z * math.abs(ax[3]:Dot(u))
+		local rb = b.half.X * math.abs(bx[1]:Dot(u)) + b.half.Y * math.abs(bx[2]:Dot(u)) + b.half.Z * math.abs(bx[3]:Dot(u))
+		return math.abs(d:Dot(u)) > ra + rb + gap
+	end
+	for i = 1, 3 do
+		if separated(ax[i]) or separated(bx[i]) then
+			return false
+		end
+	end
+	for i = 1, 3 do
+		for j = 1, 3 do
+			if separated(ax[i]:Cross(bx[j])) then
+				return false
+			end
+		end
+	end
+	return true
+end
+
+-- Une pièce de `a` touche-t-elle une pièce de `b` (silhouettes de courtShape) ?
+function TraitCinematic.shapesTouch(a, b, gap: number?): boolean
+	local g = gap or MONARCH_GAP
+	if (a.center - b.center).Magnitude > a.radius + b.radius + g then
+		return false
+	end
+	-- seules les pièces proches de l'autre perso comptent
+	local nearB = {}
+	for _, box in b.boxes do
+		if (box.cf.Position - a.center).Magnitude <= a.radius + box.radius + g then
+			table.insert(nearB, box)
+		end
+	end
+	for _, boxA in a.boxes do
+		if (boxA.cf.Position - b.center).Magnitude <= b.radius + boxA.radius + g then
+			for _, boxB in nearB do
+				if boxesTouch(boxA, boxB, g) then
+					return true
+				end
+			end
+		end
+	end
+	return false
 end
 
 -- Trajet de la caméra :
@@ -1421,16 +1521,41 @@ local function monarchScene(scene)
 	-- Colonne de lumière du ciel sur l'unité (au moment où la couronne descend) : fine et très
 	-- translucide, la couronne et la tête restent lisibles dedans
 	local sky = part(scene, "SkyBeam", Vector3.new(60, 1.8, 1.8), CFrame.new(0, headTop + 30, 0) * UPRIGHT, Color3.fromRGB(255, 236, 170), Enum.Material.Neon, CYL, 1)
-	-- Les persos du cercle : d'abord invisibles, ils apparaissent dans une colonne de lumière
+	-- Les persos du cercle : d'abord invisibles, ils apparaissent dans une colonne de lumière.
+	-- Chaque place prend le premier candidat qui y TIENT une fois à genoux : un perso trop
+	-- encombrant (dôme de Lao ★3...) ou qui toucherait l'unité ou un voisin déjà placé (mur de
+	-- sable, lame, longue chevelure...) cède sa place au suivant de la liste.
 	local kneelers = {}
-	for i, info in TraitCinematic.kneelerLooks(scene.entry and scene.entry.uid, MONARCH_COUNT) do
+	local placed = {}
+	if scene.hero then
+		table.insert(placed, TraitCinematic.courtShape(scene.hero, nil, nil, scene.stage.Position))
+	end
+	local spots = TraitCinematic.monarchSpots()
+	for _, info in TraitCinematic.kneelerLooks(scene.entry and scene.entry.uid, MONARCH_COUNT, MONARCH_SPARE) do
+		local i = #kneelers + 1
+		if i > MONARCH_COUNT then
+			break
+		end
 		local model = buildActor(info.id, info.stars, info.look, 1)
-		if model then
+		local pose = model and TraitCinematic.kneelPose(model)
+		local spot = spots[i]
+		local place = scene.stage * CFrame.lookAt(spot, Vector3.new(0, 0, 0))
+		local shape = model and pose and TraitCinematic.courtShape(model, pose, place, place.Position)
+		local fits = shape ~= nil and shape.reach <= MONARCH_REACH
+		for _, other in placed do
+			if not fits then
+				break
+			end
+			fits = not TraitCinematic.shapesTouch(shape, other)
+		end
+		if model and not fits then
+			model:Destroy()
+		elseif model and pose and shape then
+			table.insert(placed, shape)
 			model.Name = "Kneeler" .. i
-			local pose = TraitCinematic.kneelPose(model)
+			model:SetAttribute("CharId", info.id)
+			model:SetAttribute("Stars", info.stars)
 			freeze(model)
-			local spot = TraitCinematic.monarchSpots()[i]
-			local place = scene.stage * CFrame.lookAt(spot, Vector3.new(0, 0, 0))
 			applyPose(pose, place, 0)
 			local pillar =
 				part(scene, "SpawnPillar", Vector3.new(14, 2.6, 2.6), CFrame.new(spot + Vector3.new(0, 7, 0)) * UPRIGHT, Color3.fromRGB(255, 226, 130), Enum.Material.Neon, CYL, 1)

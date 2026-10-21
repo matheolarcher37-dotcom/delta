@@ -11,6 +11,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Avatars = require(Shared.Config.Avatars)
 local Characters = require(Shared.Config.Characters)
 local NomsOriginaux = require(Shared.Config.NomsOriginaux)
+local CharacterFactory = require(Shared.Modules.CharacterFactory)
 
 local AvatarService = {}
 
@@ -29,7 +30,9 @@ end
 -- Les modèles générés par tools/bake.luau portent l'attribut « AutoGenere » : ils ne sont pas
 -- recopiés dans ReplicatedStorage (sinon ~19 000 pièces envoyées à chaque joueur à l'arrivée,
 -- et les corrections du CharacterBuilder ignorées). Pour qu'un perso retouché dans la galerie
--- soit utilisé en jeu, supprime son attribut AutoGenere (Propriétés › Attributs).
+-- soit utilisé en jeu, supprime son attribut AutoGenere (Propriétés › Attributs). Chaque étoile
+-- a son modèle (« ninja_maruto » = ★1, « ninja_maruto_2 » = ★★...) : une étoile non retouchée
+-- garde le perso intégré (voir CharacterFactory).
 function AvatarService:CollectGallery(): number
 	local gallery = Workspace:FindFirstChild("GaleriePersos")
 	if not gallery then
@@ -105,6 +108,11 @@ function AvatarService:CollectUserModels(): { [string]: string }
 						previous:Destroy()
 					end
 					child.Name = key
+					-- Un perso de la Boîte à outils sans évolution nommée (« Kid Naruto ») sert à
+					-- toutes les étoiles, sauf celles qui ont le leur (« Naruto Sage » = ★★).
+					if not string.match(key, "_%d+$") then
+						child:SetAttribute(CharacterFactory.AllStarsAttribute, true)
+					end
 					child.Parent = target
 				end
 			elseif child:IsA("Model") or child:IsA("Folder") then

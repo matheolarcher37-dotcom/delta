@@ -13,6 +13,7 @@
 -- Les réglages sont enregistrés sur le serveur (Roll_SaveAutoSettings). Manette : A choisir,
 -- B fermer, la croix pour se déplacer.
 
+local GuiService = game:GetService("GuiService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -781,6 +782,18 @@ local function fillLists()
 	end
 end
 
+-- Vrai si l'objet et tous ses parents (jusqu'à la racine de la fenêtre) sont visibles.
+local function shownOnScreen(object: GuiObject): boolean
+	local node: Instance? = object
+	while node and node ~= refs.root.Parent do
+		if node:IsA("GuiObject") and not node.Visible then
+			return false
+		end
+		node = node.Parent
+	end
+	return true
+end
+
 local function refreshState()
 	if not refs.afkButton then
 		return
@@ -797,6 +810,16 @@ local function refreshState()
 			if d:IsA("GuiButton") and not d:IsDescendantOf(cover) then
 				d.Selectable = not cover.Visible and not d:GetAttribute("Disabled")
 			end
+		end
+	end
+	-- Manette : le bouton sélectionné vient d'être caché ou verrouillé (ex. « Débloquer » sur le
+	-- cache, après l'achat du passe fenêtre ouverte) : la sélection se repose sur « Lancer ».
+	if isOpen and Menus.current() == "AutoRoll" then
+		local ok, selected = pcall(function()
+			return GuiService.SelectedObject
+		end)
+		if ok and (selected == nil or not selected:IsDescendantOf(refs.root) or not selected.Selectable or not shownOnScreen(selected)) then
+			Console.focusCurrent()
 		end
 	end
 end

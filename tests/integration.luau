@@ -793,7 +793,7 @@ test("Achat automatique (passe AutoRollPlus) : achète les cibles, s'arrête san
 	services.RollService:RenderStage(alice)
 end)
 
-test("Auto-roulage : sauvegarde envoyée groupée (2 s), roulage manuel et arrêt tout de suite", function()
+test("Auto-roulage : sauvegarde groupée (2 s) loin de la machine, tout de suite à la machine, roulage manuel et arrêt", function()
 	local data = DataService:Get(alice)
 	local RollService = services.RollService
 	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
@@ -823,7 +823,11 @@ test("Auto-roulage : sauvegarde envoyée groupée (2 s), roulage manuel et arrê
 	invoke("Roll_SaveAutoSettings", alice, { pauseRarities = noPause, pauseMutations = {}, buyCharacters = {}, buyRarities = {}, buyMutations = {} })
 	data.AutoRoll = true
 	data.AutoBuy = false
-	-- Lancer AFK : la révélation part tout de suite, la sauvegarde attend la fenêtre de 2 s.
+	-- Lancer AFK loin de la machine : la révélation part tout de suite, la sauvegarde attend la
+	-- fenêtre de 2 s.
+	local plot = services.PlotService:GetPlot(alice)
+	alice.Character:PivotTo(plot.cf * CFrame.new(0, 3, 120))
+	assert(not RollService:IsAtMachine(alice), "joueur encore à la machine")
 	flush()
 	local events = #clientEvents
 	local count = data.RollCount
@@ -837,7 +841,23 @@ test("Auto-roulage : sauvegarde envoyée groupée (2 s), roulage manuel et arrê
 	assert(revealed, "révélation du roulage auto pas envoyée tout de suite")
 	local delay = DataService:PendingSyncDelay(alice)
 	assert(delay and delay > 1.5, "roulage auto : toute la sauvegarde part tout de suite (" .. tostring(delay) .. ")")
-	-- Roulage manuel juste après : pas retardé par l'envoi groupé en attente.
+	-- À la machine (il regarde l'estrade et la carte du perso tiré) : envoi normal.
+	toMachine(alice)
+	flush()
+	table.clear(data.RolledQueue)
+	RollService:ResetCooldown(alice)
+	RollService:AutoStep(alice)
+	assert(data.RollCount == count + 2, "pas de roulage auto à la machine")
+	delay = DataService:PendingSyncDelay(alice)
+	assert(delay and delay <= 0.26, "roulage auto à la machine : sauvegarde retardée (" .. tostring(delay) .. ")")
+	-- Roulage manuel juste après un roulage auto loin de la machine : pas retardé par l'envoi
+	-- groupé en attente.
+	alice.Character:PivotTo(plot.cf * CFrame.new(0, 3, 120))
+	table.clear(data.RolledQueue)
+	RollService:ResetCooldown(alice)
+	RollService:AutoStep(alice)
+	delay = DataService:PendingSyncDelay(alice)
+	assert(data.RollCount == count + 3 and delay and delay > 1.5, "roulage auto loin de la machine : envoi pas groupé (" .. tostring(delay) .. ")")
 	data.AutoRoll = false
 	table.clear(data.RolledQueue)
 	assert(rollNow(alice), "roulage manuel refusé")
@@ -849,6 +869,7 @@ test("Auto-roulage : sauvegarde envoyée groupée (2 s), roulage manuel et arrê
 	invoke("Roll_SaveAutoSettings", alice, { buyRarities = buyAll })
 	data.AutoBuy = true
 	DataService:AddCoins(alice, 100000000)
+	alice.Character:PivotTo(plot.cf * CFrame.new(0, 3, 120))
 	flush()
 	local before = characterCount()
 	RollService:ResetCooldown(alice)
@@ -1486,6 +1507,7 @@ test("Boîte à outils : « Kid Naruto » posé dans Workspace remplace Maruto",
 	assert(found.ninja_maruto == "Kid Naruto", "Kid Naruto non reconnu")
 	assert(naruto.Parent and naruto.Parent.Name == "ModelesPersos" and naruto.Name == "ninja_maruto", "modèle non rangé")
 	assert(not naruto:FindFirstChildOfClass("Script"), "scripts du modèle gratuit conservés")
+	assert(naruto:GetAttribute("ToutesEtoiles") == true, "Kid Naruto (sans évolution nommée) doit servir à toutes les étoiles")
 	assert(statue.Parent == pack and tree.Parent == pack, "modèle non reconnu déplacé à tort")
 	naruto:Destroy()
 	pack:Destroy()
@@ -1519,7 +1541,7 @@ test("Galerie Studio : seuls les modèles retouchés (sans AutoGenere) sont repr
 	target.test_retouche:Destroy()
 end)
 
-test("Modèle perso (ModelesPersos) prioritaire sur le perso intégré", function()
+test("Modèle perso (ModelesPersos) prioritaire sur le perso intégré, étoile par étoile", function()
 	local Shared = Harness.find("ReplicatedStorage.Shared")
 	local Factory = Harness.require(Shared.Modules.CharacterFactory)
 	local Builder = Harness.require(Shared.Modules.CharacterBuilder)
@@ -1538,10 +1560,37 @@ test("Modèle perso (ModelesPersos) prioritaire sur le perso intégré", functio
 	if previous then
 		previous.Parent = nil
 	end
+	local previousStars = {}
+	for _, name in { "ninja_maruto_1", "ninja_maruto_2", "ninja_maruto_3" } do
+		local existing = folder:FindFirstChild(name)
+		if existing then
+			existing.Parent = nil
+			table.insert(previousStars, existing)
+		end
+	end
 	local custom = Builder.build(look, {})
 	custom.Name = "ninja_maruto"
 	custom:SetAttribute("Marque", true)
 	custom.Parent = folder
+	-- Chaque étoile a son modèle : le ★1 retouché (« ninja_maruto ») ne remplace pas les ★2 / ★3,
+	-- qui gardent le perso intégré et son look d'évolution (sauf modèle marqué ToutesEtoiles).
+	assert(Factory.templateFor("ninja_maruto", 1) == custom, "★1 : modèle retouché ignoré")
+	assert(Factory.templateFor("ninja_maruto", 2) == nil and Factory.templateFor("ninja_maruto", 3) == nil, "★2 / ★3 : le modèle du ★1 remplace leur évolution")
+	local evolved = Factory.build("ninja_maruto", 3, Characters.resolveLook("ninja_maruto", 3), {})
+	assert(not evolved:GetAttribute("CustomModel"), "★3 construit avec le modèle du ★1")
+	local second = Builder.build(Characters.resolveLook("ninja_maruto", 2), {})
+	second.Name = "ninja_maruto_2"
+	second.Parent = folder
+	assert(Factory.templateFor("ninja_maruto", 2) == second, "★2 retouché ignoré")
+	assert(Factory.templateFor("ninja_maruto", 3) == nil, "★3 : le modèle du ★2 remplace son évolution")
+	custom:SetAttribute("ToutesEtoiles", true)
+	assert(Factory.templateFor("ninja_maruto", 3) == custom, "modèle ToutesEtoiles ignoré au ★3")
+	assert(Factory.templateFor("ninja_maruto", 2) == second, "le modèle propre au ★2 doit rester prioritaire")
+	custom:SetAttribute("ToutesEtoiles", nil)
+	second:Destroy()
+	for _, existing in previousStars do
+		existing.Parent = folder
+	end
 	local model = Factory.build("ninja_maruto", 1, look, { humanoid = true })
 	assert(model:GetAttribute("CustomModel") and model:GetAttribute("Marque"), "modèle perso ignoré")
 	assert(model:FindFirstChildOfClass("Humanoid"), "pas de Humanoid")
@@ -1744,6 +1793,52 @@ test("Boutique Robux : ProcessReceipt idempotent et sauvegardé", function()
 	Robux.Products.GemsS.id = 0
 end)
 
+test("Boutique Robux : reçu rejoué à la connexion, passes vérifiés avant le pack (attente bornée)", function()
+	local Monetization = services.MonetizationService
+	local Granted = roblox.Enum.ProductPurchaseDecision.PurchaseGranted
+	local original = MarketplaceService.UserOwnsGamePassAsync
+	local originalIncome = Monetization._incomePerSec
+	-- revenu de référence : 100 ¥/s, doublé par x2 Argent (comme le calcule CharacterService)
+	Monetization._incomePerSec = function(_, player)
+		return 100 * Robux.coinMultiplier(player)
+	end
+	Robux.Passes.Coins2.id = 4350
+	Robux.Products.CoinsS.id = 5560
+	local slow = 1
+	MarketplaceService.UserOwnsGamePassAsync = function(_, _, id)
+		if id == 4350 then
+			task.wait(slow) -- Roblox lent à répondre à l'arrivée
+			return slow < 5 -- (réponse trop tardive : sans effet sur le joueur parti)
+		end
+		return original(MarketplaceService, 0, id)
+	end
+	-- Le reçu d'un pack acheté hors ligne est rejoué dès la connexion, pendant la vérification
+	-- des passes : il attend sa fin et compte le x2 Argent (montant affiché en boutique).
+	local gina = addPlayer("Gina")
+	assert(not Monetization:PassesChecked(gina) and gina:GetAttribute("Pass_Coins2") ~= true, "passes déjà vérifiés : le test ne prouve rien")
+	local coins = DataService:Get(gina).coins
+	local receipt = { PlayerId = gina.UserId, ProductId = 5560, PurchaseId = "R-REJOUE-1", CurrencySpent = 19 }
+	assert(MarketplaceService.ProcessReceipt(receipt) == Granted, "reçu rejoué non accordé")
+	assert(Monetization:PassesChecked(gina) and gina:GetAttribute("Pass_Coins2") == true, "pack accordé avant la vérification des passes")
+	local expected = Robux.coinPackAmount(Robux.Products.CoinsS, 200)
+	assert(DataService:Get(gina).coins - coins == expected, "pack sans le x2 Argent : " .. (DataService:Get(gina).coins - coins) .. " au lieu de " .. expected)
+	removePlayer(gina)
+	-- Roblox qui ne répond pas : le reçu n'attend jamais plus de PassCheckWait secondes.
+	slow = 6
+	local wait = Monetization.PassCheckWait
+	Monetization.PassCheckWait = 0.5
+	local hugo = addPlayer("Hugo")
+	local started = os.clock()
+	assert(MarketplaceService.ProcessReceipt({ PlayerId = hugo.UserId, ProductId = 5560, PurchaseId = "R-REJOUE-2", CurrencySpent = 19 }) == Granted, "reçu bloqué")
+	assert(os.clock() - started < 2.5, "reçu bloqué par une vérification des passes sans fin (" .. (os.clock() - started) .. " s)")
+	Monetization.PassCheckWait = wait
+	removePlayer(hugo)
+	MarketplaceService.UserOwnsGamePassAsync = original
+	Monetization._incomePerSec = originalIncome
+	Robux.Passes.Coins2.id = 0
+	Robux.Products.CoinsS.id = 0
+end)
+
 test("Boutique Robux : effets des passes Roulage x2 / x3, Lancer AFK et Emplacements +", function()
 	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
 	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
@@ -1791,7 +1886,10 @@ test("Boutique Robux : effets des passes Roulage x2 / x3, Lancer AFK et Emplacem
 	assert(data.RobuxSlots == Robux.SlotsBonus, "cases en plus non notées")
 	assert(Formulas.playerStats(data).display == display + Robux.SlotsBonus, "cases de la base non ajoutées")
 	-- Passe acheté, cour pas finie : les cases du fond ne disent plus « achète le passe ».
-	assert(passSlot.state == "locked" and passSlot.caption == services.PlotService.PassSlotsOwnedCaption, "case du passe : légende pas à jour après l'achat (" .. tostring(passSlot.caption) .. ")")
+	assert(
+		passSlot.state == "locked" and passSlot.caption == services.PlotService.PassSlotsOwnedCaption,
+		"case du passe : légende pas à jour après l'achat (" .. tostring(passSlot.caption) .. ")"
+	)
 	local legend = passSlot.silhouette and passSlot.silhouette:FindFirstChild("Legende")
 	assert(legend and legend.Text == passSlot.caption and legend.Size.Y.Scale > 0.3, "légende sur deux lignes attendue")
 	assert(services.PlotService:GetPlot(dora).slots[display + Robux.SlotsBonus].state ~= "locked", "les 2 cases du passe ne sont pas ouvertes dans la grille")

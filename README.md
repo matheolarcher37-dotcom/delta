@@ -202,7 +202,7 @@ Le fichier contient le jeu **déjà construit**. Dans l'*Explorateur* de Studio 
 | `Workspace › World › Plots › Plot1` | Une **base d'exemple complète** (toutes les constructions, des unités sur les cases, un Itochi Diamant sur le podium de la machine, déco Ninja) | Les constructions et les persos sont reconstruits pour chaque joueur |
 | `ServerStorage › DecorsBase` | La **déco de base** des 5 univers (murs, portail, sol, accessoires) | Retouche-les ici : elles sont appliquées à toutes les bases quand l'univers change |
 | `ServerStorage › ModelesDeco` | Dossier **vide** pour tes modèles de la Boîte à outils | Voir « Remplacer les arbres et bâtiments » plus bas |
-| `Workspace › GaleriePersos` | **Les 66 persos (et leurs évolutions), les ennemis et les 5 boss**, posés sur des socles (Kourama, une créature, y est exposé mais construit par le jeu) | Pour **voir** les persos. Pour en **modifier** un en jeu : retouche-le (couleur, coiffure, accessoire…), puis **supprime son attribut `AutoGenere`** (fenêtre Propriétés › Attributs). Seuls les modèles sans cet attribut sont repris par le jeu ; les autres sont reconstruits par le jeu lui-même (plus léger pour les joueurs) |
+| `Workspace › GaleriePersos` | **Les 66 persos (et leurs évolutions), les ennemis et les 5 boss**, posés sur des socles (Kourama, une créature, y est exposé mais construit par le jeu) | Pour **voir** les persos. Pour en **modifier** un en jeu : retouche-le (couleur, coiffure, accessoire…), puis **supprime son attribut `AutoGenere`** (fenêtre Propriétés › Attributs). Seuls les modèles sans cet attribut sont repris par le jeu ; les autres sont reconstruits par le jeu lui-même (plus léger pour les joueurs). **Chaque étoile se retouche à part** : `ninja_maruto` est le ★, `ninja_maruto_2` le ★★, `ninja_maruto_3` le ★★★. Une étoile que tu n'as pas retouchée garde le perso du jeu, avec son look d'évolution |
 
 ### Remplacer un perso
 
@@ -213,7 +213,10 @@ Le fichier contient le jeu **déjà construit**. Dans l'*Explorateur* de Studio 
   Les scripts des modèles gratuits sont supprimés automatiquement. La liste des noms reconnus est dans
   `src/shared/Config/NomsOriginaux.luau`. Prends de préférence un modèle **R6**.
 - **Par ton propre modèle** : mets un rig **R6** (avec `HumanoidRootPart`, `Torso`, `Head`, `Left Arm`…) dans
-  `GaleriePersos › ModelesPersos` et donne-lui le nom du perso : `ninja_maruto`, ou `ninja_maruto_2` / `ninja_maruto_3` pour ses évolutions.
+  `GaleriePersos › ModelesPersos` et donne-lui le nom du perso : `ninja_maruto` pour le ★, `ninja_maruto_2` / `ninja_maruto_3` pour ses évolutions.
+  Un modèle ne sert qu'à son étoile ; pour qu'un seul modèle serve à toutes les étoiles, ajoute-lui l'attribut
+  **`ToutesEtoiles`** (case cochée). Un perso de la Boîte à outils sans évolution dans son nom (« Kid Naruto ») sert
+  tout seul à toutes les étoiles qui n'ont pas le leur.
 - **Avec des objets du catalogue Roblox** (cheveux, vêtements, visage) : suis le mode d'emploi en haut de
   `src/shared/Config/Avatars.luau`. Le jeu crée l'avatar tout seul au démarrage.
 - **Changer le look intégré** (couleurs, coiffure, tenue) : `src/shared/Config/Characters.luau`, champ `look`. Les champs

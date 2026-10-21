@@ -31,6 +31,11 @@ local ownsCache: { [number]: { [number]: boolean } } = {} -- [UserId][passId] = 
 local processing: { [string]: boolean } = {} -- reçus en cours de traitement
 local lastRequest: { [Player]: number } = {}
 local passListeners: { (Player, string) -> () } = {}
+local passesChecked: { [Player]: boolean } = {} -- 1re vérification des passes terminée à l'arrivée
+
+-- Un reçu rejoué à la connexion (pack de pièces acheté hors ligne...) attend au plus ce temps
+-- (secondes) la 1re vérification des passes : x2 Argent et VIP comptent dans le montant du pack.
+MonetizationService.PassCheckWait = 5
 
 local function isStudio(): boolean
 	local ok, result = pcall(function()
@@ -52,6 +57,7 @@ function MonetizationService:Start()
 	Players.PlayerRemoving:Connect(function(player)
 		ownsCache[player.UserId] = nil
 		lastRequest[player] = nil
+		passesChecked[player] = nil
 	end)
 
 	Remotes.func("Robux_Buy").OnServerInvoke = function(player, kind, key)
@@ -126,21 +132,29 @@ function MonetizationService:_setup(player: Player, data)
 	-- Passes achetés sur Roblox (vérifiés un par un, sans bloquer l'arrivée). Si Roblox ne
 	-- répond pas (erreur passagère), on réessaie avec une attente croissante : un passe payé
 	-- ne doit jamais manquer pour toute la session.
+	passesChecked[player] = nil
 	task.spawn(function()
 		local pending = {}
-		for key, pass in Robux.Passes do
-			if Robux.isConfigured(pass) and not Robux.hasPass(player, key) and player.Parent then
-				local owns, checked = self:Owns(player, pass.id)
-				if owns then
-					self:_applyPass(player, key, true)
-				elseif not checked then
-					table.insert(pending, key)
-					if key == "Slots" and previousSlots > 0 then
-						data.RobuxSlots = previousSlots -- erreur passagère de Roblox : on garde les cases
-						self:_refreshSlots(player)
+		local ok, err = pcall(function()
+			for key, pass in Robux.Passes do
+				if Robux.isConfigured(pass) and not Robux.hasPass(player, key) and player.Parent then
+					local owns, checked = self:Owns(player, pass.id)
+					if owns then
+						self:_applyPass(player, key, true)
+					elseif not checked then
+						table.insert(pending, key)
+						if key == "Slots" and previousSlots > 0 then
+							data.RobuxSlots = previousSlots -- erreur passagère de Roblox : on garde les cases
+							self:_refreshSlots(player)
+						end
 					end
 				end
 			end
+		end)
+		-- 1re vérification finie (même en erreur) : les reçus en attente peuvent être accordés.
+		passesChecked[player] = true
+		if not ok then
+			warn("[AnimeTycoon] Vérification des passes de " .. player.Name .. " : " .. tostring(err))
 		end
 		for _, delay in RETRY_DELAYS do
 			if #pending == 0 or not player.Parent then
@@ -174,6 +188,11 @@ function MonetizationService:_setup(player: Player, data)
 	if player.Character and Robux.hasPass(player, "VIP") then
 		self:_vipTag(player.Character)
 	end
+end
+
+-- 1re vérification des passes du joueur terminée (à l'arrivée) ?
+function MonetizationService:PassesChecked(player: Player): boolean
+	return passesChecked[player] == true
 end
 
 -- Le joueur possède-t-il ce passe Roblox ? (pcall + cache ; une erreur n'est pas mise en cache)
@@ -507,6 +526,13 @@ function MonetizationService:ProcessReceipt(info)
 	while not DataService:IsLoaded(player) and player.Parent and waited < 15 do
 		task.wait(0.5)
 		waited += 0.5
+	end
+	-- Reçu rejoué à la connexion : les passes du joueur (x2 Argent, VIP) sont vérifiés juste après
+	-- le chargement ; on attend la fin de cette 1re vérification (PassCheckWait s au plus, jamais
+	-- plus) pour donner le montant affiché en boutique.
+	local passDeadline = os.clock() + MonetizationService.PassCheckWait
+	while not passesChecked[player] and DataService:IsLoaded(player) and player.Parent and os.clock() < passDeadline do
+		task.wait(0.1)
 	end
 	local data = DataService:Get(player)
 	local key = Robux.productKeyById(info.ProductId)

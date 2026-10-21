@@ -857,6 +857,75 @@ test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, 
 		end
 		return lo, hi
 	end
+	-- repère d'un perso : son orientation au sol (sans l'inclinaison du torse). CFrame.lookAt de
+	-- Lune inverse l'axe Z : on prend celui, corrigé, du harnais (sinon les boîtes « orientées »
+	-- sont tournées n'importe comment et le verdict dépend des persos tirés au hasard).
+	local function facingFrame(model)
+		local torsoPart = model:FindFirstChild("Torso")
+		local facing = torsoPart and torsoPart.CFrame.LookVector * Vector3.new(1, 0, 1)
+		return (facing and facing.Magnitude > 0.1) and Harness.CFrame.lookAt(Vector3.zero, facing.Unit) or CFrame.new()
+	end
+	-- deux pièces (boîtes orientées) qui s'interpénètrent : test des 15 axes séparateurs
+	local function partsTouch(p, q)
+		local d = q.CFrame.Position - p.CFrame.Position
+		local ha, hb = p.Size * 0.5, q.Size * 0.5
+		if d.Magnitude > ha.Magnitude + hb.Magnitude then
+			return false
+		end
+		local ax = { p.CFrame.XVector, p.CFrame.YVector, p.CFrame.ZVector }
+		local bx = { q.CFrame.XVector, q.CFrame.YVector, q.CFrame.ZVector }
+		local axes = { ax[1], ax[2], ax[3], bx[1], bx[2], bx[3] }
+		for i = 1, 3 do
+			for j = 1, 3 do
+				table.insert(axes, ax[i]:Cross(bx[j]))
+			end
+		end
+		for _, axis in axes do
+			if axis.Magnitude > 1e-4 then
+				local u = axis.Unit
+				local ra = ha.X * math.abs(ax[1]:Dot(u)) + ha.Y * math.abs(ax[2]:Dot(u)) + ha.Z * math.abs(ax[3]:Dot(u))
+				local rb = hb.X * math.abs(bx[1]:Dot(u)) + hb.Y * math.abs(bx[2]:Dot(u)) + hb.Z * math.abs(bx[3]:Dot(u))
+				if math.abs(d:Dot(u)) > ra + rb then
+					return false
+				end
+			end
+		end
+		return true
+	end
+	local function visibleParts(model)
+		local list = {}
+		for _, part in model:GetDescendants() do
+			if part:IsA("BasePart") and part.Transparency < 1 then
+				table.insert(list, part)
+			end
+		end
+		return list
+	end
+	-- Deux persos ne se chevauchent pas : séparés par leurs boîtes (dans le repère de l'un ou de
+	-- l'autre), sinon aucune pièce visible de l'un ne pénètre une pièce visible de l'autre.
+	local function assertNoOverlap(list)
+		for i = 1, #list do
+			for j = i + 1, #list do
+				local A, B = list[i], list[j]
+				local separated = false
+				for _, frame in { A.frame, B.frame } do
+					local alo, ahi = boxOf(A.model, frame)
+					local blo, bhi = boxOf(B.model, frame)
+					if not (alo.X < bhi.X and blo.X < ahi.X and alo.Y < bhi.Y and blo.Y < ahi.Y and alo.Z < bhi.Z and blo.Z < ahi.Z) then
+						separated = true
+					end
+				end
+				if not separated then
+					local partsB = visibleParts(B.model)
+					for _, p in visibleParts(A.model) do
+						for _, q in partsB do
+							assert(not partsTouch(p, q), A.name .. " chevauche " .. B.name .. " (" .. p.Name .. " / " .. q.Name .. ")")
+						end
+					end
+				end
+			end
+		end
+	end
 	local boxes = {}
 	local kneelers = 0
 	local function onScreen(point)
@@ -889,11 +958,7 @@ test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, 
 					assert(v.Z < 0 and math.abs(v.X / -v.Z) < tanH * 1.2, "tête loin hors du cadre : " .. child.Name)
 				end
 			end
-			-- repère du perso : son orientation au sol (sans l'inclinaison du torse)
-			local torsoPart = child:FindFirstChild("Torso")
-			local facing = torsoPart and torsoPart.CFrame.LookVector * Vector3.new(1, 0, 1)
-			local frame = (facing and facing.Magnitude > 0.1) and CFrame.lookAt(Vector3.zero, facing.Unit) or CFrame.new()
-			table.insert(boxes, { name = child.Name, model = child, frame = frame })
+			table.insert(boxes, { name = child.Name, model = child, frame = facingFrame(child) })
 			if string.sub(child.Name, 1, 7) == "Kneeler" then
 				kneelers += 1
 				local torso = child:FindFirstChild("Torso")
@@ -907,20 +972,7 @@ test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, 
 	end
 	assert(headsVisible >= TraitCinematic.MonarchCount - 2, "trop de persos de la cour hors du cadre (" .. headsVisible .. ")")
 	assert(kneelers == TraitCinematic.MonarchCount, "il faut " .. TraitCinematic.MonarchCount .. " persos agenouillés (" .. kneelers .. ")")
-	for i = 1, #boxes do
-		for j = i + 1, #boxes do
-			local A, B = boxes[i], boxes[j]
-			local separated = false
-			for _, frame in { A.frame, B.frame } do
-				local alo, ahi = boxOf(A.model, frame)
-				local blo, bhi = boxOf(B.model, frame)
-				if not (alo.X < bhi.X and blo.X < ahi.X and alo.Y < bhi.Y and blo.Y < ahi.Y and alo.Z < bhi.Z and blo.Z < ahi.Z) then
-					separated = true
-				end
-			end
-			assert(separated, A.name .. " chevauche " .. B.name)
-		end
-	end
+	assertNoOverlap(boxes)
 	-- rien entre la caméra et la tête / le torse de l'unité
 	local function segmentHits(part, a, b)
 		local pa, pb = part.CFrame:PointToObjectSpace(a), part.CFrame:PointToObjectSpace(b)
@@ -964,6 +1016,77 @@ test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, 
 	assert(not alice.PlayerGui:FindFirstChild("TraitCinematicUI"), "interface de la cinématique non retirée")
 	assert(alice.PlayerGui.AnimeTycoonUI.Enabled, "l'interface du jeu doit revenir")
 	assert(camera.CameraType ~= roblox.Enum.CameraType.Scriptable, "la caméra doit revenir au joueur")
+	-- La cour ne dépend pas du hasard des tirages : avec les persos les plus encombrants en tête
+	-- de liste (dôme de Lao ★3, mur de sable de Gaaro ★3, longue chevelure de Brolo ★3, lames,
+	-- éventails...), chaque place prend le premier candidat qui y tient. Cour complète, aucun
+	-- chevauchement, personne ne déborde de sa place.
+	local realLooks = TraitCinematic.kneelerLooks
+	local heavy = {
+		{ "oce_lao", 3 },
+		{ "ninja_gaaro", 3 },
+		{ "ninja_minatu", 2 },
+		{ "sai_brolo", 3 },
+		{ "pou_doma", 3 },
+		{ "ninja_jiriya", 1 },
+		{ "ninja_maruto", 2 },
+		{ "oce_sanjo", 3 },
+		{ "pou_giyo", 3 },
+		{ "ninja_gaaro", 2 },
+		{ "sai_vejeta", 3 },
+		{ "pou_rengoko", 3 },
+	}
+	TraitCinematic.kneelerLooks = function(exceptUid, count, spare)
+		local list = {}
+		for _, pair in heavy do
+			table.insert(list, { id = pair[1], stars = pair[2], look = CharactersCfg.resolveLook(pair[1], pair[2]) })
+		end
+		for _, info in realLooks(exceptUid, count, spare) do
+			table.insert(list, info)
+		end
+		return list
+	end
+	fake = 0
+	local okForced, forced = pcall(TraitCinematic.play, "monarch", entry, desc, {
+		duration = 200,
+		stage = stage,
+		clock = function()
+			return fake
+		end,
+	})
+	TraitCinematic.kneelerLooks = realLooks
+	assert(okForced and forced and not forced.finished, "cour imposée : la cinématique ne démarre pas (" .. tostring(forced) .. ")")
+	fake = 7
+	for _ = 1, 3 do
+		Harness.services.RunService.RenderStepped:Fire(1 / 30)
+		task.wait(0.03)
+	end
+	local court, courtKneelers = {}, 0
+	for _, child in forced.folder:GetChildren() do
+		if child:IsA("Model") and child.Name ~= "Crown" then
+			local label = child.Name .. " (" .. tostring(child:GetAttribute("CharId") or "unité") .. ")"
+			table.insert(court, { name = label, model = child, frame = facingFrame(child) })
+			local index = tonumber(string.match(child.Name, "^Kneeler(%d+)$"))
+			if index then
+				courtKneelers += 1
+				local spot = stage:PointToWorldSpace(TraitCinematic.monarchSpots()[index])
+				for _, part in visibleParts(child) do
+					local half = part.Size * 0.5
+					for _, sx in { -1, 1 } do
+						for _, sy in { -1, 1 } do
+							for _, sz in { -1, 1 } do
+								local c = part.CFrame:PointToWorldSpace(Vector3.new(half.X * sx, half.Y * sy, half.Z * sz)) - spot
+								assert(Vector2.new(c.X, c.Z).Magnitude <= TraitCinematic.MonarchReach + 0.01, label .. " déborde de sa place (" .. part.Name .. ")")
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+	assert(courtKneelers == TraitCinematic.MonarchCount, "cour imposée incomplète (" .. courtKneelers .. ")")
+	assertNoOverlap(court)
+	TraitCinematic.skip()
+	assert(forced.finished and not forced.folder.Parent, "cour imposée : scène non nettoyée")
 	-- Pose à genoux lisible
 	local Components = Harness.require(client.UI.Components)
 	local model = Components.characterModel(desc.look, entry.id, entry.stars)
@@ -1294,6 +1417,133 @@ test("Révélation des persos tirés (RollResult)", function()
 	expectNoNewWarnings(before, "révélation du roulage")
 end)
 
+test("Haut de l'écran : pastille d'auto-roulage, panneau AFK, bandeaux, persos tirés et suivi des défis ne se chevauchent jamais", function()
+	local before = #warnings
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local QuestsUI = Harness.require(client.UI.Quests)
+	local RollPanel = Harness.require(client.UI.RollPanel)
+	local RollReveal = Harness.require(client.UI.RollReveal)
+	local NotificationsUI = Harness.require(client.UI.Notifications)
+	local Layout = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Layout"))
+	local gui = alice.PlayerGui.AnimeTycoonUI
+	local pill = RollPanel.refs().pill
+	local panel = gui:FindFirstChild("AfkPanel", true)
+	local toasts = gui:FindFirstChild("Toasts", true)
+	local strip = gui.RollReveal.Strip
+	local tracker = gui.QuestHUD.Tracker
+	assert(pill and panel and toasts and strip and tracker, "éléments du haut de l'écran introuvables")
+	-- Calcul en unités logiques, sur l'écran le plus étroit (1280 x 770 : 1920 x 1080 et 1280 x 720
+	-- donnent 1369 x 770, un téléphone 844 x 390 donne 1667 x 770) : c'est là que le centre est le
+	-- plus près des cartes de suivi (à gauche).
+	local W, H = 1280, 770
+	local function rect(name, x0, y0, w, h)
+		return { name = name, x0 = x0, y0 = y0, x1 = x0 + w, y1 = y0 + h }
+	end
+	local function centered(name, frame, w, h, dx)
+		return rect(name, W / 2 + (dx or 0) - w / 2, frame.Position.Y.Offset, w, h)
+	end
+	local function frames(n)
+		for _ = 1, n do
+			Harness.services.RunService.RenderStepped:Fire(1 / 60)
+			task.wait(0.01)
+		end
+	end
+	RollPanel.forceNear(false)
+	local serial = 0
+	for _, inZone in { false, true } do
+		alice.Character:PivotTo(inZone and CFrame.new(Layout.AfkZone.X, 4, Layout.AfkZone.Z) or CFrame.new(0, 3, 0))
+		task.wait(0.35)
+		assert(panel.Visible == inZone, "panneau AFK " .. (inZone and "absent dans la zone" or "affiché hors de la zone"))
+		for _, withPill in { false, true } do
+			for count = 0, 3 do
+				-- bandeaux : exactement `count`
+				for _, child in toasts:GetChildren() do
+					if child.Name == "Toast" then
+						child:Destroy()
+					end
+				end
+				for _ = 1, count do
+					serial += 1
+					NotificationsUI.toast("Bandeau de test n° " .. serial, "info")
+				end
+				-- cartes de suivi (hors de la zone : 3 cartes)
+				for _, child in tracker:GetChildren() do
+					if child:IsA("Frame") then
+						child:Destroy()
+					end
+				end
+				if not inZone then
+					for k = 1, 3 do
+						QuestsUI.trackerCard({ kind = "progress", id = "pile_" .. k, title = "Défi de test " .. k, progress = k, goal = 10 })
+					end
+				end
+				-- persos tirés loin de la machine (3 cartes + bandeau MUTATION)
+				RollReveal.show({
+					results = {
+						{ id = "ninja_maruto", stars = 1, rarity = "epic", price = 900, dps = 80, aura = "or" },
+						{ id = "occ_goju", stars = 1, rarity = "rare", price = 500, dps = 50 },
+						{ id = "sai_goko", stars = 1, rarity = "rare", price = 500, dps = 50 },
+					},
+					count = 3,
+					auto = true,
+				})
+				pill.Visible = withPill
+				frames(4)
+				-- (le panneau ROULER peut remettre la pastille à jour entre deux images : on la repose,
+				-- puis deux images sans attendre, et on mesure aussitôt)
+				pill.Visible = withPill
+				Harness.services.RunService.RenderStepped:Fire(1 / 60)
+				Harness.services.RunService.RenderStepped:Fire(1 / 60)
+				local label = (inZone and "zone AFK" or "hors zone") .. (withPill and ", pastille" or "") .. ", " .. count .. " bandeau(x)"
+				local list = {}
+				if withPill then
+					table.insert(list, centered("pastille", pill, pill.Size.X.Offset, pill.Size.Y.Offset))
+				end
+				if inZone then
+					table.insert(list, centered("panneau AFK", panel, panel.Size.X.Offset, panel.Size.Y.Offset))
+				end
+				local toastHeight = NotificationsUI.stackHeight()
+				assert(toastHeight == (count > 0 and count * 52 + (count - 1) * 6 or 0), label .. " : hauteur des bandeaux " .. toastHeight)
+				if count > 0 then
+					table.insert(list, centered("bandeaux", toasts, toasts.Size.X.Offset, toastHeight))
+				end
+				assert(strip.Visible, label .. " : persos tirés non affichés")
+				local scale = strip:FindFirstChildOfClass("UIScale").Scale
+				local cardsWidth = (3 * 176 + 2 * 14) * scale
+				local stripHeight = (244 + 4 + 32) * scale
+				table.insert(list, centered("persos tirés", strip, cardsWidth, stripHeight, strip.Position.X.Offset))
+				assert(strip.Position.Y.Offset + stripHeight <= H - 132 - 8 + 0.5, label .. " : persos tirés sur les boutons de voyage")
+				if not inZone then
+					assert(tracker.Visible, label .. " : cartes de suivi cachées hors de la zone")
+					local x0, y0, x1, y1 = QuestsUI.trackerBounds()
+					assert(x0 and y0 and x1 and y1, label .. " : cartes de suivi absentes")
+					table.insert(list, rect("cartes de suivi", x0, y0, x1 - x0, y1 - y0))
+					assert(y1 <= H - 132, label .. " : cartes de suivi sur les boutons de voyage")
+				else
+					assert(not tracker.Visible, label .. " : cartes de suivi affichées dans la zone")
+				end
+				for i = 1, #list do
+					for j = i + 1, #list do
+						local a, b = list[i], list[j]
+						local overlap = a.x0 < b.x1 and b.x0 < a.x1 and a.y0 < b.y1 and b.y0 < a.y1
+						assert(not overlap, label .. " : " .. a.name .. " (y " .. a.y0 .. " → " .. a.y1 .. ") chevauche " .. b.name .. " (y " .. b.y0 .. " → " .. b.y1 .. ")")
+					end
+				end
+			end
+		end
+	end
+	pill.Visible = false
+	for _, child in tracker:GetChildren() do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+	alice.Character:PivotTo(CFrame.new(0, 3, 0))
+	RollPanel.forceNear(nil)
+	task.wait(3)
+	expectNoNewWarnings(before, "haut de l'écran")
+end)
+
 test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement automatique »", function()
 	local before = #warnings
 	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
@@ -1413,6 +1663,20 @@ test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement
 		end
 	end
 	assert(rows >= 5 + 6, "lignes de rareté / mutation manquantes : " .. rows)
+	-- Manette : passe acheté fenêtre ouverte. Le bouton sélectionné (« Débloquer », sur le cache)
+	-- disparaît avec le cache : la sélection se repose sur « Lancer ».
+	local ConsoleUI = Harness.require(client.UI.Console)
+	local GuiService = game:GetService("GuiService")
+	Harness.services.UserInputService.LastInputTypeChanged:Fire(roblox.Enum.UserInputType.Gamepad1)
+	task.wait(0.1)
+	assert(ConsoleUI.isGamepad(), "mode manette non détecté")
+	assert(refs["buy_AutoRoll"] and refs["buy_AutoRoll"]:IsDescendantOf(refs.leftCover), "bouton « Débloquer » du cache introuvable")
+	GuiService.SelectedObject = refs["buy_AutoRoll"]
+	setAttr("Pass_AutoRoll", true)
+	task.wait(0.1)
+	assert(GuiService.SelectedObject == refs.afkButton, "manette : sélection perdue après l'achat du passe (" .. tostring(GuiService.SelectedObject) .. ")")
+	Harness.services.UserInputService.LastInputTypeChanged:Fire(roblox.Enum.UserInputType.MouseMovement)
+	task.wait(0.1)
 	-- Avec le passe : on lance l'AFK depuis la fenêtre.
 	setAttr("Pass_AutoRoll", true)
 	task.wait(0.1)
@@ -1476,6 +1740,19 @@ test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement
 	assert(panel.Position.Y.Offset <= -200, "barre ROULER sur le bouton de saut (tactile) : " .. panel.Position.Y.Offset)
 	local pull = RollPanel.refs().pull
 	assert(pull.Position.Y.Offset < panel.Position.Y.Offset, "cartes du perso tiré sous la barre en tactile")
+	-- Bandeau MUTATION à la machine : au-dessus de la carte du perso tiré, remontée elle aussi.
+	local RollReveal = Harness.require(client.UI.RollReveal)
+	local strip = alice.PlayerGui.AnimeTycoonUI.RollReveal.Strip
+	local function checkBanner(where)
+		RollReveal.show({ results = { { id = "ninja_maruto", stars = 1, rarity = "rare", price = 500, dps = 50, aura = "or" } }, count = 1, auto = true })
+		Harness.services.RunService.RenderStepped:Fire(1 / 60)
+		assert(strip.Visible and strip.AnchorPoint.Y == 1 and strip:FindFirstChild("Mutation"), "bandeau MUTATION absent à la machine (" .. where .. ")")
+		-- (distances depuis le bas de l'écran : bas du bandeau, haut de la carte du perso tiré)
+		local bannerBottom = -strip.Position.Y.Offset
+		local pullTop = -pull.Position.Y.Offset + pull.Size.Y.Offset
+		assert(bannerBottom >= pullTop + 8, "bandeau MUTATION sur la carte du perso tiré (" .. where .. ") : " .. bannerBottom .. " / " .. pullTop)
+	end
+	checkBanner("tactile")
 	-- La barre Robux de droite ne doit pas être poussée au milieu de l'écran (sur le perso tiré)
 	-- par la carte du perso tiré remontée : elle reste au bord droit, ou s'efface faute de place.
 	local RobuxSideBar = Harness.require(client.UI.RobuxSideBar)
@@ -1491,6 +1768,7 @@ test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement
 	assert(holder.Visible, "barre Robux masquée hors tactile")
 	RollPanel.layout()
 	assert(panel.Position.Y.Offset == pcBottom, "barre ROULER non revenue en place hors tactile")
+	checkBanner("PC")
 	RollPanel.forceNear(nil)
 	local _ = State
 	expectNoNewWarnings(before, "machine ROULER")

@@ -26,6 +26,10 @@ local KINDS = {
 
 local toastContainer: Frame
 local announceFrame: Frame
+-- Bandeaux empilés sous la bannière d'univers (4 au plus) : hauteur et écart (unités logiques).
+Notifications.ToastHeight = 52
+Notifications.ToastGap = 6
+Notifications.MaxToasts = 4
 local announceQueue = {}
 -- Annonce affichée en grand au centre, ou en petit bandeau en haut quand un menu est ouvert
 -- (elle ne doit jamais cacher la boutique ou une autre fenêtre). Pendant un menu, le HUD cache sa
@@ -62,7 +66,7 @@ function Notifications.init(gui: ScreenGui)
 		BackgroundTransparency = 1,
 		Parent = root,
 	})
-	local layout = Theme.list(Enum.FillDirection.Vertical, 6, Enum.HorizontalAlignment.Center)
+	local layout = Theme.list(Enum.FillDirection.Vertical, Notifications.ToastGap, Enum.HorizontalAlignment.Center)
 	layout.Parent = toastContainer
 
 	announceFrame = new("Frame", {
@@ -164,7 +168,7 @@ function Notifications.toast(text: string, kind: string?)
 	toastCount += 1
 	local holder = new("Frame", {
 		Name = "Toast",
-		Size = UDim2.fromOffset(440, 52),
+		Size = UDim2.fromOffset(440, Notifications.ToastHeight),
 		BackgroundTransparency = 1,
 		LayoutOrder = toastCount,
 		Parent = toastContainer,
@@ -219,7 +223,7 @@ function Notifications.toast(text: string, kind: string?)
 	table.sort(toasts, function(a, b)
 		return a.LayoutOrder < b.LayoutOrder
 	end)
-	while #toasts > 4 do
+	while #toasts > Notifications.MaxToasts do
 		table.remove(toasts, 1):Destroy()
 	end
 	task.delay(4, function()
@@ -231,6 +235,23 @@ function Notifications.toast(text: string, kind: string?)
 			end
 		end
 	end)
+end
+
+-- Hauteur de la pile des bandeaux affichés (unités logiques ; 0 sans bandeau). Sert à poser
+-- dessous ce qui suit (UI/Quests : cartes de suivi ; UI/RollReveal : persos tirés).
+function Notifications.stackHeight(): number
+	local count = 0
+	if toastContainer then
+		for _, child in toastContainer:GetChildren() do
+			if child:IsA("Frame") and child.Name == "Toast" then
+				count += 1
+			end
+		end
+	end
+	if count == 0 then
+		return 0
+	end
+	return count * Notifications.ToastHeight + (count - 1) * Notifications.ToastGap
 end
 
 local function showNext()
