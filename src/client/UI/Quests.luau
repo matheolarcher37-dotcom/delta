@@ -31,6 +31,7 @@ local WHITE = Color3.new(1, 1, 1)
 local ACCENT = Color3.fromRGB(255, 170, 40)
 local GEM = QuestsConfig.Gems.Color
 local READY = Color3.fromRGB(70, 214, 96)
+local WINDOW_SIZE = Vector2.new(1180, 640) -- fenêtre Défis (px logiques 1280 x 720)
 local fmt = QuestsConfig.formatNumber
 
 -- string.upper ne gère pas les lettres accentuées (UTF-8) : « Planète » → « PLANÈTE ».
@@ -305,35 +306,47 @@ local function itemName(itemId: string): string?
 end
 
 -- Pastilles de récompense : ¥, gemmes de trait, objets.
-local function rewardChips(parent: Instance, reward, height: number, align: Enum.HorizontalAlignment?): Frame
+-- maxWidth (px logiques, facultatif) : les pastilles qui ne tiennent pas sur la ligne passent
+-- à la ligne suivante (cadre « Rewards » de height × lignes + REWARD_LINE_GAP entre deux) ;
+-- une pastille plus large que maxWidth est ramenée à maxWidth (texte réduit). Renvoie aussi le
+-- nombre de lignes.
+local REWARD_CHIP_GAP = 6
+local REWARD_LINE_GAP = 4
+local function rewardChips(parent: Instance, reward, height: number, align: Enum.HorizontalAlignment?, maxWidth: number?): (Frame, number)
 	local row = new("Frame", {
 		Name = "Rewards",
 		Size = UDim2.new(1, 0, 0, height),
 		BackgroundTransparency = 1,
 		Parent = parent,
 	})
-	local layout = Theme.list(Enum.FillDirection.Horizontal, 6, align or Enum.HorizontalAlignment.Left)
-	layout.VerticalAlignment = Enum.VerticalAlignment.Center
-	layout.Parent = row
+	local function lineLayout(frame: Frame)
+		local layout = Theme.list(Enum.FillDirection.Horizontal, REWARD_CHIP_GAP, align or Enum.HorizontalAlignment.Left)
+		layout.VerticalAlignment = Enum.VerticalAlignment.Center
+		layout.Parent = frame
+	end
+	local specs = {}
 	local function chip(order: number, width: number, draw: (Frame) -> (), text: string, color: Color3)
+		table.insert(specs, { order = order, width = maxWidth and math.min(width, maxWidth) or width, draw = draw, text = text, color = color })
+	end
+	local function makeChip(spec, parentLine: Instance)
 		local frame = new("Frame", {
 			Name = "Chip",
-			Size = UDim2.fromOffset(width, height),
+			Size = UDim2.fromOffset(spec.width, height),
 			BackgroundColor3 = Color3.fromRGB(10, 10, 16),
 			BackgroundTransparency = 0.15,
-			LayoutOrder = order,
-			Parent = row,
+			LayoutOrder = spec.order,
+			Parent = parentLine,
 		})
 		Theme.round().Parent = frame
-		Theme.stroke(Theme.dark(color, 0.35), 1.5).Parent = frame
-		draw(frame)
+		Theme.stroke(Theme.dark(spec.color, 0.35), 1.5).Parent = frame
+		spec.draw(frame)
 		Theme.label({
 			Name = "Amount",
-			Text = text,
+			Text = spec.text,
 			Size = UDim2.new(1, -height - 6, 1, -6),
 			Position = UDim2.fromOffset(height + 1, 3),
 			FontFace = Theme.Faces.Heavy,
-			TextColor3 = color,
+			TextColor3 = spec.color,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			StrokeThickness = 1.5,
 			Parent = frame,
@@ -381,7 +394,46 @@ local function rewardChips(parent: Instance, reward, height: number, align: Enum
 			end
 		end
 	end
-	return row
+	-- Répartition en lignes (dans l'ordre : ¥, gemmes, objets).
+	table.sort(specs, function(a, b)
+		return a.order < b.order
+	end)
+	local lines = { {} }
+	local used = 0
+	for _, spec in specs do
+		local line = lines[#lines]
+		if maxWidth and #line > 0 and used + REWARD_CHIP_GAP + spec.width > maxWidth then
+			line = {}
+			table.insert(lines, line)
+			used = 0
+		end
+		used += (#line > 0 and REWARD_CHIP_GAP or 0) + spec.width
+		table.insert(line, spec)
+	end
+	if #lines == 1 then
+		lineLayout(row)
+		for _, spec in lines[1] do
+			makeChip(spec, row)
+		end
+	else
+		row.Size = UDim2.new(1, 0, 0, #lines * height + (#lines - 1) * REWARD_LINE_GAP)
+		local stack = Theme.list(Enum.FillDirection.Vertical, REWARD_LINE_GAP, align or Enum.HorizontalAlignment.Left)
+		stack.Parent = row
+		for index, list in lines do
+			local lineFrame = new("Frame", {
+				Name = "Line" .. index,
+				Size = UDim2.new(1, 0, 0, height),
+				BackgroundTransparency = 1,
+				LayoutOrder = index,
+				Parent = row,
+			})
+			lineLayout(lineFrame)
+			for _, spec in list do
+				makeChip(spec, lineFrame)
+			end
+		end
+	end
+	return row, #lines
 end
 
 -- Message de l'écran Défis : affiché DANS la fenêtre (en bas) quand elle est ouverte, pour ne
@@ -779,13 +831,22 @@ end
 -- Onglets en liste (univers, combat, progression, entraînement)
 ------------------------------------------------------------------------
 
+-- Largeur d'une ligne de défi : fenêtre (WINDOW_SIZE) - 40 (contenu de Components.window)
+-- - 8 (marges de la liste) - 14 (ligne). La fenêtre a une taille fixe en px logiques : même
+-- mise en page à toutes les tailles d'écran (1920, 1280, téléphone), seule l'échelle change.
+local ROW_HEIGHT = 86
+local ROW_CLAIM_WIDTH = 176
+Quests.RowWidth = WINDOW_SIZE.X - 40 - 8 - 14
+-- Place des récompenses : de 0,42 de la ligne (+4) jusqu'à 10 px avant le bouton RÉCLAMER.
+Quests.RowRewardsWidth = math.floor(Quests.RowWidth * 0.58) - 4 - (ROW_CLAIM_WIDTH + 14) - 10
+
 local function questRow(parent: Instance, data, quest, order: number)
 	local tier, index, value, goal = QuestsConfig.status(data, quest)
 	local finished = tier == nil
 	local ready = not finished and value >= goal
 	local row = new("Frame", {
 		Name = "Quest_" .. quest.id,
-		Size = UDim2.new(1, -14, 0, 86),
+		Size = UDim2.new(1, -14, 0, ROW_HEIGHT),
 		BackgroundColor3 = WHITE,
 		LayoutOrder = order,
 		Parent = parent,
@@ -843,9 +904,12 @@ local function questRow(parent: Instance, data, quest, order: number)
 		Size = UDim2.new(0.34, 0, 0, 24),
 		Position = UDim2.new(0.42, 4, 0, 16),
 	})
-	local rewards = rewardChips(row, finished and {} or tier.reward, 30)
-	rewards.Size = UDim2.new(0.34, 0, 0, 30)
+	-- Récompenses : de la barre de progression jusqu'au bouton RÉCLAMER, sur deux lignes si besoin
+	-- (ex. palier 3 du boss Saiyan : ¥, gemmes, Boule Divine et Boule du Dragon) : la ligne grandit.
+	local rewards, lines = rewardChips(row, finished and {} or tier.reward, 30, nil, Quests.RowRewardsWidth)
+	rewards.Size = UDim2.new(0, Quests.RowRewardsWidth, 0, rewards.Size.Y.Offset)
 	rewards.Position = UDim2.new(0.42, 4, 0, 46)
+	row.Size = UDim2.new(1, -14, 0, ROW_HEIGHT + (lines - 1) * (30 + REWARD_LINE_GAP))
 	if finished then
 		Theme.label({
 			Text = "Tous les paliers réussis !",
@@ -861,7 +925,7 @@ local function questRow(parent: Instance, data, quest, order: number)
 	claimButton(row, finished and "done" or ready and "ready" or "progress", function()
 		invokeClaim(quest.id)
 	end, {
-		Size = UDim2.fromOffset(176, 52),
+		Size = UDim2.fromOffset(ROW_CLAIM_WIDTH, 52),
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -14, 0.5, -2),
 		SelKey = "claim_" .. quest.id,
@@ -1172,7 +1236,7 @@ render = function(force: boolean?)
 end
 
 local function buildWindow(gui: ScreenGui)
-	window = Components.window(gui, "DÉFIS", ACCENT, UDim2.fromOffset(1180, 640), {
+	window = Components.window(gui, "DÉFIS", ACCENT, UDim2.fromOffset(WINDOW_SIZE.X, WINDOW_SIZE.Y), {
 		icon = "trophy",
 		subtitle = "Réussis des défis pour gagner pièces, gemmes et objets",
 		tabs = TABS,

@@ -706,6 +706,11 @@ for _, upgrade in Economy.Upgrades do
 	UPGRADE_SLOTS += upgrade.effect.display or 0
 end
 
+-- Légende des cases 25 et 26 (rangée d'honneur au fond) quand le passe « +2 Cases » est déjà
+-- acheté : ses 2 cases comptent tout de suite (les cases s'ouvrent dans l'ordre, de devant vers
+-- le fond, Formulas.playerStats), donc ces deux-là ne s'ouvrent qu'après toutes les autres.
+PlotService.PassSlotsOwnedCaption = "✅ Passe actif : +2 cases déjà ouvertes\n🔒 Ici, après les cases de devant"
+
 -- Met à jour l'état des 26 cases (verrouillée « ??? », libre, occupée).
 function PlotService:RefreshSlots(player: Player, displayed: { [number]: string }?)
 	local plot = playerPlots[player]
@@ -716,10 +721,12 @@ function PlotService:RefreshSlots(player: Player, displayed: { [number]: string 
 	local stats = Formulas.playerStats(data)
 	local CharacterService = self.services.CharacterService
 	local shown = displayed or (CharacterService and CharacterService.GetDisplayed and CharacterService:GetDisplayed(player)) or {}
+	local passOwned = (tonumber(data.RobuxSlots) or 0) > 0 or player:GetAttribute("Pass_Slots") == true
+	local passCaption = passOwned and PlotService.PassSlotsOwnedCaption or "🔒 Passe « +2 Cases »"
 	for i, ref in plot.slots do
 		ref.uid = shown[i]
 		if i > stats.display then
-			local caption = if i > Economy.MaxDisplaySlots then "🔒 Passe « +2 Cases »" elseif i <= UPGRADE_SLOTS then "🔒 Améliore la cour" else "🔒 Arbre : Emplacements"
+			local caption = if i > Economy.MaxDisplaySlots then passCaption elseif i <= UPGRADE_SLOTS then "🔒 Améliore la cour" else "🔒 Arbre : Emplacements"
 			Slots.setState(ref, "locked", caption)
 		elseif shown[i] then
 			Slots.setState(ref, "occupied")

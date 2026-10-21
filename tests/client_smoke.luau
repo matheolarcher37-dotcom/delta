@@ -461,6 +461,9 @@ test("Défis : les 5 onglets, réclamer, suivi à l'écran", function()
 	local data = services.DataService:Get(alice)
 	-- Un défi prêt à réclamer pour avoir un bouton vert
 	data.Quests.counters["kill:ninja_son"] = 60
+	-- Boss Saiyan au palier 3 (4 récompenses : ¥, gemmes, Boule Divine, Boule du Dragon).
+	local bossClaimed = data.Quests.claimed.u_saiyan_boss
+	data.Quests.claimed.u_saiyan_boss = 2
 	services.DataService:Sync(alice)
 	task.wait(0.4)
 	Menus.open("Quests")
@@ -483,6 +486,57 @@ test("Défis : les 5 onglets, réclamer, suivi à l'écran", function()
 	task.wait(0.2)
 	local row = root:FindFirstChild("Quest_u_ninja_1", true)
 	assert(row, "ligne du défi « Village Ninja : tue 50 ... » manquante")
+	-- Pastilles de récompense : toujours avant le bouton RÉCLAMER, sur 2 lignes si besoin. La
+	-- fenêtre a une taille fixe en px logiques : même calcul en 1920 x 1080, 1280 x 720 et sur
+	-- téléphone 844 x 390 (seule l'échelle de l'interface change).
+	do
+		local rowWidth = QuestsUI.RowWidth
+		local function left(ui)
+			local width = ui.Size.X.Scale * rowWidth + ui.Size.X.Offset
+			return ui.Position.X.Scale * rowWidth + ui.Position.X.Offset - ui.AnchorPoint.X * width, width
+		end
+		local checked = 0
+		for _, questRow in root:GetDescendants() do
+			local rewardsFrame = string.sub(questRow.Name, 1, 6) == "Quest_" and questRow:FindFirstChild("Rewards")
+			if rewardsFrame then
+				local claim = nil
+				for _, d in questRow:GetDescendants() do
+					if d:IsA("TextButton") and d:GetAttribute("SelKey") == "claim_" .. string.sub(questRow.Name, 7) then
+						claim = d
+					end
+				end
+				assert(claim, "bouton RÉCLAMER absent : " .. questRow.Name)
+				local rewardsLeft, rewardsWidth = left(rewardsFrame)
+				local claimLeft = left(claim)
+				assert(rewardsLeft + rewardsWidth <= claimLeft - 4, "cadre des récompenses sous le bouton RÉCLAMER : " .. questRow.Name)
+				local lines = rewardsFrame:FindFirstChild("Line1") and {} or { rewardsFrame }
+				for _, line in rewardsFrame:GetChildren() do
+					if string.sub(line.Name, 1, 4) == "Line" then
+						table.insert(lines, line)
+					end
+				end
+				local chips = 0
+				for _, line in lines do
+					local used, n = 0, 0
+					for _, c in line:GetChildren() do
+						if c.Name == "Chip" then
+							used += c.Size.X.Offset
+							n += 1
+						end
+					end
+					used += math.max(0, n - 1) * 6
+					assert(used <= rewardsWidth, "pastilles trop larges (" .. used .. " > " .. rewardsWidth .. ") : " .. questRow.Name)
+					chips += n
+				end
+				assert(rewardsFrame.Position.Y.Offset + rewardsFrame.Size.Y.Offset <= questRow.Size.Y.Offset - 4, "pastilles coupées en bas : " .. questRow.Name)
+				if questRow.Name == "Quest_u_saiyan_boss" then
+					assert(chips == 4 and #lines == 2, "boss Saiyan palier 3 : 4 pastilles sur 2 lignes attendues (" .. chips .. ", " .. #lines .. ")")
+				end
+				checked += 1
+			end
+		end
+		assert(checked >= 10 and root:FindFirstChild("Quest_u_saiyan_boss", true), "lignes de défis d'univers non vérifiées : " .. checked)
+	end
 	-- Réclamer depuis le bouton de la ligne
 	local claimed = false
 	for _, d in row:GetDescendants() do
@@ -498,6 +552,7 @@ test("Défis : les 5 onglets, réclamer, suivi à l'écran", function()
 		task.wait(0.02)
 	end
 	assert(data.Quests.claimed.u_ninja_1 == 1, "réclamer depuis l'écran ne marche pas")
+	data.Quests.claimed.u_saiyan_boss = bossClaimed
 	assert(QuestsUI.readyCount() >= 0, "compte des récompenses")
 	-- Bandeaux de notification : en bas de l'écran tant que la fenêtre Défis est ouverte
 	local toasts = gui:FindFirstChild("Toasts", true)

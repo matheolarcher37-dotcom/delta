@@ -104,6 +104,9 @@ function Slots.setState(ref, state: string, caption: string?)
 		local legend = ref.silhouette:FindFirstChild("Legende")
 		if legend and caption then
 			legend.Text = caption
+			-- Une ligne de légende par « \n » (0,16 de haut par ligne, comme Kit.silhouetteTag).
+			local _, breaks = string.gsub(caption, "\n", "")
+			legend.Size = UDim2.fromScale(1.8, 0.16 * (breaks + 1))
 		end
 	end
 	if ref.free then

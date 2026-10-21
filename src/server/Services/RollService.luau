@@ -46,6 +46,13 @@ local Announce = Remotes.event("Announce")
 local HatchReveal = Remotes.event("HatchReveal")
 local RollResult = Remotes.event("RollResult")
 
+-- Synchro de la sauvegarde pendant l'auto-roulage (roulage auto + achat auto) : regroupée sur
+-- 2 s au lieu de 0,25 s. Même avec la machine la plus rapide (1,8 s avec tout l'arbre),
+-- l'auto-roulage n'envoie pas la sauvegarde plus d'une fois toutes les 2 s. La révélation
+-- (RollResult), l'estrade (pièces du monde) et les messages (Notify, HatchReveal) partent tout
+-- de suite par leurs propres remotes. Le roulage manuel reste à 0,25 s.
+RollService.AutoSyncWindow = 2
+
 local rng = Random.new()
 local lastRoll: { [Player]: number } = {}
 local confirmUntil: { [Player]: number } = {}
@@ -435,7 +442,7 @@ function RollService:Roll(player: Player, auto: boolean?)
 		table.insert(data.RolledQueue, item)
 		table.insert(results, item)
 	end
-	DataService:Sync(player)
+	DataService:Sync(player, auto and RollService.AutoSyncWindow or nil)
 	Machine.press(plot.machine, false)
 	self:RenderStage(player, results)
 	self:UpdatePanels(player)
@@ -695,7 +702,8 @@ function RollService:AutoStep(player: Player)
 		local filter = { characters = settings.buyCharacters, rarities = settings.buyRarities, mutations = settings.buyMutations }
 		for _, item in results do
 			if Formulas.rollMatches(item, filter) then
-				local bought, message, reason = self:Collect(player, item.key)
+				-- Synchros de l'achat (pièces, inventaire, estrade) regroupées avec celle du roulage.
+				local bought, message, reason = self.services.DataService:WithSyncWindow(player, RollService.AutoSyncWindow, self.Collect, self, player, item.key)
 				if bought then
 					Notify:FireClient(player, "🛒 " .. message, "success")
 				elseif reason == "coins" or reason == "full" then

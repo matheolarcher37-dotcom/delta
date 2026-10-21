@@ -793,6 +793,83 @@ test("Achat automatique (passe AutoRollPlus) : achète les cibles, s'arrête san
 	services.RollService:RenderStage(alice)
 end)
 
+test("Auto-roulage : sauvegarde envoyée groupée (2 s), roulage manuel et arrêt tout de suite", function()
+	local data = DataService:Get(alice)
+	local RollService = services.RollService
+	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
+	-- Attend que la synchro en attente soit partie (aucune attente entre la fin et l'action testée).
+	local function flush()
+		local deadline = os.clock() + 8
+		while DataService:PendingSyncDelay(alice) and os.clock() < deadline do
+			task.wait(0.05)
+		end
+		assert(not DataService:PendingSyncDelay(alice), "synchro jamais envoyée")
+	end
+	local function characterCount()
+		local n = 0
+		for _ in data.characters do
+			n += 1
+		end
+		return n
+	end
+	local noPause, buyAll = {}, {}
+	for id in Economy.RollRarities do
+		noPause[id] = false
+		buyAll[id] = true
+	end
+	table.clear(data.RolledQueue)
+	data.FirstCollectDone = true
+	alice:SetAttribute("Pass_AutoRoll", true)
+	invoke("Roll_SaveAutoSettings", alice, { pauseRarities = noPause, pauseMutations = {}, buyCharacters = {}, buyRarities = {}, buyMutations = {} })
+	data.AutoRoll = true
+	data.AutoBuy = false
+	-- Lancer AFK : la révélation part tout de suite, la sauvegarde attend la fenêtre de 2 s.
+	flush()
+	local events = #clientEvents
+	local count = data.RollCount
+	RollService:ResetCooldown(alice)
+	RollService:AutoStep(alice)
+	assert(data.RollCount == count + 1, "pas de roulage auto")
+	local revealed = false
+	for i = events + 1, #clientEvents do
+		revealed = revealed or (clientEvents[i].name == "RollResult" and clientEvents[i].player == alice)
+	end
+	assert(revealed, "révélation du roulage auto pas envoyée tout de suite")
+	local delay = DataService:PendingSyncDelay(alice)
+	assert(delay and delay > 1.5, "roulage auto : toute la sauvegarde part tout de suite (" .. tostring(delay) .. ")")
+	-- Roulage manuel juste après : pas retardé par l'envoi groupé en attente.
+	data.AutoRoll = false
+	table.clear(data.RolledQueue)
+	assert(rollNow(alice), "roulage manuel refusé")
+	delay = DataService:PendingSyncDelay(alice)
+	assert(delay and delay <= 0.26, "roulage manuel retardé (" .. tostring(delay) .. ")")
+	-- Achat auto : les synchros de l'achat (pièces, inventaire) suivent la même fenêtre.
+	table.clear(data.RolledQueue)
+	alice:SetAttribute("Pass_AutoRollPlus", true)
+	invoke("Roll_SaveAutoSettings", alice, { buyRarities = buyAll })
+	data.AutoBuy = true
+	DataService:AddCoins(alice, 100000000)
+	flush()
+	local before = characterCount()
+	RollService:ResetCooldown(alice)
+	RollService:AutoStep(alice)
+	assert(characterCount() == before + 1 and data.AutoBuy == true, "cible de l'achat auto pas achetée")
+	delay = DataService:PendingSyncDelay(alice)
+	assert(delay and delay > 1.5, "achat auto : toute la sauvegarde part tout de suite (" .. tostring(delay) .. ")")
+	-- Arrêt de l'auto-roulage (plus d'argent) : envoyé tout de suite (bouton « Lancer » à jour).
+	data.coins = 0
+	RollService:ResetCooldown(alice)
+	RollService:AutoStep(alice)
+	assert(data.AutoBuy == false, "l'achat auto ne s'arrête pas sans argent")
+	delay = DataService:PendingSyncDelay(alice)
+	assert(delay and delay <= 0.26, "arrêt de l'auto-roulage retardé (" .. tostring(delay) .. ")")
+	alice:SetAttribute("Pass_AutoRoll", nil)
+	alice:SetAttribute("Pass_AutoRollPlus", nil)
+	invoke("Roll_SaveAutoSettings", alice, { pauseRarities = { legendary = true, mythic = true }, buyRarities = {} })
+	table.clear(data.RolledQueue)
+	RollService:RenderStage(alice)
+end)
+
 test("Auto-roulage : aucun perso précieux jeté, remote Roll seulement à la machine", function()
 	local data = DataService:Get(alice)
 	local RollService = services.RollService
@@ -1707,10 +1784,17 @@ test("Boutique Robux : effets des passes Roulage x2 / x3, Lancer AFK et Emplacem
 	RollService:SetAutoRoll(dora, false)
 	-- Emplacements + : 2 cases d'unités en plus dans la base.
 	local display = Formulas.playerStats(data).display
+	local passSlot = services.PlotService:GetPlot(dora).slots[Economy.MaxDisplaySlots + 1]
+	assert(passSlot.state == "locked" and string.find(passSlot.caption, "Passe « +2 Cases »", 1, true), "case du passe : légende sans le passe")
 	task.wait(0.7)
 	assert(invoke("Robux_Buy", dora, "pass", "Slots"), "achat simulé d'Emplacements +")
 	assert(data.RobuxSlots == Robux.SlotsBonus, "cases en plus non notées")
 	assert(Formulas.playerStats(data).display == display + Robux.SlotsBonus, "cases de la base non ajoutées")
+	-- Passe acheté, cour pas finie : les cases du fond ne disent plus « achète le passe ».
+	assert(passSlot.state == "locked" and passSlot.caption == services.PlotService.PassSlotsOwnedCaption, "case du passe : légende pas à jour après l'achat (" .. tostring(passSlot.caption) .. ")")
+	local legend = passSlot.silhouette and passSlot.silhouette:FindFirstChild("Legende")
+	assert(legend and legend.Text == passSlot.caption and legend.Size.Y.Scale > 0.3, "légende sur deux lignes attendue")
+	assert(services.PlotService:GetPlot(dora).slots[display + Robux.SlotsBonus].state ~= "locked", "les 2 cases du passe ne sont pas ouvertes dans la grille")
 	-- Arbre terminé et toutes les améliorations : 24 cases sans le passe, 26 avec.
 	local full = { upgrades = {}, Skills = {} }
 	for _, upgrade in Economy.Upgrades do

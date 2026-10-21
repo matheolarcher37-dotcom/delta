@@ -26,6 +26,7 @@ local profiles: { [Player]: { data: any, dirty: boolean, loaded: boolean } } = {
 local loadedCallbacks = {}
 local removingCallbacks = {}
 local pendingSync: { [Player]: number } = {} -- heure (os.clock) du prochain envoi prévu
+local syncWindows: { [Player]: number } = {} -- fenêtre imposée pendant DataService:WithSyncWindow
 
 local DataSync = Remotes.event("DataSync")
 local Notify = Remotes.event("Notify")
@@ -515,6 +516,7 @@ function DataService:_onPlayerRemoving(player: Player)
 	end
 	profiles[player] = nil
 	pendingSync[player] = nil
+	syncWindows[player] = nil
 end
 
 -- API -------------------------------------------------------------------
@@ -546,16 +548,19 @@ function DataService:IsLoaded(player: Player): boolean
 end
 
 -- Marque les données comme modifiées et programme une synchro vers le client.
--- `window` (secondes, 0,25 par défaut) : délai de regroupement. Les sources fréquentes
--- (coups de punching-ball, auto-roulage) passent une fenêtre plus longue pour ne pas renvoyer
--- toute la sauvegarde plusieurs fois par seconde ; un appel normal reste prioritaire.
+-- `window` (secondes, 0,25 par défaut) : délai de regroupement. Les sources fréquentes passent
+-- une fenêtre plus longue pour ne pas renvoyer toute la sauvegarde à chaque fois : coups de
+-- punching-ball (2 s, QuestService) et auto-roulage (RollService.AutoSyncWindow : le roulage
+-- auto et l'achat auto, via WithSyncWindow). Ce qui doit se voir tout de suite a ses propres
+-- remotes (RollResult, HatchReveal, Notify...). Un appel normal (0,25 s) reste prioritaire :
+-- il avance l'envoi déjà prévu, une action du joueur n'est donc jamais retardée.
 function DataService:Sync(player: Player, window: number?)
 	local profile = profiles[player]
 	if not profile or not profile.loaded then
 		return
 	end
 	profile.dirty = true
-	local wait = math.max(0, window or 0.25)
+	local wait = math.max(0, window or syncWindows[player] or 0.25)
 	local due = os.clock() + wait
 	local planned = pendingSync[player]
 	if planned and planned <= due then
@@ -573,6 +578,25 @@ function DataService:Sync(player: Player, window: number?)
 			DataSync:FireClient(player, current.data)
 		end
 	end)
+end
+
+-- Appelle fn(...) en donnant la fenêtre `window` à toutes les synchros sans fenêtre explicite
+-- qu'elle déclenche (ex. achat auto : SpendCoins, AddCharacter... dans RollService:Collect).
+function DataService:WithSyncWindow(player: Player, window: number, fn: (...any) -> ...any, ...: any): ...any
+	local previous = syncWindows[player]
+	syncWindows[player] = window
+	local results = table.pack(pcall(fn, ...))
+	syncWindows[player] = previous
+	if not results[1] then
+		error(results[2], 0)
+	end
+	return table.unpack(results, 2, results.n)
+end
+
+-- Secondes avant le prochain envoi prévu au client (nil si aucun) : pour les tests.
+function DataService:PendingSyncDelay(player: Player): number?
+	local due = pendingSync[player]
+	return due and math.max(0, due - os.clock()) or nil
 end
 
 function DataService:SaveNow(player: Player)
