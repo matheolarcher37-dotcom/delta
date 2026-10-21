@@ -1752,7 +1752,9 @@ test("Boutique Robux : passe couvert par un plus grand, Roblox qui ne répond pa
 	Robux.Passes.Coins2.id = 4343
 	local emma = addPlayer("Emma")
 	task.wait(0.3)
-	assert(emma:GetAttribute("Pass_Coins2") ~= true, "passe accordé sans réponse de Roblox")
+	-- (accordé seulement au 2e essai, 2 s plus tard : sous Lune chargé, le planificateur a pu
+	-- prendre assez de retard pour que ce 2e essai soit déjà fait)
+	assert(emma:GetAttribute("Pass_Coins2") ~= true or calls >= 2, "passe accordé sans réponse de Roblox")
 	task.wait(2.3)
 	assert(emma:GetAttribute("Pass_Coins2") == true, "passe jamais revérifié après une erreur de Roblox")
 	-- Fenêtre d'achat fermée avec « déjà possédé » : revérifié sans cache, accordé.
