@@ -7,7 +7,8 @@
 --   * Workspace > World > Plots > Plot1 : une base d'exemple avec toutes les améliorations
 --     (déco du 1er univers) ; la déco de base des 5 univers est dans ServerStorage > DecorsBase
 --   * Workspace > GaleriePersos : tous les persos et ennemis (attribut AutoGenere : un modèle n'est
---     repris par le jeu qu'une fois cet attribut supprimé, après retouche)
+--     repris par le jeu qu'une fois cet attribut supprimé, après retouche ; un modèle par étoile,
+--     « ninja_maruto » = ★1, « ninja_maruto_2 » = ★★...)
 --   * ServerStorage > ModelesDeco : dossier (vide) pour les modèles de la Boîte à outils qui
 --     remplacent les arbres, rochers, maisons... de la carte (même nom que l'élément, ex. "ArbreGeant")
 --
@@ -187,7 +188,12 @@ Build.part(decor, "Deck", Vector3.new(210, 1, 150), CFrame.new(center + Vector3.
 local sign = Build.part(decor, "Sign", Vector3.new(70, 9, 1), CFrame.new(center + Vector3.new(0, 8, -78)), Color3.fromRGB(60, 40, 30), { Material = Enum.Material.Wood })
 Build.surfaceText(sign, Enum.NormalId.Front, "GALERIE DES PERSOS · modifie-les ici !", Color3.fromRGB(255, 220, 90))
 local info = Build.part(decor, "Info", Vector3.new(70, 4, 1), CFrame.new(center + Vector3.new(0, 1.8, -78)), Color3.fromRGB(40, 30, 25), { Material = Enum.Material.Wood })
-Build.surfaceText(info, Enum.NormalId.Front, "Retouche un perso puis supprime son attribut AutoGenere : le jeu utilisera ton modèle", Color3.fromRGB(255, 255, 255))
+Build.surfaceText(
+	info,
+	Enum.NormalId.Front,
+	"Retouche un perso puis supprime son attribut AutoGenere : le jeu utilisera ton modèle pour cette étoile",
+	Color3.fromRGB(255, 255, 255)
+)
 
 local function pedestal(position: Vector3, title: string, color: Color3)
 	Build.part(decor, "Pedestal", Vector3.new(4, 0.6, 4), CFrame.new(position + Vector3.new(0, 0.3, 0)), color, { Material = Enum.Material.SmoothPlastic })
