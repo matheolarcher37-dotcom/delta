@@ -110,7 +110,7 @@ Ensuite, une **variété** peut s'ajouter par-dessus (environ 15 % des tirages).
 ### 💎 La boutique Robux
 
 - Le bouton **Boutique** ouvre la boutique Robux (le reste de l'écran s'assombrit). Elle a 3 onglets :
-  - **Passes** (achetés une fois pour toutes) : Roulage x2 (149) et Roulage x3 (399), **x2 Argent** (199), x2 Chance (249), **Lancer AFK** (29), **Roulement automatique +** (500), **+2 Cases** (199) et **VIP** (299 : +25 % d'argent, +10 % de chance, une couronne et une étiquette dorée dans le chat) ;
+  - **Passes** (achetés une fois pour toutes) : Roulage x2 (149) et Roulage x3 (399), **x2 Argent** (199), x2 Chance (249), **Lancer AFK** (29), **Roulement automatique +** (500), **+2 Cases** (199 : deux cases en plus, au fond de la cour, même avec l'arbre terminé) et **VIP** (299 : +25 % d'argent, +10 % de chance, une couronne et une étiquette dorée dans le chat) ;
   - **Packs** : des pièces (plus tu gagnes, plus le pack est gros) et des gemmes de trait. Le **Pack de départ** (99, un seul achat) donne des pièces, 20 gemmes et la Chance x2 pendant 15 minutes ;
   - **Boosts** : chance x2 ou argent x2 pendant 15 minutes. « Tes bonus actuels » montre ce qui vient d'un passe et ce qui vient d'un boost, avec son temps restant.
 - **À droite de l'écran**, des boutons (« x2 Argent », « Roulage x3 »…) affichent leur prix en Robux et ouvrent l'achat tout de suite. À la manette, **Y** ouvre la boutique.
