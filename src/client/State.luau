@@ -145,22 +145,37 @@ function State.invoke(name: string, ...): (boolean, any, any)
 	return a == true, b, c
 end
 
+-- Appels de State.invokeWithin partis au serveur et encore sans réponse (par remote).
+local inFlight: { [string]: number } = {}
+
 -- Comme State.invoke, mais sans attendre le serveur plus de `timeout` secondes (écran bloqué
--- sinon) : passé ce délai, renvoie (false, message). Une réponse arrivée trop tard est ignorée.
+-- sinon) : passé ce délai, renvoie (false, message). Une réponse arrivée trop tard est ignorée,
+-- mais le serveur peut encore traiter l'appel : voir State.awaiting.
 function State.invokeWithin(timeout: number, name: string, ...): (boolean, any, any)
 	local args = table.pack(...)
 	local result = nil
+	inFlight[name] = (inFlight[name] or 0) + 1
 	task.spawn(function()
-		result = table.pack(State.invoke(name, table.unpack(args, 1, args.n)))
+		local ok, packed = pcall(function()
+			return table.pack(State.invoke(name, table.unpack(args, 1, args.n)))
+		end)
+		inFlight[name] -= 1
+		result = ok and packed or table.pack(false, "Erreur de connexion, réessaie.")
 	end)
 	local deadline = os.clock() + timeout
 	while not result and os.clock() < deadline do
 		task.wait(0.05)
 	end
 	if not result then
-		return false, "Le serveur ne répond pas, réessaie."
+		return false, "Le serveur ne répond pas pour l'instant."
 	end
 	return result[1], result[2], result[3]
+end
+
+-- Vrai si un appel `name` lancé par State.invokeWithin attend encore la réponse du serveur (même
+-- après son délai max) : ne pas le renvoyer tant qu'il n'a pas répondu (sinon il compterait double).
+function State.awaiting(name: string): boolean
+	return (inFlight[name] or 0) > 0
 end
 
 function State.inTeam(uid: string): boolean

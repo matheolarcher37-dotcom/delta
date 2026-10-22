@@ -1112,6 +1112,14 @@ local function rerollOnce(uid: string, fast: boolean): string?
 		Notifications.toast("Plus de gemmes de trait ! Tue des ennemis, tape le punching-ball ou réussis des défis.", "error")
 		return nil
 	end
+	-- Relance précédente restée sans réponse (délai max passé) : le serveur peut encore la faire.
+	-- On n'en envoie pas une 2e : 2 gemmes dépensées pour un seul résultat affiché, et le
+	-- TraitRolled tardif de la 1re prendrait la place réservée par TraitCinematic.claim pour la
+	-- 2e (cinématique de la 2e alors jouée deux fois). Son résultat s'affichera à la synchro.
+	if State.awaiting("RerollTrait") then
+		Notifications.toast("Ta relance précédente attend encore la réponse du serveur.", "info")
+		return nil
+	end
 	-- l'écran joue lui-même la révélation (TraitCinematic ne la rejoue pas en recevant TraitRolled)
 	TraitCinematic.claim(uid)
 	local before = State.data and State.data.characters[uid]

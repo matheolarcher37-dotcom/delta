@@ -798,14 +798,16 @@ test("Traits : la relance se débloque toujours (révélation en erreur, serveur
 	local gui = alice.PlayerGui.AnimeTycoonUI
 	local data = services.DataService:Get(alice)
 	local realRoll, realReveal, realInvoke, realTimeout = TraitsConfig.roll, TraitsMenu.playReveal, State.invoke, TraitsMenu.ServerTimeout
+	local realRevealTimeout = TraitsMenu.RevealTimeout
 	local answer = false -- le serveur simulé « muet » répond quand ce drapeau passe à vrai
 	Harness.cleanup(function()
 		TraitsConfig.roll, TraitsMenu.playReveal, State.invoke, TraitsMenu.ServerTimeout = realRoll, realReveal, realInvoke, realTimeout
+		TraitsMenu.RevealTimeout = realRevealTimeout
 		answer = true
 		TraitsMenu.skipCinematic()
 		Menus.close("Traits")
 	end)
-	data.traitCrystals = 5
+	data.traitCrystals = 10
 	services.DataService:Sync(alice)
 	task.wait(0.4)
 	Menus.open("Traits")
@@ -855,12 +857,49 @@ test("Traits : la relance se débloque toujours (révélation en erreur, serveur
 	assert(text(button("auto")) == "RELANCE AUTO", "la relance auto ne s'arrête pas après une erreur")
 	signalFor(button("target1"), "Activated"):Fire() -- (rang d'arrêt remis à Mythique)
 	task.wait(0.2)
-	before = #warnings -- (les deux erreurs voulues ci-dessus)
+	-- La révélation plante en route, calque plein écran déjà affiché : il se ferme quand même
+	-- tout seul (sa fermeture est programmée avant de construire le reste).
+	local ThemeUI = Harness.require(client.UI.Theme)
+	local realSparkles = ThemeUI.sparkles
+	Harness.cleanup(function()
+		ThemeUI.sparkles = realSparkles
+	end)
+	ThemeUI.sparkles = function(parent, ...)
+		if parent and parent.Name == "TraitReveal" then
+			error("étincelles cassées (test)")
+		end
+		return realSparkles(parent, ...)
+	end
+	TraitsMenu.playReveal = realReveal
+	signalFor(button("roll"), "Activated"):Fire()
+	assert(settles(), "relance bloquée après une erreur en pleine révélation")
+	ThemeUI.sparkles = realSparkles
+	assert(string.find(warnings[#warnings], "étincelles cassées", 1, true), "erreur en pleine révélation non signalée")
+	local t0 = os.clock()
+	while gui:FindFirstChild("TraitReveal") and os.clock() - t0 < 30 do
+		task.wait(0.2)
+	end
+	assert(not gui:FindFirstChild("TraitReveal"), "calque de révélation resté affiché après une erreur en pleine révélation")
+	-- Calque qui ne se ferme pas de lui-même (fermeture programmée jamais partie) : la relance ne
+	-- l'attend pas plus de RevealTimeout, puis le ferme.
+	TraitsMenu.RevealTimeout = 2
+	TraitsMenu.playReveal = function(trait, desc)
+		return realReveal(trait, desc, 1e6)
+	end
+	signalFor(button("roll"), "Activated"):Fire()
+	assert(settles(), "relance bloquée tant que la révélation reste affichée")
+	task.wait(0.3)
+	assert(not gui:FindFirstChild("TraitReveal"), "calque de révélation resté affiché après le délai max")
+	assert(text(button("roll")) == "RELANCER", "RELANCER ne revient pas après le délai max de la révélation")
+	TraitsMenu.RevealTimeout = realRevealTimeout
+	before = #warnings -- (les trois erreurs voulues ci-dessus)
 	TraitsMenu.playReveal = realReveal
 	-- 2) Le serveur ne répond pas : passé le délai max, l'écran se débloque sans attendre la réponse.
 	TraitsMenu.ServerTimeout = 2
+	local sent = 0 -- relances envoyées au serveur
 	State.invoke = function(name, ...)
 		if name == "RerollTrait" then
+			sent += 1
 			while not answer do
 				task.wait(0.1)
 			end
@@ -874,16 +913,94 @@ test("Traits : la relance se débloque toujours (révélation en erreur, serveur
 	task.wait(0.3)
 	assert(text(button("roll")) == "RELANCER", "RELANCER ne revient pas après le délai max (" .. text(button("roll")) .. ")")
 	assert(data.traitCrystals == crystals, "aucune gemme ne doit être dépensée sans réponse du serveur")
-	-- la réponse arrive enfin (relance faite par le serveur) : l'écran reste utilisable
+	-- Nouveau clic alors que la 1re relance attend toujours le serveur (qui la fera plus tard) :
+	-- pas de 2e envoi, sinon 2 gemmes dépensées pour un seul résultat affiché.
+	signalFor(button("roll"), "Activated"):Fire()
+	assert(settles(), "relance bloquée au 2e clic (serveur muet)")
+	task.wait(0.3)
+	assert(sent == 1, "relance renvoyée au serveur alors que la précédente attend encore sa réponse (" .. sent .. " envois)")
+	assert(text(button("roll")) == "RELANCER", "RELANCER ne revient pas après le 2e clic (" .. text(button("roll")) .. ")")
+	-- la réponse arrive enfin (relance faite par le serveur) : une seule gemme dépensée
 	answer = true
-	local t0 = os.clock()
+	t0 = os.clock()
 	while data.traitCrystals == crystals and os.clock() - t0 < 30 do
 		task.wait(0.2)
 	end
-	assert(data.traitCrystals == crystals - 1, "la relance tardive du serveur n'a pas eu lieu")
-	State.invoke = realInvoke
+	task.wait(1) -- (une 2e relance en attente aurait eu le temps de passer)
+	assert(data.traitCrystals == crystals - 1, "la relance tardive doit coûter exactement 1 gemme (" .. tostring(crystals - data.traitCrystals) .. ")")
 	task.wait(0.6)
 	assert(not TraitsMenu.isRolling() and text(button("roll")) == "RELANCER", "écran bloqué après la réponse tardive du serveur")
+	-- une fois la réponse arrivée, RELANCER relance de nouveau (rang 1 : ni plein écran ni cinématique)
+	TraitsConfig.roll = function()
+		return "vigueur1"
+	end
+	signalFor(button("roll"), "Activated"):Fire()
+	assert(settles(), "relance bloquée après la réponse tardive")
+	task.wait(0.3)
+	assert(sent == 2 and data.traitCrystals == crystals - 2, "RELANCER ne relance plus après la réponse tardive (" .. sent .. " envois)")
+	State.invoke = realInvoke
+	-- 3) Fenêtre fermée ou autre perso choisi pendant la relance (à la main ou en auto) : la
+	-- relance se termine, et RELANCER revient sur le perso affiché.
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	local uidA, uidB = nil, nil
+	for _, item in State.sortedCharacters() do
+		if not uidA then
+			uidA = item.uid
+		elseif not uidB and item.desc.name ~= Formulas.describe(data.characters[uidA]).name then
+			uidB = item.uid
+		end
+	end
+	assert(uidA and uidB, "il faut deux persos différents")
+	local function owner(): string
+		local label = gui:FindFirstChild("WindowRoot_TRAITS"):FindFirstChild("Owner", true)
+		return label and label.Text or "?"
+	end
+	local function backOn(uid: string, what: string)
+		assert(settles(), "relance bloquée (" .. what .. ")")
+		if not Menus.current() then
+			Menus.open("Traits")
+		end
+		task.wait(0.3)
+		assert(text(button("roll")) == "RELANCER", "RELANCER ne revient pas (" .. what .. ") : " .. text(button("roll")))
+		assert(text(button("auto")) == "RELANCE AUTO", "relance auto pas arrêtée (" .. what .. ")")
+		local name = Formulas.describe(data.characters[uid]).name
+		assert(owner() == "sur " .. name, "mauvais perso affiché (" .. what .. ") : " .. owner() .. " au lieu de " .. name)
+	end
+	data.traitCrystals = 20
+	data.characters[uidA].trait = nil
+	services.DataService:Sync(alice)
+	task.wait(0.4)
+	-- à la main, fenêtre fermée pendant le rouleau : la relance a lieu (une gemme, le trait posé)
+	Menus.open("Traits", uidA)
+	task.wait(0.3)
+	crystals = data.traitCrystals
+	signalFor(button("roll"), "Activated"):Fire()
+	assert(TraitsMenu.isRolling(), "le clic sur RELANCER ne lance pas le rouleau")
+	Menus.close("Traits")
+	backOn(uidA, "fenêtre fermée")
+	assert(data.traitCrystals == crystals - 1 and data.characters[uidA].trait == "vigueur1", "relance perdue quand on ferme la fenêtre")
+	-- à la main, autre perso choisi pendant le rouleau : la relance reste sur le 1er perso
+	crystals = data.traitCrystals
+	local traitB = data.characters[uidB].trait
+	signalFor(button("roll"), "Activated"):Fire()
+	assert(TraitsMenu.isRolling(), "le clic sur RELANCER ne lance pas le rouleau")
+	Menus.open("Traits", uidB)
+	backOn(uidB, "autre perso choisi")
+	assert(data.traitCrystals == crystals - 1 and data.characters[uidB].trait == traitB, "relance faite sur le mauvais perso")
+	-- relance auto (rang 1 tiré à chaque fois : elle ne s'arrête pas d'elle-même), fenêtre fermée
+	Menus.open("Traits", uidA)
+	task.wait(0.3)
+	signalFor(button("auto"), "Activated"):Fire()
+	assert(TraitsMenu.isRolling(), "la relance auto ne démarre pas")
+	task.wait(0.5)
+	Menus.close("Traits")
+	backOn(uidA, "relance auto, fenêtre fermée")
+	-- relance auto, autre perso choisi
+	signalFor(button("auto"), "Activated"):Fire()
+	assert(TraitsMenu.isRolling(), "la relance auto ne démarre pas")
+	task.wait(0.5)
+	Menus.open("Traits", uidB)
+	backOn(uidB, "relance auto, autre perso choisi")
 	TraitsConfig.roll = realRoll
 	Menus.close("Traits")
 	expectNoNewWarnings(before, "relance débloquée")
@@ -1889,14 +2006,24 @@ test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement
 		end
 	end
 	assert(toggle, "aucune ligne de rareté réglable")
+	-- La fenêtre envoie les réglages au serveur 0,35 s après le dernier clic (task.delay, clics
+	-- rapprochés groupés). Sous Lune, serveur, client et carte partagent un planificateur très
+	-- chargé où un task.delay(0,35) peut passer bien après un task.wait(0,6) lancé ensuite : on
+	-- attend que le serveur ait le réglage, sans délai serré.
+	local function savedAs(expected: boolean): boolean
+		local t0 = os.clock()
+		while (data.AutoRollSettings.pauseRarities[rarityId] == true) ~= expected and os.clock() - t0 < 30 do
+			task.wait(0.1)
+		end
+		return (data.AutoRollSettings.pauseRarities[rarityId] == true) == expected
+	end
 	-- (l'état de départ est celui affiché par le bouton)
 	local initial = toggle.Label.Text == "Activé"
+	assert(savedAs(initial), "le bouton n'affiche pas le réglage enregistré")
 	signalFor(toggle, "Activated"):Fire()
-	task.wait(0.6)
-	assert((data.AutoRollSettings.pauseRarities[rarityId] == true) == not initial, "réglage non enregistré")
+	assert(savedAs(not initial), "réglage non enregistré")
 	signalFor(toggle, "Activated"):Fire()
-	task.wait(0.6)
-	assert((data.AutoRollSettings.pauseRarities[rarityId] == true) == initial, "réglage non rétabli")
+	assert(savedAs(initial), "réglage non rétabli")
 	print("   raretés grisées (aucun perso dans l'univers) : " .. greyed)
 	-- Avancé (achat automatique +).
 	setAttr("Pass_AutoRollPlus", true)
@@ -1966,6 +2093,20 @@ test("Boucle de la base vue par le client : rouler, collecter, poser une unité"
 	local Remotes = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Remotes"))
 	local data = services.DataService:Get(alice)
 	local rolls = received.RollResult or 0
+	-- Vrai quand les données ont été envoyées au client depuis le dernier changement (envoi
+	-- groupé de DataService:Sync, 0,25 s après). Sous Lune très chargé, ce délai peut passer bien
+	-- après une attente fixe plus longue : on attend l'envoi lui-même.
+	local function synced(): boolean
+		if services.DataService:PendingSyncDelay(alice) == nil then
+			return true -- (rien en attente : l'envoi qui suit le changement est déjà parti)
+		end
+		local sends = received.DataSync or 0
+		local t0 = os.clock()
+		while (received.DataSync or 0) == sends and os.clock() - t0 < 30 do
+			task.wait(0.1)
+		end
+		return (received.DataSync or 0) > sends
+	end
 	-- Devant sa machine : le serveur refuse le remote Roll ailleurs.
 	local plot = services.PlotService:GetPlot(alice)
 	alice.Character:PivotTo(plot.cf * CFrame.new(services.PlotService.MachineOffset + Vector3.new(0, 3, -8)))
@@ -1980,7 +2121,10 @@ test("Boucle de la base vue par le client : rouler, collecter, poser une unité"
 	end
 	assert((received.RollResult or 0) > rolls, "pas de RollResult reçu après le roulage")
 	assert(#data.RolledQueue >= 1, "rien sur l'estrade")
-	task.wait(0.3)
+	-- La carte du perso tiré (et son bouton « Collecter ») est refaite à la synchro qui suit le
+	-- roulage ; d'ici là, elle montre encore l'estrade d'avant (le perso tiré par l'auto-roulage
+	-- du test précédent, qui n'y est plus).
+	assert(synced(), "synchro du roulage jamais envoyée au client")
 	assert(State.data and #State.data.RolledQueue >= 1, "l'estrade n'est pas synchronisée côté client")
 	-- 2) Collecter le 1er perso de l'estrade (le tout premier est offert).
 	local owned = 0
@@ -2045,7 +2189,11 @@ test("Boucle de la base vue par le client : rouler, collecter, poser une unité"
 	-- les cartes, et la grille doit alors être reconstruite)
 	local addXP = services.CharacterService.AddXP
 	services.CharacterService.AddXP = function() end
-	task.wait(0.5)
+	Harness.cleanup(function()
+		services.CharacterService.AddXP = addXP
+	end)
+	assert(synced(), "synchro de la libération jamais envoyée au client")
+	task.wait(0.2)
 	Remotes.event("OpenMenu"):FireClient(alice, "PlaceUnit", { slot = 2 })
 	task.wait(0.4)
 	local firstGrid = nil
@@ -2057,7 +2205,8 @@ test("Boucle de la base vue par le client : rouler, collecter, poser une unité"
 	end
 	assert(firstGrid, "aucune carte après réouverture")
 	services.DataService:Sync(alice)
-	task.wait(0.5)
+	assert(synced(), "synchro sans changement jamais envoyée au client")
+	task.wait(0.3)
 	local okAlive, gridParent = pcall(function()
 		return firstGrid.Parent
 	end)
