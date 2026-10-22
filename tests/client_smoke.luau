@@ -674,27 +674,53 @@ test("Traits : écran, rouleau, relance avec une gemme et révélation renforcé
 	local bank = root:FindFirstChild("Bank", true)
 	assert(bank and bank:FindFirstChild("Count") and bank.Count.Text == "3", "réserve de gemmes : compteur faux")
 	assert(bank:FindFirstChild("BuyGems"), "bouton d'achat de gemmes manquant")
-	local roll = nil
-	for _, d in root:GetDescendants() do
-		if d:IsA("TextButton") and d:GetAttribute("SelKey") == "roll" then
-			roll = d
+	-- Une relance : clic sur RELANCER, le serveur tire `forced`. Le tirage est imposé (le tirage au
+	-- hasard est vérifié par le test d'intégration) : le rang tiré décide de la révélation jouée,
+	-- et un trait à cinématique (3,7 % des tirages) monterait ici sa scène pendant plus d'une minute
+	-- (recherche des pièces proches simulée sur toute la carte ; ces scènes ont leurs propres tests).
+	-- On attend la fin du rouleau ET de la révélation, qui doit se fermer toute seule (sans la
+	-- passer), sans délai serré : sous Lune, serveur, client et carte entière tournent dans un seul
+	-- planificateur très chargé, où une attente de 0,2 s dure parfois 4 à 6 s et où une relance de
+	-- rang 3 (rouleau puis plein écran) prend environ 10 s.
+	local function reroll(forced: string): { string }
+		local button = nil
+		for _, d in gui:FindFirstChild("WindowRoot_TRAITS"):GetDescendants() do
+			if d:IsA("TextButton") and d:GetAttribute("SelKey") == "roll" then
+				button = d
+			end
 		end
-	end
-	assert(roll, "bouton RELANCER manquant")
-	signalFor(roll, "Activated"):Fire()
-	-- le rouleau tourne (bloquant) puis la révélation s'affiche ; on attend la fin
-	local t0 = os.clock()
-	task.wait(0.2)
-	while TraitsMenu.isRolling() and os.clock() - t0 < 10 do
-		task.wait(0.2)
-		Harness.services.RunService.RenderStepped:Fire(1 / 30)
-		if os.clock() - t0 > 3.5 then
-			TraitsMenu.skipCinematic()
+		assert(button, "bouton RELANCER manquant")
+		local crystals = data.traitCrystals
+		local reveals = {}
+		local realRoll, realReveal = TraitsConfig.roll, TraitsMenu.playReveal
+		TraitsConfig.roll = function()
+			return forced
 		end
+		TraitsMenu.playReveal = function(trait, ...)
+			table.insert(reveals, trait and trait.id or "?")
+			return realReveal(trait, ...)
+		end
+		signalFor(button, "Activated"):Fire()
+		-- le rouleau tourne (bloquant) puis la révélation s'affiche ; on attend la fin
+		local started = TraitsMenu.isRolling()
+		local t0 = os.clock()
+		while TraitsMenu.isRolling() and os.clock() - t0 < 90 do
+			task.wait(0.2)
+			Harness.services.RunService.RenderStepped:Fire(1 / 30)
+		end
+		TraitsConfig.roll, TraitsMenu.playReveal = realRoll, realReveal
+		assert(started, "le clic sur RELANCER ne lance pas le rouleau")
+		assert(not TraitsMenu.isRolling(), "la relance ne se termine pas")
+		task.wait(0.4)
+		assert(data.traitCrystals == crystals - 1, "la relance doit coûter 1 gemme (" .. tostring(data.traitCrystals) .. ")")
+		assert(not gui:FindFirstChild("TraitReveal"), "la révélation plein écran doit se fermer à la fin de la relance")
+		return reveals
 	end
-	assert(not TraitsMenu.isRolling(), "la relance ne se termine pas")
-	task.wait(0.4)
-	assert(data.traitCrystals == 2, "la relance doit coûter 1 gemme (" .. tostring(data.traitCrystals) .. ")")
+	-- rang 2 (Fortuné) : éclat et onde sur la carte, pas de plein écran
+	assert(#reroll("fortune") == 0, "trait de rang 2 : pas de révélation plein écran")
+	-- rang 3 (Critique) : révélation renforcée plein écran, qui se ferme toute seule
+	assert(reroll("critique")[1] == "critique", "trait de rang 3 : la révélation plein écran doit s'afficher")
+	assert(data.traitCrystals == 1, "deux relances doivent coûter 2 gemmes (" .. tostring(data.traitCrystals) .. ")")
 	-- au repos, la ligne du milieu du rouleau est le trait de l'unité sélectionnée
 	local rolled = nil
 	for _, e in data.characters do
@@ -702,7 +728,7 @@ test("Traits : écran, rouleau, relance avec une gemme et révélation renforcé
 			rolled = e.trait
 		end
 	end
-	assert(rolled, "aucun trait tiré")
+	assert(rolled == "critique", "le trait tiré doit être posé sur l'unité (" .. tostring(rolled) .. ")")
 	root = gui:FindFirstChild("WindowRoot_TRAITS")
 	local strip = root:FindFirstChild("ReelStrip", true)
 	local row2 = strip and strip:FindFirstChild("Row2")
@@ -2124,14 +2150,17 @@ test("Kourama : créature animée (queues, marche, attaque) sans animations R6",
 	model:PivotTo(CFrame.new(origin))
 	model.Parent = workspaceService
 	Harness.CollectionService:AddTag(model, "AnimeRig")
-	-- (CreatureAnimator le prend en charge à l'image suivante : sous Lune, un planificateur chargé
-	-- peut reprendre l'attente de ce test avant cette image ; on laisse jusqu'à 2 s)
+	-- CreatureAnimator le prend en charge à l'image suivante (task.wait() dans un fil lancé par
+	-- task.spawn). Sous Lune, toute la partie tourne dans un seul planificateur : quand un autre fil
+	-- calcule plusieurs secondes dans le même passage (vérifié avec un fil différé de 3 s), la
+	-- première image du fil lancé ne vient qu'APRÈS la fin de l'attente de ce test, déjà en cours.
+	-- On attend donc la prise en charge elle-même, jusqu'à 60 s, et non une durée fixe.
 	local st = nil
 	local waitStart = os.clock()
 	repeat
 		task.wait(0.05)
 		st = CreatureAnimator._rigs[model]
-	until st or os.clock() - waitStart > 2
+	until st or os.clock() - waitStart > 60
 	assert(st, "Kourama non pris en charge par CreatureAnimator")
 	local tail = model:FindFirstChild("Tail5_6"):FindFirstChildOfClass("Motor6D")
 	local base = tail:GetAttribute("BaseC0")
