@@ -1448,6 +1448,23 @@ test("Haut de l'écran : pastille d'auto-roulage, panneau AFK, bandeaux, persos 
 			task.wait(0.01)
 		end
 	end
+	-- Bandeaux affichés : tous, ou seulement ceux du test (un vrai message du serveur, perso au
+	-- niveau max, Marchand qui change de coin..., peut arriver pendant le test : on le retire).
+	local function clearToasts(keepTest)
+		for _, child in toasts:GetChildren() do
+			if child.Name == "Toast" then
+				local mine = false
+				for _, d in child:GetDescendants() do
+					if d:IsA("TextLabel") and string.find(d.Text, "Bandeau de test", 1, true) then
+						mine = true
+					end
+				end
+				if not (keepTest and mine) then
+					child:Destroy()
+				end
+			end
+		end
+	end
 	RollPanel.forceNear(false)
 	local serial = 0
 	for _, inZone in { false, true } do
@@ -1458,11 +1475,7 @@ test("Haut de l'écran : pastille d'auto-roulage, panneau AFK, bandeaux, persos 
 			for step = 0, 7 do
 				local count, single = math.floor(step / 2), step % 2 == 1
 				-- bandeaux : exactement `count`
-				for _, child in toasts:GetChildren() do
-					if child.Name == "Toast" then
-						child:Destroy()
-					end
-				end
+				clearToasts(false)
 				for _ = 1, count do
 					serial += 1
 					NotificationsUI.toast("Bandeau de test n° " .. serial, "info")
@@ -1491,7 +1504,9 @@ test("Haut de l'écran : pastille d'auto-roulage, panneau AFK, bandeaux, persos 
 				pill.Visible = withPill
 				frames(4)
 				-- (le panneau ROULER peut remettre la pastille à jour entre deux images : on la repose,
-				-- puis deux images sans attendre, et on mesure aussitôt)
+				-- on retire un message du serveur arrivé entre-temps, puis deux images sans attendre,
+				-- et on mesure aussitôt)
+				clearToasts(true)
 				pill.Visible = withPill
 				Harness.services.RunService.RenderStepped:Fire(1 / 60)
 				Harness.services.RunService.RenderStepped:Fire(1 / 60)
