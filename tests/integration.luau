@@ -899,6 +899,10 @@ test("Auto-roulage : sauvegarde groupée (6 s) loin de la machine, tout de suite
 	delay = DataService:PendingSyncDelay(alice)
 	assert(delay and delay <= 0.26, "achat auto : pièces et inventaire envoyés en retard (" .. tostring(delay) .. ")")
 	-- Arrêt de l'auto-roulage (plus d'argent) : envoyé tout de suite (bouton « Lancer » à jour).
+	-- L'envoi de l'achat précédent doit être parti, sinon c'est lui qu'on mesurerait : le roulage
+	-- auto de cette étape (loin de la machine) programme 6 s, et seul l'arrêt peut ramener l'envoi
+	-- à 0,25 s.
+	flush()
 	data.coins = 0
 	RollService:ResetCooldown(alice)
 	RollService:AutoStep(alice)

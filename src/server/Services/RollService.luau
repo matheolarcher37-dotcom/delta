@@ -51,10 +51,12 @@ local RollResult = Remotes.event("RollResult")
 -- (3,5 s sans arbre) : les roulages suivants partent avec l'envoi déjà prévu au lieu d'en
 -- programmer un chacun. Et la synchro passive de l'XP (CharacterService : envoi normal toutes
 -- les 5 s) tombe avant la fin de ces 6 s et emporte ces roulages : loin de la machine, le
--- roulage auto n'ajoute donc aucun envoi de toute la sauvegarde (avant : un par roulage). Ce
--- qu'il y change (file de l'estrade, pitié, nombre de roulages) ne s'affiche pas loin de la
--- machine : la révélation (RollResult, pitié comprise), le perso sur l'estrade (pièces du
--- monde) et les messages (Notify, HatchReveal) partent tout de suite par leurs propres remotes.
+-- roulage auto n'ajoute donc aucun envoi de toute la sauvegarde (avant : un par roulage). Ce qui
+-- compte part tout de suite par ses propres remotes : la révélation (RollResult, pitié comprise),
+-- le perso sur l'estrade (pièces du monde) et les messages (Notify, HatchReveal). Seuls les
+-- petits indicateurs du HUD lus dans la sauvegarde (barre d'objectif « Ton perso tiré
+-- t'attend… », pastille du bouton Défis via le nombre de roulages) peuvent suivre avec quelques
+-- secondes de retard loin de la machine (au plus jusqu'à la prochaine synchro de l'XP, ~5 s).
 -- Un ACHAT auto garde l'envoi normal (0,25 s) : le compteur de pièces et l'inventaire suivent
 -- le message « 🛒 Collecté » (seuls les roulages qui achètent envoient la sauvegarde). À la
 -- machine, la carte du perso tiré (prix, « Collecter ») et la pitié sont lues dans la
