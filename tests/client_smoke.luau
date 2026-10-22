@@ -1980,12 +1980,24 @@ test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement
 	task.wait(0.1)
 	assert(not refs.leftCover.Visible, "colonne gauche encore verrouillée avec le passe")
 	assert(refs.rightCover.Visible, "colonne droite déverrouillée sans le passe +")
+	-- Dès « Lancer », le serveur roule tout seul (toutes les 0,25 s) et se met en pause, à raison,
+	-- s'il tire un perso à garder (Légendaire ou mieux, réglage par défaut : ~1,5 % par tirage) :
+	-- rareté imposée (Commun) le temps de cette vérification, sinon le test dépend du hasard.
+	local RollService = services.RollService
+	local realPick = RollService._pickRarity
+	Harness.cleanup(function()
+		RollService._pickRarity = realPick
+	end)
+	RollService._pickRarity = function()
+		return "common"
+	end
 	signalFor(refs.afkButton, "Activated"):Fire()
 	task.wait(0.3)
 	assert(data.AutoRoll == true, "« Lancer » n'a pas lancé l'auto-roulage")
 	signalFor(refs.afkButton, "Activated"):Fire()
 	task.wait(0.3)
 	assert(data.AutoRoll == false, "« Arrêter » n'a pas arrêté l'auto-roulage")
+	RollService._pickRarity = realPick
 	-- Une ligne Activé / Désactivé enregistre le réglage (sur une rareté présente dans l'univers
 	-- actuel ; les raretés sans perso ont un bouton grisé « — » qui ne fait rien).
 	local ThemeUI = Harness.require(Harness.find("StarterPlayer.StarterPlayerScripts.Client").UI.Theme)
