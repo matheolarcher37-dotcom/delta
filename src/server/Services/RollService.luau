@@ -53,14 +53,13 @@ local RollResult = Remotes.event("RollResult")
 -- les 5 s) tombe avant la fin de ces 6 s et emporte ces roulages : loin de la machine, le
 -- roulage auto n'ajoute donc aucun envoi de toute la sauvegarde (avant : un par roulage). Ce
 -- qu'il y change (file de l'estrade, pitié, nombre de roulages) ne s'affiche pas loin de la
--- machine : la
--- révélation (RollResult, pitié comprise), le perso sur l'estrade (pièces du monde) et les
--- messages (Notify, HatchReveal) partent tout de suite par leurs propres remotes. Un ACHAT auto
--- garde l'envoi normal (0,25 s) : le compteur de pièces et l'inventaire suivent le message
--- « 🛒 Collecté » (seuls les roulages qui achètent envoient la sauvegarde). À la machine, la
--- carte du perso tiré (prix, « Collecter ») et la pitié sont lues dans la sauvegarde : envoi
--- normal, rien ne semble figé ; en arrivant à la machine, l'envoi en attente part tout de suite
--- (AutoStep). Le roulage manuel reste à 0,25 s.
+-- machine : la révélation (RollResult, pitié comprise), le perso sur l'estrade (pièces du
+-- monde) et les messages (Notify, HatchReveal) partent tout de suite par leurs propres remotes.
+-- Un ACHAT auto garde l'envoi normal (0,25 s) : le compteur de pièces et l'inventaire suivent
+-- le message « 🛒 Collecté » (seuls les roulages qui achètent envoient la sauvegarde). À la
+-- machine, la carte du perso tiré (prix, « Collecter ») et la pitié sont lues dans la
+-- sauvegarde : envoi normal, rien ne semble figé ; en arrivant à la machine, l'envoi en attente
+-- part tout de suite (AutoStep). Le roulage manuel reste à 0,25 s.
 RollService.AutoSyncWindow = 6
 
 local rng = Random.new()
