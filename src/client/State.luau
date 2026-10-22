@@ -145,6 +145,24 @@ function State.invoke(name: string, ...): (boolean, any, any)
 	return a == true, b, c
 end
 
+-- Comme State.invoke, mais sans attendre le serveur plus de `timeout` secondes (écran bloqué
+-- sinon) : passé ce délai, renvoie (false, message). Une réponse arrivée trop tard est ignorée.
+function State.invokeWithin(timeout: number, name: string, ...): (boolean, any, any)
+	local args = table.pack(...)
+	local result = nil
+	task.spawn(function()
+		result = table.pack(State.invoke(name, table.unpack(args, 1, args.n)))
+	end)
+	local deadline = os.clock() + timeout
+	while not result and os.clock() < deadline do
+		task.wait(0.05)
+	end
+	if not result then
+		return false, "Le serveur ne répond pas, réessaie."
+	end
+	return result[1], result[2], result[3]
+end
+
 function State.inTeam(uid: string): boolean
 	return State.data ~= nil and table.find(State.data.team, uid) ~= nil
 end

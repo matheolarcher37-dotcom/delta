@@ -651,6 +651,19 @@ test("Traits : écran, rouleau, relance avec une gemme et révélation renforcé
 	local TraitsMenu = Harness.require(client.UI.TraitsMenu)
 	local TraitsConfig = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Traits"))
 	local data = services.DataService:Get(alice)
+	-- Même en cas d'échec : tirage et révélation d'origine, relance terminée, écran fermé (sinon
+	-- l'échec en entraîne d'autres plus loin).
+	local realRoll, realReveal = TraitsConfig.roll, TraitsMenu.playReveal
+	Harness.cleanup(function()
+		TraitsConfig.roll, TraitsMenu.playReveal = realRoll, realReveal
+		TraitsMenu.skipCinematic()
+		local t0 = os.clock()
+		while TraitsMenu.isRolling() and os.clock() - t0 < 60 do
+			task.wait(0.2)
+		end
+		Menus.close("Traits")
+		alice:SetAttribute("FxFlash", nil)
+	end)
 	data.traitCrystals = 3
 	for _, e in data.characters do
 		e.trait = nil
@@ -701,6 +714,7 @@ test("Traits : écran, rouleau, relance avec une gemme et révélation renforcé
 			return realReveal(trait, ...)
 		end
 		signalFor(button, "Activated"):Fire()
+		local clicks = signalFor(button, "Activated").lastThreads
 		-- le rouleau tourne (bloquant) puis la révélation s'affiche ; on attend la fin
 		local started = TraitsMenu.isRolling()
 		local t0 = os.clock()
@@ -710,7 +724,14 @@ test("Traits : écran, rouleau, relance avec une gemme et révélation renforcé
 		end
 		TraitsConfig.roll, TraitsMenu.playReveal = realRoll, realReveal
 		assert(started, "le clic sur RELANCER ne lance pas le rouleau")
-		assert(not TraitsMenu.isRolling(), "la relance ne se termine pas")
+		if TraitsMenu.isRolling() then
+			-- où le clic est resté bloqué (ou « dead » s'il s'est arrêté sur une erreur)
+			local where = {}
+			for _, thread in clicks do
+				table.insert(where, coroutine.status(thread) .. " " .. debug.traceback(thread))
+			end
+			error("la relance ne se termine pas : " .. table.concat(where, " | "))
+		end
 		task.wait(0.4)
 		assert(data.traitCrystals == crystals - 1, "la relance doit coûter 1 gemme (" .. tostring(data.traitCrystals) .. ")")
 		assert(not gui:FindFirstChild("TraitReveal"), "la révélation plein écran doit se fermer à la fin de la relance")
@@ -766,6 +787,106 @@ test("Traits : écran, rouleau, relance avec une gemme et révélation renforcé
 	assert(TraitsConfig.revealLevel("critique") == 3 and TraitsConfig.revealLevel("fortune") == 2 and TraitsConfig.revealLevel("vigueur1") == 1, "niveaux de révélation")
 	Menus.close("Traits")
 	expectNoNewWarnings(before, "traits")
+end)
+
+test("Traits : la relance se débloque toujours (révélation en erreur, serveur qui ne répond pas)", function()
+	local before = #warnings
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local TraitsMenu = Harness.require(client.UI.TraitsMenu)
+	local TraitsConfig = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Traits"))
+	local State = Harness.require(client.State)
+	local gui = alice.PlayerGui.AnimeTycoonUI
+	local data = services.DataService:Get(alice)
+	local realRoll, realReveal, realInvoke, realTimeout = TraitsConfig.roll, TraitsMenu.playReveal, State.invoke, TraitsMenu.ServerTimeout
+	local answer = false -- le serveur simulé « muet » répond quand ce drapeau passe à vrai
+	Harness.cleanup(function()
+		TraitsConfig.roll, TraitsMenu.playReveal, State.invoke, TraitsMenu.ServerTimeout = realRoll, realReveal, realInvoke, realTimeout
+		answer = true
+		TraitsMenu.skipCinematic()
+		Menus.close("Traits")
+	end)
+	data.traitCrystals = 5
+	services.DataService:Sync(alice)
+	task.wait(0.4)
+	Menus.open("Traits")
+	task.wait(0.3)
+	local function button(key)
+		for _, d in gui:FindFirstChild("WindowRoot_TRAITS"):GetDescendants() do
+			if d:IsA("TextButton") and d:GetAttribute("SelKey") == key then
+				return d
+			end
+		end
+		error("bouton « " .. key .. " » manquant")
+	end
+	local function text(b)
+		return b:FindFirstChild("Label", true).Text
+	end
+	-- vrai si la relance se termine (écran débloqué) en moins de 60 s (planificateur de Lune chargé)
+	local function settles()
+		local t0 = os.clock()
+		while TraitsMenu.isRolling() and os.clock() - t0 < 60 do
+			task.wait(0.2)
+			Harness.services.RunService.RenderStepped:Fire(1 / 30)
+		end
+		return not TraitsMenu.isRolling()
+	end
+	TraitsConfig.roll = function()
+		return "critique" -- rang 3 : rouleau puis révélation plein écran
+	end
+	-- 1) La révélation lève une erreur : l'écran se débloque, RELANCER revient, l'erreur est signalée.
+	TraitsMenu.playReveal = function()
+		error("révélation cassée (test)")
+	end
+	signalFor(button("roll"), "Activated"):Fire()
+	assert(TraitsMenu.isRolling(), "le clic sur RELANCER ne lance pas le rouleau")
+	assert(settles(), "relance bloquée pour toujours après une erreur de la révélation")
+	task.wait(0.3)
+	assert(text(button("roll")) == "RELANCER", "RELANCER ne revient pas après une erreur (" .. text(button("roll")) .. ")")
+	assert(not gui:FindFirstChild("TraitReveal"), "calque de révélation resté affiché après une erreur")
+	assert(#warnings > before and string.find(warnings[#warnings], "relance interrompue", 1, true), "erreur de la relance non signalée")
+	-- même chose en relance auto (arrêt au rang 3 : le plein écran de Critique est joué) : elle
+	-- s'arrête au lieu de rester bloquée
+	signalFor(button("target-1"), "Activated"):Fire()
+	task.wait(0.2)
+	signalFor(button("auto"), "Activated"):Fire()
+	assert(TraitsMenu.isRolling(), "la relance auto ne démarre pas")
+	assert(settles(), "relance auto bloquée pour toujours après une erreur de la révélation")
+	task.wait(0.3)
+	assert(text(button("auto")) == "RELANCE AUTO", "la relance auto ne s'arrête pas après une erreur")
+	signalFor(button("target1"), "Activated"):Fire() -- (rang d'arrêt remis à Mythique)
+	task.wait(0.2)
+	before = #warnings -- (les deux erreurs voulues ci-dessus)
+	TraitsMenu.playReveal = realReveal
+	-- 2) Le serveur ne répond pas : passé le délai max, l'écran se débloque sans attendre la réponse.
+	TraitsMenu.ServerTimeout = 2
+	State.invoke = function(name, ...)
+		if name == "RerollTrait" then
+			while not answer do
+				task.wait(0.1)
+			end
+		end
+		return realInvoke(name, ...)
+	end
+	local crystals = data.traitCrystals
+	signalFor(button("roll"), "Activated"):Fire()
+	assert(TraitsMenu.isRolling(), "le clic sur RELANCER ne lance pas le rouleau (serveur muet)")
+	assert(settles(), "relance bloquée tant que le serveur ne répond pas")
+	task.wait(0.3)
+	assert(text(button("roll")) == "RELANCER", "RELANCER ne revient pas après le délai max (" .. text(button("roll")) .. ")")
+	assert(data.traitCrystals == crystals, "aucune gemme ne doit être dépensée sans réponse du serveur")
+	-- la réponse arrive enfin (relance faite par le serveur) : l'écran reste utilisable
+	answer = true
+	local t0 = os.clock()
+	while data.traitCrystals == crystals and os.clock() - t0 < 30 do
+		task.wait(0.2)
+	end
+	assert(data.traitCrystals == crystals - 1, "la relance tardive du serveur n'a pas eu lieu")
+	State.invoke = realInvoke
+	task.wait(0.6)
+	assert(not TraitsMenu.isRolling() and text(button("roll")) == "RELANCER", "écran bloqué après la réponse tardive du serveur")
+	TraitsConfig.roll = realRoll
+	Menus.close("Traits")
+	expectNoNewWarnings(before, "relance débloquée")
 end)
 
 local function tanVOf(camera)
@@ -1605,6 +1726,18 @@ test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement
 		alice:SetAttribute(name, value)
 		signalFor(alice, "Attr:" .. name):Fire()
 	end
+	-- Même en cas d'échec : passes retirés, fenêtre fermée, machine et caméra rendues (sinon
+	-- « Roulage x2 » resterait possédé et la boutique Robux échouerait plus loin, par exemple).
+	local cameraBefore = camera.CFrame
+	Harness.cleanup(function()
+		for _, key in { "Pass_Roll2", "Pass_AutoRoll", "Pass_AutoRollPlus" } do
+			setAttr(key, nil)
+		end
+		Menus.close("AutoRoll")
+		RollPanel.forceNear(nil)
+		camera.CFrame = cameraBefore
+		Harness.services.UserInputService.LastInputTypeChanged:Fire(roblox.Enum.UserInputType.MouseMovement)
+	end)
 	-- Plus de panneau ROULAGE permanent à droite du HUD.
 	assert(ui.HUD:FindFirstChild("RollPanel") == nil, "l'ancien panneau ROULAGE est encore dans le HUD")
 	local panel = RollPanel.panel()
@@ -1780,6 +1913,9 @@ test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement
 	-- Téléphone : la barre ROULER remonte au-dessus du bouton de saut (coin bas droit).
 	local Console = Harness.require(client.UI.Console)
 	local isTouch = Console.isTouch
+	Harness.cleanup(function()
+		Console.isTouch = isTouch
+	end)
 	local pcBottom = panel.Position.Y.Offset
 	Console.isTouch = function()
 		return true

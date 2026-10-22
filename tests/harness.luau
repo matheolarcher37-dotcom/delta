@@ -48,9 +48,12 @@ local function newSignal()
 		return nil
 	end
 	function signal:Fire(...)
+		-- (fils lancés gardés : un test peut montrer où un gestionnaire est resté bloqué)
+		local threads = {}
 		for _, handler in table.clone(self.handlers) do
-			task.spawn(handler, ...)
+			table.insert(threads, task.spawn(handler, ...))
 		end
+		self.lastThreads = threads
 	end
 	return signal
 end
@@ -500,8 +503,24 @@ function Harness.countParts(root)
 end
 
 local failures = 0
+local cleanups = {}
+
+-- Remise en état enregistrée pendant un test : jouée à la fin du test, qu'il ait réussi ou
+-- échoué (sinon un test qui échoue en route laisse le jeu dans un état qui fait échouer les suivants).
+function Harness.cleanup(fn)
+	table.insert(cleanups, fn)
+end
+
 function Harness.test(name, fn)
+	table.clear(cleanups)
 	local ok, err = pcall(fn)
+	for i = #cleanups, 1, -1 do
+		local cleaned, cleanupErr = pcall(cleanups[i])
+		if not cleaned and ok then
+			ok, err = false, "nettoyage : " .. tostring(cleanupErr)
+		end
+	end
+	table.clear(cleanups)
 	if ok then
 		print("✅ " .. name)
 	else

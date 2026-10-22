@@ -40,6 +40,11 @@ local TraitCinematic = require(script.Parent.Parent.Controllers.TraitCinematic)
 
 local TraitsMenu = {}
 
+-- Attente max de la réponse du serveur à une relance (au-delà, l'écran se débloque).
+TraitsMenu.ServerTimeout = 15
+-- Durée max d'une révélation plein écran (elle se ferme d'elle-même bien avant).
+TraitsMenu.RevealTimeout = 12
+
 local C = Theme.Colors
 local new = Theme.new
 local WHITE = Color3.new(1, 1, 1)
@@ -846,6 +851,8 @@ function TraitsMenu.playReveal(trait, desc, duration: number?): Frame?
 		end
 	end
 	overlaySkip = finish
+	-- fermeture programmée tout de suite : même si la suite échoue, le calque ne reste jamais affiché
+	task.delay(total, finish)
 	local catcher = new("TextButton", {
 		Name = "Skip",
 		Size = UDim2.fromScale(1, 1),
@@ -1046,7 +1053,6 @@ function TraitsMenu.playReveal(trait, desc, duration: number?): Frame?
 	Theme.tween(veil, 0.6, { BackgroundTransparency = 1 })
 	shake(refs.windowPanel, 2)
 	play(trait.tier >= 4 and fanfare or rareSound)
-	task.delay(total, finish)
 	root:SetAttribute("Done", false)
 	return root
 end
@@ -1091,8 +1097,12 @@ local function reveal(trait, entry, desc, fast: boolean)
 	else
 		flashCard(edge, 0.4)
 	end
-	while overlayOpen() do
+	local limit = os.clock() + TraitsMenu.RevealTimeout
+	while overlayOpen() and os.clock() < limit do
 		task.wait(0.1)
+	end
+	if overlayOpen() and overlaySkip then
+		overlaySkip()
 	end
 end
 
@@ -1112,7 +1122,7 @@ local function rerollOnce(uid: string, fast: boolean): string?
 		Components.setButtonText(refs.rollButton, "...")
 		Components.setButtonColor(refs.rollButton, C.Gray)
 	end
-	local ok, message, traitId = State.invoke("RerollTrait", uid)
+	local ok, message, traitId = State.invokeWithin(TraitsMenu.ServerTimeout, "RerollTrait", uid)
 	if not ok then
 		Notifications.toast(message or "Impossible pour l'instant.", "error")
 		if refs.rollButton and refs.rollButton.Parent then
@@ -1142,6 +1152,17 @@ local function rerollOnce(uid: string, fast: boolean): string?
 	return traitId
 end
 
+-- Relance protégée : une erreur pendant le rouleau ou la révélation ne doit jamais laisser l'écran
+-- bloqué (rolling resterait vrai pour toujours et RELANCER resterait grisé sur « ... »).
+local function safeReroll(uid: string, fast: boolean): string?
+	local ok, result = pcall(rerollOnce, uid, fast)
+	if not ok then
+		warn("[Traits] relance interrompue : " .. tostring(result))
+		return nil
+	end
+	return result
+end
+
 local function setAuto(on: boolean)
 	autoOn = on
 	if refs.autoButton then
@@ -1159,7 +1180,7 @@ local function startAuto(uid: string)
 	task.spawn(function()
 		local count = 0
 		while autoOn and window and window.isOpen and selected == uid do
-			local traitId = rerollOnce(uid, true)
+			local traitId = safeReroll(uid, true)
 			if not traitId then
 				break
 			end
@@ -1549,7 +1570,7 @@ local function renderDetail()
 				setAuto(false)
 			end
 			rolling = true
-			rerollOnce(uid, false)
+			safeReroll(uid, false)
 			rolling = false
 			render(true)
 		end,
