@@ -185,7 +185,8 @@ function CharacterService:_tick(player: Player, s)
 	end
 	data.stash += total * coinMult
 	player:SetAttribute("IncomePerSec", math.floor(total * coinMult))
-	-- Synchro légère toutes les 5 secondes pour l'XP passive.
+	-- Synchro toutes les 5 secondes pour l'XP passive (envoi normal : il emporte aussi les
+	-- roulages auto en attente loin de la machine, voir RollService.AutoSyncWindow).
 	s.syncTimer += 1
 	if s.syncTimer >= 5 then
 		s.syncTimer = 0

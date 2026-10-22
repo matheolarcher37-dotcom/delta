@@ -793,10 +793,16 @@ test("Achat automatique (passe AutoRollPlus) : achète les cibles, s'arrête san
 	services.RollService:RenderStage(alice)
 end)
 
-test("Auto-roulage : sauvegarde groupée (2 s) loin de la machine, tout de suite à la machine, roulage manuel et arrêt", function()
+test("Auto-roulage : sauvegarde groupée (6 s) loin de la machine, tout de suite à la machine, à l'achat, au roulage manuel et à l'arrêt", function()
 	local data = DataService:Get(alice)
 	local RollService = services.RollService
 	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
+	local SkillTree = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.SkillTree"))
+	-- Fenêtre plus longue que le temps de recharge le plus lent (sans arbre) : le roulage suivant
+	-- part avec l'envoi déjà prévu au lieu d'en programmer un autre ; et plus longue que l'écart
+	-- entre deux synchros passives de l'XP (5 s + 0,25 s, CharacterService), qui l'emportent.
+	assert(RollService.AutoSyncWindow > SkillTree.Base.rollCooldown, "fenêtre plus courte que le temps de recharge : un envoi par roulage")
+	assert(RollService.AutoSyncWindow > 5.25, "fenêtre plus courte que la synchro passive de l'XP")
 	-- Attend que la synchro en attente soit partie (aucune attente entre la fin et l'action testée).
 	local function flush()
 		local deadline = os.clock() + 8
@@ -824,7 +830,7 @@ test("Auto-roulage : sauvegarde groupée (2 s) loin de la machine, tout de suite
 	data.AutoRoll = true
 	data.AutoBuy = false
 	-- Lancer AFK loin de la machine : la révélation part tout de suite, la sauvegarde attend la
-	-- fenêtre de 2 s.
+	-- fenêtre de 6 s.
 	local plot = services.PlotService:GetPlot(alice)
 	alice.Character:PivotTo(plot.cf * CFrame.new(0, 3, 120))
 	assert(not RollService:IsAtMachine(alice), "joueur encore à la machine")
@@ -840,7 +846,14 @@ test("Auto-roulage : sauvegarde groupée (2 s) loin de la machine, tout de suite
 	end
 	assert(revealed, "révélation du roulage auto pas envoyée tout de suite")
 	local delay = DataService:PendingSyncDelay(alice)
-	assert(delay and delay > 1.5, "roulage auto : toute la sauvegarde part tout de suite (" .. tostring(delay) .. ")")
+	assert(delay and delay > 5, "roulage auto : toute la sauvegarde part tout de suite (" .. tostring(delay) .. ")")
+	-- Roulage auto suivant avant l'envoi : il part avec lui, aucun autre envoi n'est programmé.
+	RollService:ResetCooldown(alice)
+	RollService:AutoStep(alice)
+	assert(data.RollCount == count + 2, "pas de 2e roulage auto")
+	local second = DataService:PendingSyncDelay(alice)
+	assert(second and second > 4.5 and second <= delay, "2e roulage auto : envoi pas regroupé (" .. tostring(second) .. ")")
+	count += 1
 	-- Il arrive à la machine avant l'envoi groupé : la sauvegarde part aussitôt (la carte du perso
 	-- tiré montre le perso de l'estrade, pas un ancien), sans roulage de plus.
 	toMachine(alice)
@@ -864,13 +877,14 @@ test("Auto-roulage : sauvegarde groupée (2 s) loin de la machine, tout de suite
 	RollService:ResetCooldown(alice)
 	RollService:AutoStep(alice)
 	delay = DataService:PendingSyncDelay(alice)
-	assert(data.RollCount == count + 3 and delay and delay > 1.5, "roulage auto loin de la machine : envoi pas groupé (" .. tostring(delay) .. ")")
+	assert(data.RollCount == count + 3 and delay and delay > 5, "roulage auto loin de la machine : envoi pas groupé (" .. tostring(delay) .. ")")
 	data.AutoRoll = false
 	table.clear(data.RolledQueue)
 	assert(rollNow(alice), "roulage manuel refusé")
 	delay = DataService:PendingSyncDelay(alice)
 	assert(delay and delay <= 0.26, "roulage manuel retardé (" .. tostring(delay) .. ")")
-	-- Achat auto : les synchros de l'achat (pièces, inventaire) suivent la même fenêtre.
+	-- Achat auto loin de la machine : envoi normal (pièces et inventaire à jour avec le message
+	-- « 🛒 Collecté »), il emporte aussi le roulage.
 	table.clear(data.RolledQueue)
 	alice:SetAttribute("Pass_AutoRollPlus", true)
 	invoke("Roll_SaveAutoSettings", alice, { buyRarities = buyAll })
@@ -883,7 +897,7 @@ test("Auto-roulage : sauvegarde groupée (2 s) loin de la machine, tout de suite
 	RollService:AutoStep(alice)
 	assert(characterCount() == before + 1 and data.AutoBuy == true, "cible de l'achat auto pas achetée")
 	delay = DataService:PendingSyncDelay(alice)
-	assert(delay and delay > 1.5, "achat auto : toute la sauvegarde part tout de suite (" .. tostring(delay) .. ")")
+	assert(delay and delay <= 0.26, "achat auto : pièces et inventaire envoyés en retard (" .. tostring(delay) .. ")")
 	-- Arrêt de l'auto-roulage (plus d'argent) : envoyé tout de suite (bouton « Lancer » à jour).
 	data.coins = 0
 	RollService:ResetCooldown(alice)

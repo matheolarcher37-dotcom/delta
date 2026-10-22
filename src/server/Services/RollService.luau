@@ -46,17 +46,22 @@ local Announce = Remotes.event("Announce")
 local HatchReveal = Remotes.event("HatchReveal")
 local RollResult = Remotes.event("RollResult")
 
--- Synchro de la sauvegarde pendant l'auto-roulage LOIN de la machine (roulage auto + achat
--- auto) : regroupée sur 2 s au lieu de 0,25 s. Même avec la machine la plus rapide (1,8 s avec
--- tout l'arbre), l'auto-roulage n'envoie pas la sauvegarde plus d'une fois toutes les 2 s. La
--- révélation (RollResult), le perso sur l'estrade (pièces du monde) et les messages (Notify,
--- HatchReveal) partent tout de suite par leurs propres remotes ; loin de la machine, l'écran
--- n'affiche de la sauvegarde que le compteur de pièces (qui ne bouge qu'à un achat auto, déjà
--- annoncé par un message). À la machine, la carte du perso tiré (prix, « Collecter ») et la
--- pitié sont lues dans la sauvegarde : envoi normal (0,25 s), rien ne semble figé ; en arrivant
--- à la machine, l'envoi groupé en attente part tout de suite (AutoStep). Le roulage manuel
--- reste à 0,25 s.
-RollService.AutoSyncWindow = 2
+-- Synchro de la sauvegarde pendant l'auto-roulage LOIN de la machine : un roulage auto programme
+-- l'envoi dans 6 s au lieu de 0,25 s. C'est plus long que le temps de recharge le plus lent
+-- (3,5 s sans arbre) : les roulages suivants partent avec l'envoi déjà prévu au lieu d'en
+-- programmer un chacun. Et la synchro passive de l'XP (CharacterService : envoi normal toutes
+-- les 5 s) tombe avant la fin de ces 6 s et emporte ces roulages : loin de la machine, le
+-- roulage auto n'ajoute donc aucun envoi de toute la sauvegarde (avant : un par roulage). Ce
+-- qu'il y change (file de l'estrade, pitié, nombre de roulages) ne s'affiche pas loin de la
+-- machine : la
+-- révélation (RollResult, pitié comprise), le perso sur l'estrade (pièces du monde) et les
+-- messages (Notify, HatchReveal) partent tout de suite par leurs propres remotes. Un ACHAT auto
+-- garde l'envoi normal (0,25 s) : le compteur de pièces et l'inventaire suivent le message
+-- « 🛒 Collecté » (seuls les roulages qui achètent envoient la sauvegarde). À la machine, la
+-- carte du perso tiré (prix, « Collecter ») et la pitié sont lues dans la sauvegarde : envoi
+-- normal, rien ne semble figé ; en arrivant à la machine, l'envoi en attente part tout de suite
+-- (AutoStep). Le roulage manuel reste à 0,25 s.
+RollService.AutoSyncWindow = 6
 
 local rng = Random.new()
 local lastRoll: { [Player]: number } = {}
@@ -724,15 +729,9 @@ function RollService:AutoStep(player: Player)
 		local filter = { characters = settings.buyCharacters, rarities = settings.buyRarities, mutations = settings.buyMutations }
 		for _, item in results do
 			if Formulas.rollMatches(item, filter) then
-				-- Loin de la machine, synchros de l'achat (pièces, inventaire, estrade) regroupées
-				-- avec celle du roulage ; à la machine, envoi normal.
-				local window = self:AutoSyncWindowFor(player)
-				local bought, message, reason
-				if window then
-					bought, message, reason = self.services.DataService:WithSyncWindow(player, window, self.Collect, self, player, item.key)
-				else
-					bought, message, reason = self:Collect(player, item.key)
-				end
+				-- Envoi normal (voir AutoSyncWindow) : il avance celui du roulage, les pièces et
+				-- l'inventaire sont à jour avec le message « 🛒 Collecté ».
+				local bought, message, reason = self:Collect(player, item.key)
 				if bought then
 					Notify:FireClient(player, "🛒 " .. message, "success")
 				elseif reason == "coins" or reason == "full" then
