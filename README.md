@@ -1,4 +1,4 @@
-# 🌀 ANIME TYCOON (version 3.2)
+# 🌀 ANIME TYCOON (version 3.3)
 
 **Un jeu Roblox de type Tycoon** inspiré de *Grow a Chicken Fighter* et des jeux d'animé récents
 (*Defeat Anime Bosses*…). Tu fais tourner la **machine à persos « ROULER »** de ta base pour obtenir
@@ -7,6 +7,18 @@ tu les emmènes combattre dans l'anneau, et tu améliores tout : ta chance, tes 
 tes persos (évolutions avec les objets du marchand, traits, variétés)…
 
 Le jeu marche sur **PC, mobile et console (Xbox / PlayStation)**.
+
+---
+
+## ✨ Les nouveautés de la version 3.3
+
+| Domaine | Ce qui change |
+|---|---|
+| 🔤 **Panneaux** | Tous les textes des panneaux du décor (base, hub, marchand, zone anti-AFK, enseignes…) sont enfin **à la bonne taille** : avant, Roblox les laissait minuscules. |
+| 🥊 **Zone anti-AFK** | **Le punching-ball se frappe tout seul** : approche-toi d'un sac libre, ton perso le réserve et tape un coup par seconde sans que tu touches à rien. Tu peux toujours aller plus vite avec ton épée ou l'invite « Frapper ». Les cartes « ZONE ANTI-AFK » et « MARCHAND » sont plus petites. |
+| 🔮 **Reliques retirées** | Plus d'autels de reliques : la machine ROULER est la seule façon d'obtenir des persos. Les autels déjà achetés sont **remboursés en pièces** (et l'Horloge Mystique et le Sablier Divin donnent maintenant des revenus). |
+| 🏠 **Base** | Le **coffre des revenus est dégagé** (les murs de façade étaient posés de travers et traversaient son disque doré). **Plus d'aperçu transparent** des constructions pas encore achetées : seul le bouton d'achat se voit. |
+| 🗺️ **Carte** | Les **montagnes à l'horizon** ont de vrais reliefs (plusieurs sommets, pied vert, neige) au lieu d'aiguilles. La **plaine de combat** et les grands champs de l'île sont décorés de petites scènes propres à chaque univers : coins d'entraînement et stèles (Ninja), tombes et lanternes brisées (Occulte), cratères et débris de capsule (Saiyan), flaques de marée, épaves et ancres (Océan), lys araignées, mannequins de paille et bambous (Pourfendeur). Rien de tout ça ne gêne les combats. |
 
 ---
 
@@ -20,7 +32,7 @@ Le jeu marche sur **PC, mobile et console (Xbox / PlayStation)**.
 | 💎 **Boutique Robux** | Une vraie boutique Robux (passes, packs de pièces et de gemmes, boosts de 15 min, Pack de départ) et des boutons à droite de l'écran (« x2 Argent », « Roulage x3 »…) avec leur prix en Robux. |
 | 🧙 **Marchand ambulant** | Un marchand s'installe dans un coin de la carte, repérable de partout grâce à son **rayon violet dans le ciel**. Il vend les **objets d'évolution** : par exemple, Goko a besoin d'une **Boule du Dragon** pour passer Super Guerrier. |
 | 🎯 **Défis** | Plein de défis à paliers qui poussent à jouer longtemps (« Village Ninja : tue 200 Kakashu » → au moins 1 000 pièces), des défis du jour et un coffre bonus. |
-| 🥊 **Zone anti-AFK** | 3 punching-balls (un par joueur) : tape avec ton épée, et tous les 1 000 coups tu gagnes **20 gemmes de trait**. |
+| 🥊 **Zone anti-AFK** | 3 punching-balls (un par joueur) : tous les 1 000 coups tu gagnes **20 gemmes de trait** (depuis la v3.3, le sac se frappe tout seul). |
 | ✨ **Traits** | Les traits se **relancent avec des gemmes de trait** (gagnées en battant des ennemis, au punching-ball, en défis, ou en Robux). Nouvel écran animé, et des **cinématiques** pour les traits très rares : avec **Monarque**, une cour de persos s'agenouille devant ton unité. |
 | ⚔️ **Épées** | Les 8 épées du Forgeron sont de vraies armes détaillées (lame, garde, poignée tressée, ornements) avec leur effet propre, qui **grandit avec ta maîtrise**. Rangées, elles pendent à la hanche ou se portent dans le dos. |
 | 🗺️ **Carte** | La **montagne des chefs** est un vrai monument sculpté (8 têtes sur deux rangs). L'île est habillée partout, les enseignes du hub sont des planches de bois sculptées, et rien n'est posé devant le coin des échanges. **3 tableaux de classement** : Robux dépensés, plus riches, perso le plus fort. |
@@ -34,7 +46,7 @@ Le jeu marche sur **PC, mobile et console (Xbox / PlayStation)**.
 |---|---|
 | 👥 **Persos** | Tous les persos sont de **vrais avatars Roblox R6 aux proportions classiques**, sur le modèle du Kid Naruto que tu m'as montré : tête ronde classique, torse 2×2, bras et jambes 1×2. Leurs vêtements sont dessinés comme des habits Roblox classiques, avec ombres et plis. Leurs visages ressemblent à des décalques d'animé. **Maruto ★1 recopie Kid Naruto** : veste orange, bandeau, moustaches. |
 | 🗺️ **Carte** | Carte beaucoup plus grande et détaillée : collines, falaises, plage, étang, ruisseau avec pont, rues pavées, vrais arbres détaillés. **Toutes les 30 minutes, TOUTE la carte change** : bâtiments, forêt de l'île, grand monument, montagnes à l'horizon, couleurs du sol, ciel, lumière et particules. |
-| 🏠 **Base** | Vraie base tycoon : **machine ROULER animée**, **arbre de compétences** de 56 cases, 28 constructions sur 3 paliers, 24 cases d'unités, tapis roulant avec des pièces qui roulent jusqu'au coffre. **La déco de la base suit l'univers** : Naruto en thème Ninja, Gojo en thème Occulte… |
+| 🏠 **Base** | Vraie base tycoon : **machine ROULER animée**, **arbre de compétences** de 56 cases, 28 constructions sur 3 paliers (25 depuis la v3.3), 24 cases d'unités, tapis roulant avec des pièces qui roulent jusqu'au coffre. **La déco de la base suit l'univers** : Naruto en thème Ninja, Gojo en thème Occulte… |
 | 🖥️ **Interface** | Nouveau style inspiré de tes captures : grands boutons brillants, fiche d'unité avec ses statistiques, arbre hexagonal plein écran, prix et argent toujours visibles. Elle est animée et jouable entièrement à la manette. |
 | 💥 **Attaques** | Chaque perso a son **attaque signature**, détaillée comme dans *Defeat Anime Bosses* : Rasengan, Chidori, Kamehameha, Violet Imaginaire, Gatling, Santoryu, Hinokami Kagura… Il y a une phase de charge, puis l'explosion, l'onde de choc, le cratère et des roches projetées. Les boss ont aussi leurs attaques de zone. |
 
@@ -99,7 +111,7 @@ Ensuite, une **variété** peut s'ajouter par-dessus (environ 15 % des tirages).
 - **Rouler est gratuit, tu paies à la collecte.** Le prix monte avec la variété et le trait du perso.
 - **Pitié** : seul le **Mythique** est garanti, au bout de **1 000 persos tirés** sans Mythique (l'arbre réduit ce seuil). Le reste est du pur hasard.
 - **Roulage x2 / x3** (passes Robux) : 2 ou 3 persos par roulage. Les boutons **x1 / x2 / x3** de la barre ROULER choisissent combien en tirer ; un bouton verrouillé ouvre l'achat du passe.
-- Les **reliques** existent toujours comme source secondaire de persos (butin du boss, autels de la base).
+- Il n'y a plus de reliques ni d'autels (retirés en v3.3) : la machine est la seule source de persos.
 
 ### Le roulement automatique (fenêtre AUTO, à la machine)
 
@@ -142,8 +154,8 @@ Tant qu'un numéro vaut 0, le bouton affiche « Bientôt disponible ». Dans Stu
 
 ### 🥊 La zone anti-AFK
 
-- Dans un coin de la carte (bouton « Y aller » dans les Défis) : **3 punching-balls**, un par joueur à la fois. Le sac est réservé à celui qui tape et libéré quand il part. Rien n'attaque dans la zone.
-- Tape avec ton **épée** (ou l'invite « Frapper » : E / X / toucher). **Tous les 1 000 coups : 20 gemmes de trait.** Le compteur au-dessus du sac et le panneau en haut de l'écran montrent où tu en es.
+- Dans un coin de la carte (bouton « Y aller » dans les Défis) : **3 punching-balls**, un par joueur à la fois. Le sac est réservé à celui qui s'en approche et libéré quand il part. Rien n'attaque dans la zone.
+- **Il se frappe tout seul** : reste près de ton sac et ton perso tape un coup par seconde, sans rien toucher. Pour aller plus vite, tape avec ton **épée** (ou l'invite « Frapper » : E / X / toucher). **Tous les 1 000 coups : 20 gemmes de trait.** Le compteur au-dessus du sac et le panneau en haut de l'écran montrent où tu en es.
 
 ### ✨ Traits et gemmes de trait
 
@@ -285,7 +297,7 @@ L'apparence change à **chaque** évolution : Yuzi ★2 avec les marques de Suka
 | Les 28 constructions de la base (prix, effets) | `src/shared/Config/Economy.luau` (`Upgrades`) |
 | La durée des univers (30 min), les boss, les événements, l'argent de départ | `src/shared/Config/Economy.luau` |
 | L'arbre de compétences (cases, prix, effets, position) | `src/shared/Config/SkillTree.luau` |
-| Les univers (noms, reliques, ennemis, ciel, couleurs du sol) | `src/shared/Config/Universes.luau` |
+| Les univers (noms, persos, ennemis, ciel, couleurs du sol) | `src/shared/Config/Universes.luau` |
 | Le décor d'un univers (bâtiments, forêts, monuments) | `src/server/World/Themes/` (un fichier par univers) |
 | La déco des bases par univers | `src/server/World/BaseDecor.luau` |
 | Le look des persos, leurs évolutions | `src/shared/Config/Characters.luau` |
@@ -315,7 +327,7 @@ Vérifications : `selene src`, `stylua src tests tools`, puis les tests Lune (av
 | Dossier | Contenu |
 |---|---|
 | `src/shared/Config` | Toutes les données du jeu (persos, univers, économie, arbre de compétences, attaques, disposition) |
-| `src/shared/Modules` | `CharacterBuilder` et `Painter` (persos R6), `CreatureBuilder` (Kourama), `CharacterFactory` (modèles perso / catalogue / Boîte à outils / créatures), `Mutations` (apparence des variétés), `SwordBuilder`, `RelicBuilder`, `Formulas`, `Remotes` |
+| `src/shared/Modules` | `CharacterBuilder` et `Painter` (persos R6), `CreatureBuilder` (Kourama), `CharacterFactory` (modèles perso / catalogue / Boîte à outils / créatures), `Mutations` (apparence des variétés), `SwordBuilder`, `RelicBuilder` (formes des objets d'évolution), `TextFit` (taille des textes des panneaux), `Formulas`, `Remotes` |
 | `src/server/World` | La carte (`WorldBuilder`), la montagne des chefs (`Kit/Hokage`), le marchand (`Merchant`), la zone anti-AFK (`AfkZone`), les classements (`LeaderboardBoards`), les décors d'univers (`UniverseDecor`, `DecorKit`, `Kit/`, `Themes/`) et la déco des bases (`BaseDecor`) |
 | `src/server/Modules` | Les éléments de la base tycoon (`TycoonMachine`, `TycoonSlots`, `TycoonStructures`, `TycoonConveyor`, `TycoonProps`, `TycoonKit`) |
 | `src/server/Services` | Les services du serveur (données, boutique Robux `MonetizationService`, bases, machine ROULER, combat, univers, marchand `ShopService`, évolution, fusion, traits, épées, échanges, défis `QuestService`, classements…) |

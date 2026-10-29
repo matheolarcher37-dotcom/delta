@@ -63,7 +63,7 @@ Les persos sont de **vrais avatars Roblox R6** aux proportions classiques, avec 
 - ✅ **28 constructions** sur 3 paliers, toutes visibles. Les boutons d'achat ont un anneau vert ou rouge, un **panneau relevé** (bord bas à 7 studs : jamais coupé par le sol ou un socle), lisible jusqu'à 140 studs, en version compacte au loin, et les panneaux qui se recouvrent se cachent automatiquement.
 - ✅ **24 cases d'unités** hexagonales qui remplissent le **coffre** (les pièces roulent sur un tapis ; compteur aéré au-dessus du coffre). « **Remplacer l'unité** » permet de choisir qui se tient sur une case.
 - ✅ **Déco de base par univers**.
-- ✅ Le **comptoir du marchand** de la base ouvre l'écran du marchand ambulant (avec « Montrer le chemin »). Les **reliques** et leurs autels restent une source secondaire de persos (butin du boss).
+- ✅ Le **comptoir du marchand** de la base ouvre l'écran du marchand ambulant (avec « Montrer le chemin »). Les **reliques** et leurs autels ont été retirés en v3.3 (autels achetés remboursés) : la machine ROULER est la seule source de persos.
 
 ## 4. Le combat ✅
 
@@ -147,7 +147,7 @@ Pourquoi c'est la bonne pépite :
 | Constructions de la base | 28, de 400 à 3 000 000 pièces |
 | Boss | toutes les 8 min (80 000 PV) |
 | Événement céleste | toutes les 11 min (pendant 2 min 30) |
-| Pièces au départ | 250 + 1 relique offerte + premier perso de la machine offert |
+| Pièces au départ | 250 + premier perso de la machine offert |
 | Équipe | 3 places (jusqu'à 5) |
 | Inventaire | 150 persos max |
 
