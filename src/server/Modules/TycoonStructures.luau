@@ -14,8 +14,7 @@
 --            (entrée, -Z, portail)
 --
 -- Chaque amélioration a ici : pad = position (X, Z) de son bouton d'achat, build(ctx) qui construit.
--- `ctx` : { plot, folder, at(x, y, z, yawDeg?) -> CFrame (monde), rng, bestLook, ghost, coinPaths }
--- `ghost` = vrai pour le fantôme d'aperçu (pas de lumières ni de pièces qui roulent).
+-- `ctx` : { plot, folder, at(x, y, z, yawDeg?) -> CFrame (monde), rng, bestLook, coinPaths }
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -99,8 +98,8 @@ local function spin(part: BasePart, axis: string, speed: number, bob: number?)
 end
 
 local function dropper(ctx, z: number, styleName: string)
-	Conveyor.dropper(ctx.folder, ctx.at(Spots.beltX - 7.5, 0, z), 7.5, styleName, ctx.ghost)
-	if not ctx.ghost and ctx.coinPaths then
+	Conveyor.dropper(ctx.folder, ctx.at(Spots.beltX - 7.5, 0, z), 7.5, styleName)
+	if ctx.coinPaths then
 		local style = Conveyor.Styles[styleName]
 		local y = Spots.beltY + 0.35
 		table.insert(ctx.coinPaths, {
@@ -133,9 +132,7 @@ S.distributeur = {
 		for _, dz in { -5, 5 } do
 			Build.part(ctx.folder, "PiedPanneau", Vector3.new(0.6, 10, 0.6), ctx.at(Spots.beltX - 13, 5, -31 + dz), C.WoodDark, { Material = Enum.Material.Wood })
 		end
-		if not ctx.ghost then
-			Build.surfaceText(sign, Enum.NormalId.Right, "ATELIER DES PIÈCES", C.Gold)
-		end
+		Build.surfaceText(sign, Enum.NormalId.Right, "ATELIER DES PIÈCES", C.Gold)
 	end,
 }
 
@@ -255,15 +252,13 @@ S.aimant = {
 		end
 		Build.part(ctx.folder, "ArcAimant", Vector3.new(4, 1.4, 1.4), cf * CFrame.new(0, 7.6, 0), rgb(220, 40, 40))
 		local field = Build.deco(ctx.folder, "Champ", Vector3.new(3, 2, 0.4), cf * CFrame.new(0, 3.2, 0), rgb(120, 200, 255), { Material = Enum.Material.Neon, Transparency = 0.6 })
-		if not ctx.ghost then
-			Kit.particles(field, {
-				Color = ColorSequence.new(rgb(140, 210, 255)),
-				Size = NumberSequence.new(0.6, 0),
-				Rate = 12,
-				Lifetime = NumberRange.new(0.5, 0.9),
-				Speed = NumberRange.new(1, 2),
-			})
-		end
+		Kit.particles(field, {
+			Color = ColorSequence.new(rgb(140, 210, 255)),
+			Size = NumberSequence.new(0.6, 0),
+			Rate = 12,
+			Lifetime = NumberRange.new(0.5, 0.9),
+			Speed = NumberRange.new(1, 2),
+		})
 	end,
 }
 
@@ -273,11 +268,9 @@ S.remparts = { -- « Allée des Torii » au-dessus du tapis rouge
 		for i, z in { -56, -50, -44 } do
 			Build.torii(ctx.folder, ctx.at(0, 0, z), 13.5, 12.5 - i * 0.4)
 		end
-		if not ctx.ghost then
-			for _, z in { -56, -50, -44 } do
-				for _, side in { -1, 1 } do
-					Kit.paperLantern(ctx.folder, ctx.at(side * 4.4, 8.6, z), C.Lacquer, 0.8)
-				end
+		for _, z in { -56, -50, -44 } do
+			for _, side in { -1, 1 } do
+				Kit.paperLantern(ctx.folder, ctx.at(side * 4.4, 8.6, z), C.Lacquer, 0.8)
 			end
 		end
 	end,
@@ -294,15 +287,13 @@ S.arene1 = { -- braseros aux quatre coins de la cour
 				Build.part(ctx.folder, "PiedBrasero", Vector3.new(1, 3.2, 1), base * CFrame.new(0, 2.4, 0), rgb(60, 56, 54), { Material = Enum.Material.Metal })
 				Build.part(ctx.folder, "Brasero", Vector3.new(2.8, 1.2, 2.8), base * CFrame.new(0, 4.4, 0), rgb(60, 56, 54), { Material = Enum.Material.Metal })
 				local braises = Build.deco(ctx.folder, "Braises", Vector3.new(2.3, 0.3, 2.3), base * CFrame.new(0, 5.05, 0), rgb(255, 120, 40), { Material = Enum.Material.Neon })
-				if not ctx.ghost then
-					local fire = Instance.new("Fire")
-					fire.Size = 5
-					fire.Heat = 7
-					fire.Color = rgb(255, 140, 40)
-					fire.SecondaryColor = rgb(255, 60, 20)
-					fire.Parent = braises
-					Kit.light(braises, rgb(255, 160, 70), 18, 1.5)
-				end
+				local fire = Instance.new("Fire")
+				fire.Size = 5
+				fire.Heat = 7
+				fire.Color = rgb(255, 140, 40)
+				fire.SecondaryColor = rgb(255, 60, 20)
+				fire.Parent = braises
+				Kit.light(braises, rgb(255, 160, 70), 18, 1.5)
 			end
 		end
 	end,
@@ -338,25 +329,21 @@ S.ramen = {
 			Kit.cylinder(ctx.folder, "Tabouret", 2, 1.6, cf * CFrame.new(i * 2.4, 1.3, -5.2), C.Lacquer, { Material = Enum.Material.SmoothPlastic })
 		end
 		local pot = Kit.cylinder(ctx.folder, "Marmite", 1.6, 2.2, cf * CFrame.new(-4, 4.9, 2.4), rgb(70, 70, 80), { Material = Enum.Material.Metal })
-		if not ctx.ghost then
-			Kit.particles(pot, {
-				Texture = "rbxasset://textures/particles/smoke_main.dds",
-				LightEmission = 0,
-				Color = ColorSequence.new(rgb(255, 255, 255)),
-				Transparency = NumberSequence.new(0.6, 1),
-				Size = NumberSequence.new(0.8, 2.4),
-				Rate = 6,
-				Lifetime = NumberRange.new(1.2, 2),
-				Speed = NumberRange.new(1.5, 2.5),
-			})
-			for _, x in { -6.4, 6.4 } do
-				Kit.paperLantern(ctx.folder, cf * CFrame.new(x, 6.4, -4.6), C.Lacquer, 0.9)
-			end
+		Kit.particles(pot, {
+			Texture = "rbxasset://textures/particles/smoke_main.dds",
+			LightEmission = 0,
+			Color = ColorSequence.new(rgb(255, 255, 255)),
+			Transparency = NumberSequence.new(0.6, 1),
+			Size = NumberSequence.new(0.8, 2.4),
+			Rate = 6,
+			Lifetime = NumberRange.new(1.2, 2),
+			Speed = NumberRange.new(1.5, 2.5),
+		})
+		for _, x in { -6.4, 6.4 } do
+			Kit.paperLantern(ctx.folder, cf * CFrame.new(x, 6.4, -4.6), C.Lacquer, 0.9)
 		end
 		local sign = Build.part(ctx.folder, "Enseigne", Vector3.new(8, 1.8, 0.3), cf * CFrame.new(0, 9.6, -5.4), rgb(240, 236, 226), { Material = Enum.Material.Wood })
-		if not ctx.ghost then
-			Build.surfaceText(sign, Enum.NormalId.Front, "🍜 RAMEN", C.Lacquer, { TextStrokeColor3 = rgb(255, 255, 255) })
-		end
+		Build.surfaceText(sign, Enum.NormalId.Front, "🍜 RAMEN", C.Lacquer, { TextStrokeColor3 = rgb(255, 255, 255) })
 	end,
 }
 
@@ -382,18 +369,16 @@ S.fontaine = {
 		local orb = Build.ball(ctx.folder, "OrbeChakra", 2.6, (base * CFrame.new(0, 8.6, 0)).Position, rgb(90, 190, 255), { Material = Enum.Material.Neon, CanCollide = false })
 		orb:SetAttribute("Bob", 0.8)
 		CollectionService:AddTag(orb, "Spin")
-		if not ctx.ghost then
-			Kit.particles(orb, {
-				Color = ColorSequence.new(rgb(140, 220, 255)),
-				Size = NumberSequence.new(0.6, 0),
-				Rate = 18,
-				Speed = NumberRange.new(3, 6),
-				Lifetime = NumberRange.new(1, 1.6),
-				SpreadAngle = Vector2.new(25, 25),
-				Acceleration = Vector3.new(0, -12, 0),
-			})
-			Kit.light(orb, rgb(120, 200, 255), 18, 1.6)
-		end
+		Kit.particles(orb, {
+			Color = ColorSequence.new(rgb(140, 220, 255)),
+			Size = NumberSequence.new(0.6, 0),
+			Rate = 18,
+			Speed = NumberRange.new(3, 6),
+			Lifetime = NumberRange.new(1, 1.6),
+			SpreadAngle = Vector2.new(25, 25),
+			Acceleration = Vector3.new(0, -12, 0),
+		})
+		Kit.light(orb, rgb(120, 200, 255), 18, 1.6)
 		for i = 0, 3 do
 			local a = i * math.pi / 2 + math.pi / 4
 			Kit.toro(ctx.folder, base * CFrame.new(math.cos(a) * 10, 0, math.sin(a) * 10), 0.7, rgb(140, 220, 255))
@@ -570,11 +555,9 @@ S.dojo = {
 			Build.part(ctx.folder, "Marche", Vector3.new(5, 0.6, 1.3), cf * CFrame.new(0, 0.3 + i * 0.6, -d / 2 - 3.6 + i * 1.1), C.StoneLight, { Material = Enum.Material.Slate })
 		end
 		local sign = Build.part(ctx.folder, "Enseigne", Vector3.new(7, 2.2, 0.4), cf * CFrame.new(0, 12.2, -d / 2 - 2.1), rgb(30, 25, 25), { Material = Enum.Material.Wood })
-		if not ctx.ghost then
-			Build.surfaceText(sign, Enum.NormalId.Front, "道場 DOJO", C.Gold)
-			for _, side in { -1, 1 } do
-				Kit.paperLantern(ctx.folder, cf * CFrame.new(side * (w / 2 - 1), 8.6, -d / 2 - 1.6), C.PaperLight, 1)
-			end
+		Build.surfaceText(sign, Enum.NormalId.Front, "道場 DOJO", C.Gold)
+		for _, side in { -1, 1 } do
+			Kit.paperLantern(ctx.folder, cf * CFrame.new(side * (w / 2 - 1), 8.6, -d / 2 - 1.6), C.PaperLight, 1)
 		end
 	end,
 }
@@ -599,24 +582,21 @@ S.arene2 = { -- gradins derrière la cour
 			for i = 0, 1 do
 				local x = side * (8 + i * 8)
 				Build.part(ctx.folder, "Perche", Vector3.new(0.4, 8, 0.4), ctx.at(x, 4, z0 + 7), C.WoodDark, { Material = Enum.Material.Wood })
-				if not ctx.ghost then
-					Kit.paperLantern(ctx.folder, ctx.at(x, 8.6, z0 + 7), i == 0 and C.Lacquer or rgb(255, 205, 80), 1)
-				end
+				Kit.paperLantern(ctx.folder, ctx.at(x, 8.6, z0 + 7), i == 0 and C.Lacquer or rgb(255, 205, 80), 1)
 			end
 		end
 		-- Bannière « COUR DES CHAMPIONS ».
 		local banner = Build.part(ctx.folder, "Banniere", Vector3.new(20, 2.4, 0.3), ctx.at(0, 7.2, z0 + 7.1), C.Lacquer, { Material = Enum.Material.Fabric })
-		if not ctx.ghost then
-			Build.surfaceText(banner, Enum.NormalId.Front, "COUR DES CHAMPIONS", C.Gold)
-		end
+		Build.surfaceText(banner, Enum.NormalId.Front, "COUR DES CHAMPIONS", C.Gold)
 	end,
 }
 
 S.coffre = { -- « Coffre du Shogun »
 	pad = { -55, -48 }, -- entre le distributeur et le coffre, bien plus bas que le compteur du coffre
 	build = function(ctx)
-		local base = ctx.at(-55, 0, -56)
-		Build.part(ctx.folder, "Estrade", Vector3.new(9, 1, 6.6), base * CFrame.new(0, 0.5, 0), C.StoneMid, { Material = Enum.Material.Slate })
+		-- (un peu à gauche : l'estrade ne mord pas sur le disque doré du coffre des revenus)
+		local base = ctx.at(-56.5, 0, -56)
+		Build.part(ctx.folder, "Estrade", Vector3.new(8, 1, 6.6), base * CFrame.new(0, 0.5, 0), C.StoneMid, { Material = Enum.Material.Slate })
 		Build.part(ctx.folder, "Coffre", Vector3.new(7, 4, 4.6), base * CFrame.new(0, 3, 0), C.LacquerDark, { Material = Enum.Material.SmoothPlastic })
 		Build.part(ctx.folder, "Couvercle", Vector3.new(7.3, 1.4, 4.9), base * CFrame.new(0, 5.7, 0), rgb(30, 25, 25), { Material = Enum.Material.SmoothPlastic })
 		for _, x in { -2.6, 0, 2.6 } do
@@ -667,9 +647,7 @@ S.tour = { -- « Tours de Guet » (yagura dans l'angle du fond)
 		end
 		Kit.roof(ctx.folder, cf * CFrame.new(0, y, 0), 7.4, 7.4, 3.2, C.RoofTile, { ornament = true })
 		local beacon = Build.deco(ctx.folder, "Fanal", Vector3.new(1.4, 1.4, 1.4), cf * CFrame.new(0, y + 4.4, 0), rgb(255, 210, 90), { Material = Enum.Material.Neon })
-		if not ctx.ghost then
-			Kit.light(beacon, rgb(255, 210, 90), 30, 2)
-		end
+		Kit.light(beacon, rgb(255, 210, 90), 30, 2)
 	end,
 }
 
@@ -690,7 +668,7 @@ S.statue = {
 		Build.part(ctx.folder, "Piedestal", Vector3.new(6.5, 3, 6.5), base * CFrame.new(0, 2.5, 0), C.Marble, { Material = Enum.Material.Marble })
 		Build.part(ctx.folder, "Corniche", Vector3.new(7.2, 0.6, 7.2), base * CFrame.new(0, 4.3, 0), C.Gold, { Material = Enum.Material.Metal })
 		local look = ctx.bestLook
-		if look and not ctx.ghost then
+		if look then
 			local statue = CharacterBuilder.build(look, { scale = 1.8, name = "StatueDoree" })
 			for _, part in statue:GetDescendants() do
 				if part:IsA("SurfaceGui") or part:IsA("Decal") then
@@ -763,9 +741,7 @@ S.sanctuaire = {
 			Build.ball(ctx.folder, "JoyauCeleste", 3.6, (cf * CFrame.new(0, floorY + 27, 0)).Position, rgb(255, 230, 120), { Material = Enum.Material.Neon, CanCollide = false })
 		orb:SetAttribute("Bob", 1)
 		CollectionService:AddTag(orb, "Spin")
-		if not ctx.ghost then
-			Kit.light(orb, rgb(255, 220, 120), 40, 2)
-		end
+		Kit.light(orb, rgb(255, 220, 120), 40, 2)
 		for _, side in { -1, 1 } do
 			guardian(ctx.folder, cf * CFrame.new(side * 6, 3, -d / 2 - 3.2), 0.85)
 		end
@@ -811,7 +787,6 @@ function Structures.build(upgradeId: string, plot, parent: Instance, options: { 
 		folder = model,
 		rng = Random.new(seed + plot.index * 1000),
 		bestLook = o.bestLook,
-		ghost = o.ghost == true,
 		coinPaths = o.coinPaths,
 		at = function(x: number, y: number, z: number, yaw: number?): CFrame
 			return plot.cf * CFrame.new(x, y, z) * CFrame.Angles(0, math.rad(yaw or 0), 0)

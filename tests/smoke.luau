@@ -20,7 +20,6 @@ local Universes = requireModule(Shared.Config.Universes)
 local Formulas = requireModule(Shared.Modules.Formulas)
 local Economy = requireModule(Shared.Config.Economy)
 local CharacterBuilder = requireModule(Shared.Modules.CharacterBuilder)
-local RelicBuilder = requireModule(Shared.Modules.RelicBuilder)
 
 test("Formules : formatNumber", function()
 	local cases = { [0] = "0", [999] = "999", [1000] = "1 k", [1500] = "1,5 k", [12345] = "12,3 k", [100000] = "100 k", [2500000] = "2,5 M", [1e9] = "1 B" }
@@ -1784,6 +1783,68 @@ test("Bases des joueurs + toutes les améliorations", function()
 	local total = countParts(plot.model)
 	print("   pièces d'une base complète : " .. total .. " (déco : " .. countParts(plot.model.Decor) .. ")")
 	assert(total < 9000, "base trop lourde : " .. total .. " pièces")
+end)
+
+-- Le coffre des revenus et son disque doré : aucune déco (murs, poteaux, glycines...) ni
+-- amélioration ne passe dedans, dans les 5 univers (le mur de façade le coupait en biais).
+test("Base : coffre des revenus et disque doré dégagés (5 univers)", function()
+	local roblox = Harness.roblox
+	local PlotService = requireModule(Server.Services.PlotService)
+	local Structures = requireModule(Server.Modules.TycoonStructures)
+	local BaseDecor = requireModule(Server.World.BaseDecor)
+	local plot = PlotService:GetPlots()[1]
+	local Spots = Structures.Spots
+	local toLocal = plot.cf:Inverse()
+	local padCenter = Spots.chest + roblox.Vector3.new(0, 0, -5.5)
+	local padRadius = 4.3 + 0.2
+	local socleLo = Spots.chest - roblox.Vector3.new(4.2, 0, 3.2)
+	local socleHi = Spots.chest + roblox.Vector3.new(4.2, 0, 3.2)
+	local stash = plot.model.Interactive:FindFirstChild("Stash")
+	local belt = plot.model:FindFirstChild("Static") and plot.model.Static:FindFirstChild("Tapis")
+	local function localBox(part)
+		local cf, half = toLocal * part.CFrame, part.Size / 2
+		local lo = roblox.Vector3.new(math.huge, math.huge, math.huge)
+		local hi = -lo
+		for _, x in { -1, 1 } do
+			for _, y in { -1, 1 } do
+				for _, z in { -1, 1 } do
+					local p = cf * roblox.Vector3.new(half.X * x, half.Y * y, half.Z * z)
+					lo = roblox.Vector3.new(math.min(lo.X, p.X), math.min(lo.Y, p.Y), math.min(lo.Z, p.Z))
+					hi = roblox.Vector3.new(math.max(hi.X, p.X), math.max(hi.Y, p.Y), math.max(hi.Z, p.Z))
+				end
+			end
+		end
+		return lo, hi
+	end
+	local function hits(part): string?
+		local lo, hi = localBox(part)
+		if hi.Y <= 0.45 or lo.Y > 7 then
+			return nil -- au ras du sol (dalles, bandes) ou bien au-dessus (toits, panneaux)
+		end
+		local cx = math.clamp(padCenter.X, lo.X, hi.X)
+		local cz = math.clamp(padCenter.Z, lo.Z, hi.Z)
+		if (roblox.Vector3.new(cx, 0, cz) - roblox.Vector3.new(padCenter.X, 0, padCenter.Z)).Magnitude < padRadius then
+			return "disque"
+		end
+		if lo.X < socleHi.X and hi.X > socleLo.X and lo.Z < socleHi.Z and hi.Z > socleLo.Z then
+			return "coffre"
+		end
+		return nil
+	end
+	local bad = {}
+	for _, universe in Universes.List do
+		BaseDecor.apply(plot, universe)
+		for _, d in plot.model:GetDescendants() do
+			if d:IsA("BasePart") and d.Transparency < 0.95 and not d:IsDescendantOf(stash) and not (belt and d:IsDescendantOf(belt)) then
+				local where = hits(d)
+				if where then
+					table.insert(bad, universe.id .. " : " .. d:GetFullName() .. " dans le " .. where)
+				end
+			end
+		end
+	end
+	BaseDecor.apply(plot, Universes.List[1])
+	assert(#bad == 0, #bad .. " pièce(s) dans le coffre des revenus :\n" .. table.concat(bad, "\n", 1, math.min(#bad, 12)))
 end)
 
 -- Panneaux d'achat : sur un sol dégagé, et jamais l'un sur l'autre vus depuis l'entrée et le coffre.

@@ -243,19 +243,24 @@ test("HUD : boucle de mise à jour", function()
 	expectNoNewWarnings(before, "HUD")
 end)
 
-test("Ouverture d'une relique + révélation", function()
+test("Révélation d'un perso (sans relique ni autel)", function()
 	local before = #warnings
-	local data = services.DataService:Get(alice)
-	local relicId = next(data.relics)
-	Menus.open("PlaceRelic", 1)
-	task.wait(0.1)
-	local ok = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Remotes")).func("PlaceRelic"):InvokeServer(1, relicId)
-	assert(ok, "relique non posée")
-	Harness.timeOffset += 60
-	local plot = services.PlotService:GetPlot(alice)
-	signalFor(plot.pedestals[1].Top.Prompt, "Triggered"):Fire(alice)
-	task.wait(2.5)
+	-- v3.3 : plus de fenêtre « relique pour l'autel ».
+	assert(not Menus.exists("PlaceRelic"), "fenêtre des reliques encore là")
+	-- Révélation envoyée par le serveur (roulage automatique, fusion) : le calque s'affiche.
+	local entry = services.CharacterService:CreateEntry("ninja_maruto")
+	local uid = services.CharacterService:AddCharacter(alice, entry)
+	local Remotes = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Remotes"))
+	Remotes.event("HatchReveal"):FireClient(alice, { uid = uid, entry = entry, source = "roll", isNew = true })
+	local overlay = alice.PlayerGui.AnimeTycoonUI:FindFirstChild("RevealOverlay", true)
+	assert(overlay, "calque de révélation absent")
+	local t0 = os.clock()
+	while not overlay.Visible and os.clock() - t0 < 10 do
+		task.wait(0.1)
+	end
 	assert(received.HatchReveal == 1, "pas de révélation reçue")
+	assert(overlay.Visible, "révélation non affichée")
+	task.wait(2.5)
 	expectNoNewWarnings(before, "révélation")
 end)
 

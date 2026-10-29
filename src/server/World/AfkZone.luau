@@ -135,7 +135,8 @@ local function counterGui(adornee: BasePart, index: number, color: Color3): Bill
 	owner.Name = "Owner"
 	owner.TextXAlignment = Enum.TextXAlignment.Left
 
-	local count = Build.label(card, "Approche-toi : ça frappe tout seul !", UDim2.fromScale(sx(240), sy(38)), UDim2.fromScale(sx(10), sy(46)), rgb(255, 255, 255), Enum.Font.GothamBlack)
+	local count =
+		Build.label(card, "Approche-toi : ça frappe tout seul !", UDim2.fromScale(sx(240), sy(38)), UDim2.fromScale(sx(10), sy(46)), rgb(255, 255, 255), Enum.Font.GothamBlack)
 	count.Name = "Count"
 
 	local bar = Instance.new("Frame")

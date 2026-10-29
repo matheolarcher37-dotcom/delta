@@ -1,6 +1,6 @@
 -- Boîte à outils de la base « tycoon » : boutons d'achat (socle + anneau Neon + grand panneau),
--- fantômes de prévisualisation, animation de construction, sols sans picots (planches, dalles,
--- marbre) et petits décors d'animé réutilisables (lanterne de pierre, cerisier, toits japonais...).
+-- animation de construction, sols sans picots (planches, dalles, marbre) et petits décors d'animé
+-- réutilisables (lanterne de pierre, cerisier, toits japonais...).
 --
 -- Tout est construit à partir d'un CFrame (jamais de coordonnées absolues) : les modules
 -- TycoonStructures et PlotService passent le CFrame de la base.
@@ -26,7 +26,6 @@ Kit.Colors = {
 	Panel = rgb(28, 24, 48),
 	Stroke = rgb(12, 10, 22),
 	TextDim = rgb(205, 198, 240),
-	Ghost = rgb(150, 220, 255),
 	-- Matières (couleurs « animé », saturées mais douces).
 	Grass = rgb(118, 178, 82),
 	GrassDark = rgb(98, 156, 68),
@@ -622,62 +621,8 @@ function Kit.setAffordable(refs: { [string]: any }, affordable: boolean)
 end
 
 ------------------------------------------------------------------------
--- Fantôme et animation de construction
+-- Animation de construction
 ------------------------------------------------------------------------
-
-local GHOST_STRIP = {
-	"Light",
-	"ParticleEmitter",
-	"Fire",
-	"Smoke",
-	"Sparkles",
-	"Beam",
-	"Trail",
-	"BillboardGui",
-	"SurfaceGui",
-	"ProximityPrompt",
-	"Sound",
-	"Humanoid",
-	"AnimationController",
-}
-
--- Transforme un modèle en « fantôme » semi-transparent (aperçu de ce que le bouton construit).
-function Kit.ghostify(root: Instance)
-	for _, d in root:GetDescendants() do
-		local strip = false
-		for _, className in GHOST_STRIP do
-			if d:IsA(className) then
-				strip = true
-				break
-			end
-		end
-		if strip then
-			d:Destroy()
-		end
-	end
-	for _, d in root:GetDescendants() do
-		if d:IsA("BasePart") then
-			d.Anchored = true
-			d.CanCollide = false
-			d.CanQuery = false
-			d.CanTouch = false
-			d.CastShadow = false
-			d.Material = Enum.Material.SmoothPlastic
-			d.Color = d.Color:Lerp(C.Ghost, 0.45)
-			-- Les grandes pièces plates (sols) restent très discrètes pour ne pas masquer le décor.
-			local flat = d.Size.Y < 1.2 and d.Size.X * d.Size.Z > 30
-			d.Transparency = math.max(d.Transparency, flat and 0.8 or 0.62)
-			for _, tag in d:GetTags() do
-				d:RemoveTag(tag)
-			end
-		end
-	end
-	if root:IsA("Model") then
-		for _, tag in root:GetTags() do
-			root:RemoveTag(tag)
-		end
-	end
-end
 
 -- Animation de construction : chaque pièce tombe à sa place (du bas vers le haut, en cascade).
 function Kit.animateBuild(root: Instance, duration: number?)

@@ -493,14 +493,14 @@ function PlotService:ToWorld(plot, x: number, y: number, z: number): CFrame
 end
 
 ------------------------------------------------------------------------
--- Améliorations : constructions, boutons, fantômes
+-- Améliorations : constructions et boutons
 ------------------------------------------------------------------------
 
 local function upgradeAvailable(data, upgrade): boolean
 	return not data.upgrades[upgrade.id] and (upgrade.requires == nil or data.upgrades[upgrade.requires] == true)
 end
 
--- Reconstruit améliorations, boutons, fantômes, cases et hologramme.
+-- Reconstruit améliorations, boutons, cases et hologramme.
 -- `justBought` = id de l'amélioration qui vient d'être achetée (animation de construction).
 function PlotService:RefreshOwnerContent(player: Player, justBought: string?)
 	local plot = playerPlots[player]
@@ -513,12 +513,13 @@ function PlotService:RefreshOwnerContent(player: Player, justBought: string?)
 	if oldPads then
 		oldPads:Destroy()
 	end
+	-- Plus d'aperçu transparent (« fantôme ») de ce qu'un bouton construit : seul le bouton se
+	-- voit tant que l'amélioration n'est pas achetée (dossier Ghosts des versions d'avant retiré).
 	local oldGhosts = plot.ownerFolder:FindFirstChild("Ghosts")
 	if oldGhosts then
 		oldGhosts:Destroy()
 	end
 	local pads = Build.folder(plot.ownerFolder, "Pads")
-	local ghosts = Build.folder(plot.ownerFolder, "Ghosts")
 	plot.coinFolder = plot.ownerFolder:FindFirstChild("Coins") or Build.folder(plot.ownerFolder, "Coins")
 	plot.pads = {}
 
@@ -551,10 +552,6 @@ function PlotService:RefreshOwnerContent(player: Player, justBought: string?)
 			end
 			if upgradeAvailable(data, upgrade) then
 				self:_buildPad(player, plot, pads, upgrade)
-				local ok, ghost = pcall(Structures.build, upgrade.id, plot, ghosts, { ghost = true, bestLook = bestLook })
-				if ok and ghost then
-					Kit.ghostify(ghost)
-				end
 			end
 		end
 	end

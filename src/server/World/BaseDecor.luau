@@ -53,12 +53,18 @@ local function wallRuns()
 	}
 end
 
--- CFrame d'un tronçon : centre, longueur sur X local, +Z local vers l'intérieur de la base.
+-- CFrame d'un tronçon : centre, longueur sur X local (le long du mur), +Z local vers l'intérieur
+-- de la base. (L'intérieur se prend PERPENDICULAIRE au mur : vers le centre de la base, les deux
+-- tronçons de façade, décentrés à cause du portail, partaient en biais et coupaient le coin du
+-- coffre.)
 local function runFrame(a: Vector3, b: Vector3): (CFrame, number)
 	local mid = (a + b) / 2
 	local length = (b - a).Magnitude
 	local up = Vector3.new(0, 1, 0)
-	local inward = -Vector3.new(mid.X, 0, mid.Z).Unit
+	local inward = up:Cross((b - a).Unit)
+	if inward:Dot(-Vector3.new(mid.X, 0, mid.Z)) < 0 then
+		inward = -inward
+	end
 	return CFrame.fromMatrix(mid, up:Cross(inward), up, inward), length
 end
 

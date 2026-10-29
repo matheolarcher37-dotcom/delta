@@ -281,5 +281,4 @@ function Props.altar(parent: Instance, cf: CFrame)
 	return model
 end
 
-
 return Props

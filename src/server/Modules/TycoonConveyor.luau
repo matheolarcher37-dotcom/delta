@@ -62,7 +62,7 @@ function Conveyor.belt(folder: Instance, a: Vector3, b: Vector3, y: number)
 end
 
 -- Distributeur posé à côté du tapis : `cf` = pied du distributeur, la buse est à `+nozzleX` (X local).
-function Conveyor.dropper(folder: Instance, cf: CFrame, nozzleX: number, styleName: string, ghost: boolean?)
+function Conveyor.dropper(folder: Instance, cf: CFrame, nozzleX: number, styleName: string)
 	local style = Conveyor.Styles[styleName] or Conveyor.Styles.bronze
 	for _, x in { -2.3, 2.3 } do
 		for _, dz in { -2.3, 2.3 } do
@@ -84,10 +84,8 @@ function Conveyor.dropper(folder: Instance, cf: CFrame, nozzleX: number, styleNa
 	Kit.cylinder(folder, "Buse", 3, 2, cf * CFrame.new(nozzleX, 8.2, 0), rgb(90, 92, 104), { Material = Enum.Material.Metal })
 	Kit.cylinder(folder, "BuseLueur", 0.3, 1.5, cf * CFrame.new(nozzleX, 6.6, 0), style.glow, { Material = Enum.Material.Neon, CanCollide = false })
 	local plate = Build.part(folder, "Plaque", Vector3.new(0.3, 1.6, 3.4), cf * CFrame.new(2.85, 7.6, 0), C.Panel)
-	if not ghost then
-		Build.surfaceText(plate, Enum.NormalId.Right, "🪙 " .. style.label, style.glow)
-		Kit.light(body, style.glow, 12, 1.2)
-	end
+	Build.surfaceText(plate, Enum.NormalId.Right, "🪙 " .. style.label, style.glow)
+	Kit.light(body, style.glow, 12, 1.2)
 end
 
 -- Coffre des revenus : on marche sur le disque doré pour récupérer l'argent accumulé.

@@ -991,7 +991,11 @@ local function punchPanel(parent: Instance, data, order: number)
 		Parent = panel,
 	})
 	Theme.label({
-		Text = "Va près d'un sac libre : ton perso le frappe tout seul. " .. QuestsConfig.Punch.Goal .. " coups = " .. QuestsConfig.punchCycleGems() .. " gemmes de trait. Les sacs ne t'attaquent jamais !",
+		Text = "Va près d'un sac libre : ton perso le frappe tout seul. "
+			.. QuestsConfig.Punch.Goal
+			.. " coups = "
+			.. QuestsConfig.punchCycleGems()
+			.. " gemmes de trait. Les sacs ne t'attaquent jamais !",
 		Size = UDim2.new(1, -330, 0, 40),
 		Position = UDim2.fromOffset(104, 44),
 		FontFace = Theme.Faces.Bold,

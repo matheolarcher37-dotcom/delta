@@ -1095,12 +1095,12 @@ test("Cases d'unités : « Remplacer l'unité », silhouettes verrouillées", fu
 	assert(tagged >= 1, "pas d'étiquette sur les unités exposées")
 end)
 
-test("Boutons d'achat : panneau, fantôme, construction", function()
+test("Boutons d'achat : panneau, rien de transparent avant l'achat, construction", function()
 	local plot = services.PlotService:GetPlot(alice)
 	local pads = plot.ownerFolder:FindFirstChild("Pads")
-	local ghosts = plot.ownerFolder:FindFirstChild("Ghosts")
 	assert(pads and #pads:GetChildren() > 0, "aucun bouton d'achat")
-	assert(ghosts and #ghosts:GetChildren() == #pads:GetChildren(), "fantômes manquants")
+	-- v3.3 : plus d'aperçu transparent (« fantôme ») de ce que le bouton construit.
+	assert(plot.ownerFolder:FindFirstChild("Ghosts") == nil, "aperçus transparents encore construits")
 	local pad = pads:GetChildren()[1]
 	assert(pad:FindFirstChild("Pad", true):FindFirstChild("PriceGui"), "panneau de prix absent")
 	local upgradeId = pad:GetAttribute("UpgradeId")
@@ -2138,20 +2138,28 @@ test("Gemmes de trait : relance payée en gemmes, gemmes du boss", function()
 	assert((data.Quests.counters["boss:" .. boss.defId] or 0) >= 1, "boss de l'univers non compté")
 end)
 
+-- Place `player` devant le punching-ball `station`, tourné vers lui.
+local function standAt(player, station)
+	local anchor = station.PromptAnchor
+	local p = anchor.CFrame.Position
+	local zone = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Layout")).AfkZone
+	local dir = Vector3.new(zone.X - p.X, 0, zone.Z - p.Z).Unit
+	local pos = Vector3.new(p.X, 3.9, p.Z) + dir * 4
+	player.Character:PivotTo(CFrame.lookAt(pos, Vector3.new(p.X, pos.Y, p.Z)))
+	return pos, -dir
+end
+
 test("Zone anti-AFK : coups comptés, cadence plafonnée, paliers, un sac par joueur", function()
 	local QuestService = services.QuestService
 	local stations = QuestService:GetStations()
 	assert(#stations == 3, "il faut 3 punching-balls")
 	local data = DataService:Get(alice)
-	local function standAt(player, station)
-		local anchor = station.PromptAnchor
-		local p = anchor.CFrame.Position
-		local zone = QuestsConfig and Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Layout")).AfkZone
-		local dir = Vector3.new(zone.X - p.X, 0, zone.Z - p.Z).Unit
-		local pos = Vector3.new(p.X, 3.9, p.Z) + dir * 4
-		player.Character:PivotTo(CFrame.lookAt(pos, Vector3.new(p.X, pos.Y, p.Z)))
-		return pos, -dir
-	end
+	-- Ici on teste les coups donnés à la main : la frappe automatique (test suivant) est coupée.
+	local autoInterval = QuestsConfig.Punch.AutoInterval
+	QuestsConfig.Punch.AutoInterval = math.huge
+	Harness.cleanup(function()
+		QuestsConfig.Punch.AutoInterval = autoInterval
+	end)
 	local pos, look = standAt(alice, stations[1])
 	local count = data.Quests.punch
 	local total = data.Quests.counters.punch or 0
@@ -2201,6 +2209,51 @@ test("Zone anti-AFK : coups comptés, cadence plafonnée, paliers, un sac par jo
 	removePlayer(bob)
 	task.wait(0.2)
 	assert(stations[2]:GetAttribute("OwnerId") == nil, "sac de Bob non libéré à sa déconnexion")
+end)
+
+test("Zone anti-AFK : frappe automatique près d'un sac libre, sans rien toucher", function()
+	local QuestService = services.QuestService
+	local stations = QuestService:GetStations()
+	local data = DataService:Get(alice)
+	local interval = QuestsConfig.Punch.AutoInterval
+	assert(interval and interval > 0 and interval < 5, "cadence de la frappe automatique")
+	for _, station in stations do
+		local owner = station:GetAttribute("OwnerId")
+		assert(owner == nil or owner == alice.UserId, "sac pris par un joueur parti")
+	end
+	-- Loin des sacs : rien ne se passe.
+	alice.Character:PivotTo(CFrame.new(0, 5, 0))
+	QuestService:_tickStations()
+	task.wait(interval + 0.1)
+	local count = data.Quests.punch
+	QuestService:_autoPunch()
+	assert(data.Quests.punch == count, "frappe automatique loin des sacs")
+	-- Devant un sac libre : il est réservé et frappé tout seul (pas d'attente entre les deux
+	-- appels : la boucle du serveur ne peut pas frapper entre-temps).
+	standAt(alice, stations[3])
+	QuestService:_autoPunch()
+	assert(stations[3]:GetAttribute("OwnerId") == alice.UserId, "sac non réservé automatiquement")
+	assert(data.Quests.punch == count + 1, "pas de coup automatique")
+	QuestService:_autoPunch()
+	assert(data.Quests.punch == count + 1, "frappe automatique plus rapide qu'un coup par " .. interval .. " s")
+	-- Elle continue toute seule (boucle du serveur, ou cet appel), sans dépasser la cadence.
+	local t0 = os.clock()
+	task.wait(interval + 0.1)
+	QuestService:_autoPunch()
+	local elapsed = os.clock() - t0
+	assert(data.Quests.punch >= count + 2, "la frappe automatique ne continue pas")
+	assert(data.Quests.punch <= count + 2 + math.floor(elapsed / interval), "frappe automatique trop rapide")
+	assert(stations[3]:GetAttribute("HitTick") >= 2, "le sac ne bouge pas aux coups automatiques")
+	-- Le sac d'un autre joueur n'est jamais pris par la frappe automatique.
+	local carla = addPlayer("Carla")
+	standAt(carla, stations[3])
+	local carlaData = DataService:Get(carla)
+	local carlaCount = carlaData.Quests.punch
+	QuestService:_autoPunch()
+	assert(stations[3]:GetAttribute("OwnerId") == alice.UserId, "sac d'Alice pris par la frappe automatique")
+	assert(carlaData.Quests.punch == carlaCount, "coup compté sur le sac d'un autre")
+	removePlayer(carla)
+	alice.Character:PivotTo(CFrame.new(0, 5, 0))
 end)
 
 test("Défis : migration d'une sauvegarde abîmée", function()

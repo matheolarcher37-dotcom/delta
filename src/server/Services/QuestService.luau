@@ -700,7 +700,10 @@ function QuestService:_autoPunch()
 			local station = self:_autoStation(player, root.Position)
 			local anchor = station and stationAnchor(station)
 			if station and anchor then
-				if humanoid.MoveDirection.Magnitude < 0.1 then
+				local okMove, move = pcall(function()
+					return humanoid.MoveDirection
+				end)
+				if not okMove or move.Magnitude < 0.1 then
 					local target = anchor.CFrame.Position
 					pcall(function()
 						root.CFrame = CFrame.lookAt(root.Position, Vector3.new(target.X, root.Position.Y, target.Z))
