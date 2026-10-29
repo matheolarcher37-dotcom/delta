@@ -1896,7 +1896,18 @@ test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement
 			assert(d.Enabled, "panneau d'achat resté caché loin de la machine")
 		end
 	end
-	-- Vue de l'entrée de la base : version compacte au loin, aucun recouvrement à l'écran.
+	-- Vue de l'entrée de la base : version compacte au loin, aucun recouvrement à l'écran. Deux
+	-- premières améliorations achetées : leurs suites ajoutent des boutons (les seuls boutons du
+	-- départ ne sont plus que 3 depuis le retrait des autels de reliques).
+	local hadUpgrades = { lanternes = data.upgrades.lanternes, distributeur = data.upgrades.distributeur }
+	data.upgrades.lanternes = true
+	data.upgrades.distributeur = true
+	services.PlotService:RefreshOwnerContent(alice)
+	Harness.cleanup(function()
+		data.upgrades.lanternes = hadUpgrades.lanternes
+		data.upgrades.distributeur = hadUpgrades.distributeur
+		services.PlotService:RefreshOwnerContent(alice)
+	end)
 	do -- (CFrame.lookAt de Lune inverse l'axe Z : on construit le repère à la main)
 		local eye, target = (plot.cf * CFrame.new(0, 14, -82)).Position, (plot.cf * CFrame.new(0, 4, -40)).Position
 		local fw = (target - eye).Unit
