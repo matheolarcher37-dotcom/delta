@@ -1,11 +1,11 @@
--- Plan de la base tycoon et constructions des 25 améliorations (Economy.Upgrades).
+-- Plan de la base tycoon et constructions des 24 améliorations (Economy.Upgrades).
 --
 -- Repère local d'une base : centre au sol, -Z = entrée (côté hub), +Z = fond.
 -- La base fait Layout.PlotSize (140) de côté ; la bande extérieure de 10 studs (|x| ou |z| > 60)
 -- est réservée au décor de l'univers (murs, portail : World/BaseDecor.luau).
 --
 --            (fond, +Z)
---   pagode     marchand     autel d'éveil  sanctuaire   tour
+--   pagode                                   sanctuaire   tour
 --   dojo          [ gradins ]                            jardin
 --   mannequins   [ COUR DES UNITÉS : 24 cases hexagonales ] fontaine
 --   tatami                                                 ramen
@@ -51,8 +51,6 @@ local Spots = {
 	board = Vector3.new(-30, 0, -57), -- grand compteur d'argent
 	skillTree = Vector3.new(46, 0, -44), -- arbre de compétences lumineux
 	lectern = Vector3.new(38, 0, -52), -- pupitre qui ouvre l'écran de l'arbre
-	merchant = Vector3.new(-32, 0, 54), -- comptoir du marchand ambulant (ancienne machine à reliques)
-	altar = Vector3.new(0, 0, 46), -- autel d'éveil (évolutions)
 	-- Cour des unités : 6 colonnes x 4 rangées de cases hexagonales (24 cases du jeu gratuit),
 	-- plus une rangée d'honneur au fond : 2 cases réservées au passe Robux « +2 Cases ».
 	slotCols = { -26.25, -15.75, -5.25, 5.25, 15.75, 26.25 },
@@ -231,34 +229,6 @@ S.mannequins = {
 			Kit.cylinder(ctx.folder, "Cible", 0.15, 1.4, cf * CFrame.new(0, 4.6, -0.95) * CFrame.Angles(math.rad(90), 0, 0), rgb(255, 255, 255), { CanCollide = false })
 			Kit.cylinder(ctx.folder, "Cible", 0.2, 0.7, cf * CFrame.new(0, 4.6, -0.97) * CFrame.Angles(math.rad(90), 0, 0), C.Lacquer, { CanCollide = false })
 		end
-	end,
-}
-
-S.aimant = {
-	-- Loin du coffre et des distributeurs ; panneau un cran plus haut que celui des Lanternes
-	-- (vus de l'entrée, les deux panneaux ne se recouvrent pas).
-	pad = { -20, -44 },
-	board = 4,
-	build = function(ctx)
-		-- Arche aimantée au-dessus du bout du tapis : attire les pièces vers le coffre.
-		local cf = ctx.at(Spots.beltX, 0, -44.5)
-		for _, side in { -1, 1 } do
-			Build.part(ctx.folder, "Pilier", Vector3.new(1.2, 8, 1.2), cf * CFrame.new(side * 3.4, 4, 0), rgb(90, 92, 104), { Material = Enum.Material.Metal })
-		end
-		Build.part(ctx.folder, "Traverse", Vector3.new(8, 1.2, 1.6), cf * CFrame.new(0, 8.4, 0), rgb(90, 92, 104), { Material = Enum.Material.Metal })
-		for _, side in { -1, 1 } do
-			Build.part(ctx.folder, "BrasAimant", Vector3.new(1.4, 3, 1.4), cf * CFrame.new(side * 1.3, 6.3, 0), rgb(220, 40, 40))
-			Build.part(ctx.folder, "PoleAimant", Vector3.new(1.45, 0.9, 1.45), cf * CFrame.new(side * 1.3, 4.4, 0), rgb(225, 225, 235), { Material = Enum.Material.Metal })
-		end
-		Build.part(ctx.folder, "ArcAimant", Vector3.new(4, 1.4, 1.4), cf * CFrame.new(0, 7.6, 0), rgb(220, 40, 40))
-		local field = Build.deco(ctx.folder, "Champ", Vector3.new(3, 2, 0.4), cf * CFrame.new(0, 3.2, 0), rgb(120, 200, 255), { Material = Enum.Material.Neon, Transparency = 0.6 })
-		Kit.particles(field, {
-			Color = ColorSequence.new(rgb(140, 210, 255)),
-			Size = NumberSequence.new(0.6, 0),
-			Rate = 12,
-			Lifetime = NumberRange.new(0.5, 0.9),
-			Speed = NumberRange.new(1, 2),
-		})
 	end,
 }
 

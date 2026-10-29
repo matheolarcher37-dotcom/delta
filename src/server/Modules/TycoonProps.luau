@@ -1,5 +1,6 @@
--- Éléments fixes de la base (présents dès le départ) : arbre de compétences lumineux + pupitre,
--- comptoir du marchand, autel d'éveil.
+-- Éléments fixes de la base (présents dès le départ) : arbre de compétences lumineux + pupitre.
+-- (Le comptoir du marchand et l'autel d'éveil ont quitté la base en v3.4 : le marchand ambulant
+-- et le stand FAIRE ÉVOLUER du hub font la même chose.)
 -- Tout est construit à partir d'un CFrame (repère de la base).
 
 local CollectionService = game:GetService("CollectionService")
@@ -204,81 +205,6 @@ function Props.bindSkillTree(model: Model)
 		end
 	end
 	return { prompt = desk and desk:FindFirstChild("Prompt"), cells = cells }
-end
-
-------------------------------------------------------------------------
--- Comptoir du marchand (ex-« Machine à Reliques ») : ouvre l'écran du marchand ambulant
--- (achat s'il est tout près, sinon « Montrer le chemin » jusqu'à son coin de la carte).
-------------------------------------------------------------------------
-
--- `cf` = pied du stand, face (-Z) vers la cour.
-function Props.relicMerchant(parent: Instance, cf: CFrame)
-	local model = Build.model(parent, "RelicMachine")
-	local red = rgb(200, 44, 54)
-	local gold = rgb(255, 200, 60)
-	Build.part(model, "Base", Vector3.new(10, 1.6, 7), cf * CFrame.new(0, 0.8, 0), C.StoneMid, { Material = Enum.Material.Slate })
-	Build.part(model, "Comptoir", Vector3.new(9, 3, 2.4), cf * CFrame.new(0, 3.1, -1.8), C.Wood, { Material = Enum.Material.WoodPlanks })
-	Build.part(model, "Plan", Vector3.new(9.6, 0.4, 3), cf * CFrame.new(0, 4.8, -1.8), C.WoodLight, { Material = Enum.Material.Wood })
-	Build.part(model, "Fond", Vector3.new(9, 8, 0.6), cf * CFrame.new(0, 5.6, 3.1), C.Plaster, { Material = Enum.Material.Plaster })
-	for _, x in { -4.6, 4.6 } do
-		for _, z in { -3, 3 } do
-			Build.part(model, "Poteau", Vector3.new(0.7, 9.4, 0.7), cf * CFrame.new(x, 5.9, z), C.WoodDark, { Material = Enum.Material.Wood })
-		end
-	end
-	Kit.roof(model, cf * CFrame.new(0, 10.6, 0), 12, 9, 2.6, red, { ornament = true, name = "ToitMarchand" })
-	-- Étagères du marchand (rouleaux, orbes) derrière le comptoir.
-	for i = -1, 1 do
-		Build.part(model, "Etagere", Vector3.new(2.6, 0.3, 1.2), cf * CFrame.new(i * 2.9, 6.6, 2.3), C.WoodDark, { Material = Enum.Material.Wood })
-		Kit.cylinder(model, "Rouleau", 1.8, 0.6, cf * CFrame.new(i * 2.9 - 0.5, 7.1, 2.3) * CFrame.Angles(0, 0, math.rad(90)), rgb(240, 220, 170), { CanCollide = false })
-		Build.ball(model, "Orbe", 0.9, (cf * CFrame.new(i * 2.9 + 0.7, 7.2, 2.3)).Position, i == 0 and rgb(170, 110, 255) or rgb(90, 200, 255), {
-			Material = Enum.Material.Neon,
-			CanCollide = false,
-		})
-	end
-	-- Boule de cristal du marchand ambulant (violette, elle tourne) sur un socle doré.
-	Build.part(model, "Vitrine", Vector3.new(3.4, 0.4, 3.4), cf * CFrame.new(0, 5.2, -1.8), gold, { Material = Enum.Material.Metal })
-	Kit.cylinder(model, "SocleBoule", 0.9, 1.6, cf * CFrame.new(0, 5.85, -1.8), rgb(120, 80, 40), { Material = Enum.Material.Wood, CanCollide = false })
-	local orb = Build.ball(model, "BouleCristal", 2.2, (cf * CFrame.new(0, 7.3, -1.8)).Position, rgb(190, 120, 255), {
-		Material = Enum.Material.Neon,
-		CanCollide = false,
-	})
-	orb:SetAttribute("SpinAxis", "Y")
-	orb:SetAttribute("Bob", 0.25)
-	CollectionService:AddTag(orb, "Spin")
-	Kit.light(orb, rgb(190, 120, 255), 10, 1)
-	local sign = Build.part(model, "Enseigne", Vector3.new(8, 1.8, 0.3), cf * CFrame.new(0, 9.2, -3.4), rgb(40, 30, 28), { Material = Enum.Material.Wood })
-	Build.surfaceText(sign, Enum.NormalId.Front, "MARCHAND", gold)
-	for _, x in { -4.6, 4.6 } do
-		Kit.paperLantern(model, cf * CFrame.new(x, 8.2, -3.6), red, 0.9)
-	end
-	prompt(model:FindFirstChild("Base") :: BasePart, "Trouver le marchand", "Comptoir du marchand ambulant", 12)
-	return model
-end
-
-------------------------------------------------------------------------
--- Autel d'éveil (évolutions)
-------------------------------------------------------------------------
-
-function Props.altar(parent: Instance, cf: CFrame)
-	local model = Build.model(parent, "EvolutionAltar")
-	local stone = rgb(140, 135, 160)
-	Build.part(model, "Step1", Vector3.new(14, 1, 10), cf * CFrame.new(0, 0.5, 0), stone, { Material = Enum.Material.Slate })
-	Build.part(model, "Step2", Vector3.new(10, 1, 7), cf * CFrame.new(0, 1.5, 0.5), stone:Lerp(rgb(255, 255, 255), 0.1), { Material = Enum.Material.Slate })
-	local altar = Build.part(model, "Altar", Vector3.new(5, 3, 4), cf * CFrame.new(0, 3.5, 1), rgb(90, 80, 120), { Material = Enum.Material.Slate })
-	for _, side in { -1, 1 } do
-		Build.part(model, "Pillar", Vector3.new(1.6, 9, 1.6), cf * CFrame.new(side * 5.5, 6, 2.5), stone, { Material = Enum.Material.Slate })
-		Build.deco(model, "Flame", Vector3.new(1, 1.4, 1), cf * CFrame.new(side * 5.5, 11.2, 2.5), rgb(160, 90, 255), { Material = Enum.Material.Neon })
-	end
-	local crystal = Build.deco(model, "Crystal", Vector3.new(2.2, 3.2, 2.2), cf * CFrame.new(0, 8, 1), rgb(170, 110, 255), { Material = Enum.Material.Neon, Transparency = 0.15 })
-	crystal:SetAttribute("SpinAxis", "Y")
-	crystal:SetAttribute("SpinSpeed", 1)
-	crystal:SetAttribute("Bob", 0.6)
-	CollectionService:AddTag(crystal, "Spin")
-	Kit.light(crystal, rgb(170, 110, 255), 18, 2)
-	local sign = Build.part(model, "Sign", Vector3.new(9, 1.8, 0.3), cf * CFrame.new(0, 3.4, -1.15), rgb(60, 50, 80))
-	Build.surfaceText(sign, Enum.NormalId.Front, "AUTEL D'ÉVEIL", rgb(220, 190, 255))
-	prompt(altar, "Éveiller un perso", "Autel d'Éveil", 12)
-	return model
 end
 
 return Props

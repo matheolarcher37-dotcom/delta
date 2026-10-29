@@ -347,7 +347,7 @@ local function renderItemDetail()
 				Components.hintText(body, "… et " .. (#users - shown) .. " autre(s)", { LayoutOrder = 21, Size = UDim2.new(1, -24, 0, 20) })
 			end
 		end
-		Components.hintText(body, "Fais évoluer tes unités à l'Autel d'Éveil (stand FAIRE ÉVOLUER du hub, ou ta base).", { LayoutOrder = 22, Size = UDim2.new(1, -24, 0, 22) })
+		Components.hintText(body, "Fais évoluer tes unités au stand FAIRE ÉVOLUER du hub (Moine de l'Éveil).", { LayoutOrder = 22, Size = UDim2.new(1, -24, 0, 22) })
 		return
 	end
 

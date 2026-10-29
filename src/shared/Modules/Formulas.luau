@@ -445,6 +445,18 @@ function Formulas.rollPrice(rarityId: string, mutationId: string?, traitId: stri
 	return math.floor(price / magnitude + 0.5) * magnitude
 end
 
+-- Durée de la ROULETTE (v3.4) : les persos défilent puis s'arrêtent sur le perso tiré. Toujours
+-- plus courte que la recharge de la machine (on ne peut pas relancer avant la fin) ; plus courte
+-- pendant l'auto-roulage. Le serveur s'en sert aussi pour retarder les lumières de l'estrade et
+-- l'annonce aux autres joueurs (pas de résultat dévoilé avant l'arrêt de la roulette).
+function Formulas.rollSpinTime(cooldown: number?, auto: boolean?): number
+	local cd = math.max(0, tonumber(cooldown) or 3.5)
+	if auto then
+		return math.clamp(cd * 0.45, 0.5, 1.3)
+	end
+	return math.clamp(cd - 0.8, 0.6, 2.6)
+end
+
 -- Le tout premier perso collecté est offert, mais seulement jusqu'à la rareté
 -- Economy.Roll.FreeCollectMaxOrder (sinon on pourrait rouler jusqu'à un Mythique gratuit).
 function Formulas.rollCollectFree(data, rarityId: string?): boolean

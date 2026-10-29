@@ -610,13 +610,15 @@ test("Zone anti-AFK : panneau affiché sur place, sac qui se balance", function(
 	assert(tracker and not tracker.Visible, "les cartes de suivi des défis doivent être masquées dans la zone")
 	local toasts = gui:FindFirstChild("Toasts", true)
 	assert(toasts and toasts.Position.Y.Offset >= panel.Position.Y.Offset + panel.Size.Y.Offset, "les bandeaux doivent passer sous le panneau AFK")
-	-- Jamais sur la rangée des pastilles du HUD (Marchand, Boss : y 98 → 130).
-	assert(panel.Position.Y.Offset >= 134, "panneau AFK posé sur les pastilles du HUD : y " .. panel.Position.Y.Offset)
-	-- Auto-roulage en cours (pastille « Arrêter ») : le panneau descend dessous, les bandeaux suivent.
+	-- Jamais sur la rangée des pastilles du HUD (Marchand, Boss : y 70 → 94 depuis la v3.4).
 	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local HUDm = Harness.require(client.UI.HUD)
+	local chipsBottom = HUDm.ChipsTop + HUDm.ChipHeight
+	assert(panel.Position.Y.Offset >= chipsBottom + 4, "panneau AFK posé sur les pastilles du HUD : y " .. panel.Position.Y.Offset)
+	-- Auto-roulage en cours (pastille « Arrêter ») : le panneau descend dessous, les bandeaux suivent.
 	local RollPanel = Harness.require(client.UI.RollPanel)
 	local pill = RollPanel.refs().pill
-	assert(pill.Position.Y.Offset >= 134, "pastille d'auto-roulage posée sur les pastilles du HUD")
+	assert(pill.Position.Y.Offset >= chipsBottom + 4, "pastille d'auto-roulage posée sur les pastilles du HUD")
 	-- (la pastille est remise à jour par le panneau ROULER : on la réaffiche à chaque essai)
 	local moved = false
 	for _ = 1, 30 do
@@ -1694,6 +1696,121 @@ test("Révélation des persos tirés (RollResult)", function()
 	expectNoNewWarnings(before, "révélation du roulage")
 end)
 
+test("Roulette sur l'estrade : des persos défilent sur la case puis s'arrêtent sur le perso tiré (rien à l'écran)", function()
+	local before = #warnings
+	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
+	local RollReveal = Harness.require(client.UI.RollReveal)
+	local RollSpin = Harness.require(client.UI.RollSpin)
+	local RollPanel = Harness.require(client.UI.RollPanel)
+	local gui = alice.PlayerGui.AnimeTycoonUI
+	local data = services.DataService:Get(alice)
+	local plot = services.PlotService:GetPlot(alice)
+	local savedQueue = data.RolledQueue
+	Harness.cleanup(function()
+		RollSpin.finish()
+		RollPanel.forceNear(nil)
+		data.RolledQueue = savedQueue
+		services.RollService:RenderStage(alice)
+		services.DataService:Sync(alice)
+	end)
+	-- Persos « tirés » posés sur l'estrade (comme le serveur le fait au roulage).
+	local items = {
+		{ key = "ROULETTE1", id = "ninja_kakashu", stars = 1, rarity = "epic", price = 4200, dps = 120 },
+		{ key = "ROULETTE2", id = "ninja_maruto", stars = 1, rarity = "rare", price = 900, dps = 80 },
+		{ key = "ROULETTE3", id = "ninja_sakoura", stars = 1, rarity = "common", price = 90, dps = 9 },
+	}
+	data.RolledQueue = table.clone(items)
+	services.RollService:RenderStage(alice, items)
+	local models, homes = {}, {}
+	for i, item in items do
+		models[i] = plot.rolledFolder:FindFirstChild("Tire_" .. item.key)
+		assert(models[i], "modèle du perso tiré " .. i .. " absent de l'estrade")
+		homes[i] = models[i]:GetPivot().Position
+	end
+	-- À la machine, les persos de l'univers sont préparés à l'avance (sous Lune, c'est lent :
+	-- on attend qu'ils soient prêts).
+	RollPanel.forceNear(true)
+	RollSpin.prewarm("ninja")
+	local t0 = os.clock()
+	while not RollSpin.isWarm("ninja") and os.clock() - t0 < 240 do
+		task.wait(0.2)
+	end
+	assert(RollSpin.isWarm("ninja"), "persos de la roulette jamais préparés")
+	local function flat(v)
+		return Vector3.new(v.X, 0, v.Z)
+	end
+	-- 1) Un perso : la roulette tourne SUR L'ESTRADE, rien ne s'affiche par-dessus l'écran.
+	local SPIN = 4
+	local shown0 = RollSpin.shownCount()
+	t0 = os.clock()
+	RollReveal.show({ results = { items[1] }, count = 1, spin = SPIN, universe = "ninja" })
+	assert(gui.RollReveal:FindFirstChild("Roulette") == nil, "roue affichée à l'écran")
+	assert(RollSpin.active() and RollSpin.isPending("ROULETTE1"), "roulette non lancée")
+	assert((models[1]:GetPivot().Position - homes[1]).Magnitude > 100, "le perso tiré se voit sur l'estrade pendant la roulette")
+	local seen, onSpot = {}, true
+	while RollSpin.active() and os.clock() - t0 < SPIN + 6 do
+		local folder = game:GetService("Workspace"):FindFirstChild(RollSpin.FolderName)
+		for _, m in (folder and folder:GetChildren() or {}) do
+			if m:IsA("Model") then
+				seen[m.Name] = true
+				onSpot = onSpot and (flat(m:GetPivot().Position) - flat(homes[1])).Magnitude < 0.5
+			end
+		end
+		task.wait(0.03)
+	end
+	local distinct = 0
+	for _ in seen do
+		distinct += 1
+	end
+	assert(distinct >= 3, "trop peu de persos différents sur l'estrade pendant la roulette : " .. distinct)
+	assert(onSpot, "un perso de la roulette n'est pas sur la case du perso tiré")
+	assert(RollSpin.shownCount() - shown0 >= 6, "trop peu de persos montrés : " .. (RollSpin.shownCount() - shown0))
+	assert(os.clock() - t0 >= SPIN - 0.3, "roulette arrêtée avant sa durée")
+	assert(not RollSpin.active() and not RollSpin.isPending("ROULETTE1"), "roulette jamais terminée")
+	assert((models[1]:GetPivot().Position - homes[1]).Magnitude < 0.05, "le perso tiré n'est pas revenu sur l'estrade")
+	local folder = game:GetService("Workspace"):FindFirstChild(RollSpin.FolderName)
+	assert(not folder or #folder:GetChildren() == 0, "persos de la roulette restés sur l'estrade")
+	-- 2) x3 : une roulette par case, en même temps, chacune s'arrête sur son perso.
+	t0 = os.clock()
+	local most = 0
+	RollReveal.show({ results = items, count = 3, spin = 5, universe = "ninja" })
+	while RollSpin.active() and os.clock() - t0 < 12 do
+		folder = game:GetService("Workspace"):FindFirstChild(RollSpin.FolderName)
+		local spots = {}
+		for _, m in (folder and folder:GetChildren() or {}) do
+			if m:IsA("Model") then
+				for i, home in homes do
+					if (flat(m:GetPivot().Position) - flat(home)).Magnitude < 0.5 then
+						spots[i] = true
+					end
+				end
+			end
+		end
+		local count = 0
+		for _ in spots do
+			count += 1
+		end
+		most = math.max(most, count)
+		task.wait(0.03)
+	end
+	assert(most >= 2, "x3 : les cases ne défilent pas ensemble (" .. most .. ")")
+	assert(not RollSpin.active(), "x3 : roulette jamais terminée")
+	for i, model in models do
+		assert((model:GetPivot().Position - homes[i]).Magnitude < 0.05, "x3 : perso " .. i .. " pas revenu sur l'estrade")
+	end
+	-- 3) Loin de la machine (auto-roulage) : pas de roulette, cartes tout de suite.
+	RollPanel.forceNear(false)
+	RollReveal.show({ results = { items[2] }, count = 1, spin = 2, universe = "ninja", auto = true })
+	assert(not RollSpin.active(), "roulette jouée loin de la machine")
+	assert(gui.RollReveal.Strip:FindFirstChild("RollCard1", true), "cartes du tirage absentes loin de la machine")
+	-- 4) Sans durée (anciens appels) : révélation directe.
+	RollPanel.forceNear(true)
+	RollReveal.show({ results = { items[1] }, count = 1 })
+	assert(not RollSpin.active(), "roulette jouée sans durée")
+	task.wait(3.2)
+	expectNoNewWarnings(before, "roulette")
+end)
+
 test("Haut de l'écran : pastille d'auto-roulage, panneau AFK, bandeaux, persos tirés et suivi des défis ne se chevauchent jamais", function()
 	local before = #warnings
 	local client = Harness.find("StarterPlayer.StarterPlayerScripts.Client")
@@ -2085,31 +2202,28 @@ test("Machine ROULER : commandes à la machine seulement + fenêtre « Roulement
 	end
 	RollPanel.layout()
 	assert(panel.Position.Y.Offset <= -200, "barre ROULER sur le bouton de saut (tactile) : " .. panel.Position.Y.Offset)
-	local pull = RollPanel.refs().pull
-	assert(pull.Position.Y.Offset < panel.Position.Y.Offset, "cartes du perso tiré sous la barre en tactile")
-	-- Bandeau MUTATION à la machine : au-dessus de la carte du perso tiré, remontée elle aussi.
+	-- v3.4 : plus de cartes « Collecter » au-dessus de la barre (on collecte sur l'estrade).
+	assert(RollPanel.refs().pull == nil and alice.PlayerGui.AnimeTycoonUI:FindFirstChild("Tirage", true) == nil, "cartes du perso tiré encore à l'écran")
+	-- Bandeau MUTATION à la machine : juste au-dessus de la barre, remontée elle aussi.
 	local RollReveal = Harness.require(client.UI.RollReveal)
 	local strip = alice.PlayerGui.AnimeTycoonUI.RollReveal.Strip
 	local function checkBanner(where)
 		RollReveal.show({ results = { { id = "ninja_maruto", stars = 1, rarity = "rare", price = 500, dps = 50, aura = "or" } }, count = 1, auto = true })
 		Harness.services.RunService.RenderStepped:Fire(1 / 60)
 		assert(strip.Visible and strip.AnchorPoint.Y == 1 and strip:FindFirstChild("Mutation"), "bandeau MUTATION absent à la machine (" .. where .. ")")
-		-- (distances depuis le bas de l'écran : bas du bandeau, haut de la carte du perso tiré)
+		-- (distances depuis le bas de l'écran : bas du bandeau, haut de la barre ROULER)
 		local bannerBottom = -strip.Position.Y.Offset
-		local pullTop = -pull.Position.Y.Offset + pull.Size.Y.Offset
-		assert(bannerBottom >= pullTop + 8, "bandeau MUTATION sur la carte du perso tiré (" .. where .. ") : " .. bannerBottom .. " / " .. pullTop)
+		local panelTop = -panel.Position.Y.Offset + panel.Size.Y.Offset
+		assert(bannerBottom >= panelTop + 8, "bandeau MUTATION sur la barre ROULER (" .. where .. ") : " .. bannerBottom .. " / " .. panelTop)
 	end
 	checkBanner("tactile")
 	-- La barre Robux de droite ne doit pas être poussée au milieu de l'écran (sur le perso tiré)
-	-- par la carte du perso tiré remontée : elle reste au bord droit, ou s'efface faute de place.
+	-- par la barre ROULER remontée : elle reste au bord droit, ou s'efface faute de place.
 	local RobuxSideBar = Harness.require(client.UI.RobuxSideBar)
-	local pullWasVisible = pull.Visible
-	pull.Visible = true
 	RobuxSideBar.layout()
 	local holder = RobuxSideBar.holder()
 	assert(holder, "barre Robux introuvable")
 	assert(not holder.Visible or holder.Position.X.Offset >= -240, "barre Robux poussée vers le centre en tactile : " .. holder.Position.X.Offset)
-	pull.Visible = pullWasVisible
 	Console.isTouch = isTouch
 	RobuxSideBar.layout()
 	assert(holder.Visible, "barre Robux masquée hors tactile")
@@ -2157,32 +2271,29 @@ test("Boucle de la base vue par le client : rouler, collecter, poser une unité"
 	end
 	assert((received.RollResult or 0) > rolls, "pas de RollResult reçu après le roulage")
 	assert(#data.RolledQueue >= 1, "rien sur l'estrade")
-	-- La carte du perso tiré (et son bouton « Collecter ») est refaite à la synchro qui suit le
-	-- roulage ; d'ici là, elle montre encore l'estrade d'avant (le perso tiré par l'auto-roulage
-	-- du test précédent, qui n'y est plus).
 	assert(synced(), "synchro du roulage jamais envoyée au client")
 	assert(State.data and #State.data.RolledQueue >= 1, "l'estrade n'est pas synchronisée côté client")
-	-- 2) Collecter le 1er perso de l'estrade (le tout premier est offert).
+	-- La roulette tourne sur l'estrade puis s'arrête (le perso tiré revient à sa place).
+	local RollSpin = Harness.require(client.UI.RollSpin)
+	local spinStart = os.clock()
+	while RollSpin.active() and os.clock() - spinStart < 30 do
+		task.wait(0.1)
+	end
+	assert(not RollSpin.active(), "roulette de l'estrade jamais terminée")
+	-- 2) Collecter le 1er perso de l'estrade (le tout premier est offert) : plus de carte à
+	-- l'écran (v3.4), on le prend sur l'estrade avec son invite « Collecter ».
+	assert(alice.PlayerGui.AnimeTycoonUI:FindFirstChild("Tire1", true) == nil, "carte « Collecter » encore à l'écran")
 	local owned = 0
 	for _ in data.characters do
 		owned += 1
 	end
-	-- Le bouton « Collecter » de la carte du perso tiré envoie la CLÉ du perso (pas sa position).
 	local firstKey = State.data.RolledQueue[1].key
 	data.RolledQueue[1].rarity = "common" -- la collecte offerte ne vaut que jusqu'au Rare
-	local takeButton = nil
-	for _, d in alice.PlayerGui.AnimeTycoonUI:GetDescendants() do
-		if d.Name == "Tire1" then
-			for _, b in d:GetDescendants() do
-				if b:IsA("TextButton") then
-					takeButton = b
-					break
-				end
-			end
-		end
-	end
-	assert(takeButton, "bouton « Collecter » absent de la carte du perso tiré")
-	signalFor(takeButton, "Activated"):Fire()
+	local model = plot.rolledFolder:FindFirstChild("Tire_" .. firstKey)
+	local prompt = model and model:FindFirstChildWhichIsA("ProximityPrompt", true)
+	assert(prompt and string.find(prompt.ActionText, "Collecter"), "invite « Collecter » absente du perso de l'estrade")
+	assert(prompt.MaxActivationDistance <= 8, "invite « Collecter » prise de trop loin : " .. prompt.MaxActivationDistance)
+	signalFor(prompt, "Triggered"):Fire(alice)
 	task.wait(0.3)
 	local ok = true
 	for _, item in data.RolledQueue do

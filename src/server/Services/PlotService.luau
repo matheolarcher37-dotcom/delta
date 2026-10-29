@@ -113,8 +113,6 @@ local function buildPlot(index: number, parent: Instance)
 	plot.stashPad = pad
 	plot.stashLabel = label
 	plot.stashRate = stash:FindFirstChild("Rate", true)
-	Props.relicMerchant(interactive, localCF(plot, Spots.merchant))
-	Props.altar(interactive, localCF(plot, Spots.altar))
 	local _4, skillRefs = Props.skillTree(interactive, localCF(plot, Spots.skillTree), localCF(plot, Spots.lectern))
 	plot.skillRefs = skillRefs
 	buildSlots(plot, interactive)
@@ -158,11 +156,13 @@ local function bindPlot(index: number, model: Model)
 	end
 	plot.stashLabel = stash:FindFirstChild("Amount", true)
 	plot.stashRate = stash:FindFirstChild("Rate", true)
-	-- Comptoir du marchand d'avant la v3.3 (vitrine de verre avec la relique) : refait sans.
-	local counter = interactive:FindFirstChild("RelicMachine")
-	if counter and counter:FindFirstChild("Dome") then
-		counter:Destroy()
-		Props.relicMerchant(interactive, localCF(plot, Spots.merchant))
+	-- Comptoir du marchand et autel d'éveil d'avant la v3.4 : retirés de la base (le marchand
+	-- ambulant et le stand FAIRE ÉVOLUER du hub les remplacent).
+	for _, name in { "RelicMachine", "EvolutionAltar" } do
+		local old = interactive:FindFirstChild(name)
+		if old then
+			old:Destroy()
+		end
 	end
 	local machineModel = interactive:FindFirstChild("RollMachine") :: Model?
 	if machineModel and machineModel:FindFirstChild("Podium") then
@@ -240,18 +240,6 @@ end
 
 function PlotService:_connectPrompts(plot)
 	local interactive = plot.model.Interactive
-	local machinePrompt = interactive.RelicMachine.Base:FindFirstChild("Prompt") :: ProximityPrompt
-	machinePrompt.Triggered:Connect(function(player)
-		ownerOnly(plot, player, function()
-			OpenMenu:FireClient(player, "Shop")
-		end)
-	end)
-	local altarPrompt = interactive.EvolutionAltar.Altar:FindFirstChild("Prompt") :: ProximityPrompt
-	altarPrompt.Triggered:Connect(function(player)
-		ownerOnly(plot, player, function()
-			OpenMenu:FireClient(player, "Evolution")
-		end)
-	end)
 	if plot.skillRefs and plot.skillRefs.prompt then
 		plot.skillRefs.prompt.Triggered:Connect(function(player)
 			ownerOnly(plot, player, function()

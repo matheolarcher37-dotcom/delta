@@ -1,10 +1,12 @@
 -- Révélation animée des persos tirés par la machine ROULER (RemoteEvent « RollResult ») :
--- les cartes se retournent sous la bannière, avec la couleur de leur rareté, le prix et les
--- dégâts par seconde. Pour les grosses raretés (Légendaire et plus) : éclair de lumière,
+-- d'abord la ROULETTE sur l'estrade (v3.4, UI/RollSpin : des persos défilent sur la case puis
+-- s'arrêtent sur le perso tiré), puis les cartes se retournent sous la bannière (loin de la
+-- machine), avec la couleur de leur rareté, le prix et les dégâts par seconde. Pour les grosses raretés (Légendaire et plus) : éclair de lumière,
 -- rayons tournants et grande annonce.
 --
 -- Données reçues : { results = { { id, stars, rarity, price, dps, aura? (= mutation), trait? } },
---                    pity = { mythic = n }, luck, count, auto = vrai pendant l'auto-roulage }
+--                    pity = { mythic = n }, luck, count, auto = vrai pendant l'auto-roulage,
+--                    spin = durée de la roulette (absente ou 0 : révélation directe) }
 -- La rareté est celle du perso (sa fiche) ; la MUTATION (Or, Diamant...) s'affiche en plus.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,6 +20,7 @@ local Formulas = require(Shared.Modules.Formulas)
 local Theme = require(script.Parent.Theme)
 local Components = require(script.Parent.Components)
 local Notifications = require(script.Parent.Notifications)
+local RollSpin = require(script.Parent.RollSpin)
 local State = require(script.Parent.Parent.State)
 
 local RollReveal = {}
@@ -226,15 +229,15 @@ local function sibling(name: string): any
 	return ok and result or nil
 end
 
--- À la machine : bas du bandeau MUTATION, au-dessus de la carte du perso tiré, elle-même posée
--- sur la barre ROULER. Calculé à l'affichage : la barre est plus haute en tactile (au-dessus du
--- bouton de saut, RollPanel.panelBottom()).
+-- À la machine : bas du bandeau MUTATION, juste au-dessus de la barre ROULER. Calculé à
+-- l'affichage : la barre est plus haute en tactile (au-dessus du bouton de saut,
+-- RollPanel.panelBottom()).
 function RollReveal.machineBannerBottom(): number
 	local RollPanel = sibling("RollPanel")
 	if RollPanel and RollPanel.panelBottom and RollPanel.PanelSize then
-		return RollPanel.panelBottom() + RollPanel.PanelSize.Y + 8 + (RollPanel.PullHeight or 86) + 8
+		return RollPanel.panelBottom() + RollPanel.PanelSize.Y + 8
 	end
-	return 96 + 132 + 8 + 86 + 8
+	return 96 + 92 + 8
 end
 
 -- Taille logique de l'écran (la racine est à l'échelle de l'interface) ; 1280 x 770 à défaut.
@@ -321,17 +324,16 @@ local function placeStrip()
 	end
 end
 
-function RollReveal.show(payload)
-	if type(payload) ~= "table" or type(payload.results) ~= "table" or #payload.results == 0 then
+-- Révélation (après la roulette).
+local function reveal(payload, myBatch: number)
+	if myBatch ~= batch then
 		return
 	end
-	batch += 1
-	local myBatch = batch
 	Components.clear(strip)
 	strip.Visible = true
-	-- À LA MACHINE, on voit le perso tiré en vrai sur le podium (et sa carte au-dessus de la
-	-- barre ROULER) : pas de vignettes. Seul le bandeau MUTATION s'affiche, au-dessus de la carte,
-	-- et pour un Légendaire ou plus la caméra cadre le podium 1,5 s (focusPodium).
+	-- À LA MACHINE, on voit le perso tiré en vrai sur le podium (avec son étiquette et son invite
+	-- « Collecter ») : pas de vignettes. Seul le bandeau MUTATION s'affiche, au-dessus de la barre
+	-- ROULER, et pour un Légendaire ou plus la caméra cadre le podium 1,5 s (focusPodium).
 	local okNear, near = pcall(function()
 		return require(script.Parent.RollPanel).isNear()
 	end)
@@ -439,6 +441,23 @@ function RollReveal.show(payload)
 			strip.Visible = false
 			Components.clear(strip)
 		end
+	end)
+end
+
+function RollReveal.show(payload)
+	if type(payload) ~= "table" or type(payload.results) ~= "table" or #payload.results == 0 then
+		return
+	end
+	batch += 1
+	local myBatch = batch
+	-- Roulette d'abord, SUR L'ESTRADE (UI/RollSpin : des persos défilent sur la case du perso
+	-- tiré puis s'arrêtent dessus) ; la suite (bandeau MUTATION, annonce, caméra) à l'arrêt.
+	-- Loin de la machine, ou sans durée : tout de suite.
+	local okNear, near = pcall(function()
+		return require(script.Parent.RollPanel).isNear()
+	end)
+	RollSpin.play(payload, okNear and near == true, function()
+		reveal(payload, myBatch)
 	end)
 end
 

@@ -419,7 +419,7 @@ function CharacterService:AddXP(player: Player, uid: string, amount: number, sil
 		end
 		if entry.level >= cap and not silent then
 			local desc = Formulas.describe(entry)
-			Notify:FireClient(player, "⭐ " .. (desc and desc.name or "Perso") .. " a atteint le niveau max ! Fais-le évoluer à l'Autel d'Éveil.", "info")
+			Notify:FireClient(player, "⭐ " .. (desc and desc.name or "Perso") .. " a atteint le niveau max ! Fais-le évoluer au stand FAIRE ÉVOLUER du hub.", "info")
 		end
 		self.services.DataService:Sync(player)
 	end

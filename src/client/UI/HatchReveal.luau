@@ -17,6 +17,7 @@ local Theme = require(script.Parent.Theme)
 local Components = require(script.Parent.Components)
 local Console = require(script.Parent.Console)
 local Menus = require(script.Parent.Menus)
+local RollSpin = require(script.Parent.RollSpin)
 
 local HatchReveal = {}
 
@@ -196,6 +197,14 @@ function HatchReveal.init(gui: ScreenGui)
 	overlay.Visible = false
 
 	Remotes.event("HatchReveal").OnClientEvent:Connect(function(info)
+		-- Perso acheté par l'achat automatique juste après un roulage : on attend l'arrêt de la
+		-- roulette (sinon il serait dévoilé par-dessus).
+		if type(info) == "table" and info.source == "roll" and RollSpin.active() then
+			local t0 = os.clock()
+			while RollSpin.active() and os.clock() - t0 < 5 do
+				task.wait(0.1)
+			end
+		end
 		Menus.close()
 		if revealing then
 			table.insert(revealQueue, info)

@@ -169,8 +169,9 @@ local function cleanAutoSettings(data)
 end
 
 -- Mise à niveau des anciennes sauvegardes (après reconcile, qui ajoute les champs manquants).
--- Améliorations retirées en v3.3 (autels de reliques) : prix rendu en pièces.
-local REMOVED_UPGRADES = { autel2 = 1500, autel3 = 50000, autel4 = 450000 }
+-- Améliorations retirées (autels de reliques en v3.3, Aimant à Pièces en v3.4) : prix rendu en
+-- pièces au chargement.
+local REMOVED_UPGRADES = { autel2 = 1500, autel3 = 50000, autel4 = 450000, aimant = 7500 }
 
 local function migrate(data)
 	-- Sauvegarde abîmée : tout champ qui devrait être une table et n'en est pas une est remis
@@ -257,7 +258,8 @@ local function migrate(data)
 		migrateRollV3(data)
 	end
 	-- v3 -> v4 : plus de reliques ni d'autels (la machine ROULER les remplace). Les autels achetés
-	-- sont remboursés ; les reliques et les incubateurs disparaissent.
+	-- sont remboursés ; les reliques et les incubateurs disparaissent. v3.4 : l'Aimant à Pièces
+	-- aussi (remboursé ; fait à chaque chargement, il ne rembourse qu'une fois).
 	for id, price in REMOVED_UPGRADES do
 		if data.upgrades[id] then
 			data.upgrades[id] = nil

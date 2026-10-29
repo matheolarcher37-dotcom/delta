@@ -465,7 +465,11 @@ function RollService:Roll(player: Player, auto: boolean?)
 	end
 	DataService:Sync(player, if auto then self:AutoSyncWindowFor(player) else nil)
 	Machine.press(plot.machine, false)
-	self:RenderStage(player, results)
+	-- Roulette (v3.4) : le joueur voit défiler des persos pendant `spin` secondes avant l'arrêt sur
+	-- le perso tiré. Le résultat est fixé ici ; seuls les lumières de l'estrade et l'annonce aux
+	-- autres joueurs attendent la fin de la roulette (le client cache le perso jusque-là).
+	local spin = Formulas.rollSpinTime(stats.rollCooldown, auto)
+	self:RenderStage(player, results, nil, spin)
 	self:UpdatePanels(player)
 	local payload = {
 		results = results,
@@ -475,18 +479,27 @@ function RollService:Roll(player: Player, auto: boolean?)
 		count = count,
 		auto = auto == true,
 		universe = universe.id,
+		spin = spin,
 	}
 	RollResult:FireClient(player, payload)
+	local announces = {}
 	for _, item in results do
 		local info = Economy.RollRarities[item.rarity]
 		local mutation = Mutations.get(item.aura)
 		if info.order >= 5 or (mutation and mutation.multiplier >= 3.5) then
-			Announce:FireAllClients(
+			table.insert(announces, {
 				"✨ " .. player.DisplayName .. " ✨",
 				"a tiré " .. itemLabel(item) .. " à la machine ROULER !",
-				info.order >= 7 and Color3.fromRGB(255, 255, 255) or (info.order >= 5 and info.color or mutation and mutation.color or info.color)
-			)
+				info.order >= 7 and Color3.fromRGB(255, 255, 255) or (info.order >= 5 and info.color or mutation and mutation.color or info.color),
+			})
 		end
+	end
+	if #announces > 0 then
+		task.delay(spin, function()
+			for _, args in announces do
+				Announce:FireAllClients(table.unpack(args))
+			end
+		end)
 	end
 	return true, results
 end
@@ -883,9 +896,15 @@ function RollService:_collectText(data, item): string
 	return "Collecter (¥" .. Formulas.formatNumber(item.price) .. ")"
 end
 
+-- Distance de l'invite « Collecter » d'un perso de l'estrade : il faut être tout près (sur la
+-- marche ou l'estrade, devant le perso).
+RollService.CollectDistance = 8
+
 -- Affiche les persos de RolledQueue sur l'estrade (`fresh` = persos qui viennent d'arriver).
 -- `refreshPrompts` = remettre à jour le texte des invites (fin de la collecte offerte).
-function RollService:RenderStage(player: Player, fresh: { any }?, refreshPrompts: boolean?)
+-- `revealDelay` = durée de la roulette : la case des nouveaux persos reste blanche (sans gerbe)
+-- jusqu'à l'arrêt, pour ne pas dévoiler la rareté avant (le client cache le perso jusque-là).
+function RollService:RenderStage(player: Player, fresh: { any }?, refreshPrompts: boolean?, revealDelay: number?)
 	local data = self.services.DataService:Get(player)
 	local plot = self.services.PlotService:GetPlot(player)
 	if not data or not plot or not plot.machine or not plot.rolledFolder then
@@ -930,7 +949,8 @@ function RollService:RenderStage(player: Player, fresh: { any }?, refreshPrompts
 					local lines = itemTagLines(item, def)
 					local height, offset = RollService.tagPlacement(model, root, #lines)
 					Kit.unitTag(root, lines, height, offset, 80, 6)
-					local prompt = Props.prompt(root, self:_collectText(data, item), def.name, 10)
+					-- (v3.4 : seule façon de collecter, de près : plus de carte « Collecter » à l'écran)
+					local prompt = Props.prompt(root, self:_collectText(data, item), def.name, RollService.CollectDistance)
 					promptRef = prompt
 					prompt.Triggered:Connect(function(who)
 						if who ~= plot.owner then
@@ -950,9 +970,21 @@ function RollService:RenderStage(player: Player, fresh: { any }?, refreshPrompts
 		end
 		local strong = info.order >= Economy.Roll.ProtectOrder or (mutation ~= nil and mutation.multiplier >= 3.5)
 		local color = info.color.R + info.color.G + info.color.B < 0.3 and Color3.fromRGB(255, 255, 255) or info.color
-		Machine.lightSpot(plot.machine, i, color, strong)
-		if isFresh[item.key] then
-			Machine.burst(plot.machine, i, mutation and mutation.color or info.color, 24 + info.order * 8 + (mutation and 20 or 0))
+		if isFresh[item.key] and revealDelay and revealDelay > 0 then
+			Machine.lightSpot(plot.machine, i, Color3.fromRGB(255, 255, 255), false)
+			local key = item.key
+			task.delay(revealDelay, function()
+				local shown = plot.stage and plot.stage[key]
+				if shown and shown.model.Parent and plot.machine then
+					Machine.lightSpot(plot.machine, shown.spot, color, strong)
+					Machine.burst(plot.machine, shown.spot, mutation and mutation.color or info.color, 24 + info.order * 8 + (mutation and 20 or 0))
+				end
+			end)
+		else
+			Machine.lightSpot(plot.machine, i, color, strong)
+			if isFresh[item.key] then
+				Machine.burst(plot.machine, i, mutation and mutation.color or info.color, 24 + info.order * 8 + (mutation and 20 or 0))
+			end
 		end
 	end
 	for key, info in plot.stage do

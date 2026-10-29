@@ -195,7 +195,7 @@ local GUIDE = {
 	{
 		"gift",
 		"Le marchand ambulant",
-		"Le marchand ambulant vend les objets d'évolution : suis son rayon violet pour le trouver (il change de place de temps en temps). Le comptoir de ta base montre le chemin.",
+		"Le marchand ambulant vend les objets d'évolution : suis son rayon violet pour le trouver (il change de place de temps en temps). Touche la pastille « Marchand » en haut de l'écran pour voir le chemin.",
 		Color3.fromRGB(64, 160, 255),
 	},
 	{

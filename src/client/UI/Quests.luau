@@ -1454,7 +1454,7 @@ Quests.trackerCard = trackerCard
 ------------------------------------------------------------------------
 
 local afk: { [string]: any } = {}
-Quests.AfkPanelTop = 138 -- sous les pastilles du HUD (y 98 → 130)
+Quests.AfkPanelTop = 102 -- sous les pastilles du HUD (y 70 → 94)
 Quests.AfkPanelHeight = 64
 Quests.AfkPanelWidth = 420
 
@@ -1472,7 +1472,7 @@ local function autoPillBottom(): number?
 	local ok, refs = pcall(rollPanelModule.refs)
 	local pill = ok and type(refs) == "table" and refs.pill
 	if pill and pill.Visible then
-		return (rollPanelModule.PillTop or 138) + (rollPanelModule.PillHeight or 40)
+		return (rollPanelModule.PillTop or 102) + (rollPanelModule.PillHeight or 30)
 	end
 	return nil
 end
@@ -1806,7 +1806,7 @@ end
 -- Position des bandeaux de notification quand l'écran Défis est ouvert : dans la marge du bas
 -- de la fenêtre, sous la liste (ni sur les onglets ni sur les boutons Réclamer).
 Quests.ToastPositionWhileOpen = UDim2.new(0.5, 0, 1, -90)
-Quests.HudPillsBottom = 130 -- bas de la rangée des pastilles du HUD (Marchand, Boss : y 98 → 130)
+Quests.HudPillsBottom = 94 -- bas de la rangée des pastilles du HUD (Marchand, Boss : y 70 → 94)
 Quests.TrackerTop = 332 -- haut des cartes de suivi des défis au plus haut (unités logiques du HUD)
 Quests.TrackerLeft = 240
 Quests.TrackerWidth = 320
@@ -1816,19 +1816,15 @@ Quests.TrackerMax = 3 -- cartes de suivi affichées au plus
 
 -- PILE DU HAUT DE L'ÉCRAN (unités logiques du HUD), recalculée à chaque image pour que rien ne
 -- se chevauche, quel que soit le nombre de bandeaux. Au centre, de haut en bas :
---   1. pastille « auto-roulage en cours » (RollPanel, y 138 → 178) si l'auto-roulage tourne loin
+--   1. pastille « auto-roulage en cours » (RollPanel, y 102 → 132) si l'auto-roulage tourne loin
 --      de la machine ;
---   2. panneau de la zone anti-AFK (80 de haut) : sous la pastille (y 186 → 266), sinon y 138 ;
---   3. bandeaux de notification (UI/Notifications, 52 de haut + 6 d'écart, 4 au plus) : à y 140,
+--   2. panneau de la zone anti-AFK : sous la pastille, sinon y 102 ;
+--   3. bandeaux de notification (UI/Notifications, 52 de haut + 6 d'écart, 4 au plus) : à y 102,
 --      ou 8 sous la pastille, ou 12 sous le panneau AFK ;
---   4. révélation des persos tirés loin de la machine (UI/RollReveal) : sous Quests.stackBottom().
+--   4. roulette et révélation des persos tirés (UI/RollReveal) : sous Quests.stackBottom().
 -- À gauche, les cartes de suivi des défis (cachées dans la zone et quand l'écran Défis est
--- ouvert) passent sous les bandeaux : y = max(TrackerTop, bas de la pile + 8). Exemples, hors de
--- la zone avec la pastille : 0 bandeau → cartes à 332 ; 1 → bandeaux 186 → 238, cartes 332 ;
--- 2 → 186 → 296, cartes 332 ; 3 → 186 → 354, cartes 362. Dans la zone avec la pastille : panneau
--- 186 → 266 ; 0 bandeau → révélation à 274 ; 1 → bandeaux 278 → 330, révélation à 338 ; 2 → 278
--- → 388, révélation 396 ; 3 → 278 → 446, révélation 454 (réduite pour tenir au-dessus des
--- boutons de voyage).
+-- ouvert) passent sous les bandeaux : y = max(TrackerTop, bas de la pile + 8) (v3.4 : la
+-- bannière et ses pastilles sont plus petites, toute la pile remonte d'environ 36).
 local stackBottom = Quests.HudPillsBottom
 
 -- Bas de la pile du centre (pastille, panneau AFK, bandeaux) : la révélation se pose dessous.

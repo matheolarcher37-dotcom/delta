@@ -248,7 +248,18 @@ test("Machine ROULER : probabilités, prix, pitié", function()
 	assert(Formulas.rollMatches(item, { characters = {}, rarities = { epic = true }, mutations = { ["or"] = true } }), "cible rareté + mutation")
 	assert(not Formulas.rollMatches(item, { characters = {}, rarities = { epic = true }, mutations = { diamant = true } }), "mauvaise mutation acceptée")
 	assert(Formulas.rollMatches({ id = "x", rarity = "rare" }, { characters = {}, rarities = {}, mutations = { aucune = true } }), "« Pas de mutation »")
-	assert(#Economy.Upgrades >= 25 and #Economy.Upgrades <= 30, "25 à 30 améliorations attendues")
+	-- Roulette (v3.4) : plus courte que la recharge de la machine, plus courte en auto-roulage.
+	for _, cooldown in { 3.5, 3.1, 2.3, 1.5, 0.8 } do
+		local manual, auto = Formulas.rollSpinTime(cooldown, false), Formulas.rollSpinTime(cooldown, true)
+		assert(manual > 0 and manual <= 2.6 and auto > 0 and auto <= manual, "durées de roulette (" .. cooldown .. " s)")
+		assert(cooldown < 1 or manual < cooldown, "roulette plus longue que la recharge (" .. cooldown .. " s)")
+	end
+	-- 24 depuis la v3.4 (Aimant à Pièces retiré à la demande du joueur) ; aucune ne dépend d'une
+	-- amélioration qui n'existe plus.
+	assert(#Economy.Upgrades >= 24 and #Economy.Upgrades <= 30, "24 à 30 améliorations attendues")
+	for _, upgrade in Economy.Upgrades do
+		assert(upgrade.requires == nil or Economy.UpgradesById[upgrade.requires], upgrade.id .. " dépend d'une amélioration absente")
+	end
 end)
 
 test("Mutations (variétés) : liste, tirage, apparence", function()

@@ -218,7 +218,8 @@ Economy.EventOrder = { "orage", "pluie_or", "eclipse", "lune_sang" }
 --   tier     = palier (1 = débuts, 2 = milieu de partie, 3 = fin de partie)
 --   icon     = emoji affiché sur le panneau du bouton
 -- Les ids des anciennes versions sont gardés (les sauvegardes restent valables) ; les autels de
--- reliques (autel2 à autel4), retirés en v3.3, sont remboursés au chargement (DataService).
+-- reliques (autel2 à autel4, retirés en v3.3) et l'Aimant à Pièces (aimant, retiré en v3.4) sont
+-- remboursés au chargement (DataService).
 Economy.Upgrades = {
 	-- Palier 1 : premiers boutons
 	{ id = "distributeur", tier = 1, icon = "🪙", name = "Distributeur de Pièces", price = 400, effect = { income = 0.1 } },
@@ -226,7 +227,6 @@ Economy.Upgrades = {
 	{ id = "dallage", tier = 1, icon = "🧱", name = "Cour des Unités", price = 2000, effect = { display = 2 } },
 	{ id = "tatami", tier = 1, icon = "🥋", name = "Tatami d'Entraînement", price = 3000, effect = { xp = 0.5 }, requires = "lanternes" },
 	{ id = "mannequins", tier = 1, icon = "🎯", name = "Mannequins de Paille", price = 5000, effect = { xp = 0.25 }, requires = "tatami" },
-	{ id = "aimant", tier = 1, icon = "🧲", name = "Aimant à Pièces", price = 7500, effect = { combatCoins = 0.25 }, requires = "distributeur" },
 	{ id = "remparts", tier = 1, icon = "⛩️", name = "Allée des Torii", price = 9000, effect = { income = 0.1 }, requires = "lanternes" },
 	{ id = "arene1", tier = 1, icon = "🔥", name = "Braseros de la Cour", price = 12000, effect = { display = 4 }, requires = "dallage" },
 	{ id = "ramen", tier = 1, icon = "🍜", name = "Stand de Ramen", price = 15000, effect = { income = 0.2 }, requires = "lanternes" },
@@ -234,13 +234,13 @@ Economy.Upgrades = {
 	{ id = "equipe4", tier = 1, icon = "🚩", name = "Bannière d'Équipe #4", price = 25000, effect = { team = 1 }, requires = "arene1" },
 	-- Palier 2 : milieu de partie
 	{ id = "fontaine", tier = 2, icon = "⛲", name = "Fontaine de Chakra", price = 35000, effect = { income = 0.25 }, requires = "ramen" },
-	{ id = "portail", tier = 2, icon = "🥁", name = "Gong de Guerre", price = 40000, effect = { combatCoins = 0.15 }, requires = "aimant" },
+	{ id = "portail", tier = 2, icon = "🥁", name = "Gong de Guerre", price = 40000, effect = { combatCoins = 0.15 }, requires = "mannequins" },
 	{ id = "torii", tier = 2, icon = "🏯", name = "Pagode à Trois Toits", price = 60000, effect = { xp = 0.5 }, requires = "fontaine" },
 	{ id = "horloge", tier = 2, icon = "🕰️", name = "Horloge Mystique", price = 80000, effect = { income = 0.25 }, requires = "ramen" },
 	{ id = "jardin", tier = 2, icon = "🌸", name = "Jardin des Cerisiers", price = 100000, effect = { income = 0.3 }, requires = "fontaine" },
 	{ id = "dojo", tier = 2, icon = "🥋", name = "Dojo Légendaire", price = 150000, effect = { xp = 1 }, requires = "mannequins" },
 	{ id = "arene2", tier = 2, icon = "🏟️", name = "Gradins de la Cour", price = 220000, effect = { display = 6 }, requires = "arene1" },
-	{ id = "coffre", tier = 2, icon = "🎁", name = "Coffre du Shogun", price = 300000, effect = { combatCoins = 0.5 }, requires = "aimant" },
+	{ id = "coffre", tier = 2, icon = "🎁", name = "Coffre du Shogun", price = 300000, effect = { combatCoins = 0.5 }, requires = "portail" },
 	{ id = "tour", tier = 2, icon = "🗼", name = "Tours de Guet", price = 350000, effect = { combatCoins = 0.25 }, requires = "portail" },
 	-- Palier 3 : fin de partie
 	{ id = "equipe5", tier = 3, icon = "🚩", name = "Bannière d'Équipe #5", price = 600000, effect = { team = 1 }, requires = "equipe4" },

@@ -61,7 +61,7 @@ function Notifications.init(gui: ScreenGui)
 	toastContainer = new("Frame", {
 		Name = "Toasts",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 140),
+		Position = UDim2.new(0.5, 0, 0, 102), -- sous les pastilles du HUD (y 70 → 94)
 		Size = UDim2.fromOffset(460, 300),
 		BackgroundTransparency = 1,
 		Parent = root,

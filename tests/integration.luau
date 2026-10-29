@@ -259,7 +259,7 @@ end
 local alice, bob
 local DataService
 
-test("Arrivée d'un joueur : base attribuée, sans relique ni autel", function()
+test("Arrivée d'un joueur : base attribuée, sans relique, marchand ni autel", function()
 	DataService = services.DataService
 	alice = addPlayer("Alice")
 	local data = DataService:Get(alice)
@@ -269,7 +269,10 @@ test("Arrivée d'un joueur : base attribuée, sans relique ni autel", function()
 	-- v3.3 : plus de reliques ni d'autels (la machine ROULER les remplace).
 	assert(data.relics == nil and data.incubators == nil and data.starterGiven == nil, "restes des reliques dans la sauvegarde")
 	assert(plot.model.Interactive:FindFirstChild("Pedestals") == nil, "autel de relique encore dans la base")
-	assert(plot.model.Interactive.RelicMachine:FindFirstChild("Dome") == nil, "vitrine de verre de l'ancienne relique")
+	-- v3.4 : plus de comptoir du marchand ni d'autel d'éveil dans la base (marchand ambulant et
+	-- stand FAIRE ÉVOLUER du hub à la place).
+	assert(plot.model.Interactive:FindFirstChild("RelicMachine") == nil, "comptoir du marchand encore dans la base")
+	assert(plot.model.Interactive:FindFirstChild("EvolutionAltar") == nil, "autel d'éveil encore dans la base")
 	assert(alice:FindFirstChild("leaderstats") ~= nil or true)
 	assert(lastEvent("DataSync", alice), "pas de synchro client")
 end)
@@ -487,6 +490,12 @@ test("Machine ROULER : un perso par roulage, rareté de base, collecte offerte p
 	local payload = lastEvent("RollResult", alice).args[1]
 	assert(payload.results[1].id and payload.results[1].price and payload.results[1].dps and payload.pity.mythic, "contenu de RollResult")
 	assert(payload.x10In == nil and payload.pity.legendary == nil, "restes de l'ancien roulage (x10, pitié Légendaire)")
+	-- v3.4 : durée de la roulette (le client fait défiler des persos), toujours plus courte que la
+	-- recharge de la machine ; le perso est déjà sur l'estrade (le client le cache jusqu'à l'arrêt).
+	local FormulasM = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	local cooldown = FormulasM.playerStats(data).rollCooldown
+	assert(type(payload.spin) == "number" and payload.spin > 0 and payload.spin < cooldown, "durée de roulette : " .. tostring(payload.spin))
+	assert(payload.universe == services.UniverseService:GetCurrent().id, "univers du roulage absent (cartes de la roulette)")
 	assert(#plot.rolledFolder:GetChildren() == 1, "modèle du perso tiré absent")
 	local univers = services.UniverseService:GetCurrent()
 	assert(table.find(univers.characters, results[1].id), "perso hors du pool de l'univers actuel")
@@ -1139,7 +1148,7 @@ test("Migration d'une ancienne sauvegarde (v1)", function()
 		characters = { ["OLD-1"] = { id = "ninja_maruto", level = 12, xp = 0, stars = 1, obtained = 0 } },
 		team = { "OLD-1" },
 		incubators = { ["1"] = { relic = "ninja_r1", start = 0, duration = 12 } },
-		upgrades = { lanternes = true, dojo = true, autel2 = true },
+		upgrades = { lanternes = true, dojo = true, autel2 = true, aimant = true },
 		index = { ninja_maruto = true },
 		stash = 10,
 		stats = { kills = 3 },
@@ -1157,9 +1166,11 @@ test("Migration d'une ancienne sauvegarde (v1)", function()
 	assert(type(data.RolledQueue) == "table" and type(data.DisplayPins) == "table", "file / cases manquantes")
 	assert(data.FirstCollectDone == true, "un ancien joueur ne doit pas avoir de perso offert")
 	-- v3.3 : reliques, incubateurs et autels retirés ; l'autel acheté (1500) est remboursé.
+	-- v3.4 : l'Aimant à Pièces (7500) aussi.
 	assert(data.relics == nil and data.incubators == nil and data.starterGiven == nil, "reliques non retirées")
-	assert(data.upgrades.autel2 == nil, "autel de relique gardé")
-	assert(data.coins == 1234 + 1500 and data.characters["OLD-1"], "anciennes données perdues ou autel non remboursé")
+	assert(data.upgrades.autel2 == nil and data.upgrades.aimant == nil, "autel de relique ou aimant gardé")
+	assert(Economy.UpgradesById.aimant == nil, "l'Aimant à Pièces est encore en vente")
+	assert(data.coins == 1234 + 1500 + 7500 and data.characters["OLD-1"], "anciennes données perdues ou autel/aimant non remboursé")
 	assert(data.upgrades.dojo and Economy.UpgradesById.dojo, "ancienne amélioration perdue")
 	-- Sauvegarde abîmée : les champs qui doivent être des tables sont réparés au lieu de planter.
 	local broken = DataService.migrate({ version = 1, Pity = 5, characters = "x", Skills = true, DisplayPins = { ["1"] = 3, ["2"] = false } })

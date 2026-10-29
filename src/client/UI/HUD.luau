@@ -230,37 +230,42 @@ end
 -- Bannière d'univers (haut, centre)
 ------------------------------------------------------------------------
 
+-- v3.4 : bannière et pastilles plus petites (environ un tiers) : le haut de l'écran reste dégagé.
+HUD.BannerSize = Vector2.new(300, 56)
+HUD.ChipHeight = 24
+HUD.ChipsTop = 8 + 56 + 6 -- haut de la rangée des pastilles (bas : 94)
+
 local function buildBanner(root: Frame)
 	local banner = new("Frame", {
 		Name = "UniverseBanner",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 8),
-		Size = UDim2.fromOffset(440, 82),
+		Size = UDim2.fromOffset(HUD.BannerSize.X, HUD.BannerSize.Y),
 		BackgroundColor3 = WHITE,
 		Parent = root,
 	})
 	refs.banner = banner
-	Theme.corner(16).Parent = banner
-	Theme.stroke(C.Stroke, 3).Parent = banner
+	Theme.corner(12).Parent = banner
+	Theme.stroke(C.Stroke, 2.5).Parent = banner
 	refs.bannerGradient = Theme.gradient({ C.PanelLight, C.Panel, C.PanelDark }, 0)
 	refs.bannerGradient.Parent = banner
 	local edge = new("Frame", { Size = UDim2.new(1, -6, 1, -6), Position = UDim2.fromOffset(3, 3), BackgroundTransparency = 1, Parent = banner })
-	Theme.corner(14).Parent = edge
+	Theme.corner(10).Parent = edge
 	refs.bannerEdge = Theme.stroke(WHITE, 1.5, 0.5)
 	refs.bannerEdge.Parent = edge
 	refs.bannerSparkles = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ClipsDescendants = true, Parent = banner })
-	Theme.sparkles(refs.bannerSparkles, 8, 21, 0.7)
+	Theme.sparkles(refs.bannerSparkles, 6, 21, 0.7)
 	-- Portail tournant (icône de l'univers)
 	local portal = new("Frame", {
 		Name = "Portal",
-		Position = UDim2.fromOffset(12, 11),
-		Size = UDim2.fromOffset(60, 60),
+		Position = UDim2.fromOffset(8, 7),
+		Size = UDim2.fromOffset(42, 42),
 		BackgroundColor3 = WHITE,
 		ZIndex = 2,
 		Parent = banner,
 	})
 	Theme.round().Parent = portal
-	Theme.stroke(C.Stroke, 2.5).Parent = portal
+	Theme.stroke(C.Stroke, 2).Parent = portal
 	refs.portalGradient = Theme.gradient({ WHITE, C.Purple, C.PanelDark }, 0)
 	refs.portalGradient.Parent = portal
 	local swirl = new("Frame", {
@@ -272,7 +277,7 @@ local function buildBanner(root: Frame)
 		Parent = portal,
 	})
 	Theme.round().Parent = swirl
-	local swirlStroke = Theme.stroke(WHITE, 3, 0.15)
+	local swirlStroke = Theme.stroke(WHITE, 2, 0.15)
 	swirlStroke.Parent = swirl
 	Theme.gradient({ WHITE, WHITE }, 0, { 0, 1 }).Parent = swirlStroke
 	Theme.onFrame(portal, function(dt)
@@ -281,11 +286,11 @@ local function buildBanner(root: Frame)
 	end)
 	refs.universeName = Theme.label({
 		Name = "UniverseName",
-		Size = UDim2.new(1, -184, 0, 32),
-		Position = UDim2.fromOffset(84, 8),
+		Size = UDim2.new(1, -138, 0, 21),
+		Position = UDim2.fromOffset(58, 5),
 		FontFace = Theme.Faces.Title,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		StrokeThickness = 3,
+		StrokeThickness = 2,
 		ZIndex = 2,
 		Parent = banner,
 	})
@@ -293,39 +298,39 @@ local function buildBanner(root: Frame)
 	refs.nameGradient.Parent = refs.universeName
 	refs.universeSub = Theme.label({
 		Name = "Next",
-		Size = UDim2.new(1, -184, 0, 18),
-		Position = UDim2.fromOffset(85, 40),
+		Size = UDim2.new(1, -138, 0, 12),
+		Position = UDim2.fromOffset(59, 27),
 		TextColor3 = C.TextDim,
 		FontFace = Theme.Faces.Bold,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		StrokeThickness = 1.5,
+		StrokeThickness = 1,
 		ZIndex = 2,
 		Parent = banner,
 	})
 	refs.universeBar = Components.progressBar(banner, C.Gold, {
-		Size = UDim2.new(1, -100, 0, 10),
-		Position = UDim2.fromOffset(84, 62),
+		Size = UDim2.new(1, -68, 0, 6),
+		Position = UDim2.fromOffset(58, 43),
 		ZIndex = 2,
 	})
-	-- Compte à rebours (grosse pilule à droite)
+	-- Compte à rebours (petite pilule à droite)
 	local timer = new("Frame", {
 		Name = "Timer",
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -12, 0, 10),
-		Size = UDim2.fromOffset(92, 44),
+		Position = UDim2.new(1, -8, 0, 7),
+		Size = UDim2.fromOffset(74, 30),
 		BackgroundColor3 = Color3.fromRGB(8, 8, 14),
 		BackgroundTransparency = 0.25,
 		ZIndex = 2,
 		Parent = banner,
 	})
-	Theme.corner(12).Parent = timer
-	Theme.stroke(C.Stroke, 2).Parent = timer
-	local hourglass = new("Frame", { Position = UDim2.fromOffset(6, 10), Size = UDim2.fromOffset(22, 24), BackgroundTransparency = 1, ZIndex = 3, Parent = timer })
-	Icons.make("hourglass", hourglass, { px = 22, zindex = 3, ink = C.Gold })
+	Theme.corner(9).Parent = timer
+	Theme.stroke(C.Stroke, 1.5).Parent = timer
+	local hourglass = new("Frame", { Position = UDim2.fromOffset(4, 7), Size = UDim2.fromOffset(15, 16), BackgroundTransparency = 1, ZIndex = 3, Parent = timer })
+	Icons.make("hourglass", hourglass, { px = 15, zindex = 3, ink = C.Gold })
 	refs.hourglass = hourglass
 	refs.timer = Theme.label({
-		Size = UDim2.new(1, -34, 0, 28),
-		Position = UDim2.fromOffset(30, 8),
+		Size = UDim2.new(1, -23, 0, 20),
+		Position = UDim2.fromOffset(20, 5),
 		FontFace = Theme.Faces.Heavy,
 		TextColor3 = C.Gold,
 		ZIndex = 3,
@@ -336,52 +341,63 @@ local function buildBanner(root: Frame)
 	local chips = new("Frame", {
 		Name = "Chips",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 1, 8),
-		Size = UDim2.fromOffset(700, 32),
+		Position = UDim2.new(0.5, 0, 1, 6),
+		Size = UDim2.fromOffset(560, HUD.ChipHeight),
 		BackgroundTransparency = 1,
 		Parent = banner,
 	})
-	local layout = Theme.list(Enum.FillDirection.Horizontal, 8, Enum.HorizontalAlignment.Center)
+	local layout = Theme.list(Enum.FillDirection.Horizontal, 6, Enum.HorizontalAlignment.Center)
 	layout.Parent = chips
-	local function chip(name: string, color: Color3, icon: string)
-		local frame = new("Frame", {
+	local h = HUD.ChipHeight
+	local function chip(name: string, color: Color3, icon: string, width: number, class: string?)
+		local frame = new(class or "Frame", {
 			Name = name,
-			Size = UDim2.fromOffset(220, 32),
+			Size = UDim2.fromOffset(width, h),
 			BackgroundColor3 = WHITE,
 			Visible = false,
 			Parent = chips,
 		})
+		if frame:IsA("TextButton") then
+			frame.Text = ""
+			frame.AutoButtonColor = false
+		end
 		Theme.round().Parent = frame
-		Theme.stroke(C.Stroke, 2.5).Parent = frame
+		Theme.stroke(C.Stroke, 2).Parent = frame
 		Theme.gradient({ Theme.light(color, 0.2), Theme.dark(color, 0.3) }, 90).Parent = frame
-		local ic = new("Frame", { Position = UDim2.fromOffset(8, 5), Size = UDim2.fromOffset(22, 22), BackgroundTransparency = 1, Parent = frame })
-		Icons.make(icon, ic, { px = 22, ink = Theme.dark(color, 0.4) })
+		local ic = new("Frame", { Position = UDim2.fromOffset(6, 4), Size = UDim2.fromOffset(16, 16), BackgroundTransparency = 1, Parent = frame })
+		Icons.make(icon, ic, { px = 16, ink = Theme.dark(color, 0.4) })
 		local label = Theme.label({
-			Size = UDim2.new(1, -44, 1, -8),
-			Position = UDim2.fromOffset(36, 4),
+			Size = UDim2.new(1, -32, 1, -6),
+			Position = UDim2.fromOffset(26, 3),
 			FontFace = Theme.Faces.Heavy,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			StrokeThickness = 1.5,
 			Parent = frame,
 		})
 		return frame, label
 	end
-	refs.eventChip, refs.eventLabel = chip("Event", C.Purple, "bolt")
-	refs.bossChip, refs.bossLabel = chip("Boss", C.Red, "skull")
-	-- Marchand ambulant : compte à rebours + flèche qui indique sa direction.
-	refs.shopChip, refs.shopLabel = chip("Shop", Color3.fromRGB(214, 92, 255), "shop")
-	refs.shopChip.Size = UDim2.fromOffset(250, 32)
-	refs.shopLabel.Size = UDim2.new(1, -74, 1, -8)
+	refs.eventChip, refs.eventLabel = chip("Event", C.Purple, "bolt", 156)
+	refs.bossChip, refs.bossLabel = chip("Boss", C.Red, "skull", 156)
+	-- Marchand ambulant : compte à rebours + flèche qui indique sa direction. Un clic ouvre son
+	-- écran (« Montrer le chemin » de loin) : il remplace le comptoir retiré de la base (v3.4).
+	refs.shopChip, refs.shopLabel = chip("Shop", Color3.fromRGB(214, 92, 255), "shop", 176, "TextButton")
+	refs.shopLabel.Size = UDim2.new(1, -50, 1, -6)
 	local arrow = new("Frame", {
 		Name = "MerchantArrow",
 		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -8, 0.5, 0),
-		Size = UDim2.fromOffset(24, 24),
+		Position = UDim2.new(1, -6, 0.5, 0),
+		Size = UDim2.fromOffset(17, 17),
 		BackgroundTransparency = 1,
 		ZIndex = 3,
 		Parent = refs.shopChip,
 	})
-	Icons.make("arrowRight", arrow, { px = 24, zindex = 3, ink = Color3.fromRGB(90, 30, 110) })
+	Icons.make("arrowRight", arrow, { px = 17, zindex = 3, ink = Color3.fromRGB(90, 30, 110) })
 	refs.shopArrow = arrow
+	local shopButton = refs.shopChip :: TextButton
+	shopButton.Activated:Connect(function()
+		Components.click()
+		Menus.open("Shop")
+	end)
 end
 
 ------------------------------------------------------------------------
