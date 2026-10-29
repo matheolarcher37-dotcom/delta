@@ -840,9 +840,25 @@ Styles.bob = function(ctx, c: Color3, look, hairTones)
 	local colors, rand, L = setup(c, look, hairTones, "bob")
 	local hem = 1.72 + 0.2 * (L - 1)
 	HairBuilder.cap(ctx, colors.main, { napeLength = 1.0, napeColor = colors.under, grow = 0.03 })
-	HairBuilder.ring(ctx, colors, { n = 15, front = 0.82, side = hem, back = hem + 0.05, tip = 0.1, twist = 3, lift = 0.0, alternate = 0.04 }, rand)
+	-- avec un bandeau sur la tête (Sakoura ★2) : front dégagé, rien par-dessus le bandeau
+	local band = headband(look)
+	HairBuilder.ring(ctx, colors, {
+		n = 15,
+		front = 0.82,
+		side = hem,
+		back = hem + 0.05,
+		tip = 0.1,
+		twist = 3,
+		lift = 0.0,
+		alternate = 0.04,
+		skip = band and function(a)
+			return math.abs(a) < 48
+		end or nil,
+	}, rand)
 	HairBuilder.sides(ctx, colors, { n = 2, a = 66, gap = 20, h0 = 0.45, h1 = hem, step = 0, w = 0.36, tip = 0.1, lift = -0.01 }, rand)
-	HairBuilder.bangs(ctx, colors, { n = 5, h0 = 0.34, h1 = 0.9, w = 0.34, spread = 50, tip = 0.1, fan = 6, part = 10, sweep = 6 }, rand)
+	if not band then
+		HairBuilder.bangs(ctx, colors, { n = 5, h0 = 0.34, h1 = 0.9, w = 0.34, spread = 50, tip = 0.1, fan = 6, part = 10, sweep = 6 }, rand)
+	end
 end
 
 -- Queue de cheval (Mako, Yoriichu, Giyo...) : cheveux tirés vers la nuque, attache, longue queue
@@ -1120,7 +1136,7 @@ Styles.flame = function(ctx, c: Color3, look, hairTones)
 		end,
 	}, rand)
 	-- petit volume au pied de la flamme (bouche les trous entre les piques, ne dépasse pas)
-	ctx.ball("Head", "HairFlame", Vector3.new(0.95, 0.7, 0.85), CFrame.new(0, 0.78, 0.12), colors.main)
+	ctx.ball("Head", "HairFlame", Vector3.new(0.85, 0.6, 0.8), CFrame.new(0, 0.72, 0.2), colors.main)
 	-- flamme en trois étages symétriques : haute et droite au centre, de plus en plus courte et
 	-- ouverte sur les côtés ; rang arrière plus sombre
 	local shine = colors.main:Lerp(colors.shine, 0.22)
