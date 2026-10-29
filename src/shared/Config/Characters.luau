@@ -1773,8 +1773,10 @@ Characters.List = {
 			accessories = { "headband" },
 			sleeveless = true,
 			forehead = true,
-			headbandY = 0.62,
-			headbandRadius = 0.73,
+			-- bandeau serré sur le haut de la tête (sur les cheveux, pas en couronne au-dessus)
+			headbandY = 0.47,
+			headbandRadius = 0.7,
+			headbandHeight = 0.3,
 			headbandColor = rgb(200, 30, 45),
 		},
 		evolve = {
