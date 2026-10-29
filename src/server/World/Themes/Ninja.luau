@@ -692,7 +692,13 @@ function Ninja.build(decor: Instance, rng: Random, _theme)
 	Hokage.mountain(horizon, mountainCF, rng)
 
 	-- 8) Couronne de montagnes vertes à l'horizon.
-	Common.horizon(horizon, rng, 24, { rock = rgb(126, 116, 102), grass = rgb(74, 122, 60), trees = rgb(44, 82, 46), skip = { { MOUNTAIN_ANGLE, 30 } } })
+	Common.horizon(horizon, rng, 24, {
+		rock = rgb(126, 116, 102),
+		grass = rgb(74, 122, 60),
+		trees = rgb(44, 82, 46),
+		snow = rgb(244, 246, 250),
+		skip = { { MOUNTAIN_ANGLE, 30 } },
+	})
 
 	-- 9) Lampes de la promenade et feuilles qui tombent.
 	Common.walkwayLamps(ring, 15, function(pos)

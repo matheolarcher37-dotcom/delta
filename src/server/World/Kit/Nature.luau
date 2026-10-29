@@ -1153,8 +1153,8 @@ function Nature.mountain(
 			pyramid("Snow", cf * CFrame.new(0, h * (1 - k), 0), w * k * 1.05, d * k * 1.05, h * k * 1.01, o.snow, Enum.Material.Snow)
 		end
 	end
-	-- crête principale : des sommets LARGES qui se chevauchent (base au moins 1,6 fois la
-	-- hauteur, pentes d'environ 50°) au lieu d'aiguilles ; le plus haut au milieu.
+	-- crête principale : des sommets qui se chevauchent, base 1,15 à 1,4 fois la hauteur (pentes
+	-- d'environ 60° : de vraies montagnes, plus les aiguilles d'avant à 77°) ; le plus haut au milieu.
 	local axis = hdir(rng:NextNumber(0, math.pi * 2))
 	local peaks = rng:NextInteger(4, 6)
 	local middle = math.ceil(peaks / 2)
@@ -1163,7 +1163,7 @@ function Nature.mountain(
 		local falloff = 1 - math.abs(t) * rng:NextNumber(0.3, 0.5)
 		local h = i == middle and height or height * falloff * rng:NextNumber(0.72, 0.92)
 		local pos = base + axis * t * width * 0.36 + hdir(rng:NextNumber(0, 6.28)) * width * 0.05
-		local w = math.max(h * rng:NextNumber(1.6, 2), width * 0.34)
+		local w = math.max(h * rng:NextNumber(1.15, 1.4), width * 0.3)
 		local d = w * rng:NextNumber(0.72, 0.95)
 		local tone = shade(rock, rng:NextNumber(-0.08, 0.06))
 		local cf = frame(pos)
@@ -1196,8 +1196,8 @@ function Nature.mountain(
 	for i = 1, slopes do
 		local a = i / slopes * math.pi * 2 + rng:NextNumber(-0.3, 0.3)
 		local pos = base + hdir(a) * width * rng:NextNumber(0.24, 0.38) - UP * height * 0.04
-		local s = width * rng:NextNumber(0.4, 0.56)
-		pyramid("Slope", frame(pos), s, s * rng:NextNumber(0.7, 1), height * rng:NextNumber(0.2, 0.32), shade(grass, rng:NextNumber(-0.1, 0.05)), LEAF)
+		local s = width * rng:NextNumber(0.5, 0.68)
+		pyramid("Slope", frame(pos), s, s * rng:NextNumber(0.7, 1), height * rng:NextNumber(0.26, 0.36), shade(grass, rng:NextNumber(-0.1, 0.05)), LEAF)
 	end
 	-- forêt de conifères au pied (cônes sombres de tailles variées)
 	local treeColor = o.trees or shade(grass, -0.28)
