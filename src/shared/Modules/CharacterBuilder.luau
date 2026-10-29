@@ -13,6 +13,7 @@
 -- voir Config/Avatars.luau et le dossier ModelesPersos (README).
 
 local Painter = require(script.Parent.Painter)
+local HairBuilder = require(script.Parent.HairBuilder)
 
 local CharacterBuilder = {}
 
@@ -3965,8 +3966,14 @@ function buildOnce(look, options: BuildOptions?, roots: number, withRelief: bool
 		end
 	end
 	if not covered then
-		local builder = HAIR[look.hair or "short"] or HAIR.short
-		builder(ctx, hairColor, look)
+		-- Coiffures en mèches couchées (v3.4, Modules/HairBuilder) ; anciennes coiffures sinon.
+		local style = HairBuilder.Styles[look.hair or "short"]
+		if style then
+			style(ctx, hairColor, look, hairTones)
+		else
+			local builder = HAIR[look.hair or "short"] or HAIR.short
+			builder(ctx, hairColor, look)
+		end
 	elseif (has(look, "straw_hat") or has(look, "cap") or has(look, "bandana") or has(look, "cowboy_hat")) and look.hair ~= "none" and look.hair ~= "bald" then
 		-- Cheveux visibles sous le chapeau : nuque, mèches sur les côtés et frange en bataille.
 		local under, shine = hairTones(hairColor, look)
