@@ -53,7 +53,7 @@ Les persos sont de **vrais avatars Roblox R6** aux proportions classiques, avec 
   - on tire une rareté, puis un perso de cette rareté dans le pool de l'**univers actuel**, puis éventuellement une variété ;
   - **pitié du Mythique seulement** (garanti au bout de 1 000 persos tirés), tout le reste est du pur hasard ; panneau des chances à jour ;
   - le roulage est gratuit, on paie à la collecte (le premier perso est offert) ; un Légendaire ou mieux demande confirmation avant de partir ;
-  - à la machine : une petite barre ROULER (x1 / x2 / x3, AUTO) en bas à droite, la carte du perso tiré au-dessus, et la caméra montre le podium 1,5 s pour un Légendaire ou mieux.
+  - à la machine : une petite barre ROULER (x1 / x2 / x3, AUTO) en bas à droite (plus de carte du perso tiré depuis la v3.4 : on collecte sur l'estrade), la roulette défile sur l'estrade, et la caméra montre le podium 1,5 s pour un Légendaire ou mieux.
 - ✅ **Roulement automatique** (fenêtre AUTO, à la machine) : **Lancer AFK** (29 Robux, pause sur les raretés et variétés cochées) et **Roulement automatique +** (500 Robux : choisir le perso, la rareté et la variété, la machine l'achète toute seule).
 - ✅ **Arbre de compétences hexagonal** : **56 cases** en 6 branches autour d'un cœur.
   - **Chance** : Chance I à V, Chance Divine, Bénédiction, Instinct.
@@ -63,7 +63,8 @@ Les persos sont de **vrais avatars Roblox R6** aux proportions classiques, avec 
 - ✅ **28 constructions** sur 3 paliers, toutes visibles. Les boutons d'achat ont un anneau vert ou rouge, un **panneau relevé** (bord bas à 7 studs : jamais coupé par le sol ou un socle), lisible jusqu'à 140 studs, en version compacte au loin, et les panneaux qui se recouvrent se cachent automatiquement.
 - ✅ **24 cases d'unités** hexagonales qui remplissent le **coffre** (les pièces roulent sur un tapis ; compteur aéré au-dessus du coffre). « **Remplacer l'unité** » permet de choisir qui se tient sur une case.
 - ✅ **Déco de base par univers**.
-- ✅ Le **comptoir du marchand** de la base ouvre l'écran du marchand ambulant (avec « Montrer le chemin »). Les **reliques** et leurs autels ont été retirés en v3.3 (autels achetés remboursés) : la machine ROULER est la seule source de persos.
+- ✅ La **pastille Marchand** du HUD ouvre l'écran du marchand ambulant (avec « Montrer le chemin ») ; le comptoir de la base et l'autel d'éveil ont été retirés en v3.4 (doublons du marchand ambulant et du stand FAIRE ÉVOLUER du hub), comme l'Aimant à Pièces (remboursé). Les **reliques** et leurs autels ont été retirés en v3.3 (autels achetés remboursés) : la machine ROULER est la seule source de persos.
+- ✅ **Roulette sur l'estrade** (v3.4, UI/RollSpin) : des persos de l'univers défilent sur la case du perso tiré puis s'arrêtent dessus ; le vrai perso est caché côté client pendant ce temps, le serveur retarde les lumières de l'estrade et l'annonce (Formulas.rollSpinTime). Plus de cartes « Collecter » : la collecte se fait de près, avec l'invite du perso sur l'estrade.
 
 ## 4. Le combat ✅
 
@@ -78,7 +79,7 @@ Les persos sont de **vrais avatars Roblox R6** aux proportions classiques, avec 
 ## 5. Évolution, marchand, traits, forge ✅
 
 - ✅ Les persos montent de niveau et **grandissent**. Plafond : ★ = 30, ★★ = 60, ★★★ = 100.
-- ✅ **Évolution** à l'Autel d'Éveil avec le niveau, des pièces et **un objet d'évolution** (ex. Goko ★★ demande une **Boule du Dragon**).
+- ✅ **Évolution** au stand FAIRE ÉVOLUER du hub (Autel d'Éveil) avec le niveau, des pièces et **un objet d'évolution** (ex. Goko ★★ demande une **Boule du Dragon**).
 - ✅ **Marchand ambulant** : il s'installe dans un coin de la carte et change de coin toutes les 8 minutes ; un **rayon violet** monte dans le ciel à côté de son échoppe (repère, pas une attaque) avec l'étiquette MARCHAND. Il vend toujours l'objet signature de l'univers en cours. Ses objets servent **uniquement** à faire évoluer les persos. Pastille « Marchand : mm:ss » et flèche sur l'écran, bouton « Montrer le chemin ».
 - ✅ **Traits** : bonus aléatoires (de Vigueur I à **Monarque**), relancés avec des **gemmes de trait** (gagnées en battant des ennemis, le boss, au punching-ball, en défis, ou en packs Robux ; jamais avec des pièces). Écran animé (rouleau à suspense, révélation selon la rareté) et **cinématiques** pour Monarque (une cour de persos s'agenouille devant ton unité), Céleste, Midas et Vampire.
 - ✅ **Forgeron** : 8 épées détaillées (lame, garde, poignée tressée, ornements), chacune avec son effet, qui **grandit avec la maîtrise** (tous les 500 ennemis vaincus, jusqu'au niveau 4). En main, lame levée ; rangée, à la hanche ou dans le dos.

@@ -10,6 +10,17 @@ Le jeu marche sur **PC, mobile et console (Xbox / PlayStation)**.
 
 ---
 
+## ✨ Les nouveautés de la version 3.4
+
+| Domaine | Ce qui change |
+|---|---|
+| 🎰 **Roulette sur l'estrade** | Quand tu roules, **des persos défilent sur la case de l'estrade**, de plus en plus lentement, puis ça s'arrête sur le perso tiré (une case par perso en x2 / x3). Rien ne s'affiche par-dessus l'écran : on regarde l'estrade. |
+| 🤏 **Collecte sur l'estrade** | Plus de cartes « Collecter » à l'écran : pour prendre un perso, **va tout près de lui sur l'estrade** (monte sur la marche) et utilise son invite **Collecter** (E / X). Son étiquette au-dessus de la tête donne sa rareté, son nom et son prix. |
+| 🖥️ **Écran plus dégagé** | La **bannière de l'univers** et ses pastilles (événement, boss, marchand) sont plus petites. La **barre de la machine** (ROULER, x1/x2/x3, AUTO) est plus compacte et n'apparaît qu'à la machine. La pastille **Marchand** ouvre son écran (avec « Montrer le chemin »). |
+| 🏠 **Base** | Le **comptoir du marchand** et l'**autel d'éveil** quittent la base (le marchand ambulant et le stand **FAIRE ÉVOLUER** du hub font la même chose). L'**Aimant à Pièces** est retiré et **remboursé** (7 500 ¥) ; le Gong de Guerre vient maintenant après les Mannequins, et le Coffre du Shogun après le Gong. |
+
+---
+
 ## ✨ Les nouveautés de la version 3.3
 
 | Domaine | Ce qui change |
@@ -46,7 +57,7 @@ Le jeu marche sur **PC, mobile et console (Xbox / PlayStation)**.
 |---|---|
 | 👥 **Persos** | Tous les persos sont de **vrais avatars Roblox R6 aux proportions classiques**, sur le modèle du Kid Naruto que tu m'as montré : tête ronde classique, torse 2×2, bras et jambes 1×2. Leurs vêtements sont dessinés comme des habits Roblox classiques, avec ombres et plis. Leurs visages ressemblent à des décalques d'animé. **Maruto ★1 recopie Kid Naruto** : veste orange, bandeau, moustaches. |
 | 🗺️ **Carte** | Carte beaucoup plus grande et détaillée : collines, falaises, plage, étang, ruisseau avec pont, rues pavées, vrais arbres détaillés. **Toutes les 30 minutes, TOUTE la carte change** : bâtiments, forêt de l'île, grand monument, montagnes à l'horizon, couleurs du sol, ciel, lumière et particules. |
-| 🏠 **Base** | Vraie base tycoon : **machine ROULER animée**, **arbre de compétences** de 56 cases, 28 constructions sur 3 paliers (25 depuis la v3.3), 24 cases d'unités, tapis roulant avec des pièces qui roulent jusqu'au coffre. **La déco de la base suit l'univers** : Naruto en thème Ninja, Gojo en thème Occulte… |
+| 🏠 **Base** | Vraie base tycoon : **machine ROULER animée**, **arbre de compétences** de 56 cases, 28 constructions sur 3 paliers (24 depuis la v3.4), 24 cases d'unités, tapis roulant avec des pièces qui roulent jusqu'au coffre. **La déco de la base suit l'univers** : Naruto en thème Ninja, Gojo en thème Occulte… |
 | 🖥️ **Interface** | Nouveau style inspiré de tes captures : grands boutons brillants, fiche d'unité avec ses statistiques, arbre hexagonal plein écran, prix et argent toujours visibles. Elle est animée et jouable entièrement à la manette. |
 | 💥 **Attaques** | Chaque perso a son **attaque signature**, détaillée comme dans *Defeat Anime Bosses* : Rasengan, Chidori, Kamehameha, Violet Imaginaire, Gatling, Santoryu, Hinokami Kagura… Il y a une phase de charge, puis l'explosion, l'onde de choc, le cratère et des roches projetées. Les boss ont aussi leurs attaques de zone. |
 
@@ -73,7 +84,7 @@ mais rien n'est sauvegardé (un message te le rappelle en jeu).
 1. **Tu arrives** : une base t'est attribuée (6 bases par serveur) et ton nom s'affiche sur le portail.
 2. **Tu roules** : appuie sur le gros bouton rouge **ROULER** de la machine, au centre de ta base (ou sur la petite barre ROULER en bas à droite de l'écran quand tu es à la machine).
    **Un perso** apparaît sur le podium, avec sa rareté, sa variété éventuelle, ses dégâts (DPS), son nom et son prix en ¥.
-3. **Tu collectes** : approche-toi du perso et choisis **« Collecter »** pour l'acheter (ou « Collecter » sur sa carte). **Le tout premier est offert** (s'il est Rare ou moins).
+3. **Tu collectes** : monte sur la marche de l'estrade, approche-toi tout près du perso et choisis **« Collecter »** pour l'acheter. **Le tout premier est offert** (s'il est Rare ou moins).
    Si tu roules encore sans le collecter, il part. Un Légendaire ou mieux demande une confirmation avant de partir.
 4. **Tu poses tes unités** : tes persos hors équipe se tiennent sur les **cases jaunes** de ta base et **remplissent ton coffre** (revenus).
    Sur une case, « **Remplacer l'unité** » ouvre un menu pour choisir qui s'y tient.
@@ -112,6 +123,8 @@ Ensuite, une **variété** peut s'ajouter par-dessus (environ 15 % des tirages).
 - **Pitié** : seul le **Mythique** est garanti, au bout de **1 000 persos tirés** sans Mythique (l'arbre réduit ce seuil). Le reste est du pur hasard.
 - **Roulage x2 / x3** (passes Robux) : 2 ou 3 persos par roulage. Les boutons **x1 / x2 / x3** de la barre ROULER choisissent combien en tirer ; un bouton verrouillé ouvre l'achat du passe.
 - Il n'y a plus de reliques ni d'autels (retirés en v3.3) : la machine est la seule source de persos.
+- **Roulette** (v3.4) : à chaque roulage, des persos de l'univers défilent sur la case de l'estrade puis la roulette s'arrête sur le perso tiré (plus courte pendant l'auto-roulage, jamais plus longue que la recharge de la machine).
+- **Collecter** : sur l'estrade, de près, avec l'invite du perso (plus de cartes à l'écran depuis la v3.4).
 
 ### Le roulement automatique (fenêtre AUTO, à la machine)
 
@@ -140,7 +153,7 @@ Tant qu'un numéro vaut 0, le bouton affiche « Bientôt disponible ». Dans Stu
 
 - Un **vieux marchand** (turban à plume, lunettes rondes, grande barbe blanche) s'installe dans un **coin de la carte**. Un grand **rayon violet** monte à côté de son échoppe jusqu'au ciel, avec l'étiquette **MARCHAND** visible de partout. C'est seulement un repère : il n'attaque personne.
 - **Toutes les 8 minutes**, il change de coin et renouvelle son stock. Il vend **toujours un objet signature** de l'univers en cours (par exemple la **Boule du Dragon** sur la Planète des Guerriers). La pastille « **Marchand : mm:ss** » en haut de l'écran donne le temps restant et une **flèche** vers lui.
-- Approche-toi du comptoir et choisis « **Marchander** ». De loin, « **Montrer le chemin** » affiche une flèche et des lumières au sol jusqu'à lui. Le **comptoir du marchand** de ta base ouvre le même écran.
+- Approche-toi du comptoir et choisis « **Marchander** ». De loin, « **Montrer le chemin** » affiche une flèche et des lumières au sol jusqu'à lui : touche la **pastille Marchand** en haut de l'écran pour ouvrir son écran.
 - Ses objets servent **uniquement à faire évoluer les persos**. **UTILE** = une de tes unités en a besoin ; **SIGNATURE** = l'objet phare de l'univers.
 - Dans l'écran **Évolution**, un ruban « **OBJET MANQUANT** » montre l'objet à acheter, et le bouton **MARCHAND** ouvre sa boutique sur cet objet. L'onglet **Objets** (menu Unités) liste tes objets.
 
@@ -195,7 +208,7 @@ Les indications des boutons de la manette (A, B, X…) apparaissent toutes seule
 - **En haut à gauche** : tes pièces, tes gemmes de trait et tes matériaux, toujours visibles, puis les boutons **Événement** et **Défis**.
 - **En haut au centre** : l'univers actuel et le temps avant le prochain, et les pastilles « Boss dans… » et « Marchand : mm:ss ».
 - **À droite** : les offres Robux (x2 Argent, Roulage x3…) et le bouton Boutique ; en bas à droite, ton **équipe**.
-- **À la machine seulement** : la barre **ROULER** (x1 / x2 / x3, AUTO) en bas à droite, et la carte du perso tiré juste au-dessus.
+- **À la machine seulement** : la petite barre **ROULER** (x1 / x2 / x3, AUTO) en bas à droite. Les persos tirés se collectent directement sur l'estrade.
 - **En bas à gauche** : Améliorations (l'arbre), Boutique, Unités, Objets, Indice et **Plus** (menu complet : Événement, Défis, Évolution, Fusion, Traits, Forgeron, Guide, Échanges, **Options**, voyages rapides).
 - Quand une fenêtre est ouverte, la barre du bas, la bannière d'univers et les boutons Robux se cachent pour ne rien recouvrir.
 - **Options** : couper la secousse d'écran ou les flashs, et choisir la qualité des effets (Auto, Haute, Moyenne ou Basse).
