@@ -127,6 +127,17 @@ Robux.Passes = {
 		color = Color3.fromRGB(60, 200, 170),
 		order = 8,
 	},
+	Speed2 = {
+		id = 0,
+		name = "Course x2",
+		short = "Course x2",
+		price = 53,
+		desc = "Tu cours 2 fois plus vite sur la carte",
+		icon = "fast",
+		badge = "x2",
+		color = Color3.fromRGB(255, 140, 40),
+		order = 9,
+	},
 	VIP = {
 		id = 0,
 		name = "VIP",
@@ -140,7 +151,10 @@ Robux.Passes = {
 }
 
 -- Ordre d'affichage dans la boutique.
-Robux.PassOrder = { "AutoRollPlus", "Roll2", "Roll3", "Coins2", "Luck2", "AutoRoll", "Slots", "VIP" }
+Robux.PassOrder = { "AutoRollPlus", "Roll2", "Roll3", "Coins2", "Luck2", "AutoRoll", "Speed2", "Slots", "VIP" }
+
+-- Passe « Course x2 » : vitesse de base multipliée (les nœuds Pas Légers s'ajoutent ensuite).
+Robux.SpeedMult = 2
 
 ------------------------------------------------------------------------
 -- Produits (achats répétables)

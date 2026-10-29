@@ -33,7 +33,7 @@ function TraitService:Reroll(player: Player, uid: any)
 		return false, "Perso introuvable."
 	end
 	if (data.traitCrystals or 0) < 1 then
-		return false, "Il te faut une gemme de trait 💎 : tue des ennemis, tape le punching-ball de la zone anti-AFK ou réussis des défis !"
+		return false, "Il te faut une gemme de trait 💎 : tue des ennemis, tape le punching-ball de la zone AFK ou réussis des défis !"
 	end
 	if self.services.TradeService:IsInTrade(player) then
 		return false, "Impossible pendant un échange."

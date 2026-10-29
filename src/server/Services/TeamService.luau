@@ -383,7 +383,10 @@ function TeamService:_update(player: Player, s, now: number)
 					humanoid:MoveTo(goal)
 					follower.lastMove = now
 				end
-				humanoid.WalkSpeed = distance > 20 and 34 or 26
+				-- suit le rythme du joueur (course de l'arbre, passe « Course x2 ») : jamais distancée
+				local ownerHumanoid = root.Parent and root.Parent:FindFirstChildOfClass("Humanoid")
+				local pace = ownerHumanoid and ownerHumanoid.WalkSpeed or 22
+				humanoid.WalkSpeed = distance > 20 and math.max(34, pace * 1.3) or math.max(26, pace)
 			end
 		end
 	end

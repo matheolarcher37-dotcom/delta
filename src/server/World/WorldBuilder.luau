@@ -1333,7 +1333,8 @@ end
 
 function WorldBuilder.setupLighting()
 	-- Lighting.Technology (Future) est réglé dans default.project.json : non modifiable par script.
-	Lighting.Brightness = 2.6
+	-- v3.4 : jeu moins lumineux (soleil, halo et reflets baissés ; voir aussi Config/Universes)
+	Lighting.Brightness = 2
 	Lighting.EnvironmentDiffuseScale = 1
 	Lighting.EnvironmentSpecularScale = 0.8
 	Lighting.GlobalShadows = true
@@ -1354,9 +1355,9 @@ function WorldBuilder.setupLighting()
 	atmosphere.Glare = 0.2
 	atmosphere.Haze = 1.2
 	local bloom = ensure(Lighting, "BloomEffect", "Bloom") :: BloomEffect
-	bloom.Intensity = 0.35
-	bloom.Size = 26
-	bloom.Threshold = 1.8
+	bloom.Intensity = 0.2
+	bloom.Size = 24
+	bloom.Threshold = 2
 	local rays = ensure(Lighting, "SunRaysEffect", "SunRays") :: SunRaysEffect
 	rays.Intensity = 0.08
 	rays.Spread = 0.55

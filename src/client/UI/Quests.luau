@@ -982,7 +982,7 @@ local function punchPanel(parent: Instance, data, order: number)
 	Theme.sparkles(panel, 8, 77, 0.78)
 	iconTile(panel, "punchbag", GEM, 76, { Position = UDim2.fromOffset(14, 14) })
 	Theme.label({
-		Text = "ZONE ANTI-AFK : PUNCHING-BALLS",
+		Text = "ZONE AFK : PUNCHING-BALLS",
 		Size = UDim2.new(1, -330, 0, 30),
 		Position = UDim2.fromOffset(104, 12),
 		FontFace = Theme.Faces.Title,
@@ -1507,7 +1507,7 @@ local function buildAfkPanel(root: Frame)
 	Theme.stroke(GEM, 1.5, 0.4).Parent = edge
 	iconTile(panel, "punchbag", GEM, 44, { Position = UDim2.fromOffset(8, 10) })
 	afk.title = Theme.label({
-		Text = "ZONE ANTI-AFK",
+		Text = "ZONE AFK",
 		Size = UDim2.new(1, -220, 0, 20),
 		Position = UDim2.fromOffset(60, 4),
 		FontFace = Theme.Faces.Title,

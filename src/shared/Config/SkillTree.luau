@@ -153,8 +153,11 @@ SkillTree.Nodes = {
 	node("domaine", "slots3", "Emplacements III", "🔷", -3, 0, 80000, { "slots2" }, "unitSlots", 1, "+1 emplacement d'unité."),
 	node("domaine", "slots4", "Emplacements IV", "🔷", -4, 0, 600000, { "slots3" }, "unitSlots", 1, "+1 emplacement d'unité."),
 	node("domaine", "domaine", "Grand Domaine", "🏯", -5, 0, 6000000, { "slots4" }, "unitSlots", 2, "+2 emplacements d'unités !"),
-	node("domaine", "pas1", "Pas Légers I", "👟", -2, 1, 4000, { "slots1" }, "walkSpeed", 2, "Tu cours un peu plus vite."),
-	node("domaine", "pas2", "Pas Légers II", "👟", -3, 1, 35000, { "pas1" }, "walkSpeed", 3, "Tu cours encore plus vite."),
+	-- Course (v3.4 : nettement plus rapide, +33 en tout ; vitesse de base 22)
+	node("domaine", "pas1", "Pas Légers I", "👟", -2, 1, 4000, { "slots1" }, "walkSpeed", 5, "Tu cours plus vite sur la carte."),
+	node("domaine", "pas2", "Pas Légers II", "👟", -3, 1, 35000, { "pas1" }, "walkSpeed", 7, "Tu cours encore plus vite."),
+	node("domaine", "pas3", "Pas Légers III", "👟", -4, 1, 260000, { "pas2" }, "walkSpeed", 9, "Tu files à travers la carte."),
+	node("domaine", "vent", "Vent Divin", "🌪️", -5, 1, 2000000, { "pas3" }, "walkSpeed", 12, "Tu cours comme le vent !"),
 	node("domaine", "pitie1", "Pitié Mythique I", "🛡️", -1, -1, 10000, { "chance1" }, "pityMult", -0.15, "Le Mythique garanti arrive 15 % plus tôt."),
 	node("domaine", "pitie2", "Pitié Mythique II", "🛡️", -1, -2, 200000, { "pitie1" }, "pityMult", -0.15, "Le Mythique garanti arrive encore 15 % plus tôt."),
 	node("domaine", "oeil1", "Œil Céleste I", "👁️", -2, -1, 25000, { "pitie1" }, "auraLuck", 0.5, "+50 % de chance de mutation sur les persos tirés."),

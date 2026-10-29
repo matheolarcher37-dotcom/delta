@@ -905,9 +905,10 @@ local function begin(kind: string, entry, desc, options)
 	table.insert(scene.effects, grade)
 	local bloom = Instance.new("BloomEffect")
 	bloom.Name = "TraitBloom"
-	bloom.Intensity = 0.6
-	bloom.Size = 28
-	bloom.Threshold = 0.92
+	-- v3.4 : halo plus discret (seuil haut : seuls les vrais éclats brillent, pas les habits clairs)
+	bloom.Intensity = 0.3
+	bloom.Size = 24
+	bloom.Threshold = 1.5
 	bloom.Parent = camera
 	table.insert(scene.effects, bloom)
 	scene.bloom = bloom
@@ -1709,9 +1710,9 @@ local function celesteScene(scene)
 		local outline = Instance.new("Highlight")
 		outline.Name = "CelestialOutline"
 		outline.FillColor = WHITE
-		outline.FillTransparency = 0.8
+		outline.FillTransparency = 0.94
 		outline.OutlineColor = Color3.fromRGB(235, 250, 255)
-		outline.OutlineTransparency = 0.25
+		outline.OutlineTransparency = 0.45
 		outline.DepthMode = Enum.HighlightDepthMode.Occluded
 		outline.Adornee = scene.hero
 		outline.Parent = scene.hero
@@ -1719,7 +1720,7 @@ local function celesteScene(scene)
 	local shaft = part(scene, "BackShaft", Vector3.new(160, 1.8, 1.8), CFrame.new(0, 80, 3.2) * UPRIGHT, Color3.fromRGB(225, 246, 255), Enum.Material.Neon, CYL, 1)
 	local ring = part(scene, "ImpactRing", Vector3.new(0.05, 4, 4), CFrame.new(0, 0.12, 0) * FLAT, SKY, Enum.Material.Neon, CYL, 1)
 	local pool = part(scene, "LightPool", Vector3.new(0.05, 9, 9), CFrame.new(0, 0.1, 0) * FLAT, Color3.fromRGB(230, 250, 255), Enum.Material.Neon, CYL, 1)
-	light(pool, SKY, 3, 22)
+	light(pool, SKY, 1.1, 16)
 	emitter(pool, {
 		Color = ColorSequence.new(WHITE),
 		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.4, 0.4), NumberSequenceKeypoint.new(1, 0) }),
@@ -1763,8 +1764,8 @@ local function celesteScene(scene)
 			_ = i,
 		})
 	end
-	scene.grade.TintColor = Color3.fromRGB(226, 240, 255)
-	scene.grade.Brightness = 0.02
+	scene.grade.TintColor = Color3.fromRGB(232, 242, 255)
+	scene.grade.Brightness = -0.04
 	scene.cameraKeys = TraitCinematic.celesteCamera(total)
 	local landed, titled = false, false
 	play(whoosh)
@@ -1788,10 +1789,10 @@ local function celesteScene(scene)
 		beamGlow.Size = Vector3.new(length, glowD, glowD)
 		beamGlow.CFrame = beam.CFrame
 		beamGlow.Transparency = 1 - (1 - 0.94) * grow * (1 - fade)
-		shaft.Transparency = 1 - 0.45 * smooth((t - 1.4) / 0.8)
+		shaft.Transparency = 1 - 0.22 * smooth((t - 1.4) / 0.8)
 		if not landed and t >= 0.9 then
 			landed = true
-			flash(scene, WHITE, 0.9, 0.7)
+			flash(scene, WHITE, 0.45, 0.6)
 			shake(scene, 0.8)
 			play(ping)
 		end
@@ -1799,7 +1800,7 @@ local function celesteScene(scene)
 		ring.Transparency = after < 0 and 1 or math.clamp(0.1 + after * 0.9, 0.1, 1)
 		local rs = 4 + math.max(0, after) * 26
 		ring.Size = Vector3.new(0.05, rs, rs)
-		pool.Transparency = after < 0 and 1 or 0.45
+		pool.Transparency = after < 0 and 1 or 0.72
 		-- l'unité s'élève (1 -> 2,4 s) puis flotte
 		local lift = smooth((t - 1) / 1.4) * LIFT + math.sin(t * 2) * 0.12 * smooth((t - 2.4) / 0.5)
 		local body = scene.stage * CFrame.new(0, lift, 0)
@@ -1810,7 +1811,7 @@ local function celesteScene(scene)
 		local hv = smooth((t - 1.6) / 0.6)
 		for _, seg in haloSegs do
 			local a = seg.a + t * 0.8
-			seg.part.Transparency = 1 - hv * 0.9
+			seg.part.Transparency = 1 - hv * 0.7
 			seg.part.CFrame = body * CFrame.new(math.cos(a) * 0.95, headTop + 0.9, math.sin(a) * 0.95) * CFrame.Angles(0, -a + math.pi / 2, 0)
 		end
 		-- ailes (dos de l'unité : +Z, à hauteur des épaules), déploiement 1,8 -> 3 s puis battement
@@ -1823,7 +1824,8 @@ local function celesteScene(scene)
 			local angle = math.rad(55 - spread * 85) * open + math.rad(70) * (1 - open) + flap
 			-- légèrement vers l'arrière (presque dans le plan du dos) : bien visible de face
 			local sweep = math.rad(14 + spread * 10) * open + math.rad(6)
-			w.part.Transparency = 1 - open * (0.8 + 0.08 * (w.i % 2))
+			-- ailes translucides (néon plein = éblouissant)
+			w.part.Transparency = 1 - open * (0.5 + 0.08 * (w.i % 2))
 			-- chaque aile part de son épaule vers l'extérieur (côté w.side), un peu en arrière
 			w.part.CFrame = body
 				* CFrame.new(w.side * 0.6, shoulder, 0.75)

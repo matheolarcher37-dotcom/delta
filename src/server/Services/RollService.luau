@@ -188,6 +188,10 @@ function RollService:Start()
 				self:UpdatePanels(player)
 			end)
 		end
+		-- « Course x2 » acheté en cours de partie : vitesse appliquée tout de suite.
+		player:GetAttributeChangedSignal("Pass_Speed2"):Connect(function()
+			self:_applyWalkSpeed(player)
+		end)
 		if (data.RollCount or 0) == 0 then
 			task.delay(6, function()
 				Notify:FireClient(player, "🎲 Appuie sur le gros bouton ROULER de ta base pour tirer un perso !", "info")
@@ -252,6 +256,10 @@ function RollService:_applyWalkSpeed(player: Player)
 	pcall(function()
 		base = game:GetService("StarterPlayer").CharacterWalkSpeed
 	end)
+	-- Passe « Course x2 » : vitesse de base doublée, puis les nœuds de course de l'arbre.
+	if player:GetAttribute("Pass_Speed2") == true then
+		base *= Robux.SpeedMult
+	end
 	humanoid.WalkSpeed = base + SkillTree.stats(data.Skills).walkSpeed
 end
 

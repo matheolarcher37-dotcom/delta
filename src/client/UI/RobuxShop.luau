@@ -553,8 +553,9 @@ local function starterCard(parent: Instance, size: UDim2, position: UDim2, seed:
 	return card, button
 end
 
-local COLUMNS = 4
-local FEATURED_W = 300
+-- Grille des passes : 2 rangées ; 5 colonnes quand les passes + le Pack de départ dépassent 8 cases.
+local COLUMNS = math.max(4, math.ceil(#Robux.PassOrder / 2))
+local FEATURED_W = COLUMNS > 4 and 264 or 300
 
 local function renderPasses(container: Frame)
 	local _, featuredButton = featuredCard(container, "AutoRollPlus", UDim2.new(0, FEATURED_W, 1, 0))
@@ -587,7 +588,7 @@ local function renderPasses(container: Frame)
 		buttons[index] = button
 	end
 	refs.firstButton = featuredButton
-	-- Navigation manette : la vedette à gauche, la grille 4 x 2 à droite.
+	-- Navigation manette : la vedette à gauche, la grille (2 rangées) à droite.
 	pcall(function()
 		featuredButton.NextSelectionRight = buttons[1]
 		for i, button in buttons do

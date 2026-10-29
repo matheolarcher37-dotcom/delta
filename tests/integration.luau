@@ -2268,6 +2268,36 @@ test("Zone anti-AFK : frappe automatique près d'un sac libre, sans rien toucher
 	alice.Character:PivotTo(CFrame.new(0, 5, 0))
 end)
 
+test("Course : nœuds Pas Légers nettement plus rapides, passe « Course x2 » appliqué tout de suite", function()
+	local humanoid = alice.Character:FindFirstChildOfClass("Humanoid")
+	local data = DataService:Get(alice)
+	local saved = table.clone(data.Skills or {})
+	Harness.cleanup(function()
+		alice:SetAttribute("Pass_Speed2", nil)
+		data.Skills = saved
+		services.RollService:_applyWalkSpeed(alice)
+	end)
+	data.Skills = data.Skills or {}
+	for _, id in { "pas1", "pas2", "pas3", "vent" } do
+		data.Skills[id] = nil
+	end
+	services.RollService:_applyWalkSpeed(alice)
+	local base = humanoid.WalkSpeed
+	assert(base >= 16, "vitesse de base : " .. base)
+	for _, id in { "pas1", "pas2", "pas3", "vent" } do
+		data.Skills[id] = true
+	end
+	services.RollService:_applyWalkSpeed(alice)
+	assert(humanoid.WalkSpeed >= base + 30, "l'arbre ne fait pas courir nettement plus vite : " .. humanoid.WalkSpeed)
+	local withTree = humanoid.WalkSpeed
+	-- Achat du passe en cours de partie : la vitesse change sans attendre (attribut écouté)
+	alice:SetAttribute("Pass_Speed2", true)
+	signalFor(alice, "Attr:Pass_Speed2"):Fire()
+	task.wait(0.05)
+	assert(math.abs(humanoid.WalkSpeed - (withTree + base)) < 1e-6, "« Course x2 » : vitesse de base non doublée (" .. humanoid.WalkSpeed .. ")")
+	assert(Robux.Passes.Speed2.price == 53 and table.find(Robux.PassOrder, "Speed2"), "« Course x2 » absent de la boutique ou mauvais prix")
+end)
+
 test("Défis : migration d'une sauvegarde abîmée", function()
 	local data = { version = 2, Quests = "abîmé", traitCrystals = "3", characters = {} }
 	DataService.migrate(data)

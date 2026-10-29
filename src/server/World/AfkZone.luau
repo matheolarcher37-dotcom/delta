@@ -327,7 +327,7 @@ function AfkZone.build(world: Instance): Model
 		local signBase = (pathCF * CFrame.new(7.5, 0, pathLength / 2 - 2)).Position
 		local signFace = CFrame.lookAt(signBase, signBase + inward)
 		Build.part(zone, "SignPole", Vector3.new(0.6, 7, 0.6), signFace * CFrame.new(0, 3.5, 0), WOOD_DARK, { Material = Enum.Material.Wood })
-		plank(zone, signFace * CFrame.new(0, 6.2, -0.4), 6, 1.6, "ZONE ANTI-AFK", { both = true, bg = rgb(70, 46, 30) })
+		plank(zone, signFace * CFrame.new(0, 6.2, -0.4), 6, 1.6, "ZONE AFK", { both = true, bg = rgb(70, 46, 30) })
 		plank(zone, signFace * CFrame.new(0, 4.6, -0.4), 5, 1, "punching-balls", { both = true, bg = rgb(60, 40, 28), font = Enum.Font.Fantasy, text = rgb(255, 214, 150) })
 		for _, side in { -1, 1 } do
 			Props.lamppost(zone, (pathCF * CFrame.new(side * 7, 0, -pathLength / 2 + 3)).Position, "bois", rgb(255, 190, 110))
@@ -345,7 +345,7 @@ function AfkZone.build(world: Instance): Model
 	-- Portique d'entrée et enseigne
 	local gateCF = cf * CFrame.new(0, FLOOR_TOP - 0.1, -(ZONE_RADIUS - 1))
 	Build.torii(zone, gateCF, 16, 13, rgb(170, 44, 36), rgb(36, 28, 26))
-	plank(zone, gateCF * CFrame.new(0, 10.6, -0.9) * CFrame.Angles(0, math.pi, 0), 11, 2.4, "ZONE ANTI-AFK", { both = true, bg = rgb(70, 46, 30) })
+	plank(zone, gateCF * CFrame.new(0, 10.6, -0.9) * CFrame.Angles(0, math.pi, 0), 11, 2.4, "ZONE AFK", { both = true, bg = rgb(70, 46, 30) })
 	plank(zone, gateCF * CFrame.new(0, 8.1, -0.9) * CFrame.Angles(0, math.pi, 0), 8, 1.2, "Dojo des punching-balls", {
 		both = true,
 		bg = rgb(60, 40, 28),
@@ -497,7 +497,7 @@ function AfkZone.build(world: Instance): Model
 	beaconStroke.Color = rgb(80, 220, 255)
 	beaconStroke.Thickness = 3
 	beaconStroke.Parent = beaconCard
-	local beaconTitle = Build.label(beaconCard, "ZONE ANTI-AFK", UDim2.new(1, -16, 0.58, 0), UDim2.fromOffset(8, 4), rgb(255, 255, 255), Enum.Font.GothamBlack)
+	local beaconTitle = Build.label(beaconCard, "ZONE AFK", UDim2.new(1, -16, 0.58, 0), UDim2.fromOffset(8, 4), rgb(255, 255, 255), Enum.Font.GothamBlack)
 	beaconTitle.Name = "Title"
 	local beaconSub = Build.label(beaconCard, "1000 coups = 20 gemmes de trait", UDim2.new(1, -16, 0.36, 0), UDim2.new(0, 8, 0.6, 0), rgb(130, 230, 255), Enum.Font.GothamBold)
 	beaconSub.Name = "Subtitle"

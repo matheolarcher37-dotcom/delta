@@ -801,7 +801,7 @@ function QuestService:GoToAfkZone(player: Player): (boolean, string)
 			end
 		end)
 	end
-	return true, "Bienvenue à la zone anti-AFK : prends un punching-ball libre !"
+	return true, "Bienvenue à la zone AFK : prends un punching-ball libre !"
 end
 
 ------------------------------------------------------------------------

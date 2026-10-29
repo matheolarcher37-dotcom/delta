@@ -73,7 +73,7 @@ local function applyLighting(universe, instant: boolean)
 	Lighting.ClockTime = ciel.clockTime or theme.clockTime
 	Lighting.GeographicLatitude = ciel.latitude or 35
 	Lighting.ExposureCompensation = ciel.exposure or 0
-	tween(Lighting, { Ambient = theme.ambient, OutdoorAmbient = theme.outdoorAmbient, Brightness = ciel.brightness or 3 })
+	tween(Lighting, { Ambient = theme.ambient, OutdoorAmbient = theme.outdoorAmbient, Brightness = ciel.brightness or 2.2 })
 	tween(Lighting:FindFirstChildOfClass("Atmosphere"), {
 		Color = ciel.atmosphereColor or theme.atmosphereColor,
 		Decay = ciel.atmosphereDecay or theme.atmosphereDecay,
@@ -87,7 +87,7 @@ local function applyLighting(universe, instant: boolean)
 		Saturation = theme.saturation,
 		Contrast = ciel.contrast or 0.08,
 	})
-	tween(Lighting:FindFirstChildOfClass("BloomEffect"), { Intensity = ciel.bloom or 0.45 })
+	tween(Lighting:FindFirstChildOfClass("BloomEffect"), { Intensity = ciel.bloom or 0.25 })
 	tween(Lighting:FindFirstChildOfClass("SunRaysEffect"), { Intensity = ciel.sunRays or 0.1 })
 	local sky = Lighting:FindFirstChildOfClass("Sky")
 	if sky then

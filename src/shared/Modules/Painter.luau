@@ -2908,11 +2908,12 @@ end
 --       seed, z }
 function Painter.flames(S, o)
 	local colors = o.colors or { Color3.fromRGB(225, 45, 20), Color3.fromRGB(255, 125, 25), Color3.fromRGB(255, 210, 60) }
-	if S.lite and #colors > 2 then
-		-- aperçu en pièces : deux couches suffisent
-		colors = { colors[1], colors[#colors] }
-	end
 	local n = o.n or 4
+	if S.lite then
+		-- aperçu en pièces : deux couches et moitié moins de langues suffisent
+		colors = { colors[1], colors[#colors] }
+		n = math.ceil(n / 2)
+	end
 	local top, base = o.top or 0.6, o.base or 0.9
 	local z = o.z or 2
 	local seed = o.seed or 1
