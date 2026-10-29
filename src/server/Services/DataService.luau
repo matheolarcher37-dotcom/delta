@@ -32,17 +32,15 @@ local Notify = Remotes.event("Notify")
 
 local function template()
 	return {
-		version = 3,
+		version = 4,
 		coins = Economy.StartingCoins,
 		totalCoins = 0,
 		materials = {},
-		relics = {},
 		traitCrystals = Economy.StartingTraitCrystals,
 		swords = { rouillee = true },
 		equippedSword = "rouillee",
 		characters = {},
 		team = {},
-		incubators = {},
 		upgrades = {},
 		index = {},
 		stash = 0,
@@ -50,7 +48,6 @@ local function template()
 		shop = { window = 0, bought = {} }, -- achats chez le MARCHAND pendant son passage actuel
 		Items = {}, -- objets d'évolution achetés au marchand : { [idObjet] = nombre } (Config/EvolutionItems)
 		isNew = true,
-		starterGiven = false,
 		firstJoin = os.time(),
 		-- v3 : machine ROULER et arbre de compétences
 		Skills = {}, -- { [idDeNœud] = true } (Config/SkillTree)
@@ -172,6 +169,9 @@ local function cleanAutoSettings(data)
 end
 
 -- Mise à niveau des anciennes sauvegardes (après reconcile, qui ajoute les champs manquants).
+-- Améliorations retirées en v3.3 (autels de reliques) : prix rendu en pièces.
+local REMOVED_UPGRADES = { autel2 = 1500, autel3 = 50000, autel4 = 450000 }
+
 local function migrate(data)
 	-- Sauvegarde abîmée : tout champ qui devrait être une table et n'en est pas une est remis
 	-- à sa valeur par défaut (sinon la suite planterait).
@@ -256,12 +256,23 @@ local function migrate(data)
 	if version < 3 then
 		migrateRollV3(data)
 	end
+	-- v3 -> v4 : plus de reliques ni d'autels (la machine ROULER les remplace). Les autels achetés
+	-- sont remboursés ; les reliques et les incubateurs disparaissent.
+	for id, price in REMOVED_UPGRADES do
+		if data.upgrades[id] then
+			data.upgrades[id] = nil
+			data.coins = (tonumber(data.coins) or 0) + price
+		end
+	end
+	data.relics = nil
+	data.incubators = nil
+	data.starterGiven = nil
 	cleanAutoSettings(data)
 	data.RollMulti = math.clamp(math.floor(tonumber(data.RollMulti) or 0), 0, 3)
 	-- L'auto-roulage ne repart jamais tout seul à l'arrivée (le joueur le relance à la machine).
 	data.AutoRoll = false
 	data.AutoBuy = false
-	data.version = 3
+	data.version = 4
 	return data
 end
 DataService.migrate = migrate
@@ -650,18 +661,6 @@ function DataService:AddMaterial(player: Player, materialId: string, amount: num
 		return
 	end
 	data.materials[materialId] = math.max(0, (data.materials[materialId] or 0) + amount)
-	self:Sync(player)
-end
-
-function DataService:AddRelic(player: Player, relicId: string, amount: number)
-	local data = self:Get(player)
-	if not data then
-		return
-	end
-	data.relics[relicId] = math.max(0, (data.relics[relicId] or 0) + amount)
-	if data.relics[relicId] == 0 then
-		data.relics[relicId] = nil
-	end
 	self:Sync(player)
 end
 

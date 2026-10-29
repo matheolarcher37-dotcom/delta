@@ -31,7 +31,7 @@ test("Formules : formatNumber", function()
 	assert(Formulas.formatTime(754) == "12:34", Formulas.formatTime(754))
 end)
 
-test("Univers : persos, ennemis, reliques cohérents", function()
+test("Univers : persos, ennemis cohérents (plus de reliques)", function()
 	for _, universe in Universes.List do
 		assert(#universe.characters >= 6, universe.id .. " : pas assez de persos")
 		for _, id in universe.characters do
@@ -43,21 +43,9 @@ test("Univers : persos, ennemis, reliques cohérents", function()
 			assert(Characters.Enemies[id], "ennemi manquant " .. id)
 		end
 		assert(Characters.Enemies[universe.boss], "boss manquant " .. universe.boss)
-		for _, relic in universe.relics do
-			local total = 0
-			for rarity, weight in relic.odds do
-				local found = false
-				for _, id in universe.characters do
-					if Characters.get(id).rarity == rarity then
-						found = true
-					end
-				end
-				assert(found, relic.id .. " : aucune rareté " .. rarity .. " dans " .. universe.id)
-				total += weight
-			end
-			assert(math.abs(total - 100) < 0.01, relic.id .. " : probabilités = " .. total)
-		end
+		assert(universe.relics == nil, universe.id .. " : reliques encore définies (retirées en v3.3)")
 	end
+	assert(Universes.Relics == nil and Universes.getRelic == nil, "liste des reliques encore là")
 end)
 
 test("Formules : puissance, évolution, fusion", function()
@@ -70,8 +58,9 @@ test("Formules : puissance, évolution, fusion", function()
 	assert(desc.name == "Renard de l'Infini", desc.name)
 	local fcost = Formulas.evolutionCost(fusion)
 	assert(fcost.materials.chakra and fcost.materials.maudite, "coût fusion")
-	local stats = Formulas.upgradeStats({ autel2 = true, equipe4 = true })
-	assert(stats.incubators == 2 and stats.team == 4, "upgradeStats")
+	local stats = Formulas.upgradeStats({ autel2 = true, equipe4 = true, horloge = true })
+	assert(stats.team == 4 and stats.incubators == nil and stats.hatchSpeed == nil, "upgradeStats")
+	assert(math.abs(stats.income - 1.25) < 1e-6, "Horloge Mystique : +25 % de revenus")
 end)
 
 test("Objets d'évolution : chaque perso a son objet, stock et coins du marchand", function()
@@ -1435,10 +1424,11 @@ test("Construction de fusions (toutes les paires Légendaire/Mythique)", functio
 	print("   " .. count .. " fusions construites")
 end)
 
-test("Construction de toutes les reliques", function()
-	for id, relic in Universes.Relics do
-		local model = RelicBuilder.build(relic.look, relic.tier, 1)
-		assert(countParts(model) > 3, id)
+test("Construction de tous les objets d'évolution (formes de RelicBuilder)", function()
+	local EvolutionItems = requireModule(Shared.Config.EvolutionItems)
+	for _, item in EvolutionItems.List do
+		local model = EvolutionItems.build(item.id, 1)
+		assert(countParts(model) > 3, item.id)
 	end
 end)
 

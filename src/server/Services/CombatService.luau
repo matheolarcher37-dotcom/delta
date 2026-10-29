@@ -512,11 +512,6 @@ function CombatService:_rewardBoss(record, universe, position: Vector3)
 				local amount = rng:NextInteger(stats.materials[1], stats.materials[2]) * materialMult
 				DataService:AddMaterial(player, universe.material.id, amount)
 				Reward:FireClient(player, "material", amount, position, universe.material.id)
-				if rng:NextNumber() < stats.relicChance then
-					local relic = universe.relics[#universe.relics]
-					DataService:AddRelic(player, relic.id, 1)
-					Notify:FireClient(player, "🎁 Le boss a lâché une relique rare : " .. relic.name .. " !", "success")
-				end
 			end
 			local crystals = rng:NextInteger(QuestsConfig.Gems.Boss.min, QuestsConfig.Gems.Boss.max)
 			local quests = self.services.QuestService

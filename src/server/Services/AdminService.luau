@@ -34,7 +34,7 @@ end
 
 local HELP = table.concat({
 	"argent <n> · univers · boss · event <orage|eclipse|pluie_or|lune_sang>",
-	"relique <1|2|3> [n] · materiaux <n> · niveau <n> · etoiles <n> · reset",
+	"materiaux <n> · niveau <n> · etoiles <n> · reset",
 }, "\n")
 
 function AdminService:Run(player: Player, text: string)
@@ -61,11 +61,6 @@ function AdminService:Run(player: Player, text: string)
 		s.CombatService:SpawnBoss()
 	elseif command == "event" then
 		s.EventService:Force(args[2] or "orage")
-	elseif command == "relique" or command == "relic" then
-		local universe = s.UniverseService:GetCurrent()
-		local relic = universe.relics[math.clamp(number or 1, 1, #universe.relics)]
-		s.DataService:AddRelic(player, relic.id, tonumber(args[3]) or 1)
-		Notify:FireClient(player, "🎁 " .. relic.name .. " ajoutée", "success")
 	elseif command == "materiaux" or command == "materials" then
 		for _, universe in Universes.List do
 			s.DataService:AddMaterial(player, universe.material.id, number or 50)
@@ -96,7 +91,6 @@ function AdminService:Run(player: Player, text: string)
 		s.CharacterService:Refresh(player)
 		s.TeamService:RefreshTeam(player)
 		s.PlotService:RefreshOwnerContent(player)
-		s.HatchService:RefreshPedestals(player)
 		Notify:FireClient(player, "Données réinitialisées.", "warning")
 	end
 end

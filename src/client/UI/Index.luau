@@ -194,8 +194,8 @@ local GUIDE = {
 	},
 	{
 		"gift",
-		"Les reliques",
-		"Les reliques (butin du boss, récompenses) se posent sur un autel de ta base : après quelques secondes, ouvre-les pour obtenir une unité. Le marchand ambulant, lui, vend les objets d'évolution (suis son rayon violet).",
+		"Le marchand ambulant",
+		"Le marchand ambulant vend les objets d'évolution : suis son rayon violet pour le trouver (il change de place de temps en temps). Le comptoir de ta base montre le chemin.",
 		Color3.fromRGB(64, 160, 255),
 	},
 	{

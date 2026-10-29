@@ -12,7 +12,6 @@ local Traits = require(Shared.Config.Traits)
 local Universes = require(Shared.Config.Universes)
 local Formulas = require(Shared.Modules.Formulas)
 local CharacterFactory = require(Shared.Modules.CharacterFactory)
-local RelicBuilder = require(Shared.Modules.RelicBuilder)
 
 local Theme = require(script.Parent.Theme)
 local Icons = require(script.Parent.Icons)
@@ -984,11 +983,6 @@ function Components.characterViewport(parent: Instance, look, spin: boolean?, en
 	return Components.viewport(parent, model, Vector3.new(0, 3.5, 0), 12.5, nil, spin)
 end
 
-function Components.relicViewport(parent: Instance, relic, spin: boolean?): ViewportFrame
-	local model = RelicBuilder.build(relic.look, relic.tier, 1)
-	return Components.viewport(parent, model, Vector3.new(0, 1.3, 0), 7, nil, spin)
-end
-
 ------------------------------------------------------------------------
 -- Rareté d'un perso possédé (raretés de la machine si présentes, sinon celle du perso)
 ------------------------------------------------------------------------
@@ -1692,7 +1686,7 @@ function Components.hintText(parent: Instance, text: string, props: { [string]: 
 	return label
 end
 
--- Vignette d'objet (relique, épée...) : fond dégradé, contour coloré, aperçu, titre, sous-titre.
+-- Vignette d'objet (objet d'évolution, épée...) : fond dégradé, contour coloré, aperçu, titre, sous-titre.
 export type ItemCardOptions = {
 	title: string,
 	subtitle: string?,

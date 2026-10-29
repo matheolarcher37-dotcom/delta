@@ -1,5 +1,5 @@
 -- Éléments fixes de la base (présents dès le départ) : arbre de compétences lumineux + pupitre,
--- comptoir du marchand, autel d'éveil, autels de reliques.
+-- comptoir du marchand, autel d'éveil.
 -- Tout est construit à partir d'un CFrame (repère de la base).
 
 local CollectionService = game:GetService("CollectionService")
@@ -211,7 +211,7 @@ end
 -- (achat s'il est tout près, sinon « Montrer le chemin » jusqu'à son coin de la carte).
 ------------------------------------------------------------------------
 
--- `cf` = pied du stand, face (-Z) vers la cour. Renvoie (modèle, CFrame d'exposition de la relique).
+-- `cf` = pied du stand, face (-Z) vers la cour.
 function Props.relicMerchant(parent: Instance, cf: CFrame)
 	local model = Build.model(parent, "RelicMachine")
 	local red = rgb(200, 44, 54)
@@ -226,7 +226,7 @@ function Props.relicMerchant(parent: Instance, cf: CFrame)
 		end
 	end
 	Kit.roof(model, cf * CFrame.new(0, 10.6, 0), 12, 9, 2.6, red, { ornament = true, name = "ToitMarchand" })
-	-- Étagères de reliques (rouleaux, orbes) derrière le comptoir.
+	-- Étagères du marchand (rouleaux, orbes) derrière le comptoir.
 	for i = -1, 1 do
 		Build.part(model, "Etagere", Vector3.new(2.6, 0.3, 1.2), cf * CFrame.new(i * 2.9, 6.6, 2.3), C.WoodDark, { Material = Enum.Material.Wood })
 		Kit.cylinder(model, "Rouleau", 1.8, 0.6, cf * CFrame.new(i * 2.9 - 0.5, 7.1, 2.3) * CFrame.Angles(0, 0, math.rad(90)), rgb(240, 220, 170), { CanCollide = false })
@@ -235,21 +235,24 @@ function Props.relicMerchant(parent: Instance, cf: CFrame)
 			CanCollide = false,
 		})
 	end
-	-- Vitrine en verre où la relique de l'univers tourne (UniverseService y pose « DomeRelic »).
+	-- Boule de cristal du marchand ambulant (violette, elle tourne) sur un socle doré.
 	Build.part(model, "Vitrine", Vector3.new(3.4, 0.4, 3.4), cf * CFrame.new(0, 5.2, -1.8), gold, { Material = Enum.Material.Metal })
-	local dome = Build.ball(model, "Dome", 4, (cf * CFrame.new(0, 7.2, -1.8)).Position, rgb(200, 240, 255), {
-		Material = Enum.Material.Glass,
-		Transparency = 0.65,
+	Kit.cylinder(model, "SocleBoule", 0.9, 1.6, cf * CFrame.new(0, 5.85, -1.8), rgb(120, 80, 40), { Material = Enum.Material.Wood, CanCollide = false })
+	local orb = Build.ball(model, "BouleCristal", 2.2, (cf * CFrame.new(0, 7.3, -1.8)).Position, rgb(190, 120, 255), {
+		Material = Enum.Material.Neon,
 		CanCollide = false,
 	})
-	local _ = dome
+	orb:SetAttribute("SpinAxis", "Y")
+	orb:SetAttribute("Bob", 0.25)
+	CollectionService:AddTag(orb, "Spin")
+	Kit.light(orb, rgb(190, 120, 255), 10, 1)
 	local sign = Build.part(model, "Enseigne", Vector3.new(8, 1.8, 0.3), cf * CFrame.new(0, 9.2, -3.4), rgb(40, 30, 28), { Material = Enum.Material.Wood })
 	Build.surfaceText(sign, Enum.NormalId.Front, "MARCHAND", gold)
 	for _, x in { -4.6, 4.6 } do
 		Kit.paperLantern(model, cf * CFrame.new(x, 8.2, -3.6), red, 0.9)
 	end
 	prompt(model:FindFirstChild("Base") :: BasePart, "Trouver le marchand", "Comptoir du marchand ambulant", 12)
-	return model, cf * CFrame.new(0, 7.2, -1.8)
+	return model
 end
 
 ------------------------------------------------------------------------
@@ -278,26 +281,5 @@ function Props.altar(parent: Instance, cf: CFrame)
 	return model
 end
 
-------------------------------------------------------------------------
--- Autel de relique (incubateur)
-------------------------------------------------------------------------
-
-function Props.pedestal(parent: Instance, cf: CFrame, slot: number, plotIndex: number)
-	local model = Build.model(parent, "Pedestal" .. slot)
-	Build.part(model, "Base", Vector3.new(5, 1.2, 5), cf * CFrame.new(0, 0.6, 0), rgb(150, 145, 160), { Material = Enum.Material.Slate })
-	Build.part(model, "Column", Vector3.new(3.4, 2, 3.4), cf * CFrame.new(0, 2.2, 0), rgb(175, 170, 185), { Material = Enum.Material.Slate })
-	local top = Build.part(model, "Top", Vector3.new(4.4, 0.6, 4.4), cf * CFrame.new(0, 3.5, 0), rgb(120, 110, 140), { Material = Enum.Material.Slate })
-	Build.deco(model, "Glow", Vector3.new(4.6, 0.15, 4.6), cf * CFrame.new(0, 3.85, 0), rgb(120, 220, 255), { Material = Enum.Material.Neon, Transparency = 0.4 })
-	local p = prompt(top, "Placer une relique", "Autel #" .. slot, 10)
-	local _ = p
-	local gui = Build.billboard(top, UDim2.fromOffset(200, 60), Vector3.new(0, 6.5, 0), 70)
-	gui.Name = "Timer"
-	local label = Build.label(gui, "", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), rgb(255, 255, 255))
-	label.Name = "Text"
-	model:SetAttribute("Slot", slot)
-	model:SetAttribute("PlotIndex", plotIndex)
-	CollectionService:AddTag(model, "Pedestal")
-	return model
-end
 
 return Props

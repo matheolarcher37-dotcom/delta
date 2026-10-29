@@ -259,29 +259,32 @@ end
 local alice, bob
 local DataService
 
-test("Arrivée d'un joueur : base attribuée + relique offerte", function()
+test("Arrivée d'un joueur : base attribuée, sans relique ni autel", function()
 	DataService = services.DataService
 	alice = addPlayer("Alice")
 	local data = DataService:Get(alice)
 	assert(data, "données non chargées")
 	local plot = services.PlotService:GetPlot(alice)
 	assert(plot, "pas de base")
-	assert(next(data.relics) ~= nil, "pas de relique de départ")
+	-- v3.3 : plus de reliques ni d'autels (la machine ROULER les remplace).
+	assert(data.relics == nil and data.incubators == nil and data.starterGiven == nil, "restes des reliques dans la sauvegarde")
+	assert(plot.model.Interactive:FindFirstChild("Pedestals") == nil, "autel de relique encore dans la base")
+	assert(plot.model.Interactive.RelicMachine:FindFirstChild("Dome") == nil, "vitrine de verre de l'ancienne relique")
 	assert(alice:FindFirstChild("leaderstats") ~= nil or true)
 	assert(lastEvent("DataSync", alice), "pas de synchro client")
 end)
 
 local firstUid
-test("Poser et ouvrir la relique → premier perso", function()
+test("Premier perso : tiré à la machine ROULER, collecte offerte", function()
 	local data = DataService:Get(alice)
-	local relicId = next(data.relics)
-	local ok, message = invoke("PlaceRelic", alice, 1, relicId)
-	assert(ok, "PlaceRelic : " .. tostring(message))
-	assert(data.incubators["1"], "incubateur vide")
-	Harness.timeOffset += 30
 	local plot = services.PlotService:GetPlot(alice)
-	local prompt = plot.pedestals[1].Top.Prompt
-	signalFor(prompt, "Triggered"):Fire(alice)
+	services.RollService:ResetCooldown(alice)
+	alice.Character:PivotTo(plot.cf * CFrame.new(services.PlotService.MachineOffset + Vector3.new(0, 3, -8)))
+	local ok, results = invoke("Roll", alice)
+	assert(ok and type(results) == "table", "roulage : " .. tostring(results))
+	data.RolledQueue[1].rarity = "common" -- la collecte offerte ne vaut que jusqu'au Rare
+	local okCollect, message = invoke("CollectRolled", alice, data.RolledQueue[1].key)
+	assert(okCollect, "collecte offerte : " .. tostring(message))
 	local count = 0
 	for uid in data.characters do
 		count += 1
@@ -289,7 +292,6 @@ test("Poser et ouvrir la relique → premier perso", function()
 	end
 	assert(count == 1, "perso non obtenu (" .. count .. ")")
 	assert(table.find(data.team, firstUid), "pas équipé automatiquement")
-	assert(lastEvent("HatchReveal", alice), "pas de révélation")
 	task.wait(0.2)
 	local followers = game:GetService("Workspace"):FindFirstChild("Followers")
 	assert(followers and #followers:GetChildren() == 1, "le perso ne suit pas le joueur")
@@ -426,10 +428,10 @@ end)
 test("Améliorations de base (boutons tycoon)", function()
 	local data = DataService:Get(alice)
 	assert(services.PlotService:BuyUpgrade(alice, "lanternes"), "lanternes")
-	assert(services.PlotService:BuyUpgrade(alice, "autel2"), "autel2")
-	assert(data.upgrades.autel2, "upgrade non enregistrée")
-	local plot = services.PlotService:GetPlot(alice)
-	assert(plot.pedestals[2], "autel #2 non construit")
+	assert(services.PlotService:BuyUpgrade(alice, "dallage"), "dallage")
+	assert(data.upgrades.dallage, "upgrade non enregistrée")
+	-- Les autels de reliques (retirés en v3.3) ne sont plus à vendre.
+	assert(not services.PlotService:BuyUpgrade(alice, "autel2"), "autel de relique encore à vendre")
 	assert(not services.PlotService:BuyUpgrade(alice, "dojo"), "dojo acheté sans prérequis")
 end)
 
@@ -1132,11 +1134,11 @@ test("Migration d'une ancienne sauvegarde (v1)", function()
 		coins = 1234,
 		totalCoins = 5000,
 		materials = {},
-		relics = {},
+		relics = { ninja_r1 = 2 },
 		characters = { ["OLD-1"] = { id = "ninja_maruto", level = 12, xp = 0, stars = 1, obtained = 0 } },
 		team = { "OLD-1" },
-		incubators = {},
-		upgrades = { lanternes = true, dojo = true },
+		incubators = { ["1"] = { relic = "ninja_r1", start = 0, duration = 12 } },
+		upgrades = { lanternes = true, dojo = true, autel2 = true },
 		index = { ninja_maruto = true },
 		stash = 10,
 		stats = { kills = 3 },
@@ -1146,14 +1148,17 @@ test("Migration d'une ancienne sauvegarde (v1)", function()
 	local carol = addPlayer("Carol")
 	assert(carol.UserId == oldId, "identifiant inattendu")
 	local data = DataService:Get(carol)
-	assert(data.version == 3, "version non migrée")
+	assert(data.version == 4, "version non migrée")
 	assert(type(data.Skills) == "table" and next(data.Skills) == nil, "Skills manquant")
 	assert(data.Pity.mythic == 0 and data.Pity.legendary == nil, "Pity manquant")
 	assert(data.RollCount == 0 and data.AutoRoll == false and data.AutoBuy == false, "compteurs manquants")
 	assert(type(data.AutoRollSettings) == "table" and data.AutoRollSettings.pauseRarities.legendary == true, "réglages d'auto-roulage manquants")
 	assert(type(data.RolledQueue) == "table" and type(data.DisplayPins) == "table", "file / cases manquantes")
 	assert(data.FirstCollectDone == true, "un ancien joueur ne doit pas avoir de perso offert")
-	assert(data.coins == 1234 and data.characters["OLD-1"], "anciennes données perdues")
+	-- v3.3 : reliques, incubateurs et autels retirés ; l'autel acheté (1500) est remboursé.
+	assert(data.relics == nil and data.incubators == nil and data.starterGiven == nil, "reliques non retirées")
+	assert(data.upgrades.autel2 == nil, "autel de relique gardé")
+	assert(data.coins == 1234 + 1500 and data.characters["OLD-1"], "anciennes données perdues ou autel non remboursé")
 	assert(data.upgrades.dojo and Economy.UpgradesById.dojo, "ancienne amélioration perdue")
 	-- Sauvegarde abîmée : les champs qui doivent être des tables sont réparés au lieu de planter.
 	local broken = DataService.migrate({ version = 1, Pity = 5, characters = "x", Skills = true, DisplayPins = { ["1"] = 3, ["2"] = false } })
@@ -1176,7 +1181,7 @@ test("Migration d'une ancienne sauvegarde (v1)", function()
 			{ key = "Q5", id = "inconnu", rarity = "common", price = 90, dps = 1, at = 5 },
 		},
 	})
-	assert(v2.version == 3, "v2 non migrée")
+	assert(v2.version == 4, "v2 non migrée")
 	assert(v2.characters.A.aura == "or" and v2.characters.A.rollRarity == nil, "aura Doré / rareté de machine non migrées")
 	assert(v2.characters.B.aura == nil, "mutation inconnue gardée")
 	assert(v2.Pity.mythic == 300 and v2.Pity.legendary == nil and v2.Pity.secret == nil, "pitiés mal migrées")
@@ -1974,7 +1979,7 @@ end)
 test("Commandes admin", function()
 	local AdminService = services.AdminService
 	AdminService:Run(alice, "argent 5000")
-	AdminService:Run(alice, "relique 3 2")
+	AdminService:Run(alice, "materiaux 10")
 	AdminService:Run(alice, "niveau 25")
 	AdminService:Run(alice, "boss")
 	AdminService:Run(alice, "aide")

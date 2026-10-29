@@ -6,7 +6,7 @@
 -- • Quand un palier est atteint, le joueur est prévenu (bandeau + suivi à l'écran) et va réclamer
 --   sa récompense dans l'écran Défis (remote QuestClaim / QuestClaimAll).
 -- • Les défis quotidiens sont tirés chaque jour (minuit UTC), différents pour chaque joueur.
--- • Zone anti-AFK : 3 punching-balls, un par joueur à la fois (réservé à celui qui tape, libéré
+-- • Zone anti-AFK : 3 punching-balls, un par joueur à la fois (réservé à celui qui s'approche, libéré
 --   quand il s'en va). Coups comptés ici avec une cadence plafonnée (anti-triche) ; 1000 coups =
 --   20 gemmes de trait, données palier par palier. Les sacs ne font jamais de dégâts.
 
@@ -16,6 +16,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Quests = require(Shared.Config.Quests)
+local TextFit = require(Shared.Modules.TextFit)
 local Layout = require(Shared.Config.Layout)
 local Remotes = require(Shared.Modules.Remotes)
 local AfkZone = require(script.Parent.Parent.World.AfkZone)
@@ -446,7 +447,7 @@ end
 local function setText(gui: Instance?, name: string, text: string, color: Color3?)
 	local label = gui and gui:FindFirstChild(name, true) :: TextLabel?
 	if label then
-		label.Text = text
+		TextFit.set(label, text)
 		if color then
 			label.TextColor3 = color
 		end
@@ -480,8 +481,8 @@ function QuestService:_refreshStation(station: Model)
 		station:SetAttribute("Owner", nil)
 		station:SetAttribute("OwnerId", nil)
 		setText(gui, "Owner", "LIBRE", Color3.fromRGB(130, 240, 150))
-		setText(gui, "Count", "Sors ton épée et frappe !")
-		setText(gui, "Next", Quests.Punch.Goal .. " coups = " .. Quests.punchCycleGems() .. " relances de trait")
+		setText(gui, "Count", "Approche-toi : ça frappe tout seul !")
+		setText(gui, "Next", Quests.Punch.Goal .. " coups = " .. Quests.punchCycleGems() .. " gemmes de trait")
 		if fill then
 			fill.Size = UDim2.fromScale(0, 1)
 		end
@@ -575,7 +576,7 @@ function QuestService:Punch(player: Player, station: Model?, origin: Vector3?, f
 	end
 	if state.owner ~= player then
 		state.owner = player
-		Notify:FireClient(player, "🥊 Punching-ball n°" .. tostring(target:GetAttribute("Station")) .. " réservé : tape !", "info")
+		Notify:FireClient(player, "🥊 Punching-ball n°" .. tostring(target:GetAttribute("Station")) .. " réservé : ton perso le frappe tout seul !", "info")
 	end
 	state.lastHit = now
 	state.farSince = nil
@@ -661,6 +662,59 @@ function QuestService:PromptPunch(player: Player, station: Model)
 		SwordService:Swing(player, tool, station)
 	else
 		self:Punch(player, station)
+	end
+end
+
+-- Sac libre (ou déjà à lui) le plus proche que `player` touche depuis `position`.
+function QuestService:_autoStation(player: Player, position: Vector3): Model?
+	local best, bestDist = nil, PUNCH.Reach
+	for _, station in stationList do
+		local state = stations[station]
+		local anchor = stationAnchor(station)
+		if state and anchor and (state.owner == nil or state.owner == player) then
+			local offset = anchor.CFrame.Position - position
+			local distance = Vector3.new(offset.X, 0, offset.Z).Magnitude
+			if distance <= bestDist and math.abs(offset.Y) < 8 then
+				best, bestDist = station, distance
+			end
+		end
+	end
+	return best
+end
+
+-- Frappe automatique (toutes les 0,25 s) : un joueur près d'un sac libre le réserve et le frappe
+-- tout seul, un coup toutes les PUNCH.AutoInterval secondes, sans rien toucher. Immobile, il se
+-- tourne vers le sac ; s'il tient son épée, il donne le coup avec (animation et son).
+function QuestService:_autoPunch()
+	if #stationList == 0 then
+		return
+	end
+	local now = os.clock()
+	local DataService = self.services.DataService
+	for _, player in Players:GetPlayers() do
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local ready = not lastPunch[player] or now - lastPunch[player] >= PUNCH.AutoInterval
+		if ready and root and humanoid and humanoid.Health > 0 and DataService:IsLoaded(player) then
+			local station = self:_autoStation(player, root.Position)
+			local anchor = station and stationAnchor(station)
+			if station and anchor then
+				if humanoid.MoveDirection.Magnitude < 0.1 then
+					local target = anchor.CFrame.Position
+					pcall(function()
+						root.CFrame = CFrame.lookAt(root.Position, Vector3.new(target.X, root.Position.Y, target.Z))
+					end)
+				end
+				-- Le coup est compté ici ; le coup d'épée n'est que l'animation (son propre coup,
+				-- 0,12 s plus tard, tombe dans MinInterval et n'est pas compté une 2e fois).
+				local tool = character and character:FindFirstChildOfClass("Tool")
+				local SwordService = self.services.SwordService
+				if self:Punch(player, station) and tool and tool:GetAttribute("SwordId") and SwordService then
+					SwordService:Swing(player, tool, station)
+				end
+			end
+		end
 	end
 end
 
@@ -823,6 +877,15 @@ function QuestService:Start()
 				end
 			end
 			pcall(self._tickStations, self)
+		end
+	end)
+	task.spawn(function()
+		while true do
+			task.wait(0.25)
+			local ok, err = pcall(self._autoPunch, self)
+			if not ok then
+				warn("[AnimeTycoon] Frappe automatique : " .. tostring(err))
+			end
 		end
 	end)
 end

@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Layout = require(Shared.Config.Layout)
 local EvolutionItems = require(Shared.Config.EvolutionItems)
+local TextFit = require(Shared.Modules.TextFit)
 local CharacterBuilder = require(Shared.Modules.CharacterBuilder)
 local Build = require(script.Parent.Parent.Modules.Build)
 local Core = require(script.Parent.Kit.Core)
@@ -508,7 +509,7 @@ local function buildBeacon(model: Model, cf: CFrame): BasePart
 	-- Étiquette visible de loin.
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "MerchantLabel"
-	billboard.Size = UDim2.fromOffset(250, 78)
+	billboard.Size = UDim2.fromOffset(196, 60)
 	billboard.StudsOffsetWorldSpace = Vector3.new(0, 7, 0)
 	billboard.MaxDistance = 4000
 	billboard.LightInfluence = 0
@@ -559,7 +560,7 @@ local function buildBeacon(model: Model, cf: CFrame): BasePart
 	-- au-dessus des arbres et des bâtiments depuis toute la carte.
 	local sky = Instance.new("BillboardGui")
 	sky.Name = "MerchantSkyLabel"
-	sky.Size = UDim2.fromOffset(230, 64)
+	sky.Size = UDim2.fromOffset(176, 50)
 	sky.StudsOffsetWorldSpace = Vector3.new(0, 120, 0)
 	sky.MaxDistance = 4000
 	sky.LightInfluence = 0
@@ -568,7 +569,7 @@ local function buildBeacon(model: Model, cf: CFrame): BasePart
 	sky.Parent = core
 	local skyPlate = Instance.new("Frame")
 	skyPlate.Name = "Plate"
-	skyPlate.Size = UDim2.new(1, 0, 0, 46)
+	skyPlate.Size = UDim2.new(1, 0, 0, 36)
 	skyPlate.BackgroundColor3 = rgb(52, 30, 24)
 	skyPlate.BackgroundTransparency = 0.08
 	skyPlate.Parent = sky
@@ -599,8 +600,8 @@ local function buildBeacon(model: Model, cf: CFrame): BasePart
 	local tip = Instance.new("Frame")
 	tip.Name = "Tip"
 	tip.AnchorPoint = Vector2.new(0.5, 0.5)
-	tip.Position = UDim2.new(0.5, 0, 0, 48)
-	tip.Size = UDim2.fromOffset(16, 16)
+	tip.Position = UDim2.new(0.5, 0, 0, 38)
+	tip.Size = UDim2.fromOffset(13, 13)
 	tip.Rotation = 45
 	tip.BackgroundColor3 = color
 	tip.BorderSizePixel = 0
@@ -870,7 +871,7 @@ function Merchant.setStatus(model: Model, text: string)
 	local plate = label and label:FindFirstChild("Plate")
 	local status = plate and plate:FindFirstChild("Status")
 	if status and status:IsA("TextLabel") and status.Text ~= text then
-		status.Text = text
+		TextFit.set(status, text)
 	end
 end
 

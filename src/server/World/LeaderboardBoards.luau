@@ -5,6 +5,7 @@
 -- Tableau en bois sculpté avec cadre, fronton peint, petit toit, lanternes et 10 lignes (rang,
 -- nom, valeur). Les lignes sont remplies par LeaderboardService.
 
+local TextFit = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Modules.TextFit)
 local Build = require(script.Parent.Parent.Modules.Build)
 local Core = require(script.Parent.Kit.Core)
 local Archi = require(script.Parent.Kit.Archi)
@@ -43,6 +44,7 @@ local function text(parent: Instance, name: string, value: string, size: UDim2, 
 	label.TextStrokeTransparency = 0.35
 	label.TextStrokeColor3 = rgb(20, 12, 8)
 	label.Parent = parent
+	TextFit.fit(label)
 	return label
 end
 

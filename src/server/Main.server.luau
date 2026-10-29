@@ -19,7 +19,6 @@ local ORDER = {
 	"CombatService",
 	"UniverseService",
 	"ShopService",
-	"HatchService",
 	"RollService",
 	"EvolutionService",
 	"FusionService",
@@ -46,5 +45,11 @@ for _, name in ORDER do
 		warn("[AnimeTycoon] Échec du démarrage de " .. name .. " : " .. tostring(err))
 	end
 end
+
+-- Vraie taille des textes du décor (déjà réglée dans le fichier pré-construit : filet de
+-- sécurité pour une carte construite au lancement), modèles de déco compris.
+local TextFit = require(Shared.Modules.TextFit)
+TextFit.fitAll(workspace)
+TextFit.fitAll(game:GetService("ServerStorage"))
 
 print("[AnimeTycoon] Serveur prêt ! Univers actuel : " .. services.UniverseService:GetCurrent().name)

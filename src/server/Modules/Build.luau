@@ -1,5 +1,9 @@
 -- Petits utilitaires de construction procédurale (pièces, clôtures, arbres, textes...).
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local TextFit = require(ReplicatedStorage:WaitForChild("Shared").Modules.TextFit)
+
 local Build = {}
 
 local DEFAULT_MATERIAL = Enum.Material.SmoothPlastic
@@ -109,6 +113,7 @@ function Build.surfaceText(part: BasePart, face: Enum.NormalId, text: string, co
 		end
 	end
 	label.Parent = gui
+	TextFit.fit(label) -- vraie taille : voir Modules/TextFit
 	return label
 end
 
@@ -136,6 +141,7 @@ function Build.label(parent: Instance, text: string, size: UDim2, position: UDim
 	label.TextStrokeTransparency = 0
 	label.TextStrokeColor3 = Color3.fromRGB(25, 15, 15)
 	label.Parent = parent
+	TextFit.fit(label)
 	return label
 end
 

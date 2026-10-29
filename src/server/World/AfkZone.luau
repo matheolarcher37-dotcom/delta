@@ -1,9 +1,10 @@
 -- ZONE ANTI-AFK (dojo d'entraînement) posée à Layout.AfkZone, entre deux bases.
 --
 -- Exactement 3 punching-balls : 3 joueurs peuvent taper en même temps, chacun le sien (le sac est
--- réservé au joueur qui tape et libéré quand il s'en va). Les sacs n'attaquent pas : rien dans la
--- zone ne fait de dégâts. On tape avec son épée (clic, gâchette de la manette, ou l'invite
--- « Frapper » : E / X / toucher) ; les coups sont comptés par le serveur (QuestService).
+-- réservé au joueur qui s'en approche et libéré quand il s'en va). Les sacs n'attaquent pas : rien
+-- dans la zone ne fait de dégâts. Près d'un sac libre, le perso le frappe TOUT SEUL (un coup par
+-- seconde) ; on peut aller plus vite avec son épée (clic, gâchette de la manette, ou l'invite
+-- « Frapper » : E / X / toucher). Les coups sont comptés par le serveur (QuestService).
 -- 1000 coups = 20 gemmes de trait (= 20 relances), avec des paliers en chemin.
 --
 -- Construction : dalle de pierre ronde, plancher de dojo, muret ouvert côté hub, portique
@@ -134,7 +135,7 @@ local function counterGui(adornee: BasePart, index: number, color: Color3): Bill
 	owner.Name = "Owner"
 	owner.TextXAlignment = Enum.TextXAlignment.Left
 
-	local count = Build.label(card, "Sors ton épée et frappe !", UDim2.fromScale(sx(240), sy(38)), UDim2.fromScale(sx(10), sy(46)), rgb(255, 255, 255), Enum.Font.GothamBlack)
+	local count = Build.label(card, "Approche-toi : ça frappe tout seul !", UDim2.fromScale(sx(240), sy(38)), UDim2.fromScale(sx(10), sy(46)), rgb(255, 255, 255), Enum.Font.GothamBlack)
 	count.Name = "Count"
 
 	local bar = Instance.new("Frame")
@@ -161,7 +162,7 @@ local function counterGui(adornee: BasePart, index: number, color: Color3): Bill
 	fillGradient.Parent = fill
 
 	local nextTier =
-		Build.label(card, "1000 coups = 20 relances de trait", UDim2.fromScale(sx(240), sy(20)), UDim2.fromScale(sx(10), sy(106)), rgb(150, 236, 255), Enum.Font.GothamBold)
+		Build.label(card, "1000 coups = 20 gemmes de trait", UDim2.fromScale(sx(240), sy(20)), UDim2.fromScale(sx(10), sy(106)), rgb(150, 236, 255), Enum.Font.GothamBold)
 	nextTier.Name = "Next"
 	return gui
 end
@@ -437,12 +438,12 @@ function AfkZone.build(world: Instance): Model
 		cumul += tier[2]
 		table.insert(tierLines, string.format("%d coups  →  +%d gemmes", tier[1], tier[2]))
 	end
-	table.insert(tierLines, string.format("Total : %d relances de trait", cumul))
+	table.insert(tierLines, string.format("Total : %d gemmes de trait", cumul))
 	board("TiersBoard", -100, "PALIERS (pour 1000 coups)", tierLines)
 	board("HowToBoard", 100, "COMMENT ÇA MARCHE", {
-		"1. Prends un sac libre.",
-		"2. Sors ton épée et tape !",
-		"    (ou l'invite « Frapper »)",
+		"1. Va près d'un sac libre.",
+		"2. Ton perso frappe tout seul !",
+		"    (épée ou « Frapper » : plus vite)",
 		"3. 1000 coups = 20 gemmes.",
 		"Le sac ne t'attaque jamais.",
 	})
@@ -481,7 +482,7 @@ function AfkZone.build(world: Instance): Model
 		Shape = Enum.PartType.Ball,
 	})
 	Core.light(top, rgb(120, 220, 255), 30, 1.4)
-	local beacon = Build.billboard(top, UDim2.fromOffset(300, 64), Vector3.new(0, 4, 0), 900)
+	local beacon = Build.billboard(top, UDim2.fromOffset(220, 50), Vector3.new(0, 4, 0), 900)
 	beacon.Name = "Beacon"
 	local beaconCard = Instance.new("Frame")
 	beaconCard.Size = UDim2.fromScale(1, 1)
@@ -489,7 +490,7 @@ function AfkZone.build(world: Instance): Model
 	beaconCard.BackgroundTransparency = 0.2
 	beaconCard.Parent = beacon
 	local beaconCorner = Instance.new("UICorner")
-	beaconCorner.CornerRadius = UDim.new(0, 12)
+	beaconCorner.CornerRadius = UDim.new(0, 10)
 	beaconCorner.Parent = beaconCard
 	local beaconStroke = Instance.new("UIStroke")
 	beaconStroke.Color = rgb(80, 220, 255)
@@ -497,7 +498,7 @@ function AfkZone.build(world: Instance): Model
 	beaconStroke.Parent = beaconCard
 	local beaconTitle = Build.label(beaconCard, "ZONE ANTI-AFK", UDim2.new(1, -16, 0.58, 0), UDim2.fromOffset(8, 4), rgb(255, 255, 255), Enum.Font.GothamBlack)
 	beaconTitle.Name = "Title"
-	local beaconSub = Build.label(beaconCard, "1000 coups = 20 relances de trait", UDim2.new(1, -16, 0.36, 0), UDim2.new(0, 8, 0.6, 0), rgb(130, 230, 255), Enum.Font.GothamBold)
+	local beaconSub = Build.label(beaconCard, "1000 coups = 20 gemmes de trait", UDim2.new(1, -16, 0.36, 0), UDim2.new(0, 8, 0.6, 0), rgb(130, 230, 255), Enum.Font.GothamBold)
 	beaconSub.Name = "Subtitle"
 
 	pcall(function()

@@ -13,7 +13,7 @@
 --   • « Lancer AFK » (passe AutoRoll, 29 Robux) : roule tout seul et s'arrête sur les raretés /
 --     mutations cochées ; « Achat automatique » (passe AutoRollPlus, 500 Robux) : roule tout seul
 --     et ACHÈTE chaque perso qui correspond aux cibles choisies, s'arrête si on ne peut plus payer.
--- Les reliques (HatchService) restent une source secondaire (butin du boss, autels de la base).
+-- (Les anciennes reliques et leurs autels ont été retirés en v3.3 : la machine est la seule source.)
 --
 -- Remotes : Roll() → ok, résultats | message ; CollectRolled(clé) → ok, message ;
 -- SetAutoRoll(bool), Roll_SetAutoBuy(bool), Roll_SaveAutoSettings(réglages), Roll_SetMulti(n)
@@ -31,6 +31,7 @@ local SkillTree = require(Shared.Config.SkillTree)
 local Universes = require(Shared.Config.Universes)
 local Robux = require(Shared.Config.Robux)
 local Formulas = require(Shared.Modules.Formulas)
+local TextFit = require(Shared.Modules.TextFit)
 local CharacterFactory = require(Shared.Modules.CharacterFactory)
 local Remotes = require(Shared.Modules.Remotes)
 local Modules = script.Parent.Parent.Modules
@@ -232,7 +233,7 @@ function RollService:_onUniverse(universe)
 	for _, plot in self.services.PlotService:GetPlots() do
 		local label = plot.machine and plot.machine.universeLabel
 		if label then
-			label.Text = "Univers : " .. universe.name
+			TextFit.set(label, "Univers : " .. universe.name)
 		end
 		if plot.owner then
 			self:UpdatePanels(plot.owner) -- les raretés présentes changent avec l'univers

@@ -8,7 +8,7 @@ local EVENTS = {
 	"DataSync", -- snapshot des données du joueur
 	"Notify", -- (texte, type)
 	"Announce", -- (titre, sous-titre, couleur)
-	"HatchReveal", -- (entrée personnage, relicId)
+	"HatchReveal", -- ({ uid, entry, source?, fusion?, isNew }) révélation d'un perso (roulage auto, fusion)
 	"CombatFX", -- (type, données) effets visuels
 	"Reward", -- (type, quantité, position) pièces/objets qui volent vers le joueur
 	"TradeState", -- état de l'échange en cours (ou nil)
@@ -26,7 +26,6 @@ local EVENTS = {
 }
 
 local FUNCTIONS = {
-	"PlaceRelic", -- (slot, relicId) -> ok, message
 	"EquipCharacter", -- (uid, equip) -> ok, message
 	"ToggleLock", -- (uid) -> ok
 	"SellCharacter", -- (uid) -> ok, message

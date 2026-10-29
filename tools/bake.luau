@@ -270,6 +270,10 @@ for _, item in game:GetDescendants() do
 		end
 	end
 end
+-- Vraie taille de chaque texte du décor (Roblox n'agrandit pas les textes déjà remplis, voir
+-- Shared/Modules/TextFit).
+local TextFit = Harness.require(Shared.Modules.TextFit)
+print("textes du décor réglés :", TextFit.fitAll(game.Workspace) + TextFit.fitAll(game:GetService("ServerStorage")))
 local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
 if remotes then
 	remotes:Destroy() -- recréés au lancement

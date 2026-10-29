@@ -6,7 +6,10 @@
 -- TycoonStructures et PlotService passent le CFrame de la base.
 
 local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+
+local TextFit = require(ReplicatedStorage:WaitForChild("Shared").Modules.TextFit)
 
 local Build = require(script.Parent.Build)
 
@@ -434,12 +437,6 @@ local EFFECT_TEXT = {
 	combatCoins = function(v)
 		return string.format("+%d %% de pièces en combat", math.floor(v * 100 + 0.5))
 	end,
-	hatchSpeed = function(v)
-		return string.format("Reliques %d %% plus rapides", math.floor(v * 100 + 0.5))
-	end,
-	incubators = function(v)
-		return string.format("+%d autel de relique", v)
-	end,
 	team = function(v)
 		return string.format("+%d place d'équipe", v)
 	end,
@@ -447,7 +444,7 @@ local EFFECT_TEXT = {
 		return string.format("+%d places d'exposition", v)
 	end,
 }
-local EFFECT_ORDER = { "incubators", "team", "display", "income", "xp", "combatCoins", "hatchSpeed" }
+local EFFECT_ORDER = { "team", "display", "income", "xp", "combatCoins" }
 
 -- « +10 % de revenus · +50 % d'XP »
 function Kit.effectText(effect): string
@@ -490,6 +487,7 @@ local function text(parent: Instance, name: string, value: string, pos: UDim2, s
 	label.TextStrokeTransparency = 0
 	label.TextStrokeColor3 = C.Stroke
 	label.Parent = parent
+	TextFit.fit(label)
 	return label
 end
 
@@ -768,6 +766,7 @@ function Kit.text(parent: Instance, name: string, value: string, pos: UDim2, siz
 	label.TextStrokeTransparency = 0
 	label.TextStrokeColor3 = strokeColor or C.Stroke
 	label.Parent = parent
+	TextFit.fit(label)
 	return label
 end
 

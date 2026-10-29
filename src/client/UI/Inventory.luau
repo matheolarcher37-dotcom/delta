@@ -2,13 +2,12 @@
 --   • onglet Unités : grille de cartes 3D + grande fiche d'unité (statistiques, trait, type) avec
 --     les actions Équiper / Évoluer / Verrouiller / Vendre ;
 --   • onglet Objets : objets d'évolution achetés au Marchand ambulant (à quoi ils servent, quelles
---     unités les attendent), reliques possédées (détails et probabilités), matériaux et cristaux.
+--     unités les attendent), matériaux et gemmes de trait.
 -- Manette : LB / RB changent d'onglet, A choisit, B ferme.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Rarities = require(Shared.Config.Rarities)
 local Characters = require(Shared.Config.Characters)
 local Universes = require(Shared.Config.Universes)
 local Economy = require(Shared.Config.Economy)
@@ -31,14 +30,11 @@ local new = Theme.new
 local WHITE = Color3.new(1, 1, 1)
 
 local PAGE_SIZE = 12
-local TIER_NAMES = { "Relique Commune", "Relique Rare", "Relique Légendaire" }
-local TIER_COLORS = { Color3.fromRGB(64, 160, 255), Color3.fromRGB(176, 92, 255), Color3.fromRGB(255, 190, 40) }
 
 local window
 local tab = "units"
 local page = 1
 local selected: string? = nil
-local selectedRelic: string? = nil
 local selectedItem: string? = nil -- objet d'évolution choisi
 local confirmingSell = false
 local refs: { [string]: any } = {}
@@ -187,47 +183,6 @@ end
 ------------------------------------------------------------------------
 -- Onglet Objets
 ------------------------------------------------------------------------
-
-local function relicOdds(parent: Instance, relic, universe)
-	local list = new("Frame", {
-		Name = "Odds",
-		Size = UDim2.new(1, -24, 0, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
-		Position = UDim2.fromOffset(12, 0),
-		BackgroundTransparency = 1,
-		LayoutOrder = 5,
-		Parent = parent,
-	})
-	Theme.list(Enum.FillDirection.Vertical, 4, Enum.HorizontalAlignment.Left).Parent = list
-	local order = 0
-	for _, rarityId in Rarities.Order do
-		local weight = relic.odds[rarityId]
-		if weight then
-			order += 1
-			local info = Theme.rarity(rarityId)
-			local names = {}
-			for _, id in universe.characters do
-				local def = Characters.get(id)
-				if def and def.rarity == rarityId then
-					table.insert(names, def.name)
-				end
-			end
-			local row = new("Frame", { Size = UDim2.new(1, 0, 0, 26), BackgroundTransparency = 1, LayoutOrder = order, Parent = list })
-			Components.rarityTag(row, rarityId, { Size = UDim2.fromOffset(112, 22), Position = UDim2.fromOffset(0, 2) })
-			Theme.label({
-				Text = tostring(weight) .. " %  ·  " .. table.concat(names, ", "),
-				Size = UDim2.new(1, -122, 1, -4),
-				Position = UDim2.fromOffset(120, 2),
-				FontFace = Theme.Faces.Bold,
-				TextColor3 = info.rainbow and WHITE or Theme.light(info.color, 0.35),
-				TextXAlignment = Enum.TextXAlignment.Left,
-				StrokeThickness = 1.5,
-				MaxSize = 17,
-				Parent = row,
-			})
-		end
-	end
-end
 
 local function renderItemDetail()
 	local holder = refs.sheet
@@ -396,51 +351,6 @@ local function renderItemDetail()
 		return
 	end
 
-	local relic = selectedRelic and Universes.getRelic(selectedRelic)
-	if relic and (data.relics[relic.id] or 0) > 0 then
-		local universe = Universes.get(relic.universe) or Universes.List[1]
-		for _, u in Universes.List do
-			for _, r in u.relics do
-				if r.id == relic.id then
-					universe = u
-				end
-			end
-		end
-		local color = TIER_COLORS[relic.tier] or C.Blue
-		local top = new("Frame", { Size = UDim2.new(1, 0, 0, 170), BackgroundTransparency = 1, LayoutOrder = 1, Parent = body })
-		local view = new("Frame", { Size = UDim2.fromOffset(170, 170), BackgroundColor3 = WHITE, Parent = top })
-		Theme.corner(14).Parent = view
-		Theme.stroke(color, 3).Parent = view
-		Theme.gradient({ Theme.dark(color, 0.35), Color3.fromRGB(14, 14, 20) }, 90).Parent = view
-		Components.relicViewport(view, relic, true)
-		Theme.label({
-			Text = relic.name,
-			Position = UDim2.fromOffset(184, 8),
-			Size = UDim2.new(1, -190, 0, 36),
-			FontFace = Theme.Faces.Title,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			StrokeThickness = 2.5,
-			Parent = top,
-		})
-		Theme.label({
-			Text = (TIER_NAMES[relic.tier] or "Relique") .. "  ·  " .. universe.name,
-			Position = UDim2.fromOffset(184, 48),
-			Size = UDim2.new(1, -190, 0, 22),
-			FontFace = Theme.Faces.Heavy,
-			TextColor3 = Theme.light(color, 0.3),
-			TextXAlignment = Enum.TextXAlignment.Left,
-			Parent = top,
-		})
-		local stats = State.stats()
-		local hatch = math.max(3, math.floor(Economy.RelicTiers[relic.tier].hatchTime * (stats.hatchSpeed or 1)))
-		Components.pill(top, "hourglass", "Ouverture : " .. hatch .. " s", C.Gold, { Position = UDim2.fromOffset(184, 80), Size = UDim2.fromOffset(220, 34) })
-		Components.pill(top, "gift", "Possédées : × " .. (data.relics[relic.id] or 0), C.Green, { Position = UDim2.fromOffset(184, 122), Size = UDim2.fromOffset(220, 34) })
-		Components.sectionTitle(body, "CE QU'ELLE PEUT DONNER", { LayoutOrder = 4, Size = UDim2.new(1, -24, 0, 24) })
-		relicOdds(body, relic, universe)
-		Components.hintText(body, "Pose-la sur un autel de ta base pour l'ouvrir.", { LayoutOrder = 6, Size = UDim2.new(1, -24, 0, 22) })
-		return
-	end
-
 	-- Sinon : ressources du joueur.
 	Components.sectionTitle(body, "MES RESSOURCES", { LayoutOrder = 1, Size = UDim2.new(1, -24, 0, 26) })
 	local function resourceRow(order: number, color: Color3, name: string, sub: string, amount: number, isCoin: boolean?)
@@ -530,7 +440,6 @@ local function renderItems()
 	end
 	refs.pager.set(1, 1)
 	local order = 0
-	local relicCount = 0
 	local itemCount = 0
 	-- Objets d'évolution (achetés au Marchand ambulant).
 	local items = type(data.Items) == "table" and data.Items or {}
@@ -551,7 +460,6 @@ local function renderItems()
 				selKey = "evo_" .. evo.id,
 				onClick = function()
 					selectedItem = selectedItem ~= evo.id and evo.id or nil
-					selectedRelic = nil
 					render(true)
 				end,
 			})
@@ -559,36 +467,11 @@ local function renderItems()
 			readableCard(card)
 		end
 	end
-	for _, universe in Universes.List do
-		for _, relic in universe.relics do
-			local owned = data.relics[relic.id] or 0
-			if owned > 0 then
-				order += 1
-				relicCount += owned
-				local color = TIER_COLORS[relic.tier] or universe.color
-				local _, preview = Components.itemCard(grid, {
-					title = relic.name,
-					subtitle = universe.name,
-					subtitleColor = Theme.light(universe.color, 0.3),
-					color = color,
-					badge = "× " .. owned,
-					layoutOrder = order,
-					selected = selectedRelic == relic.id,
-					onClick = function()
-						selectedRelic = selectedRelic ~= relic.id and relic.id or nil
-						selectedItem = nil
-						render(true)
-					end,
-				})
-				Components.relicViewport(preview, relic, false)
-			end
-		end
-	end
 	if order == 0 then
 		Components.emptyState(grid, "Aucun objet pour l'instant.\nLe Marchand ambulant vend des objets d'évolution : suis le rayon violet !", "bag")
 	end
-	Components.setPillText(refs.teamPill, "Objets : " .. itemCount .. "  ·  Reliques : " .. relicCount)
-	window.subtitle.Text = itemCount .. " objets d'évolution  ·  " .. relicCount .. " reliques  ·  " .. (data.traitCrystals or 0) .. " gemmes"
+	Components.setPillText(refs.teamPill, "Objets : " .. itemCount)
+	window.subtitle.Text = itemCount .. " objets d'évolution  ·  " .. (data.traitCrystals or 0) .. " gemmes"
 end
 
 ------------------------------------------------------------------------
@@ -601,12 +484,9 @@ local function viewKey(): string
 	if not data then
 		return ""
 	end
-	local parts = { tab, tostring(page), tostring(selected), tostring(selectedRelic), tostring(selectedItem), tostring(confirmingSell), table.concat(data.team, ",") }
+	local parts = { tab, tostring(page), tostring(selected), tostring(selectedItem), tostring(confirmingSell), table.concat(data.team, ",") }
 	for uid, entry in data.characters do
 		table.insert(parts, uid .. ":" .. entry.level .. ":" .. (entry.stars or 1) .. ":" .. tostring(entry.aura) .. ":" .. tostring(entry.locked) .. ":" .. tostring(entry.trait))
-	end
-	for id, count in data.relics do
-		table.insert(parts, id .. "=" .. count)
 	end
 	if tab == "items" then
 		for id, count in data.materials do
@@ -703,7 +583,7 @@ function Inventory.init(gui: ScreenGui)
 	})
 
 	Components.registerWindow(Menus, "Inventory", window, function(arg)
-		if arg == "items" or arg == "relics" then
+		if arg == "items" then
 			tab = "items"
 		elseif type(arg) == "string" then
 			tab = "units"

@@ -1,5 +1,5 @@
 -- Les univers qui tournent toutes les 30 minutes.
--- Chaque univers a : ses reliques (= les "œufs"), ses ennemis, son boss,
+-- Chaque univers a : ses persos (tirés à la machine ROULER), ses ennemis, son boss,
 -- son matériau d'évolution, son décor et son ambiance lumineuse.
 
 local rgb = Color3.fromRGB
@@ -13,29 +13,6 @@ Universes.List = {
 		inspiration = "Naruto",
 		color = rgb(255, 140, 30),
 		material = { id = "chakra", name = "Fragment de Chakra", color = rgb(70, 170, 255) },
-		relics = {
-			{
-				id = "ninja_r1",
-				name = "Parchemin d'Entraînement",
-				tier = 1,
-				look = { kind = "scroll", color = rgb(70, 140, 230), accent = rgb(240, 220, 170) },
-				odds = { common = 70, rare = 25, epic = 4.5, legendary = 0.5 },
-			},
-			{
-				id = "ninja_r2",
-				name = "Parchemin Secret",
-				tier = 2,
-				look = { kind = "scroll", color = rgb(210, 40, 50), accent = rgb(245, 230, 190) },
-				odds = { common = 25, rare = 45, epic = 24, legendary = 5.5, mythic = 0.5 },
-			},
-			{
-				id = "ninja_r3",
-				name = "Parchemin Interdit",
-				tier = 3,
-				look = { kind = "scroll", color = rgb(120, 40, 160), accent = rgb(255, 210, 70) },
-				odds = { rare = 20, epic = 50, legendary = 25, mythic = 5 },
-			},
-		},
 		characters = {
 			"ninja_rokli",
 			"ninja_konohamaro",
@@ -120,29 +97,6 @@ Universes.List = {
 		inspiration = "Jujutsu Kaisen",
 		color = rgb(150, 70, 255),
 		material = { id = "maudite", name = "Énergie Maudite", color = rgb(170, 60, 255) },
-		relics = {
-			{
-				id = "occulte_r1",
-				name = "Talisman Scellé",
-				tier = 1,
-				look = { kind = "talisman", color = rgb(245, 235, 200), accent = rgb(200, 30, 40) },
-				odds = { common = 70, rare = 25, epic = 4.5, legendary = 0.5 },
-			},
-			{
-				id = "occulte_r2",
-				name = "Coffret Maudit",
-				tier = 2,
-				look = { kind = "box", color = rgb(60, 30, 80), accent = rgb(200, 160, 60) },
-				odds = { common = 25, rare = 45, epic = 24, legendary = 5.5, mythic = 0.5 },
-			},
-			{
-				id = "occulte_r3",
-				name = "Doigt du Roi",
-				tier = 3,
-				look = { kind = "finger", color = rgb(110, 70, 60), accent = rgb(60, 20, 30) },
-				odds = { rare = 20, epic = 50, legendary = 25, mythic = 5 },
-			},
-		},
 		characters = {
 			"occ_toudo",
 			"occ_inumako",
@@ -228,29 +182,6 @@ Universes.List = {
 		inspiration = "Dragon Ball",
 		color = rgb(255, 200, 40),
 		material = { id = "ki", name = "Éclat de Ki", color = rgb(255, 190, 40) },
-		relics = {
-			{
-				id = "saiyan_r1",
-				name = "Petite Capsule",
-				tier = 1,
-				look = { kind = "capsule", color = rgb(245, 245, 245), accent = rgb(230, 50, 50) },
-				odds = { common = 70, rare = 25, epic = 4.5, legendary = 0.5 },
-			},
-			{
-				id = "saiyan_r2",
-				name = "Boule de Cristal",
-				tier = 2,
-				look = { kind = "orb", color = rgb(255, 160, 30), accent = rgb(230, 40, 30) },
-				odds = { common = 25, rare = 45, epic = 24, legendary = 5.5, mythic = 0.5 },
-			},
-			{
-				id = "saiyan_r3",
-				name = "Boule Divine",
-				tier = 3,
-				look = { kind = "orb", color = rgb(255, 230, 90), accent = rgb(255, 255, 255) },
-				odds = { rare = 20, epic = 50, legendary = 25, mythic = 5 },
-			},
-		},
 		characters = {
 			"sai_yamcho",
 			"sai_krilin",
@@ -335,29 +266,6 @@ Universes.List = {
 		inspiration = "One Piece",
 		color = rgb(40, 170, 255),
 		material = { id = "perle", name = "Perle des Abysses", color = rgb(60, 230, 220) },
-		relics = {
-			{
-				id = "ocean_r1",
-				name = "Bouteille à la Mer",
-				tier = 1,
-				look = { kind = "bottle", color = rgb(120, 220, 200), accent = rgb(240, 225, 180) },
-				odds = { common = 70, rare = 25, epic = 4.5, legendary = 0.5 },
-			},
-			{
-				id = "ocean_r2",
-				name = "Coffre au Trésor",
-				tier = 2,
-				look = { kind = "chest", color = rgb(140, 90, 50), accent = rgb(255, 200, 60) },
-				odds = { common = 25, rare = 45, epic = 24, legendary = 5.5, mythic = 0.5 },
-			},
-			{
-				id = "ocean_r3",
-				name = "Fruit du Démon",
-				tier = 3,
-				look = { kind = "fruit", color = rgb(150, 60, 200), accent = rgb(60, 160, 60) },
-				odds = { rare = 20, epic = 50, legendary = 25, mythic = 5 },
-			},
-		},
 		characters = {
 			"oce_kobi",
 			"oce_buggi",
@@ -442,29 +350,6 @@ Universes.List = {
 		inspiration = "Demon Slayer",
 		color = rgb(230, 50, 70),
 		material = { id = "sang", name = "Sang de Démon", color = rgb(220, 30, 50) },
-		relics = {
-			{
-				id = "pourfendeur_r1",
-				name = "Garde de Sabre",
-				tier = 1,
-				look = { kind = "tsuba", color = rgb(60, 60, 70), accent = rgb(200, 170, 80) },
-				odds = { common = 70, rare = 25, epic = 4.5, legendary = 0.5 },
-			},
-			{
-				id = "pourfendeur_r2",
-				name = "Masque de Renard",
-				tier = 2,
-				look = { kind = "mask", color = rgb(245, 245, 240), accent = rgb(220, 40, 50) },
-				odds = { common = 25, rare = 45, epic = 24, legendary = 5.5, mythic = 0.5 },
-			},
-			{
-				id = "pourfendeur_r3",
-				name = "Lys Araignée Bleu",
-				tier = 3,
-				look = { kind = "lily", color = rgb(60, 120, 255), accent = rgb(40, 120, 60) },
-				odds = { rare = 20, epic = 50, legendary = 25, mythic = 5 },
-			},
-		},
 		characters = {
 			"pou_genyo",
 			"pou_kanoa",
@@ -551,15 +436,6 @@ for index, universe in Universes.List do
 	Universes.ById[universe.id] = universe
 end
 
--- Toutes les reliques indexées par id.
-Universes.Relics = {}
-for _, universe in Universes.List do
-	for _, relic in universe.relics do
-		relic.universe = universe.id
-		Universes.Relics[relic.id] = relic
-	end
-end
-
 -- Tous les matériaux indexés par id.
 Universes.Materials = {}
 for _, universe in Universes.List do
@@ -569,10 +445,6 @@ end
 
 function Universes.get(id: string)
 	return Universes.ById[id]
-end
-
-function Universes.getRelic(id: string)
-	return Universes.Relics[id]
 end
 
 function Universes.getMaterial(id: string)

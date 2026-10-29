@@ -1,5 +1,5 @@
 -- Rotation des univers : un nouvel univers toutes les 30 minutes (même univers sur tous les serveurs).
--- Change le décor de la zone, l'ambiance lumineuse, les ennemis et les reliques en vente.
+-- Change le décor de la zone, l'ambiance lumineuse, les ennemis et les persos qu'on peut tirer.
 
 local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
@@ -11,8 +11,8 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Universes = require(Shared.Config.Universes)
 local Economy = require(Shared.Config.Economy)
 local Formulas = require(Shared.Modules.Formulas)
+local TextFit = require(Shared.Modules.TextFit)
 local Remotes = require(Shared.Modules.Remotes)
-local RelicBuilder = require(Shared.Modules.RelicBuilder)
 local UniverseDecor = require(script.Parent.Parent.World.UniverseDecor)
 
 local UniverseService = {}
@@ -111,25 +111,6 @@ local function applyLighting(universe, instant: boolean)
 	end
 end
 
-function UniverseService:_updateMachines(universe)
-	local relic = universe.relics[#universe.relics]
-	for _, plot in self.services.PlotService:GetPlots() do
-		local machine = plot.model.Interactive:FindFirstChild("RelicMachine")
-		if machine and plot.relicDisplayCF then
-			local old = machine:FindFirstChild("DomeRelic")
-			if old then
-				old:Destroy()
-			end
-			local model = RelicBuilder.build(relic.look, relic.tier, 1.4)
-			model.Name = "DomeRelic"
-			model:PivotTo(plot.relicDisplayCF)
-			model:SetAttribute("SpinSpeed", 1.2)
-			CollectionService:AddTag(model, "SpinModel")
-			model.Parent = machine
-		end
-	end
-end
-
 -- Décor des BASES selon l'univers (murs, portail, déco Naruto / Gojo...) : module
 -- World/BaseDecor (domaine des bases). Point d'appel unique : s'il n'existe pas encore, rien ne
 -- se passe ; une erreur dedans n'empêche jamais le changement d'univers.
@@ -156,7 +137,6 @@ function UniverseService:_apply(universe, instant: boolean)
 	UniverseDecor.apply(universe, zone)
 	applyLighting(universe, instant)
 	applyBaseDecor(universe)
-	self:_updateMachines(universe)
 	self.services.CombatService:Reset()
 	gameState:SetAttribute("UniverseId", universe.id)
 	gameState:SetAttribute("UniverseIndex", universe.index)
@@ -234,11 +214,11 @@ function UniverseService:_updateHubBillboard()
 	local title = gui:FindFirstChild("Title") :: TextLabel?
 	local timer = gui:FindFirstChild("Timer") :: TextLabel?
 	if title then
-		title.Text = "🌀 " .. universe.name
+		TextFit.set(title, "🌀 " .. universe.name)
 		title.TextColor3 = universe.color:Lerp(Color3.new(1, 1, 1), 0.3)
 	end
 	if timer then
-		timer.Text = "⏳ Prochain univers dans " .. Formulas.formatTime(self:GetEndsAt() - os.time())
+		TextFit.set(timer, "⏳ Prochain univers dans " .. Formulas.formatTime(self:GetEndsAt() - os.time()))
 	end
 end
 
@@ -264,14 +244,14 @@ function UniverseService:_updateHubPanels()
 				local timer = gui:FindFirstChild("Timer") :: TextLabel?
 				local nextLabel = gui:FindFirstChild("Next") :: TextLabel?
 				if title then
-					title.Text = "🌀 " .. UniverseService.upper(universe.name)
+					TextFit.set(title, "🌀 " .. UniverseService.upper(universe.name))
 					title.TextColor3 = universe.color:Lerp(Color3.new(1, 1, 1), 0.35)
 				end
 				if timer then
-					timer.Text = timeText
+					TextFit.set(timer, timeText)
 				end
 				if nextLabel then
-					nextLabel.Text = "Ensuite : " .. nextUniverse.name
+					TextFit.set(nextLabel, "Ensuite : " .. nextUniverse.name)
 				end
 			end
 		end
@@ -286,19 +266,19 @@ function UniverseService:_updateInfoBoard()
 	end
 	local universe = self:GetCurrent()
 	local nextUniverse = Universes.get(gameState:GetAttribute("NextUniverseId") or "") or universe
-	infoLabels.name.Text = universe.name
+	TextFit.set(infoLabels.name, universe.name)
 	infoLabels.name.TextColor3 = universe.color
-	infoLabels.inspiration.Text = "Inspiré de " .. universe.inspiration
-	infoLabels.timer.Text = "⏳ " .. Formulas.formatTime(self:GetEndsAt() - os.time())
-	infoLabels.nextName.Text = "Ensuite : " .. nextUniverse.name
+	TextFit.set(infoLabels.inspiration, "Inspiré de " .. universe.inspiration)
+	TextFit.set(infoLabels.timer, "⏳ " .. Formulas.formatTime(self:GetEndsAt() - os.time()))
+	TextFit.set(infoLabels.nextName, "Ensuite : " .. nextUniverse.name)
 	local bossAt = gameState:GetAttribute("BossAt")
 	if gameState:GetAttribute("BossAlive") then
-		infoLabels.boss.Text = "👹 Boss en cours dans l'arène !"
+		TextFit.set(infoLabels.boss, "👹 Boss en cours dans l'arène !")
 	elseif bossAt then
-		infoLabels.boss.Text = "👹 Boss dans " .. Formulas.formatTime(bossAt - os.time())
+		TextFit.set(infoLabels.boss, "👹 Boss dans " .. Formulas.formatTime(bossAt - os.time()))
 	end
 	local eventName = gameState:GetAttribute("EventName")
-	infoLabels.event.Text = eventName and ("✨ Événement : " .. eventName) or ""
+	TextFit.set(infoLabels.event, eventName and ("✨ Événement : " .. eventName) or "")
 end
 
 return UniverseService

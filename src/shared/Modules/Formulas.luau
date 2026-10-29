@@ -262,27 +262,22 @@ end
 -- sont recopiés à plat ; `stats.tree` contient le détail (voir Config/SkillTree.luau).
 function Formulas.upgradeStats(upgrades, skills: { [string]: boolean }?)
 	local stats: { [string]: any } = {
-		incubators = Economy.BaseIncubators,
 		team = Economy.BaseTeamSlots,
 		display = Economy.BaseDisplaySlots,
 		income = 1,
 		xp = 1,
 		combatCoins = 1,
-		hatchSpeed = 1,
 	}
 	for _, upgrade in Economy.Upgrades do
 		if upgrades and upgrades[upgrade.id] then
 			local effect = upgrade.effect
-			stats.incubators += effect.incubators or 0
 			stats.team += effect.team or 0
 			stats.display += effect.display or 0
 			stats.income += effect.income or 0
 			stats.xp += effect.xp or 0
 			stats.combatCoins += effect.combatCoins or 0
-			stats.hatchSpeed -= effect.hatchSpeed or 0
 		end
 	end
-	stats.hatchSpeed = math.max(stats.hatchSpeed, 0.3)
 
 	local tree = SkillTree.stats(skills)
 	stats.tree = tree

@@ -19,6 +19,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Layout = require(Shared.Config.Layout)
+local TextFit = require(Shared.Modules.TextFit)
 local Build = require(script.Parent.Parent.Modules.Build)
 local Kit = require(script.Parent.Parent.Modules.TycoonKit)
 
@@ -868,7 +869,7 @@ function BaseDecor.apply(plot, universe)
 	if current and current:GetAttribute("UniverseId") == universe.id then
 		plot.signLabels = signLabels(current)
 		for _, label in plot.signLabels do
-			label.Text = plot.signText or "BASE LIBRE"
+			TextFit.set(label, plot.signText or "BASE LIBRE")
 		end
 		return current
 	end
@@ -883,7 +884,7 @@ function BaseDecor.apply(plot, universe)
 	clone.Parent = model
 	plot.signLabels = signLabels(clone)
 	for _, label in plot.signLabels do
-		label.Text = plot.signText or "BASE LIBRE"
+		TextFit.set(label, plot.signText or "BASE LIBRE")
 	end
 	return clone
 end
@@ -909,7 +910,7 @@ end
 function BaseDecor.setSign(plot, text: string)
 	plot.signText = text
 	for _, label in plot.signLabels or {} do
-		label.Text = text
+		TextFit.set(label, text)
 	end
 end
 

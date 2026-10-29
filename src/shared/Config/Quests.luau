@@ -106,6 +106,10 @@ Quests.Punch = {
 		{ 1000, 7 },
 	},
 	MinInterval = 0.3, -- cadence maximale comptée (anti-triche) : un coup toutes les 0,3 s au plus
+	-- Frappe AUTOMATIQUE : près d'un sac libre, le perso le réserve et le frappe tout seul, un coup
+	-- par seconde (1000 coups ≈ 17 min sans rien toucher). Taper soi-même (épée, « Frapper ») va
+	-- plus vite, jusqu'à MinInterval.
+	AutoInterval = 1,
 	Reach = 7.5, -- distance max (studs) entre le joueur et le sac pour que le coup compte
 	ReleaseDistance = 18, -- le sac est libéré quand son joueur s'éloigne plus loin que ça...
 	ReleaseDelay = 4, -- ... pendant ce temps (secondes)

@@ -1,11 +1,11 @@
--- Plan de la base tycoon et constructions des 28 améliorations (Economy.Upgrades).
+-- Plan de la base tycoon et constructions des 25 améliorations (Economy.Upgrades).
 --
 -- Repère local d'une base : centre au sol, -Z = entrée (côté hub), +Z = fond.
 -- La base fait Layout.PlotSize (140) de côté ; la bande extérieure de 10 studs (|x| ou |z| > 60)
 -- est réservée au décor de l'univers (murs, portail : World/BaseDecor.luau).
 --
 --            (fond, +Z)
---   pagode  autels+marchand  autel d'éveil  sanctuaire   tour
+--   pagode     marchand     autel d'éveil  sanctuaire   tour
 --   dojo          [ gradins ]                            jardin
 --   mannequins   [ COUR DES UNITÉS : 24 cases hexagonales ] fontaine
 --   tatami                                                 ramen
@@ -54,7 +54,6 @@ local Spots = {
 	lectern = Vector3.new(38, 0, -52), -- pupitre qui ouvre l'écran de l'arbre
 	merchant = Vector3.new(-32, 0, 54), -- comptoir du marchand ambulant (ancienne machine à reliques)
 	altar = Vector3.new(0, 0, 46), -- autel d'éveil (évolutions)
-	pedestals = { Vector3.new(-44, 0, 44), Vector3.new(-37, 0, 44), Vector3.new(-30, 0, 44), Vector3.new(-23, 0, 44) },
 	-- Cour des unités : 6 colonnes x 4 rangées de cases hexagonales (24 cases du jeu gratuit),
 	-- plus une rangée d'honneur au fond : 2 cases réservées au passe Robux « +2 Cases ».
 	slotCols = { -26.25, -15.75, -5.25, 5.25, 15.75, 26.25 },
@@ -82,18 +81,6 @@ local function guardian(folder: Instance, cf: CFrame, s: number)
 	end
 end
 Structures.guardian = guardian
-
--- Aperçu d'un autel de relique (le vrai autel est construit par PlotService).
-local function pedestalPreview(ctx, slot: number)
-	if not ctx.ghost then
-		return
-	end
-	local p = Spots.pedestals[slot]
-	local base = ctx.at(p.X, 0, p.Z)
-	Build.part(ctx.folder, "Base", Vector3.new(5, 1.2, 5), base * CFrame.new(0, 0.6, 0), C.StoneMid)
-	Build.part(ctx.folder, "Colonne", Vector3.new(3.4, 2, 3.4), base * CFrame.new(0, 2.2, 0), C.StoneLight)
-	Build.part(ctx.folder, "Dessus", Vector3.new(4.4, 0.6, 4.4), base * CFrame.new(0, 3.5, 0), C.StoneMid)
-end
 
 local function teamBanners(ctx, side: number, color: Color3)
 	for i, dx in { 35, 38.5, 42 } do
@@ -380,13 +367,6 @@ S.equipe4 = {
 	end,
 }
 
-S.autel2 = {
-	pad = { -37, 37 },
-	build = function(ctx)
-		pedestalPreview(ctx, 2)
-	end,
-}
-
 -- Palier 2 -------------------------------------------------------------
 
 S.fontaine = {
@@ -444,13 +424,6 @@ S.portail = { -- « Gong de Guerre »
 		Build.part(ctx.folder, "Maillet", Vector3.new(0.3, 3.4, 0.3), cf * CFrame.new(4.4, 2, -1) * CFrame.Angles(0, 0, 0.4), C.WoodLight, { Material = Enum.Material.Wood })
 		Kit.blob(ctx.folder, "TeteMaillet", Vector3.new(1.1, 1.1, 1.1), cf * CFrame.new(5.1, 3.6, -1), rgb(240, 236, 226), { Material = Enum.Material.Fabric })
 		local _ = gong
-	end,
-}
-
-S.autel3 = {
-	pad = { -30, 37 },
-	build = function(ctx)
-		pedestalPreview(ctx, 3)
 	end,
 }
 
@@ -701,13 +674,6 @@ S.tour = { -- « Tours de Guet » (yagura dans l'angle du fond)
 }
 
 -- Palier 3 -------------------------------------------------------------
-
-S.autel4 = {
-	pad = { -23, 37 },
-	build = function(ctx)
-		pedestalPreview(ctx, 4)
-	end,
-}
 
 S.equipe5 = {
 	pad = { 27, -18 },

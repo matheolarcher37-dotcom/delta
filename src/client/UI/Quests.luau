@@ -991,7 +991,7 @@ local function punchPanel(parent: Instance, data, order: number)
 		Parent = panel,
 	})
 	Theme.label({
-		Text = "Tape avec ton épée : " .. QuestsConfig.Punch.Goal .. " coups = " .. QuestsConfig.punchCycleGems() .. " relances de trait. Les sacs ne t'attaquent jamais !",
+		Text = "Va près d'un sac libre : ton perso le frappe tout seul. " .. QuestsConfig.Punch.Goal .. " coups = " .. QuestsConfig.punchCycleGems() .. " gemmes de trait. Les sacs ne t'attaquent jamais !",
 		Size = UDim2.new(1, -330, 0, 40),
 		Position = UDim2.fromOffset(104, 44),
 		FontFace = Theme.Faces.Bold,
@@ -1451,7 +1451,8 @@ Quests.trackerCard = trackerCard
 
 local afk: { [string]: any } = {}
 Quests.AfkPanelTop = 138 -- sous les pastilles du HUD (y 98 → 130)
-Quests.AfkPanelHeight = 80
+Quests.AfkPanelHeight = 64
+Quests.AfkPanelWidth = 420
 
 -- Pastille « auto-roulage en cours » (RollPanel) affichée ? Le panneau descend alors dessous
 -- pour ne jamais cacher son bouton « Arrêter ».
@@ -1487,7 +1488,7 @@ local function buildAfkPanel(root: Frame)
 		AnchorPoint = Vector2.new(0.5, 0),
 		-- Sous la rangée des pastilles du HUD (Marchand, Boss... : y 98 → 130), jamais dessus.
 		Position = UDim2.new(0.5, 0, 0, Quests.AfkPanelTop),
-		Size = UDim2.fromOffset(520, Quests.AfkPanelHeight),
+		Size = UDim2.fromOffset(Quests.AfkPanelWidth, Quests.AfkPanelHeight),
 		BackgroundColor3 = WHITE,
 		Visible = false,
 		Parent = root,
@@ -1500,20 +1501,20 @@ local function buildAfkPanel(root: Frame)
 	local edge = new("Frame", { Size = UDim2.new(1, -6, 1, -6), Position = UDim2.fromOffset(3, 3), BackgroundTransparency = 1, Parent = panel })
 	Theme.corner(12).Parent = edge
 	Theme.stroke(GEM, 1.5, 0.4).Parent = edge
-	iconTile(panel, "punchbag", GEM, 54, { Position = UDim2.fromOffset(10, 13) })
+	iconTile(panel, "punchbag", GEM, 44, { Position = UDim2.fromOffset(8, 10) })
 	afk.title = Theme.label({
 		Text = "ZONE ANTI-AFK",
-		Size = UDim2.new(1, -250, 0, 24),
-		Position = UDim2.fromOffset(74, 5),
+		Size = UDim2.new(1, -220, 0, 20),
+		Position = UDim2.fromOffset(60, 4),
 		FontFace = Theme.Faces.Title,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		StrokeThickness = 2.5,
 		Parent = panel,
 	})
 	afk.status = Theme.label({
-		Text = "Prends un punching-ball libre et tape-le avec ton épée !",
-		Size = UDim2.new(1, -88, 0, 16),
-		Position = UDim2.fromOffset(74, 27),
+		Text = "Approche-toi d'un sac libre : il est frappé tout seul !",
+		Size = UDim2.new(1, -70, 0, 13),
+		Position = UDim2.fromOffset(60, 22),
 		FontFace = Theme.Faces.Bold,
 		TextColor3 = Color3.fromRGB(170, 230, 255),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -1523,15 +1524,15 @@ local function buildAfkPanel(root: Frame)
 	afk.count = Theme.label({
 		Text = "0 / 1000",
 		AnchorPoint = Vector2.new(1, 0),
-		Size = UDim2.fromOffset(140, 26),
-		Position = UDim2.new(1, -12, 0, 4),
+		Size = UDim2.fromOffset(120, 21),
+		Position = UDim2.new(1, -10, 0, 3),
 		FontFace = Theme.Faces.Title,
 		TextColor3 = WHITE,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		StrokeThickness = 2.5,
 		Parent = panel,
 	})
-	local track = new("Frame", { Name = "Track", Size = UDim2.new(1, -150, 0, 12), Position = UDim2.fromOffset(78, 57), BackgroundTransparency = 1, Parent = panel })
+	local track = new("Frame", { Name = "Track", Size = UDim2.new(1, -136, 0, 10), Position = UDim2.fromOffset(62, 47), BackgroundTransparency = 1, Parent = panel })
 	afk.bar = Components.progressBar(track, GEM, { Size = UDim2.fromScale(1, 1) })
 	afk.marks = {}
 	for i, tier in QuestsConfig.Punch.Tiers do
@@ -1539,7 +1540,7 @@ local function buildAfkPanel(root: Frame)
 		local mark = new("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(x, 0, 0.5, 0),
-			Size = UDim2.fromOffset(14, 14),
+			Size = UDim2.fromOffset(12, 12),
 			BackgroundColor3 = Color3.fromRGB(40, 44, 60),
 			Rotation = 45,
 			ZIndex = 4,
@@ -1551,8 +1552,8 @@ local function buildAfkPanel(root: Frame)
 		local label = Theme.label({
 			Text = "+" .. tier[2],
 			AnchorPoint = Vector2.new(0.5, 1),
-			Position = UDim2.new(x, 0, 0, -3),
-			Size = UDim2.fromOffset(30, 11),
+			Position = UDim2.new(x, 0, 0, -2),
+			Size = UDim2.fromOffset(26, 10),
 			FontFace = Theme.Faces.Heavy,
 			TextColor3 = Color3.fromRGB(150, 236, 255),
 			StrokeThickness = 1.5,
@@ -1566,15 +1567,15 @@ local function buildAfkPanel(root: Frame)
 		Name = "CycleGems",
 		Text = "= " .. QuestsConfig.punchCycleGems() .. " gemmes",
 		AnchorPoint = Vector2.new(1, 0.5),
-		Size = UDim2.fromOffset(60, 16),
-		Position = UDim2.new(1, -10, 0, 63),
+		Size = UDim2.fromOffset(58, 14),
+		Position = UDim2.new(1, -8, 0, 52),
 		FontFace = Theme.Faces.Heavy,
 		TextColor3 = C.Gold,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		StrokeThickness = 1.5,
 		Parent = panel,
 	})
-	afk.hint = Console.hint(panel, "X", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -156, 0, 5) })
+	afk.hint = Console.hint(panel, "X", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -136, 0, 3) })
 end
 
 local function updateAfkPanel()
@@ -1630,9 +1631,9 @@ local function updateAfkPanel()
 	end
 	local nextTier = QuestsConfig.nextPunchTier(count)
 	if mine then
-		afk.status.Text = "Sac n°" .. tostring(mine) .. " : continue !" .. (nextTier and ("  Prochain : " .. nextTier[1] .. " coups → +" .. nextTier[2] .. " gemmes") or "")
+		afk.status.Text = "Sac n°" .. tostring(mine) .. " : frappe auto" .. (nextTier and ("  ·  Prochain : " .. nextTier[1] .. " → +" .. nextTier[2] .. " gemmes") or "")
 	else
-		afk.status.Text = "Prends un punching-ball libre et tape-le avec ton épée !"
+		afk.status.Text = "Approche-toi d'un sac libre : il est frappé tout seul !"
 	end
 end
 

@@ -149,6 +149,7 @@ safeInit("AuraController", AuraController.init)
 safeInit("NameTags", NameTags.init)
 safeInit("WorldInteraction", WorldInteraction.init)
 safeInit("CoinConveyor", CoinConveyor.init)
+safeInit("WorldText", require(Controllers.WorldText).init)
 -- cinématiques des traits très rares (Monarque, Céleste, Midas, Vampire), vues seulement par ce joueur
 safeInit("TraitCinematic", TraitCinematic.init)
 

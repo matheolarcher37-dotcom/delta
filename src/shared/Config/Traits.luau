@@ -1,6 +1,6 @@
 -- Traits : bonus passifs aléatoires sur chaque perso (comme dans les jeux d'animé récents).
--- Un perso peut recevoir un trait à l'ouverture d'une relique, puis le relancer
--- à l'Autel des Traits (au centre de la carte) avec des Cristaux de Trait.
+-- Un perso peut recevoir un trait quand il est tiré à la machine ROULER, puis le relancer
+-- à l'Autel des Traits (au centre de la carte) avec des gemmes de trait.
 
 export type Trait = {
 	id: string,
@@ -112,7 +112,7 @@ function Traits.cinematicOf(id: string?): string?
 	return visual and visual.cinematic or nil
 end
 
--- Chance d'obtenir un trait directement en ouvrant une relique.
+-- Base de la chance d'obtenir un trait dès le tirage (la machine ROULER en applique 40 %).
 Traits.HatchChance = 0.35
 
 function Traits.get(id: string?): Trait?

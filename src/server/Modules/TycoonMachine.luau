@@ -9,7 +9,10 @@
 -- La logique (tirage, prix, collecte) est dans Services/RollService.luau.
 
 local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+
+local TextFit = require(ReplicatedStorage:WaitForChild("Shared").Modules.TextFit)
 
 local Build = require(script.Parent.Build)
 local Kit = require(script.Parent.TycoonKit)
@@ -448,7 +451,7 @@ function Machine.setPity(refs, remaining: any, threshold: number?)
 	end
 	local total = threshold or 1000
 	if refs.x10Text then
-		refs.x10Text.Text = n <= 1 and "MYTHIQUE GARANTI AU PROCHAIN !" or ("Mythique garanti dans : " .. n)
+		TextFit.set(refs.x10Text, n <= 1 and "MYTHIQUE GARANTI AU PROCHAIN !" or ("Mythique garanti dans : " .. n))
 		refs.x10Text.TextColor3 = n <= 1 and rgb(255, 120, 150) or Color3.new(1, 1, 1)
 	end
 	if refs.x10Fill then
@@ -464,16 +467,16 @@ function Machine.setOdds(refs, odds: { [string]: number }, luck: number?)
 		if label and p then
 			local percent = p * 100
 			if percent >= 10 then
-				label.Text = string.format("%d %%", math.floor(percent + 0.5))
+				TextFit.set(label, string.format("%d %%", math.floor(percent + 0.5)))
 			elseif percent >= 1 then
-				label.Text = (string.format("%.1f %%", percent):gsub("%.", ","))
+				TextFit.set(label, (string.format("%.1f %%", percent):gsub("%.", ",")))
 			else
-				label.Text = (string.format("%.2f %%", percent):gsub("%.", ","))
+				TextFit.set(label, (string.format("%.2f %%", percent):gsub("%.", ",")))
 			end
 		end
 	end
 	if refs.luckLabel and luck then
-		refs.luckLabel.Text = (string.format("Chance x%.2f", luck):gsub("%.", ",", 1):gsub(",00$", ""))
+		TextFit.set(refs.luckLabel, (string.format("Chance x%.2f", luck):gsub("%.", ",", 1):gsub(",00$", "")))
 	end
 end
 

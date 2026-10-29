@@ -18,6 +18,7 @@ local RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Robux = require(Shared.Config.Robux)
 local Formulas = require(Shared.Modules.Formulas)
+local TextFit = require(Shared.Modules.TextFit)
 local Remotes = require(Shared.Modules.Remotes)
 
 local MonetizationService = {}
@@ -289,6 +290,7 @@ function MonetizationService:_vipTag(character: Model)
 	label.TextStrokeColor3 = Color3.fromRGB(70, 30, 0)
 	label.TextStrokeTransparency = 0
 	label.Parent = gui
+	TextFit.fit(label)
 	local gradient = Instance.new("UIGradient")
 	gradient.Color = ColorSequence.new(Color3.fromRGB(255, 250, 200), Color3.fromRGB(255, 170, 30))
 	gradient.Rotation = 90

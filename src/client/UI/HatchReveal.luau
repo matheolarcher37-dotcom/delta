@@ -1,4 +1,5 @@
--- Choix de la relique à poser sur un autel + animation de révélation du perso obtenu.
+-- Animation de révélation d'un perso obtenu (roulage automatique de la machine ROULER, fusion
+-- crossover) : rayons, flash, le perso apparaît avec son nom, sa rareté et son trait.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -9,7 +10,6 @@ local Rarities = require(Shared.Config.Rarities)
 local Auras = require(Shared.Config.Auras)
 local Traits = require(Shared.Config.Traits)
 local Universes = require(Shared.Config.Universes)
-local Economy = require(Shared.Config.Economy)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 
@@ -17,17 +17,12 @@ local Theme = require(script.Parent.Theme)
 local Components = require(script.Parent.Components)
 local Console = require(script.Parent.Console)
 local Menus = require(script.Parent.Menus)
-local Notifications = require(script.Parent.Notifications)
-local State = require(script.Parent.Parent.State)
 
 local HatchReveal = {}
 
 local C = Theme.Colors
 local new = Theme.new
 
-local pickerWindow
-local pickerSlot = 1
-local pickerList: Frame
 local overlay: Frame
 local revealQueue = {}
 local revealing = false
@@ -36,55 +31,6 @@ local revealSound = Instance.new("Sound")
 revealSound.SoundId = "rbxasset://sounds/glassbreak.wav"
 revealSound.Volume = 0.5
 revealSound.Parent = SoundService
-
-------------------------------------------------------------------------
--- Choix de relique
-------------------------------------------------------------------------
-
-local TIER_COLORS = { Color3.fromRGB(64, 160, 255), Color3.fromRGB(176, 92, 255), Color3.fromRGB(255, 190, 40) }
-local firstPickerCard: GuiObject? = nil
-
-local function renderPicker()
-	Components.clear(pickerList)
-	firstPickerCard = nil
-	local data = State.data
-	if not data then
-		return
-	end
-	local order = 0
-	local stats = State.stats()
-	for _, universe in Universes.List do
-		for _, relic in universe.relics do
-			local owned = data.relics[relic.id] or 0
-			if owned > 0 then
-				order += 1
-				local hatch = math.max(3, math.floor(Economy.RelicTiers[relic.tier].hatchTime * stats.hatchSpeed))
-				local card, preview = Components.itemCard(pickerList, {
-					title = relic.name,
-					subtitle = "Ouverture " .. hatch .. " s",
-					color = TIER_COLORS[relic.tier] or universe.color,
-					badge = "× " .. owned,
-					size = UDim2.fromOffset(150, 190),
-					layoutOrder = order,
-					onClick = function()
-						local ok, success = pcall(function()
-							return Remotes.func("PlaceRelic"):InvokeServer(pickerSlot, relic.id)
-						end)
-						if ok and success then
-							Notifications.toast(relic.name .. " posée sur l'autel #" .. pickerSlot .. " !", "success")
-							Menus.close("PlaceRelic")
-						end
-					end,
-				})
-				Components.relicViewport(preview, relic, true)
-				firstPickerCard = firstPickerCard or card
-			end
-		end
-	end
-	if order == 0 then
-		Components.emptyState(pickerList, "Tu n'as aucune relique ! Le boss en laisse parfois en butin.", "gift")
-	end
-end
 
 ------------------------------------------------------------------------
 -- Révélation
@@ -149,7 +95,7 @@ local function playReveal(info)
 		rays.Rotation += dt * 25
 	end)
 
-	-- 1) La relique tremble.
+	-- 1) Petite attente, puis flash !
 	local holder = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
@@ -158,21 +104,7 @@ local function playReveal(info)
 		ZIndex = 32,
 		Parent = stage,
 	})
-	local relic = info.relicId and Universes.getRelic(info.relicId)
-	if relic then
-		local viewport = Components.relicViewport(holder, relic, false)
-		viewport.ZIndex = 32
-		for i = 1, 14 do
-			holder.Rotation = (i % 2 == 0 and 1 or -1) * (4 + i)
-			holder.Size = UDim2.fromScale(0.8 + i * 0.012, 0.8 + i * 0.012)
-			task.wait(0.06)
-		end
-		holder.Rotation = 0
-	else
-		task.wait(0.4)
-	end
-
-	-- 2) Flash !
+	task.wait(0.4)
 	local flash = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1), ZIndex = 40, Parent = overlay })
 	Theme.tween(flash, 0.6, { BackgroundTransparency = 1 })
 	task.delay(0.6, function()
@@ -182,7 +114,7 @@ local function playReveal(info)
 	Components.clear(holder)
 	rays.Visible = true
 
-	-- 3) Le perso apparaît.
+	-- 2) Le perso apparaît.
 	local viewport = Components.characterViewport(holder, desc.look, true, entry)
 	viewport.ZIndex = 32
 	local popScale = new("UIScale", { Scale = 0.2, Parent = holder })
@@ -258,18 +190,6 @@ local function playReveal(info)
 end
 
 function HatchReveal.init(gui: ScreenGui)
-	pickerWindow = Components.window(gui, "RELIQUES", C.Purple, UDim2.fromOffset(900, 520), {
-		icon = "gift",
-	})
-	pickerList = Components.cardGrid(pickerWindow.content, Vector2.new(150, 190), { Size = UDim2.fromScale(1, 1) }, 12)
-	Components.registerWindow(Menus, "PlaceRelic", pickerWindow, function(slot)
-		pickerSlot = tonumber(slot) or 1
-		pickerWindow.title.Text = "RELIQUE POUR L'AUTEL #" .. pickerSlot
-		renderPicker()
-	end, function()
-		return firstPickerCard or pickerWindow.firstSelectable()
-	end)
-
 	-- Calque de révélation (coordonnées logiques 1280 x 720, comme le reste de l'interface).
 	overlay = Theme.scaledRoot(gui, "RevealOverlay", 30)
 	overlay.BackgroundColor3 = Color3.fromRGB(10, 8, 20)

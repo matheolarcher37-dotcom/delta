@@ -1,4 +1,4 @@
--- Interactions avec le monde : objets qui tournent/flottent, minuteurs des autels,
+-- Interactions avec le monde : objets qui tournent/flottent,
 -- boutons d'amélioration colorés selon tes pièces, clic sur un ennemi pour le cibler.
 
 local CollectionService = game:GetService("CollectionService")
@@ -9,7 +9,6 @@ local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 
 local State = require(script.Parent.Parent.State)
@@ -137,43 +136,10 @@ function WorldInteraction.init()
 		end
 	end)
 
-	-- Textes des autels + couleur des boutons d'amélioration.
+	-- Couleur des boutons d'amélioration.
 	task.spawn(function()
 		while true do
 			task.wait(0.25)
-			local now = State.now()
-			for _, pedestal in CollectionService:GetTagged("Pedestal") do
-				local top = pedestal:FindFirstChild("Top")
-				local gui = top and top:FindFirstChild("Timer")
-				local label = gui and gui:FindFirstChild("Text") :: TextLabel?
-				local glow = pedestal:FindFirstChild("Glow") :: BasePart?
-				if label then
-					local readyAt = pedestal:GetAttribute("ReadyAt")
-					if readyAt then
-						local remaining = readyAt - now
-						if remaining > 0 then
-							label.Text = (pedestal:GetAttribute("RelicName") or "Relique") .. "\n⏳ " .. Formulas.formatTime(remaining)
-							label.TextColor3 = Color3.new(1, 1, 1)
-						else
-							label.Text = "✨ PRÊT ! ✨\nAppuie sur E"
-							label.TextColor3 = Color3.fromHSV((os.clock() * 0.5) % 1, 0.5, 1)
-						end
-						if glow then
-							glow.Color = remaining > 0 and Color3.fromRGB(255, 200, 80) or Color3.fromRGB(120, 255, 140)
-						end
-					else
-						local plot = pedestal:FindFirstAncestorWhichIsA("Model")
-						while plot and not plot:GetAttribute("PlotIndex") do
-							plot = plot.Parent and plot.Parent:FindFirstAncestorWhichIsA("Model") or nil
-						end
-						local mine = plot and plot:GetAttribute("OwnerId") == player.UserId
-						label.Text = mine and "Autel libre\nPose une relique" or ""
-						if glow then
-							glow.Color = Color3.fromRGB(120, 220, 255)
-						end
-					end
-				end
-			end
 			local coins = State.data and State.data.coins or 0
 			for _, pad in CollectionService:GetTagged("UpgradePad") do
 				local part = pad:FindFirstChild("Pad") :: BasePart?

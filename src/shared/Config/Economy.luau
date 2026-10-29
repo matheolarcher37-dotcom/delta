@@ -6,7 +6,7 @@ local Rarities = require(script.Parent.Rarities)
 
 -- Durée d'un univers (en secondes). 30 minutes comme dans le doc de conception.
 Economy.UniverseDuration = 30 * 60
--- Intervalle de réapprovisionnement de la Machine à Reliques.
+-- Intervalle de réapprovisionnement du marchand ambulant.
 Economy.ShopRestock = 5 * 60
 -- Un boss apparaît toutes les X secondes dans la zone d'univers.
 Economy.BossInterval = 8 * 60
@@ -21,14 +21,6 @@ Economy.StartingTraitCrystals = 2
 Economy.TraitCrystalPrice = 25000
 Economy.TraitCrystalBossDrop = { 1, 2 }
 Economy.TraitCrystalTier3Chance = 0.04
-Economy.StartingRelics = { ninja_r1 = 1 } -- relique offerte au premier lancement
-
--- Reliques par palier : prix, stock par réapprovisionnement, temps d'ouverture.
-Economy.RelicTiers = {
-	[1] = { price = 150, stock = 8, hatchTime = 12 },
-	[2] = { price = 2500, stock = 3, hatchTime = 60 },
-	[3] = { price = 40000, stock = 1, hatchTime = 180, appearChance = 0.6 },
-}
 
 -- Niveaux : plafond par nombre d'étoiles (évolutions).
 Economy.MaxStars = 3
@@ -63,7 +55,6 @@ Economy.Fusion = {
 Economy.BaseTeamSlots = 3
 Economy.BaseDisplaySlots = 6 -- emplacements d'unités au départ (cases hexagonales de la base)
 Economy.MaxDisplaySlots = 24 -- cases du jeu gratuit (améliorations + arbre) ; le passe « +2 Cases » en ajoute 2 (26 construites)
-Economy.BaseIncubators = 1
 Economy.MaxCharacters = 150
 
 -- Entraînement passif (XP/s) des persos exposés sur la base.
@@ -174,7 +165,7 @@ Economy.EnemyTiers = {
 	[2] = { hp = 320, damage = 13, coins = 70, xp = 40, materialChance = 0.15, level = 18, scale = 1.15, count = 10 },
 	[3] = { hp = 1800, damage = 38, coins = 300, xp = 150, materialChance = 0.4, level = 45, scale = 1.45, count = 6 },
 }
-Economy.Boss = { hp = 80000, damage = 140, coins = 6000, xp = 2500, materials = { 4, 9 }, relicChance = 0.12, level = 99, scale = 4.2 }
+Economy.Boss = { hp = 80000, damage = 140, coins = 6000, xp = 2500, materials = { 4, 9 }, level = 99, scale = 4.2 }
 Economy.EnemyRespawn = 6
 
 -- Combat
@@ -226,12 +217,12 @@ Economy.EventOrder = { "orage", "pluie_or", "eclipse", "lune_sang" }
 --   requires = id de l'amélioration qui doit être achetée avant (le bouton apparaît alors)
 --   tier     = palier (1 = débuts, 2 = milieu de partie, 3 = fin de partie)
 --   icon     = emoji affiché sur le panneau du bouton
--- Les ids des anciennes versions sont gardés (les sauvegardes restent valables).
+-- Les ids des anciennes versions sont gardés (les sauvegardes restent valables) ; les autels de
+-- reliques (autel2 à autel4), retirés en v3.3, sont remboursés au chargement (DataService).
 Economy.Upgrades = {
 	-- Palier 1 : premiers boutons
 	{ id = "distributeur", tier = 1, icon = "🪙", name = "Distributeur de Pièces", price = 400, effect = { income = 0.1 } },
 	{ id = "lanternes", tier = 1, icon = "🏮", name = "Lanternes de Pierre", price = 600, effect = { income = 0.1 } },
-	{ id = "autel2", tier = 1, icon = "🔮", name = "Autel de Relique #2", price = 1500, effect = { incubators = 1 } },
 	{ id = "dallage", tier = 1, icon = "🧱", name = "Cour des Unités", price = 2000, effect = { display = 2 } },
 	{ id = "tatami", tier = 1, icon = "🥋", name = "Tatami d'Entraînement", price = 3000, effect = { xp = 0.5 }, requires = "lanternes" },
 	{ id = "mannequins", tier = 1, icon = "🎯", name = "Mannequins de Paille", price = 5000, effect = { xp = 0.25 }, requires = "tatami" },
@@ -244,20 +235,18 @@ Economy.Upgrades = {
 	-- Palier 2 : milieu de partie
 	{ id = "fontaine", tier = 2, icon = "⛲", name = "Fontaine de Chakra", price = 35000, effect = { income = 0.25 }, requires = "ramen" },
 	{ id = "portail", tier = 2, icon = "🥁", name = "Gong de Guerre", price = 40000, effect = { combatCoins = 0.15 }, requires = "aimant" },
-	{ id = "autel3", tier = 2, icon = "🔮", name = "Autel de Relique #3", price = 50000, effect = { incubators = 1 }, requires = "autel2" },
 	{ id = "torii", tier = 2, icon = "🏯", name = "Pagode à Trois Toits", price = 60000, effect = { xp = 0.5 }, requires = "fontaine" },
-	{ id = "horloge", tier = 2, icon = "🕰️", name = "Horloge Mystique", price = 80000, effect = { hatchSpeed = 0.25 }, requires = "autel2" },
+	{ id = "horloge", tier = 2, icon = "🕰️", name = "Horloge Mystique", price = 80000, effect = { income = 0.25 }, requires = "ramen" },
 	{ id = "jardin", tier = 2, icon = "🌸", name = "Jardin des Cerisiers", price = 100000, effect = { income = 0.3 }, requires = "fontaine" },
 	{ id = "dojo", tier = 2, icon = "🥋", name = "Dojo Légendaire", price = 150000, effect = { xp = 1 }, requires = "mannequins" },
 	{ id = "arene2", tier = 2, icon = "🏟️", name = "Gradins de la Cour", price = 220000, effect = { display = 6 }, requires = "arene1" },
 	{ id = "coffre", tier = 2, icon = "🎁", name = "Coffre du Shogun", price = 300000, effect = { combatCoins = 0.5 }, requires = "aimant" },
 	{ id = "tour", tier = 2, icon = "🗼", name = "Tours de Guet", price = 350000, effect = { combatCoins = 0.25 }, requires = "portail" },
 	-- Palier 3 : fin de partie
-	{ id = "autel4", tier = 3, icon = "🔮", name = "Autel de Relique #4", price = 450000, effect = { incubators = 1 }, requires = "autel3" },
 	{ id = "equipe5", tier = 3, icon = "🚩", name = "Bannière d'Équipe #5", price = 600000, effect = { team = 1 }, requires = "equipe4" },
 	{ id = "distributeur3", tier = 3, icon = "💎", name = "Distributeur de Cristal", price = 800000, effect = { income = 0.6 }, requires = "distributeur2" },
 	{ id = "statue", tier = 3, icon = "🗿", name = "Statue Dorée", price = 900000, effect = { income = 0.5 }, requires = "dojo" },
-	{ id = "sablier", tier = 3, icon = "⏳", name = "Sablier Divin", price = 1500000, effect = { hatchSpeed = 0.25 }, requires = "horloge" },
+	{ id = "sablier", tier = 3, icon = "⏳", name = "Sablier Divin", price = 1500000, effect = { income = 0.5 }, requires = "horloge" },
 	{ id = "sanctuaire", tier = 3, icon = "⛩️", name = "Sanctuaire Céleste", price = 3000000, effect = { income = 1, xp = 1 }, requires = "jardin" },
 }
 

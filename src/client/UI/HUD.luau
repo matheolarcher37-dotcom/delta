@@ -507,34 +507,12 @@ local function objectiveText(data): string
 	for _ in data.characters do
 		characterCount += 1
 	end
-	local relicCount = 0
-	for _, count in data.relics do
-		relicCount += count
-	end
-	local incubating, ready = false, false
-	for _, inc in data.incubators do
-		incubating = true
-		if State.now() >= inc.start + inc.duration then
-			ready = true
-		end
-	end
-	if ready then
-		return "Ta relique est prête ! Ouvre-la sur l'autel de ta base"
-	end
 	local queue = data.RolledQueue
 	if type(queue) == "table" and #queue > 0 then
 		return "Ton perso tiré t'attend sur l'estrade : collecte-le, ou roule encore pour le laisser passer !"
 	end
 	if characterCount == 0 then
-		if State.remoteFunction("Roll") then
-			return "Fais tourner la machine ROULER de ta base pour obtenir ton premier perso !"
-		elseif incubating then
-			return "Ta relique s'ouvre bientôt..."
-		elseif relicCount > 0 then
-			return "Pose ta relique sur l'autel de ta base (appuie sur E)"
-		else
-			return "Fais tourner la machine ROULER de ta base"
-		end
+		return "Fais tourner la machine ROULER de ta base pour obtenir ton premier perso !"
 	end
 	if data.stats.kills == 0 then
 		return "Va combattre dans la Zone d'Univers au centre de la carte"

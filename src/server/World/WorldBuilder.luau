@@ -1031,7 +1031,7 @@ local function buildHub(world: Folder)
 	end
 	buildGem(center, base + Vector3.new(0, 20, 0))
 	local crystal = center:FindFirstChild("Crystal", true) :: BasePart
-	local gui = Build.billboard(crystal, UDim2.fromOffset(360, 120), Vector3.new(0, 11, 0), 220)
+	local gui = Build.billboard(crystal, UDim2.fromOffset(420, 120), Vector3.new(0, 11, 0), 220)
 	gui.Name = "UniverseBillboard"
 	local title = Build.label(gui, "", UDim2.fromScale(1, 0.55), UDim2.fromScale(0, 0), rgb(255, 255, 255))
 	title.Name = "Title"

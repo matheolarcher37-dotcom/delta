@@ -18,6 +18,7 @@ local Rarities = require(Shared.Config.Rarities)
 local Mutations = require(Shared.Config.Mutations)
 local Universes = require(Shared.Config.Universes)
 local Formulas = require(Shared.Modules.Formulas)
+local TextFit = require(Shared.Modules.TextFit)
 local Remotes = require(Shared.Modules.Remotes)
 local Robux = require(Shared.Config.Robux)
 local Modules = script.Parent.Parent.Modules
@@ -42,7 +43,6 @@ local plots = {}
 local playerPlots: { [Player]: any } = {}
 
 PlotService.Spots = Spots
-PlotService.PedestalSlots = Spots.pedestals
 PlotService.SpawnOffset = Spots.spawn
 PlotService.MachineOffset = Spots.machine -- centre de l'estrade ROULER (repère de la base)
 PlotService.StashOffset = Spots.chest + Vector3.new(0, 0, -5.5)
@@ -113,15 +113,11 @@ local function buildPlot(index: number, parent: Instance)
 	plot.stashPad = pad
 	plot.stashLabel = label
 	plot.stashRate = stash:FindFirstChild("Rate", true)
-	local _3, relicCF = Props.relicMerchant(interactive, localCF(plot, Spots.merchant))
-	plot.relicDisplayCF = relicCF
+	Props.relicMerchant(interactive, localCF(plot, Spots.merchant))
 	Props.altar(interactive, localCF(plot, Spots.altar))
 	local _4, skillRefs = Props.skillTree(interactive, localCF(plot, Spots.skillTree), localCF(plot, Spots.lectern))
 	plot.skillRefs = skillRefs
 	buildSlots(plot, interactive)
-	plot.pedestalFolder = Build.folder(interactive, "Pedestals")
-	plot.pedestals = {}
-	plot.pedestals[1] = Props.pedestal(plot.pedestalFolder, localCF(plot, PlotService.PedestalSlots[1]), 1, index)
 
 	-- Contenu propre au propriétaire (améliorations, persos exposés, persos tirés).
 	plot.ownerFolder = Build.folder(model, "Owner")
@@ -162,7 +158,12 @@ local function bindPlot(index: number, model: Model)
 	end
 	plot.stashLabel = stash:FindFirstChild("Amount", true)
 	plot.stashRate = stash:FindFirstChild("Rate", true)
-	plot.relicDisplayCF = localCF(plot, Spots.merchant) * CFrame.new(0, 7.2, -1.8)
+	-- Comptoir du marchand d'avant la v3.3 (vitrine de verre avec la relique) : refait sans.
+	local counter = interactive:FindFirstChild("RelicMachine")
+	if counter and counter:FindFirstChild("Dome") then
+		counter:Destroy()
+		Props.relicMerchant(interactive, localCF(plot, Spots.merchant))
+	end
 	local machineModel = interactive:FindFirstChild("RollMachine") :: Model?
 	if machineModel and machineModel:FindFirstChild("Podium") then
 		plot.machine = Machine.bind(machineModel, localCF(plot, Spots.machine))
@@ -189,15 +190,10 @@ local function bindPlot(index: number, model: Model)
 		end
 		buildSlots(plot, interactive)
 	end
-	plot.pedestalFolder = interactive:FindFirstChild("Pedestals")
-	plot.pedestals = {}
-	for _, pedestal in plot.pedestalFolder:GetChildren() do
-		local slot = pedestal:GetAttribute("Slot")
-		if slot == 1 then
-			plot.pedestals[1] = pedestal
-		else
-			pedestal:Destroy() -- aperçu des améliorations (fichier Studio)
-		end
+	-- Autels de reliques d'avant la v3.3 (fichier pré-construit plus ancien) : retirés.
+	local oldPedestals = interactive:FindFirstChild("Pedestals")
+	if oldPedestals then
+		oldPedestals:Destroy()
 	end
 	plot.ownerFolder = model:FindFirstChild("Owner") or Build.folder(model, "Owner")
 	plot.displayFolder = model:FindFirstChild("Display") or Build.folder(model, "Display")
@@ -373,27 +369,27 @@ function PlotService:_updateDisplays(plot)
 	local DataService = self.services.DataService
 	local data = plot.owner and DataService:Get(plot.owner)
 	if not data then
-		plot.stashLabel.Text = ""
+		TextFit.set(plot.stashLabel, "")
 		if plot.stashRate then
-			plot.stashRate.Text = ""
+			TextFit.set(plot.stashRate, "")
 		end
 		if plot.boardLabels and plot.boardLabels.coffre then
-			plot.boardLabels.coffre.Text = "BASE LIBRE"
-			plot.boardLabels.revenu.Text = ""
-			plot.boardLabels.pieces.Text = ""
+			TextFit.set(plot.boardLabels.coffre, "BASE LIBRE")
+			TextFit.set(plot.boardLabels.revenu, "")
+			TextFit.set(plot.boardLabels.pieces, "")
 		end
 		return
 	end
 	local rate = (type(plot.owner) ~= "table" and plot.owner:GetAttribute("IncomePerSec")) or 0
-	plot.stashLabel.Text = "¥ " .. Formulas.formatNumber(data.stash)
+	TextFit.set(plot.stashLabel, "¥ " .. Formulas.formatNumber(data.stash))
 	if plot.stashRate then
-		plot.stashRate.Text = "+ ¥ " .. Formulas.formatNumber(rate) .. " / s"
+		TextFit.set(plot.stashRate, "+ ¥ " .. Formulas.formatNumber(rate) .. " / s")
 	end
 	local labels = plot.boardLabels
 	if labels and labels.coffre then
-		labels.coffre.Text = "Coffre : ¥ " .. Formulas.formatNumber(data.stash)
-		labels.revenu.Text = "+ ¥ " .. Formulas.formatNumber(rate) .. " / seconde"
-		labels.pieces.Text = "Tes pièces : ¥ " .. Formulas.formatNumber(data.coins)
+		TextFit.set(labels.coffre, "Coffre : ¥ " .. Formulas.formatNumber(data.stash))
+		TextFit.set(labels.revenu, "+ ¥ " .. Formulas.formatNumber(rate) .. " / seconde")
+		TextFit.set(labels.pieces, "Tes pièces : ¥ " .. Formulas.formatNumber(data.coins))
 	end
 	for _, info in plot.pads or {} do
 		local affordable = data.coins >= info.price
@@ -462,21 +458,6 @@ function PlotService:_release(player: Player)
 	plot.coinPaths = nil
 	plot.coinFolder = nil
 	plot.builtKey = nil
-	for slot = 2, #PlotService.PedestalSlots do
-		if plot.pedestals[slot] then
-			plot.pedestals[slot]:Destroy()
-			plot.pedestals[slot] = nil
-		end
-	end
-	local pedestal = plot.pedestals[1]
-	if pedestal then
-		pedestal:SetAttribute("RelicId", nil)
-		pedestal:SetAttribute("ReadyAt", nil)
-		local relic = pedestal:FindFirstChild("RelicModel")
-		if relic then
-			relic:Destroy()
-		end
-	end
 	for _, ref in plot.slots do
 		ref.uid = nil
 		Slots.setState(ref, "locked", "🔒")
@@ -519,7 +500,7 @@ local function upgradeAvailable(data, upgrade): boolean
 	return not data.upgrades[upgrade.id] and (upgrade.requires == nil or data.upgrades[upgrade.requires] == true)
 end
 
--- Reconstruit améliorations, boutons, fantômes, autels supplémentaires, cases et hologramme.
+-- Reconstruit améliorations, boutons, fantômes, cases et hologramme.
 -- `justBought` = id de l'amélioration qui vient d'être achetée (animation de construction).
 function PlotService:RefreshOwnerContent(player: Player, justBought: string?)
 	local plot = playerPlots[player]
@@ -581,19 +562,6 @@ function PlotService:RefreshOwnerContent(player: Player, justBought: string?)
 	-- Pièces sur le tapis : animées par chaque client (Controllers/CoinConveyor).
 	Conveyor.publish(plot.coinFolder, coinPaths, true)
 
-	-- Autels (incubateurs) selon les améliorations.
-	local stats = Formulas.playerStats(data)
-	for slot = 2, #PlotService.PedestalSlots do
-		if slot <= stats.incubators and not plot.pedestals[slot] then
-			plot.pedestals[slot] = Props.pedestal(plot.pedestalFolder, localCF(plot, PlotService.PedestalSlots[slot]), slot, plot.index)
-			if self.services.HatchService then
-				self.services.HatchService:ConnectPedestal(plot, plot.pedestals[slot])
-			end
-		end
-	end
-	if self.services.HatchService then
-		self.services.HatchService:RefreshPedestals(player)
-	end
 	self:RefreshSlots(player)
 	Props.refreshSkillCells(plot.skillRefs and plot.skillRefs.cells, data.Skills)
 	self:_updateDisplays(plot)

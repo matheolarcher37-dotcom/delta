@@ -12,6 +12,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Formulas = require(Shared.Modules.Formulas)
+local TextFit = require(Shared.Modules.TextFit)
 local Layout = require(Shared.Config.Layout)
 local LeaderboardBoards = require(script.Parent.Parent.World.LeaderboardBoards)
 
@@ -327,10 +328,10 @@ function LeaderboardService:_render()
 					local name = row:FindFirstChild("Nom") :: TextLabel?
 					local value = row:FindFirstChild("Valeur") :: TextLabel?
 					if name then
-						name.Text = entry and (entry.extra and (entry.name .. "  ·  " .. entry.extra) or entry.name) or "—"
+						TextFit.set(name, entry and (entry.extra and (entry.name .. "  ·  " .. entry.extra) or entry.name) or "—")
 					end
 					if value then
-						value.Text = entry and formatValue(id, entry.value) or ""
+						TextFit.set(value, entry and formatValue(id, entry.value) or "")
 					end
 				end
 			end
