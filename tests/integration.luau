@@ -1107,7 +1107,8 @@ test("Boutons d'achat : panneau, rien de transparent avant l'achat, construction
 	DataService:AddCoins(alice, pad:GetAttribute("Price"))
 	assert(services.PlotService:BuyUpgrade(alice, upgradeId), "achat")
 	assert(plot.ownerFolder.Structures:FindFirstChild(upgradeId), "structure non construite")
-	assert(not plot.ownerFolder.Ghosts:FindFirstChild(upgradeId), "fantôme resté après l'achat")
+	assert(plot.ownerFolder:FindFirstChild("Ghosts") == nil, "aperçu transparent apparu après l'achat")
+	assert(not plot.ownerFolder.Pads:FindFirstChild("Pad_" .. upgradeId), "bouton resté après l'achat")
 end)
 
 test("Déco de base : change avec l'univers, panneau du propriétaire gardé", function()
