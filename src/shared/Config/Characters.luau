@@ -782,42 +782,6 @@ end
 -- tout le crâne (dessus, côtés, nuque), front dégagé côté gauche du perso (kanji peint).
 local GAARO_RED = rgb(170, 40, 30)
 local GAARO_LIT = rgb(214, 84, 62)
-local GAARO_HAIR = {
-	{ shape = "ball", limb = "Head", at = V(0, 0.42, 0.1), size = V(1.36, 0.96, 1.36), color = GAARO_RED, name = "HairCap" },
-	{ shape = "ball", limb = "Head", at = V(0, 0.08, 0.3), size = V(1.28, 0.8, 0.86), color = rgb(140, 30, 26), name = "HairNape" },
-}
-for i, m in
-	{
-		-- front : deux pointes à droite du perso et une petite au centre (le côté gauche reste dégagé)
-		{ V(0.32, 0.72, -0.5), V(0.45, 0.1, -1), 0.42 },
-		{ V(0.05, 0.82, -0.52), V(0.05, 0.25, -1), 0.38 },
-		{ V(0.5, 0.5, -0.42), V(0.8, -0.3, -0.7), 0.36 },
-		-- dessus
-		{ V(-0.3, 0.92, -0.15), V(-0.5, 1, -0.3), 0.42 },
-		{ V(0.25, 0.95, -0.1), V(0.45, 1, -0.2), 0.44 },
-		{ V(-0.15, 0.96, 0.3), V(-0.25, 1, 0.6), 0.42 },
-		{ V(0.25, 0.9, 0.38), V(0.4, 0.8, 0.8), 0.4 },
-		-- côtés (au-dessus des oreilles)
-		{ V(-0.64, 0.5, -0.05), V(-1, 0.2, -0.2), 0.4 },
-		{ V(-0.62, 0.35, 0.3), V(-1, -0.3, 0.4), 0.38 },
-		{ V(0.64, 0.5, -0.05), V(1, 0.2, -0.2), 0.4 },
-		{ V(0.62, 0.35, 0.3), V(1, -0.3, 0.4), 0.38 },
-		-- nuque
-		{ V(-0.3, 0.1, 0.62), V(-0.4, -0.6, 1), 0.4 },
-		{ V(0.05, 0.05, 0.68), V(0, -0.5, 1), 0.42 },
-		{ V(0.36, 0.12, 0.6), V(0.45, -0.55, 1), 0.38 },
-	}
-do
-	table.insert(GAARO_HAIR, {
-		shape = "spike",
-		limb = "Head",
-		at = m[1],
-		dir = m[2],
-		length = m[3],
-		width = 0.38,
-		color = (i % 4 == 1) and GAARO_LIT or GAARO_RED,
-	})
-end
 -- Gaaro ★1 : liseré gris clair du col (la bandoulière grise de la gourde est l'accessoire « sash »)
 -- + gilet gris clair à pans croisés (plastron) et large ceinture grise, qui cassent le bordeaux
 local GAARO_GREY, GAARO_GREY_DARK = rgb(176, 172, 160), rgb(128, 124, 116)
@@ -3677,7 +3641,7 @@ Characters.List = {
 		look = {
 			headScale = Vector3.new(0.95, 1.0, 0.97),
 			skin = rgb(250, 224, 200),
-			hair = "none",
+			hair = "parted", -- courts et en bataille, raie sur le côté : le kanji du front reste visible
 			hairColor = rgb(170, 40, 30),
 			hairUnder = rgb(140, 30, 26),
 			eyeY = -0.05,
@@ -3700,7 +3664,7 @@ Characters.List = {
 			accessories = { "sash" },
 			sashColor = rgb(176, 172, 164),
 			accColor = rgb(214, 186, 132),
-			props = join(GAARO_HAIR, { GAARO_KANJI }, gourd(rgb(214, 186, 136)), GAARO_STRAP),
+			props = join({ GAARO_KANJI }, gourd(rgb(214, 186, 136)), GAARO_STRAP),
 		},
 		evolve = {
 			-- ★★ : tenue de l'après-guerre (gilet gris, manches rouges) et bouclier de sable
@@ -3711,7 +3675,7 @@ Characters.List = {
 				outfit = "flakvest",
 				accessories = { "sash", "energy_fists" },
 				energyColor = rgb(222, 190, 120),
-				props = join(GAARO_HAIR, { GAARO_KANJI }, gourd(rgb(214, 186, 136)), SAND_SHIELD),
+				props = join({ GAARO_KANJI }, gourd(rgb(214, 186, 136)), SAND_SHIELD),
 			},
 			-- ★★★ : robe blanche et bleue du chef du village du sable
 			[3] = {
@@ -3722,7 +3686,7 @@ Characters.List = {
 				accessories = { "energy_fists", "ssj_aura" },
 				energyColor = rgb(222, 190, 120),
 				auraColor = rgb(240, 210, 140),
-				props = join(GAARO_HAIR, { GAARO_KANJI }, gourd(rgb(214, 186, 136)), SAND_WALL),
+				props = join({ GAARO_KANJI }, gourd(rgb(214, 186, 136)), SAND_WALL),
 			},
 		},
 		attack = { kind = "shadow", color = rgb(222, 190, 120), name = "Cercueil de Sable" },

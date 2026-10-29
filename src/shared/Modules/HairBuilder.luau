@@ -469,7 +469,9 @@ function HairBuilder.cap(ctx, color: Color3, o)
 	ctx.ball("Head", "HairCap", Vector3.new(CAP_R.X * 2 + grow, CAP_R.Y * 2 + grow * 0.5, CAP_R.Z * 2 + grow), CFrame.new(CAP_C + Vector3.new(0, opts.lift or 0, 0)), color)
 	if opts.nape ~= false then
 		local length = opts.napeLength or 1
-		ctx.ball("Head", "HairNape", Vector3.new(1.28 + grow, length, 1.02), CFrame.new(0, 0.2 - length / 2, 0.22), opts.napeColor or color)
+		-- nuque « soignée » (look.napeTidy) : de la couleur des cheveux, jamais un pavé sombre
+		local napeColor = ctx.napeTidy and ctx.napeTidy.color or opts.napeColor or color
+		ctx.ball("Head", "HairNape", Vector3.new(1.28 + grow, length, 1.02), CFrame.new(0, 0.2 - length / 2, 0.22), napeColor)
 	end
 end
 
@@ -625,7 +627,7 @@ function HairBuilder.slicked(ctx, colors, o, rand)
 	local n = o.n or 6
 	local spread = o.spread or 0.5
 	-- bandeau lisse sur le haut du front (sinon le coin du crâne se voit entre les mèches)
-	ctx.ball("Head", "HairFront", Vector3.new(1.24, 0.3, 0.56), CFrame.new(0, 0.53, -0.3), colors.mid)
+	ctx.ball("Head", "HairFront", Vector3.new(1.22, 0.3, 0.5), CFrame.new(0, 0.55, -0.27), colors.mid)
 	for i = 1, n do
 		local t = n == 1 and 0 or (i - 1) / (n - 1) * 2 - 1
 		local x = t * spread
@@ -1142,6 +1144,33 @@ Styles.flame = function(ctx, c: Color3, look, hairTones)
 	for _, sx in { -1, 1 } do
 		HairBuilder.diamond(ctx, { a0 = sx * 30, h0 = 0.3, am = sx * 36, hm = 0.52, a1 = sx * 42, h1 = 0.74, w = 0.32, d = 0.1, out = 0.04, lift = 0.02, over = 0.08 }, colors)
 	end
+end
+
+-- Courts en bataille, raie sur le côté (Gaaro) : la frange part d'un seul côté et laisse l'autre
+-- moitié du front dégagée (marque du front visible).
+Styles.parted = function(ctx, c: Color3, look, hairTones)
+	local colors, rand = setup(c, look, hairTones, "parted")
+	HairBuilder.cap(ctx, colors.main, { napeLength = 0.85, napeColor = colors.mid, grow = 0.04 })
+	HairBuilder.ring(ctx, colors, {
+		n = 12,
+		front = 0.8,
+		side = 1.35,
+		back = 1.6,
+		w = 0.52,
+		tip = 0.16,
+		twist = 6,
+		lift = 0.1,
+		alternate = 0.1,
+		skip = function(a)
+			return a > -55 and a < 15
+		end,
+	}, rand)
+	HairBuilder.bangs(ctx, colors, { n = 3, h0 = 0.3, h1 = 0.84, w = 0.4, spread = 22, part = 34, tip = 0.14, fan = 14, lift = 0.06, jitter = 0.04 }, rand)
+	-- deux mèches dressées sur le dessus, en bataille
+	HairBuilder.spikes(ctx, colors, {
+		{ -20, 0.12, 52, 0.42, 0.46 },
+		{ 150, 0.16, 46, 0.42, 0.46, colors.mid },
+	})
 end
 
 -- Ébouriffés et plats (Gohon) : volume bas, une grande mèche unique sur le front.
