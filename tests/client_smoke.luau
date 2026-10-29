@@ -316,6 +316,14 @@ test("Marchand : écran, achat sur place, objet requis à l'Évolution, onglet O
 		end
 		return n
 	end
+	-- Le marchand change de place et de stock toutes les 8 min (horloge réelle) : on se place bien
+	-- avant son prochain départ, sinon il peut partir en plein test (achat refusé, loin de lui).
+	local period = EvolutionItems.Merchant.Period
+	local left = period - ((os.time() + Harness.timeOffset) % period)
+	if left < 150 then
+		Harness.timeOffset += left + 5
+	end
+	services.ShopService:Refresh()
 	-- Devant le comptoir du marchand.
 	local merchant = game:GetService("Workspace").World.Merchant
 	local counter = merchant.Etal.Counter
