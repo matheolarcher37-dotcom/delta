@@ -2013,11 +2013,15 @@ ACC.leg_warmers = function(ctx, look)
 end
 
 local HAORI_TOP = 0.95
+-- Manche de haori : à plat sur le bras (comme un vêtement peint), de l'épaule au poignet ; plus de
+-- gros cube plus large que le bras (« trop carré »).
+local SLEEVE_SIZE = Vector3.new(1.05, 1.52, 1.05)
+local SLEEVE_CF = CFrame.new(0, 0.24, 0)
 
 -- Haori (veste ouverte) : panneaux 3D peints (ombrages, plis, motif) dos, devant et manches.
 -- `pattern(S, kind)` dessine le motif sur une feuille ; kind = "back", "front" ou "sleeve".
-local function haoriBase(ctx, look, color: Color3, pattern: ((any, string) -> ())?)
-	local length = 2.7
+local function haoriBase(ctx, look, color: Color3, pattern: ((any, string) -> ())?, o)
+	local length = o and o.length or 2.7
 	local y = HAORI_TOP - length / 2
 	local mode = ctx.paint == "parts" and "parts" or nil
 	local backPanel = ctx.add("Torso", "HaoriBack", Vector3.new(2.14, length, 0.1), CFrame.new(0, y, 0.56), color)
@@ -2032,7 +2036,7 @@ local function haoriBase(ctx, look, color: Color3, pattern: ((any, string) -> ()
 		ctx.add("Torso", "HaoriSide", Vector3.new(0.1, length, 1.22), CFrame.new(side * 1.07, y, 0), color)
 	end
 	for _, side in { "Left Arm", "Right Arm" } do
-		local sleeve = ctx.add(side, "HaoriSleeve", Vector3.new(1.22, 1.3, 1.22), CFrame.new(0, 0.38, 0), color)
+		local sleeve = ctx.add(side, "HaoriSleeve", SLEEVE_SIZE, SLEEVE_CF, color)
 		local outer = side == "Left Arm" and Enum.NormalId.Left or Enum.NormalId.Right
 		for _, face in { Enum.NormalId.Front, Enum.NormalId.Back, outer } do
 			Painter.panel(sleeve, face, mode, color, pattern and function(S)
@@ -2079,9 +2083,6 @@ end
 
 ACC.haori_flame = function(ctx, look)
 	haoriBase(ctx, look, look.accColor or WHITE, function(S, kind)
-		if kind == "sleeve" then
-			return
-		end
 		if kind == "back" and look.haoriText and not S.lite then
 			-- Inscription verticale dans le dos (ex. « Quatrième Hokage ») : colonne de caractères rouges
 			local chars = {}
@@ -2104,13 +2105,15 @@ ACC.haori_flame = function(ctx, look)
 				label.Parent = S.g
 			end
 		end
-		local n = kind == "back" and 7 or 2
-		for i = 0, n - 1 do
-			local x = (i + 0.5) / n
-			S:rect(x, 0.9, 0.9 / n, 0.32, Color3.fromRGB(230, 50, 20), { corner = 0.5, z = 2 })
-			S:rect(x, 0.93, 0.5 / n, 0.18, Color3.fromRGB(255, 170, 40), { corner = 0.5, z = 3 })
+		-- Flammes en langues rouge, orange et jaune (manches : sur toute la moitié basse)
+		if kind == "back" then
+			Painter.flames(S, { n = 6, top = 0.62, base = 0.86, seed = 1 })
+		elseif kind == "front" then
+			Painter.flames(S, { n = 2, top = 0.62, base = 0.86, seed = 2 })
+		else
+			Painter.flames(S, { n = 2, top = 0.42, base = 0.78, seed = 3 })
 		end
-	end)
+	end, { length = 3.0 })
 end
 
 ACC.haori_sage = function(ctx, look)
@@ -2193,7 +2196,7 @@ local function haoriSides(ctx, look, color: Color3, left: (any, string) -> (), r
 		end, { folds = false, edges = false })
 		ctx.add("Torso", "HaoriSide", Vector3.new(0.1, length, 1.22), CFrame.new(side * 1.07, y, 0), color)
 		local limb = side < 0 and "Left Arm" or "Right Arm"
-		local sleeve = ctx.add(limb, "HaoriSleeve", Vector3.new(1.22, 1.3, 1.22), CFrame.new(0, 0.38, 0), color)
+		local sleeve = ctx.add(limb, "HaoriSleeve", SLEEVE_SIZE, SLEEVE_CF, color)
 		local outer = side < 0 and Enum.NormalId.Left or Enum.NormalId.Right
 		for _, face in { Enum.NormalId.Front, Enum.NormalId.Back, outer } do
 			Painter.panel(sleeve, face, mode, color, function(S)
@@ -2214,7 +2217,8 @@ ACC.haori_giyu = function(ctx, look)
 		if kind == "sleeveBack" then
 			return plain(S, kind)
 		end
-		tortoise(S, 2, 0)
+		-- manches (plus étroites) : écailles plus grandes, moins de Frames
+		tortoise(S, kind == "sleeve" and 1.4 or 2, 0)
 	end
 	-- Moitié droite (côté +X du perso) unie, moitié gauche en écaille
 	haoriSides(ctx, look, maroon, shell, plain)
@@ -3975,25 +3979,8 @@ function buildOnce(look, options: BuildOptions?, roots: number, withRelief: bool
 			builder(ctx, hairColor, look)
 		end
 	elseif (has(look, "straw_hat") or has(look, "cap") or has(look, "bandana") or has(look, "cowboy_hat")) and look.hair ~= "none" and look.hair ~= "bald" then
-		-- Cheveux visibles sous le chapeau : nuque, mèches sur les côtés et frange en bataille.
-		local under, shine = hairTones(hairColor, look)
-		cap(ctx, under, { height = 0.7, lift = -0.06, backLength = 1.3 })
-		fringe(ctx, hairColor, { -0.4, -0.15, 0.12, 0.38 }, { 0.2, 0.24, 0.2, 0.22 }, 0.28, { alt = shine, y = 0.34, spread = 0.6, out = 0.04, thickness = 0.1 })
-		for _, side in { -1, 1 } do
-			-- Cheveux courts sous la casquette (`sideburns`) : pattes peintes, pas de mèches longues
-			if not look.sideburns then
-				ctx.lock(
-					"Head",
-					hairColor,
-					Vector3.new(side * 0.6, 0.3, -0.1),
-					Vector3.new(side * 0.15, -1, 0),
-					0.4,
-					0.36,
-					{ facing = Vector3.new(side, 0, 0.2), thickness = 0.12 }
-				)
-			end
-			ctx.spike("Head", under, Vector3.new(side * 0.3, 0.05, 0.55), Vector3.new(side * 0.3, -0.8, 0.8), 0.36, 0.42, { cross = false })
-		end
+		-- Cheveux visibles sous le chapeau (Modules/HairBuilder).
+		HairBuilder.underHat(ctx, hairColor, look, hairTones)
 	end
 
 	for _, accessory in look.accessories or {} do

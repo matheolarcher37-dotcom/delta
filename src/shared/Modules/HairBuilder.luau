@@ -278,7 +278,8 @@ function HairBuilder.ring(ctx, colors, o, rand)
 	local n = o.n or 16
 	local w = o.w or (2 * math.pi * 0.72 / n * 1.55)
 	for i = 1, n do
-		local a = (o.offset or 0) + (i - 1) * 360 / n + rand(-4, 4)
+		-- azimut ramené entre -180 et 180 (les filtres `skip` testent |a| autour du front)
+		local a = ((o.offset or 0) + (i - 1) * 360 / n + rand(-4, 4) + 180) % 360 - 180
 		if o.skip and o.skip(a) then
 			continue
 		end
@@ -366,7 +367,7 @@ function HairBuilder.sides(ctx, colors, o, rand)
 	for _, side in { -1, 1 } do
 		for k = 1, n do
 			local a = side * ((o.a or 70) + (k - 1) * (o.gap or 22))
-			HairBuilder.blade(ctx, {
+			local e = {
 				a0 = a - side * 8,
 				h0 = (o.h0 or 0.6) + rand(-0.04, 0.04),
 				a1 = a + side * (o.drift or 2),
@@ -377,20 +378,28 @@ function HairBuilder.sides(ctx, colors, o, rand)
 				lift = o.lift or 0.02,
 				over = (o.tip or 0.16) * (1 + rand(-0.1, 0.2)),
 				color = colors.main,
-			}, colors)
+			}
+			if o.mid then
+				e.am = (e.a0 + e.a1) / 2
+				e.hm = e.h0 + (e.h1 - e.h0) * o.mid
+				HairBuilder.diamond(ctx, e, colors)
+			else
+				HairBuilder.blade(ctx, e, colors)
+			end
 		end
 	end
 end
 
 -- NUQUE : mèches qui tombent derrière, par-dessus la couronne (cheveux mi-longs ou longs).
--- o = { n, spread, h0, h1, w, d, tip, lift (bout qui rebique), steps, taper, round }
+-- o = { n, spread, h0, h1, w, d, tip, lift (bout qui rebique), round, mid (si donné : mèche en
+--       losange, la plus large à cette fraction : cheveux longs larges jusqu'en bas) }
 function HairBuilder.back(ctx, colors, o, rand)
 	local n = o.n or 5
 	local spread = o.spread or 70
 	for i = 1, n do
 		local t = n == 1 and 0 or (i - 1) / (n - 1) * 2 - 1
 		local a = 180 + t * spread
-		HairBuilder.blade(ctx, {
+		local e = {
 			a0 = 180 + t * spread * 0.8,
 			h0 = (o.h0 or 0.55) + rand(-0.05, 0.05),
 			a1 = a + t * (o.fan or 6),
@@ -402,7 +411,14 @@ function HairBuilder.back(ctx, colors, o, rand)
 			over = (o.tip or 0.18) * (1 + rand(-0.1, 0.2)),
 			color = (i % 2 == 0) and colors.mid or colors.main:Lerp(colors.mid, 0.4),
 			dark = colors.under,
-		}, colors)
+		}
+		if o.mid then
+			e.am = (e.a0 + e.a1) / 2
+			e.hm = e.h0 + (e.h1 - e.h0) * o.mid
+			HairBuilder.diamond(ctx, e, colors)
+		else
+			HairBuilder.blade(ctx, e, colors)
+		end
 	end
 end
 
@@ -458,12 +474,17 @@ end
 -- Teintes d'une coiffure : principale, dessous (ombre), reflet, bout (look.hairTip).
 function HairBuilder.colors(c: Color3, look, hairTones): { [string]: Color3 }
 	local under, shine = hairTones(c, look)
+	local main = c
+	if 0.3 * c.R + 0.59 * c.G + 0.11 * c.B < 0.16 then
+		-- cheveux noirs : face éclairée des mèches bleu nuit, sinon une masse noire illisible
+		main = c:Lerp(Color3.fromRGB(70, 84, 122), 0.5)
+	end
 	return {
-		main = c,
+		main = main,
 		under = under,
 		deep = deeper(under, 0.5),
 		shine = shine,
-		mid = c:Lerp(under, 0.45),
+		mid = main:Lerp(under, 0.55),
 		tip = look.hairTip,
 	}
 end
@@ -557,6 +578,8 @@ end
 function HairBuilder.slicked(ctx, colors, o, rand)
 	local n = o.n or 6
 	local spread = o.spread or 0.5
+	-- bandeau lisse sur le haut du front (sinon le coin du crâne se voit entre les mèches)
+	ctx.ball("Head", "HairFront", Vector3.new(1.24, 0.3, 0.56), CFrame.new(0, 0.53, -0.3), colors.mid)
 	for i = 1, n do
 		local t = n == 1 and 0 or (i - 1) / (n - 1) * 2 - 1
 		local x = t * spread
@@ -611,6 +634,32 @@ local function headband(look): boolean
 	return has(look, "headband") or has(look, "headband_tilted") or has(look, "headband_scratched")
 end
 
+-- Cheveux SOUS UN CHAPEAU (Loffy, Usupp...) : pas de calotte (le chapeau couvre le dessus), nuque
+-- et côtés en mèches, frange en bataille sous le bord ; pattes peintes au lieu des mèches de côté
+-- sous une casquette (look.sideburns).
+function HairBuilder.underHat(ctx, c: Color3, look, hairTones)
+	local colors, rand = HairBuilder.colors(c, look, hairTones), rng(seedOf(c, "underHat"))
+	ctx.ball("Head", "HairNape", Vector3.new(1.3, 0.75, 1.0), CFrame.new(0, -0.05, 0.24), colors.mid)
+	HairBuilder.ring(ctx, colors, {
+		n = 12,
+		h0 = 0.62,
+		front = 1,
+		side = 1.4,
+		back = 1.7,
+		tip = 0.16,
+		twist = 8,
+		lift = 0.1,
+		alternate = 0.12,
+		skip = function(a)
+			return math.abs(a) < 55
+		end,
+	}, rand)
+	if not look.sideburns then
+		HairBuilder.sides(ctx, colors, { n = 1, a = 72, h0 = 0.6, h1 = 1.45, w = 0.32, tip = 0.16, lift = 0.06 }, rand)
+	end
+	HairBuilder.bangs(ctx, colors, { n = 5, h0 = 0.6, h1 = 0.95, w = 0.32, spread = 48, tip = 0.14, fan = 20, lift = 0.06, jitter = 0.08 }, rand)
+end
+
 -- Préparation commune : teintes, hasard, longueur (look.hairLength).
 local function setup(c: Color3, look, hairTones, name: string)
 	return HairBuilder.colors(c, look, hairTones), rng(seedOf(c, name)), look.hairLength or 1
@@ -647,7 +696,7 @@ end
 Styles.spiky = function(ctx, c: Color3, look, hairTones)
 	local colors, rand, L = setup(c, look, hairTones, "spiky")
 	local band = headband(look)
-	HairBuilder.cap(ctx, colors.main, { napeLength = 0.9, napeColor = colors.under, grow = 0.04 })
+	HairBuilder.cap(ctx, colors.main, { napeLength = 0.9, napeColor = colors.mid, grow = 0.04 })
 	local list = {}
 	for i = 0, 9 do
 		local a = -150 + i * 33.3 + rand(-6, 6)
@@ -663,7 +712,7 @@ Styles.spiky = function(ctx, c: Color3, look, hairTones)
 	end
 	HairBuilder.spikes(ctx, colors, list)
 	-- nuque : pointes couchées vers le bas
-	HairBuilder.back(ctx, colors, { n = 4, spread = 60, h0 = 0.75, h1 = band and 1.75 or 1.85, w = 0.44, tip = 0.16, lift = 0.08 }, rand)
+	HairBuilder.back(ctx, colors, { n = 6, spread = 78, h0 = 0.7, h1 = band and 1.75 or 1.85, w = 0.48, tip = 0.16, lift = 0.08 }, rand)
 	if band then
 		-- deux petites pointes qui retombent sur le bandeau, et les mèches des tempes
 		HairBuilder.bangs(ctx, colors, { n = 3, h0 = 0.25, h1 = 0.62, w = 0.36, spread = 34, tip = 0.14, fan = 18, lift = 0.1 }, rand)
@@ -698,9 +747,13 @@ Styles.long = function(ctx, c: Color3, look, hairTones)
 	local colors, rand, L = setup(c, look, hairTones, "long")
 	local back = 2.2 + 1.1 * L
 	HairBuilder.cap(ctx, colors.main, { napeLength = 1.1, napeColor = colors.under })
-	HairBuilder.ring(ctx, colors, { n = 14, front = 0.8, side = 1.95, back = back, tip = 0.16, twist = 4, lift = 0.05, alternate = 0.06 }, rand)
-	HairBuilder.back(ctx, colors, { n = 5, spread = 62, h0 = 0.9, h1 = back + 0.15, w = 0.46, tip = 0.18, lift = 0.07, round = 0.3 }, rand)
-	HairBuilder.sides(ctx, colors, { n = 2, a = 70, gap = 18, h0 = 0.45, h1 = 1.98, step = -0.18, w = 0.34, tip = 0.16, lift = 0.04 }, rand)
+	-- nappe lisse dans le dos sous les mèches (cheveux d'un seul tenant, pas une rangée de pics)
+	local hem = FLOW_C.Y - (back - 1) * DROP
+	local top = 0.35
+	ctx.ball("Head", "HairCurtain", Vector3.new(1.42, top - hem, 0.5), CFrame.new(0, (top + hem) / 2, 0.58), colors.mid)
+	HairBuilder.ring(ctx, colors, { n = 14, front = 0.8, side = 1.95, back = back, w = 0.5, tip = 0.06, twist = 3, lift = 0.04, alternate = 0.03, mid = 0.72 }, rand)
+	HairBuilder.back(ctx, colors, { n = 5, spread = 70, h0 = 0.9, h1 = back + 0.05, w = 0.6, tip = 0.05, lift = 0.05, round = 0.2, mid = 0.75 }, rand)
+	HairBuilder.sides(ctx, colors, { n = 2, a = 70, gap = 18, h0 = 0.45, h1 = 1.98, step = -0.18, w = 0.36, tip = 0.08, lift = 0.04, mid = 0.7 }, rand)
 	if look.bangs == "blunt" then
 		HairBuilder.bangs(ctx, colors, { n = 6, h0 = 0.34, h1 = 0.88, w = 0.3, spread = 50, tip = 0.05, fan = 4, jitter = 0.01, lift = 0.02 }, rand)
 	else
@@ -876,7 +929,7 @@ end
 Styles.ponytail_spiky = function(ctx, c: Color3, look, hairTones)
 	local colors, rand = setup(c, look, hairTones, "ponytail_spiky")
 	HairBuilder.cap(ctx, colors.main, { napeLength = 0.75, napeColor = colors.under })
-	HairBuilder.slicked(ctx, colors, { n = 6, spread = 0.48, t0 = -55, tm = 20, t1 = 75, w = 0.36, tip = 0.04 }, rand)
+	HairBuilder.slicked(ctx, colors, { n = 7, spread = 0.5, t0 = -68, tm = 18, t1 = 75, w = 0.38, tip = 0.04 }, rand)
 	HairBuilder.sides(ctx, colors, { n = 1, a = 82, h0 = 0.5, h1 = 1.4, w = 0.3, tip = 0.12 }, rand)
 	local tie = HairBuilder.surface(180, 0.45, 0.04)
 	ctx.vcyl("Head", "HairTie", 0.12, 0.3, CFrame.new(tie) * CFrame.Angles(math.rad(60), 0, 0), colors.deep)
@@ -919,7 +972,7 @@ end
 Styles.topknot = function(ctx, c: Color3, look, hairTones)
 	local colors, rand = setup(c, look, hairTones, "topknot")
 	HairBuilder.cap(ctx, colors.main, { napeLength = 0.7, napeColor = colors.under })
-	HairBuilder.slicked(ctx, colors, { n = 6, spread = 0.5, t0 = -55, tm = 10, t1 = 60, w = 0.34, tip = 0.03 }, rand)
+	HairBuilder.slicked(ctx, colors, { n = 8, spread = 0.54, t0 = -64, tm = 10, t1 = 62, w = 0.4, tip = 0.03 }, rand)
 	HairBuilder.ring(ctx, colors, {
 		n = 10,
 		offset = 18,
@@ -944,7 +997,7 @@ Styles.hedgehog = function(ctx, c: Color3, look, hairTones)
 	local list = {}
 	for i = 0, 9 do
 		local a = -162 + i * 36 + rand(-6, 6)
-		table.insert(list, { a, 0.55, 12 + rand(-6, 10), (0.58 + rand(-0.05, 0.08)) * L, 0.46, i % 3 == 0 and colors.mid or nil })
+		table.insert(list, { a, 0.5, 30 + rand(-5, 8), (0.5 + rand(-0.04, 0.07)) * L, 0.46, i % 3 == 0 and colors.mid or nil })
 	end
 	for i = 0, 5 do
 		local a = -150 + i * 60 + rand(-8, 8)
@@ -955,10 +1008,11 @@ Styles.hedgehog = function(ctx, c: Color3, look, hairTones)
 	HairBuilder.bangs(ctx, colors, { n = 3, h0 = 0.3, h1 = 0.88, w = 0.38, spread = 30, tip = 0.16, fan = 14, lift = 0.08 }, rand)
 end
 
--- Prince guerrier (Vejeta) : front dégagé en « V », flamme VERTICALE étroite et haute.
+-- Prince guerrier (Vejeta) : front dégagé en « V » avec tempes dégarnies, grande flamme qui monte
+-- en s'évasant (éventail de piques, plus hautes au milieu), deuxième couche plus sombre derrière.
 Styles.flame = function(ctx, c: Color3, look, hairTones)
 	local colors, rand, L = setup(c, look, hairTones, "flame")
-	HairBuilder.cap(ctx, colors.main, { napeLength = 0.8, napeColor = colors.under })
+	HairBuilder.cap(ctx, colors.main, { napeLength = 0.8, napeColor = colors.mid })
 	HairBuilder.ring(ctx, colors, {
 		n = 10,
 		front = 0.65,
@@ -973,16 +1027,24 @@ Styles.flame = function(ctx, c: Color3, look, hairTones)
 		end,
 	}, rand)
 	local list = {}
-	for i = 0, 5 do
-		local x = -30 + i * 12
-		table.insert(list, { x + rand(-3, 3), 0.18, 78 + rand(-3, 3), (1.2 + rand(-0.1, 0.25)) * L, 0.46, i % 2 == 0 and colors.main:Lerp(colors.shine, 0.2) or nil })
+	for i = 0, 6 do
+		local t = i / 6 * 2 - 1
+		local tone = i % 2 == 0 and colors.main:Lerp(colors.shine, 0.22) or nil
+		table.insert(list, { t * 40 + rand(-3, 3), 0.2, 78 - math.abs(t) * 13 + rand(-3, 3), (1.0 - math.abs(t) * 0.22 + rand(-0.04, 0.08)) * L, 0.5, tone })
 	end
-	for i = 0, 4 do
-		table.insert(list, { 160 + i * 10 - 20, 0.2, 80, (1.05 + rand(-0.1, 0.2)) * L, 0.5, colors.mid })
+	for i = 0, 6 do
+		local t = i / 6 * 2 - 1
+		table.insert(list, { 180 + t * 55 + rand(-4, 4), 0.25, 72 - math.abs(t) * 10, (0.9 - math.abs(t) * 0.2 + rand(-0.04, 0.08)) * L, 0.54, colors.mid })
 	end
-	HairBuilder.spikes(ctx, colors, list, { lean = Vector3.new(0, 0, 0.12) })
-	-- pointe en « V » au milieu du front
-	HairBuilder.diamond(ctx, { a0 = 0, h0 = 0.25, am = 0, hm = 0.55, a1 = 0, h1 = 0.85, w = 0.34, d = 0.1, out = 0.05, lift = 0.02, over = 0.12 }, colors)
+	for _, sx in { -1, 1 } do
+		table.insert(list, { sx * 95, 0.35, 62, 0.7 * L, 0.5 })
+	end
+	HairBuilder.spikes(ctx, colors, list, { lean = Vector3.new(0, 0, 0.1), depth = 0.7 })
+	-- pointe en « V » au milieu du front, deux petites mèches aux tempes
+	HairBuilder.diamond(ctx, { a0 = 0, h0 = 0.25, am = 0, hm = 0.55, a1 = 0, h1 = 0.88, w = 0.36, d = 0.1, out = 0.05, lift = 0.02, over = 0.14 }, colors)
+	for _, sx in { -1, 1 } do
+		HairBuilder.diamond(ctx, { a0 = sx * 30, h0 = 0.3, am = sx * 36, hm = 0.52, a1 = sx * 42, h1 = 0.74, w = 0.3, d = 0.1, out = 0.04, lift = 0.02, over = 0.08 }, colors)
+	end
 end
 
 -- Ébouriffés et plats (Gohon) : volume bas, une grande mèche unique sur le front.
@@ -1019,8 +1081,7 @@ end
 -- Crête iroquoise (Genyo) : côtés rasés, haute crête de pointes de l'avant à l'arrière.
 Styles.mohawk = function(ctx, c: Color3, look, hairTones)
 	local colors, rand, L = setup(c, look, hairTones, "mohawk")
-	-- côtés rasés : calotte sombre et mince
-	ctx.ball("Head", "HairCap", Vector3.new(1.26, 1.12, 1.3), CFrame.new(0, 0.12, 0.04), colors.under:Lerp(look.skin or Color3.new(1, 0.85, 0.7), 0.35))
+	-- côtés rasés (crâne nu) : seule la crête dépasse
 	for i = 0, 6 do
 		local t = -50 + i * 26
 		local root, nrm = HairBuilder.meridian(0, t, -0.06)
@@ -1044,23 +1105,37 @@ Styles.side_ponytail = function(ctx, c: Color3, look, hairTones)
 	ponytail(ctx, colors, tie, 1.0 * L, 0.36, look.hairTieColor, Vector3.new(0.45, 0, 0.2))
 end
 
--- Crinière de flammes (Rengoko) : longues mèches dorées à bouts rouges balayées vers l'arrière et
--- vers le bas jusqu'aux épaules, pointes qui rebiquent, frange en pointes sur le front.
+-- Crinière de flammes (Rengoko) : longues mèches dorées qui tombent jusqu'aux épaules, bouts
+-- rouges seulement au bord (nuque, côtés, frange), volume du dessus balayé vers l'arrière.
 Styles.flame_spiky = function(ctx, c: Color3, look, hairTones)
 	local colors, rand, L = setup(c, look, hairTones, "flame_spiky")
-	HairBuilder.cap(ctx, colors.main, { napeLength = 1.1, napeColor = colors.under, grow = 0.08 })
-	HairBuilder.ring(ctx, colors, { n = 14, front = 0.78, side = 1.75, back = 2.35 + 0.4 * (L - 1), w = 0.46, tip = 0.22, twist = 10, lift = 0.16, alternate = 0.14 }, rand)
-	HairBuilder.back(ctx, colors, { n = 5, spread = 70, h0 = 0.75, h1 = 2.5 + 0.4 * (L - 1), w = 0.48, tip = 0.24, lift = 0.2, round = 0.3 }, rand)
-	HairBuilder.sides(ctx, colors, { n = 2, a = 64, gap = 20, h0 = 0.35, h1 = 1.85, step = -0.12, w = 0.38, tip = 0.2, lift = 0.1, curl = 0.25 }, rand)
-	HairBuilder.bangs(ctx, colors, { n = 5, h0 = 0.28, h1 = 0.92, w = 0.38, spread = 50, tip = 0.18, fan = 20, vshape = 0.06, lift = 0.1 }, rand)
-	-- épis dressés sur le dessus, balayés vers l'arrière
-	HairBuilder.spikes(ctx, colors, {
-		{ -30, 0.18, 55, 0.6, 0.44 },
-		{ 30, 0.18, 55, 0.6, 0.44 },
-		{ 180, 0.12, 50, 0.62, 0.46 },
-		{ -120, 0.3, 35, 0.55, 0.42 },
-		{ 120, 0.3, 35, 0.55, 0.42 },
-	}, { lean = Vector3.new(0, 0, 0.35), scale = L })
+	-- le volume du dessus n'a pas de bout rouge (sinon des taches rouges partout sur le crâne)
+	local plain = table.clone(colors)
+	plain.tip = nil
+	HairBuilder.cap(ctx, colors.main, { napeLength = 1.15, napeColor = colors.main:Lerp(colors.mid, 0.4), grow = 0.08 })
+	HairBuilder.ring(ctx, colors, {
+		n = 12,
+		front = 0.8,
+		side = 1.75,
+		back = 2.3 + 0.4 * (L - 1),
+		w = 0.56,
+		tip = 0.14,
+		twist = 6,
+		lift = 0.08,
+		alternate = 0.08,
+		skip = function(a)
+			return math.abs(((a + 180) % 360) - 180) < 45
+		end,
+	}, rand)
+	HairBuilder.back(ctx, colors, { n = 4, spread = 60, h0 = 0.8, h1 = 2.5 + 0.4 * (L - 1), w = 0.56, tip = 0.16, lift = 0.12, round = 0.3 }, rand)
+	HairBuilder.sides(ctx, colors, { n = 1, a = 66, h0 = 0.35, h1 = 1.9, w = 0.42, tip = 0.16, lift = 0.08, curl = 0.25 }, rand)
+	HairBuilder.bangs(ctx, colors, { n = 5, h0 = 0.28, h1 = 0.94, w = 0.4, spread = 50, tip = 0.14, fan = 12, vshape = 0.06, lift = 0.06 }, rand)
+	-- grandes mèches du dessus qui se dressent puis partent vers l'arrière, comme une flamme
+	HairBuilder.spikes(ctx, plain, {
+		{ -30, 0.22, 34, 0.56, 0.5, colors.main:Lerp(colors.shine, 0.2) },
+		{ 30, 0.22, 34, 0.56, 0.5 },
+		{ 0, 0.12, 40, 0.6, 0.52 },
+	}, { lean = Vector3.new(0, 0.1, 1.1), scale = L })
 end
 
 -- Grande crinière hérissée jusqu'aux reins (Jiriya) : front dégagé, deux longues mèches qui

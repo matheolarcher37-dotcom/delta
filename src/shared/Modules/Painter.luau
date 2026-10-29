@@ -614,7 +614,7 @@ local function eye(T, look, cx: number, cy: number, s: number, k: number)
 			T.oval(ix - IW * 0.05, iy + IH * 0.3, IW * 0.12, IW * 0.12, WHITE, { transparency = 0.3, z = 6, fine = true })
 		end
 	end
-	local th = (look.lashThickness or 0.05) * k
+	local th = (look.lashThickness or 0.06) * k
 	local innerX, outerX = cx - s * W * 0.52, cx + s * W * 0.56
 	if st.cut then
 		-- Paupière lourde : un pan de peau incliné recouvre le haut de l'œil, le trait de cils
@@ -679,7 +679,8 @@ local function brows(T, look, skin: Color3, eyeX: number, eyeY: number, k: numbe
 	if look.hair == "bald" or look.hair == "none" then
 		color = darken(skin, 0.45)
 	end
-	local thick = st.th * k
+	-- v3.4 : sourcils plus épais (plus marqués, comme les visages des modèles de la boutique)
+	local thick = st.th * k * 1.2
 	local half = st.half * k
 	local by = eyeY + ((look.browY or 0.155) + (st.lift or 0)) * k
 	for _, s in { -1, 1 } do
@@ -998,8 +999,9 @@ function Painter.face(plates, look, mode: string?, geom)
 	T.lite = S.lite
 	local hideEyes = has(look, "blindfold")
 	local eyeY = look.eyeY or 0.03
-	local eyeX = look.eyeX or 0.25
-	local k = look.eyeScale or 1
+	-- v3.4 : yeux un peu plus grands et plus écartés (regard d'animé plus expressif)
+	local eyeX = look.eyeX or 0.265
+	local k = (look.eyeScale or 1) * 1.1
 	-- Ombre portée des cheveux / du bandeau sur le front
 	if look.hair ~= "bald" and look.hair ~= "none" then
 		local shadowY = 0.42
@@ -1155,7 +1157,8 @@ end
 -- Couleur de l'ombre franche d'un tissu (sur un tissu très sombre : un reflet bleuté).
 local function celShadow(color: Color3): Color3
 	if luminance(color) < 0.16 then
-		return color:Lerp(Color3.fromRGB(95, 105, 135), 0.3)
+		-- tissu sombre : ombre plus sombre encore (un gris bleuté plus clair faisait des rayures)
+		return color:Lerp(Color3.fromRGB(4, 4, 10), 0.5)
 	end
 	return shade(color, 0.3)
 end
@@ -1163,9 +1166,10 @@ end
 -- Encre des plis et coutures.
 local function inkOf(color: Color3): Color3
 	if luminance(color) < 0.16 then
-		return color:Lerp(Color3.fromRGB(150, 160, 190), 0.42)
+		-- tissu sombre : léger reflet bleuté le long du pli, discret
+		return color:Lerp(Color3.fromRGB(80, 92, 125), 0.32)
 	end
-	return color:Lerp(Color3.fromRGB(22, 14, 14), 0.84)
+	return color:Lerp(Color3.fromRGB(22, 14, 14), 0.72)
 end
 
 -- Fond d'une face de vêtement : dégradé vertical (haut éclairé, bas plus sombre).
@@ -1397,7 +1401,8 @@ end
 -- Trait d'encre net (pli dessiné).
 local function ink(S, x0: number, y0: number, x1: number, y1: number, color: Color3, th: number?, z: number?)
 	-- Aperçus "pièces" : seuls les traits principaux (épaisseur par défaut) sont gardés.
-	S:line(x0, y0, x1, y1, th or 0.022, inkOf(color), { z = z or 5, fine = S.lite and th ~= nil })
+	-- trait effilé aux deux bouts (coup de pinceau), pas un bâtonnet uniforme
+	S:line(x0, y0, x1, y1, (th or 0.022) * 0.9, inkOf(color), { fade = { 0.8, 0.12, 0.12, 0.8 }, gradientRotation = 0, z = z or 5, fine = S.lite and th ~= nil })
 end
 
 -- Ombre franche en "V" (deux bandes qui se rejoignent) : grands plis de la veste.
@@ -1407,23 +1412,16 @@ local function shadowV(S, x0: number, y0: number, xm: number, ym: number, x1: nu
 	S:line(xm, ym, x1, y1, th * 0.8, col, { z = z or 2, corner = 0.5 })
 end
 
--- Ombre franche "en dents de scie" le long d'un bord ("l" / "r") : bande d'ombre dont le bord
--- intérieur est découpé en pointes anguleuses (comme les ombres peintes à la main des vêtements
--- classiques, au lieu d'ovales qui faisaient des taches). `w` = largeur relative de la bande.
-local TEETH_PATTERN = { 1, 0.62, 0.86, 0.5, 0.74 }
+-- Ombre douce le long d'un bord ("l" / "r") : dégradé qui s'estompe vers l'intérieur (les
+-- anciennes « dents de scie » faisaient des gribouillis sales). `w` = largeur relative de la bande.
 local function jagShade(S, edge: string, w: number, y0: number, y1: number, color: Color3, n: number?, z: number?)
-	local col = celShadow(color)
-	local zz = z or 1
-	local x = edge == "l" and w / 2 or 1 - w / 2
-	S:rect(x, (y0 + y1) / 2, w, y1 - y0, col, { z = zz })
-	local count = n or 3
-	local bx = edge == "l" and w or 1 - w
-	for i = 1, count do
-		local y = y0 + (y1 - y0) * (i - 0.5) / count
-		local size = (y1 - y0) * S.h / count * 0.92 * TEETH_PATTERN[(i - 1) % #TEETH_PATTERN + 1]
-		local dir = edge == "l" and 1 or -1
-		S:box(bx + dir * S:dx(size * 0.12), y, size, size * 0.62, col, { rotation = dir * (40 + i * 7), z = zz })
-	end
+	local x = edge == "l" and w * 0.65 or 1 - w * 0.65
+	S:rect(x, (y0 + y1) / 2, w * 1.3, y1 - y0, celShadow(color), {
+		fade = edge == "l" and { 0.15, 0.45, 1 } or { 1, 0.45, 0.15 },
+		gradientRotation = 0,
+		z = z or 1,
+	})
+	local _ = n
 end
 Painter.jagShade = jagShade
 
@@ -2889,6 +2887,52 @@ end
 Painter.cloth = cloth
 Painter.cloud = cloud
 Painter.fold = fold
+
+-- Langue de flamme : corps arrondi de largeur `w` (studs) jusqu'à `bottom`, pointe en losange
+-- en `tip` (relatifs), penchée de `lean` degrés.
+local function tongue(S, x: number, tip: number, bottom: number, w: number, lean: number, color: Color3, z: number)
+	local side = w * 0.72
+	local half = side * 0.7071
+	local cy = tip + S:dy(half)
+	S:box(x + S:dx(lean / 90 * half), cy, side, side, color, { rotation = 45 + lean, z = z })
+	-- arrondi du corps sous les pans du losange (sinon le rond dépasse et cache la pointe)
+	local bodyTop = cy - S:dy(w * 0.3)
+	if bottom > bodyTop then
+		S:rect(x, (bodyTop + bottom) / 2, S:dx(w), bottom - bodyTop, color, { corner = 0.5, z = z })
+	end
+end
+
+-- Flammes en langues (bas d'un haori, des manches...) : bande pleine en bas et langues de
+-- hauteurs variées, en couches de plus en plus petites (rouge, orange, jaune).
+-- o = { n (langues), top (pointe la plus haute, relatif), base (haut de la bande pleine), colors,
+--       seed, z }
+function Painter.flames(S, o)
+	local colors = o.colors or { Color3.fromRGB(225, 45, 20), Color3.fromRGB(255, 125, 25), Color3.fromRGB(255, 210, 60) }
+	if S.lite and #colors > 2 then
+		-- aperçu en pièces : deux couches suffisent
+		colors = { colors[1], colors[#colors] }
+	end
+	local n = o.n or 4
+	local top, base = o.top or 0.6, o.base or 0.9
+	local z = o.z or 2
+	local seed = o.seed or 1
+	local function rand(i: number, k: number): number
+		local v = math.sin(i * 12.9898 + k * 78.233 + seed * 37.719) * 43758.5453
+		return v - math.floor(v)
+	end
+	for layer, color in colors do
+		local shrink = (layer - 1) / #colors
+		local bandTop = base + (1 - base) * shrink
+		S:rect(0.5, (bandTop + 1) / 2, 1, 1 - bandTop + 0.002, color, { z = z + layer - 1 })
+		for i = 1, n do
+			local x = (i - 0.5 + (rand(i, 1) - 0.5) * 0.3) / n
+			local tip = top + (base - top) * rand(i, 2) * 0.55
+			tip += (1 - tip) * shrink * 0.7
+			local w = S.w / n * (1.0 - shrink * 0.42)
+			tongue(S, x, tip, bandTop + 0.01, w, (rand(i, 3) - 0.5) * 28, color, z + layer - 1)
+		end
+	end
+end
 Painter.band = band
 Painter.shade = shade
 Painter.celShadow = celShadow
