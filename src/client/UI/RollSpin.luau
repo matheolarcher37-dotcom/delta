@@ -53,6 +53,7 @@ local listeners: { () -> () } = {}
 local current: { id: number, finish: () -> () }? = nil
 local serial = 0
 local shown = 0 -- persos montrés sur l'estrade depuis le début (pour les tests)
+local history: { string } = {} -- persos montrés par la dernière roulette, dans l'ordre
 
 -- Vrai tant que la roulette de ce perso tourne (son modèle reste caché).
 function RollSpin.isPending(key: any): boolean
@@ -67,6 +68,11 @@ end
 -- Nombre de persos montrés sur l'estrade par les roulettes (depuis le lancement du jeu).
 function RollSpin.shownCount(): number
 	return shown
+end
+
+-- Persos (ids) montrés sur l'estrade par la dernière roulette, dans l'ordre d'apparition.
+function RollSpin.lastShown(): { string }
+	return table.clone(history)
 end
 
 -- `fn` est appelé au départ et à l'arrêt de chaque roulette.
@@ -402,6 +408,7 @@ function RollSpin.play(payload, atMachine: boolean, onDone: (() -> ())?)
 	end
 	serial += 1
 	local id = serial
+	table.clear(history)
 	-- (horloge prise avant toute construction : la roulette dure `spin` en tout, comme le serveur
 	-- le compte pour les lumières de l'estrade)
 	local started = os.clock()
@@ -469,6 +476,7 @@ function RollSpin.play(payload, atMachine: boolean, onDone: (() -> ())?)
 			clone.Parent = stageFolder()
 			case.model = clone
 			shown += 1
+			table.insert(history, item.id)
 		end
 		case.light.Brightness = 2.2
 		SoundService:PlayLocalSound(tickSound)
