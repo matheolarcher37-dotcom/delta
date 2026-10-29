@@ -778,10 +778,6 @@ do
 		})
 	end
 end
--- Gaaro : cheveux rouge brique courts, en pointes courtes qui partent dans tous les sens depuis
--- tout le crâne (dessus, côtés, nuque), front dégagé côté gauche du perso (kanji peint).
-local GAARO_RED = rgb(170, 40, 30)
-local GAARO_LIT = rgb(214, 84, 62)
 -- Gaaro ★1 : liseré gris clair du col (la bandoulière grise de la gourde est l'accessoire « sash »)
 -- + gilet gris clair à pans croisés (plastron) et large ceinture grise, qui cassent le bordeaux
 local GAARO_GREY, GAARO_GREY_DARK = rgb(176, 172, 160), rgb(128, 124, 116)
