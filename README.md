@@ -1,4 +1,4 @@
-# 🌀 ANIME TYCOON (version 3.3)
+# 🌀 ANIME TYCOON (version 3.4)
 
 **Un jeu Roblox de type Tycoon** inspiré de *Grow a Chicken Fighter* et des jeux d'animé récents
 (*Defeat Anime Bosses*…). Tu fais tourner la **machine à persos « ROULER »** de ta base pour obtenir
@@ -18,6 +18,10 @@ Le jeu marche sur **PC, mobile et console (Xbox / PlayStation)**.
 | 🤏 **Collecte sur l'estrade** | Plus de cartes « Collecter » à l'écran : pour prendre un perso, **va tout près de lui sur l'estrade** (monte sur la marche) et utilise son invite **Collecter** (E / X). Son étiquette au-dessus de la tête donne sa rareté, son nom et son prix. |
 | 🖥️ **Écran plus dégagé** | La **bannière de l'univers** et ses pastilles (événement, boss, marchand) sont plus petites. La **barre de la machine** (ROULER, x1/x2/x3, AUTO) est plus compacte et n'apparaît qu'à la machine. La pastille **Marchand** ouvre son écran (avec « Montrer le chemin »). |
 | 🏠 **Base** | Le **comptoir du marchand** et l'**autel d'éveil** quittent la base (le marchand ambulant et le stand **FAIRE ÉVOLUER** du hub font la même chose). L'**Aimant à Pièces** est retiré et **remboursé** (7 500 ¥) ; le Gong de Guerre vient maintenant après les Mannequins, et le Coffre du Shogun après le Gong. |
+| 👥 **Persos retravaillés** | **Nouvelles coiffures en mèches** (fini les couronnes de pointes) : cheveux longs lisses d'un seul tenant (Sakoura, Hinato, Nezoko…), crinières, flammes ordonnées (Vejeta), cheveux noirs à reflets bleutés, cheveux visibles sous les chapeaux. **Visages plus expressifs** (yeux plus grands, sourcils et cils plus marqués). **Tenues plus propres** : ombres douces au lieu des gribouillis, vêtements noirs sans rayures grises. **Moins carrés** : les manches des haori sont peintes à plat sur le bras (plus de gros cubes) et portent de **vraies flammes** rouge, orange et jaune (Rengoko, Minatu). Le **bandeau de Sakoura** est posé sur son front. |
+| 🌤️ **Lumière** | Le jeu est **moins éblouissant** : soleil, halo et reflets baissés dans les 5 univers, et la cinématique du trait **Céleste** (« Béni par les cieux ») est beaucoup plus douce (ailes translucides, plus de flash blanc). |
+| 👟 **Course** | Dans l'arbre de compétences, les **Pas Légers** font courir **bien plus vite** (+5, +7, +9) et une nouvelle case **Vent Divin** (+12) s'ajoute : jusqu'à **+33 de vitesse**. Ton équipe suit toujours ton rythme. Nouveau passe Robux **« Course x2 » (53 Robux)** : ta vitesse de base est doublée. |
+| 🥊 **Zone AFK** | Le panneau dit maintenant **« ZONE AFK »** (sans « anti »). |
 
 ---
 
@@ -57,7 +61,7 @@ Le jeu marche sur **PC, mobile et console (Xbox / PlayStation)**.
 |---|---|
 | 👥 **Persos** | Tous les persos sont de **vrais avatars Roblox R6 aux proportions classiques**, sur le modèle du Kid Naruto que tu m'as montré : tête ronde classique, torse 2×2, bras et jambes 1×2. Leurs vêtements sont dessinés comme des habits Roblox classiques, avec ombres et plis. Leurs visages ressemblent à des décalques d'animé. **Maruto ★1 recopie Kid Naruto** : veste orange, bandeau, moustaches. |
 | 🗺️ **Carte** | Carte beaucoup plus grande et détaillée : collines, falaises, plage, étang, ruisseau avec pont, rues pavées, vrais arbres détaillés. **Toutes les 30 minutes, TOUTE la carte change** : bâtiments, forêt de l'île, grand monument, montagnes à l'horizon, couleurs du sol, ciel, lumière et particules. |
-| 🏠 **Base** | Vraie base tycoon : **machine ROULER animée**, **arbre de compétences** de 56 cases, 28 constructions sur 3 paliers (24 depuis la v3.4), 24 cases d'unités, tapis roulant avec des pièces qui roulent jusqu'au coffre. **La déco de la base suit l'univers** : Naruto en thème Ninja, Gojo en thème Occulte… |
+| 🏠 **Base** | Vraie base tycoon : **machine ROULER animée**, **arbre de compétences** de 57 cases, 28 constructions sur 3 paliers (24 depuis la v3.4), 24 cases d'unités, tapis roulant avec des pièces qui roulent jusqu'au coffre. **La déco de la base suit l'univers** : Naruto en thème Ninja, Gojo en thème Occulte… |
 | 🖥️ **Interface** | Nouveau style inspiré de tes captures : grands boutons brillants, fiche d'unité avec ses statistiques, arbre hexagonal plein écran, prix et argent toujours visibles. Elle est animée et jouable entièrement à la manette. |
 | 💥 **Attaques** | Chaque perso a son **attaque signature**, détaillée comme dans *Defeat Anime Bosses* : Rasengan, Chidori, Kamehameha, Violet Imaginaire, Gatling, Santoryu, Hinokami Kagura… Il y a une phase de charge, puis l'explosion, l'onde de choc, le cratère et des roches projetées. Les boss ont aussi leurs attaques de zone. |
 
@@ -96,7 +100,7 @@ mais rien n'est sauvegardé (un message te le rappelle en jeu).
    - l'**arbre de compétences** se trouve au grand arbre lumineux de ta base, ou dans le bouton **Améliorations**. Il augmente ta chance, réduit le délai entre deux roulages, et augmente tes revenus, tes dégâts, tes critiques et ton nombre de cases…
 8. **Tu fais évoluer tes persos** (★ → ★★ → ★★★) avec le niveau, des pièces et un **objet du marchand ambulant**.
 9. **L'univers change toutes les 30 minutes** : la carte, la déco de ta base, les ennemis, le boss et les persos de la machine changent avec lui.
-10. Et encore : la **Fusion Crossover**, les **Traits**, le **Forgeron** (épées), les **Défis**, la **zone anti-AFK** et les **Échanges** avec les autres joueurs.
+10. Et encore : la **Fusion Crossover**, les **Traits**, le **Forgeron** (épées), les **Défis**, la **zone AFK** et les **Échanges** avec les autres joueurs.
 
 ### La machine ROULER
 
@@ -165,7 +169,7 @@ Tant qu'un numéro vaut 0, le bouton affiche « Bientôt disponible ». Dans Stu
 - Les **pièces des récompenses grandissent avec ton revenu** (5, 15 puis 45 minutes de revenu selon le palier ; 10 minutes pour un défi du jour, 30 pour le coffre bonus). Certaines récompenses donnent des gemmes de trait et des objets d'évolution.
 - **4 défis du jour** (minuit UTC), différents pour chaque joueur, et un coffre bonus quand les 4 sont réclamés.
 
-### 🥊 La zone anti-AFK
+### 🥊 La zone AFK
 
 - Dans un coin de la carte (bouton « Y aller » dans les Défis) : **3 punching-balls**, un par joueur à la fois. Le sac est réservé à celui qui s'en approche et libéré quand il part. Rien n'attaque dans la zone.
 - **Il se frappe tout seul** : reste près de ton sac et ton perso tape un coup par seconde, sans rien toucher. Pour aller plus vite, tape avec ton **épée** (ou l'invite « Frapper » : E / X / toucher). **Tous les 1 000 coups : 20 gemmes de trait.** Le compteur au-dessus du sac et le panneau en haut de l'écran montrent où tu en es.

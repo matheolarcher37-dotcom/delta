@@ -55,16 +55,18 @@ Les persos sont de **vrais avatars Roblox R6** aux proportions classiques, avec 
   - le roulage est gratuit, on paie à la collecte (le premier perso est offert) ; un Légendaire ou mieux demande confirmation avant de partir ;
   - à la machine : une petite barre ROULER (x1 / x2 / x3, AUTO) en bas à droite (plus de carte du perso tiré depuis la v3.4 : on collecte sur l'estrade), la roulette défile sur l'estrade, et la caméra montre le podium 1,5 s pour un Légendaire ou mieux.
 - ✅ **Roulement automatique** (fenêtre AUTO, à la machine) : **Lancer AFK** (29 Robux, pause sur les raretés et variétés cochées) et **Roulement automatique +** (500 Robux : choisir le perso, la rareté et la variété, la machine l'achète toute seule).
-- ✅ **Arbre de compétences hexagonal** : **56 cases** en 6 branches autour d'un cœur.
+- ✅ **Arbre de compétences hexagonal** : **57 cases** en 6 branches autour d'un cœur.
   - **Chance** : Chance I à V, Chance Divine, Bénédiction, Instinct.
   - **Tirage** : Taux d'apparition, Marchandage (persos moins chers), Machine Survoltée, Flair des mutations.
-  - **Revenu**, **Dégâts**, **Critique**, **Domaine** (Emplacements, Pas Légers, Pitié Mythique, Œil Céleste).
+  - **Revenu**, **Dégâts**, **Critique**, **Domaine** (Emplacements, Pas Légers I-III et Vent Divin : +33 de vitesse de course en tout depuis la v3.4, Pitié Mythique, Œil Céleste).
+  - Passe Robux **« Course x2 »** (53 Robux, v3.4) : vitesse de base doublée (RollService._applyWalkSpeed) ; l'équipe qui suit le joueur cale sa vitesse sur la sienne (TeamService).
   - Prix : de 150 à 15 millions de pièces.
 - ✅ **28 constructions** sur 3 paliers, toutes visibles. Les boutons d'achat ont un anneau vert ou rouge, un **panneau relevé** (bord bas à 7 studs : jamais coupé par le sol ou un socle), lisible jusqu'à 140 studs, en version compacte au loin, et les panneaux qui se recouvrent se cachent automatiquement.
 - ✅ **24 cases d'unités** hexagonales qui remplissent le **coffre** (les pièces roulent sur un tapis ; compteur aéré au-dessus du coffre). « **Remplacer l'unité** » permet de choisir qui se tient sur une case.
 - ✅ **Déco de base par univers**.
 - ✅ La **pastille Marchand** du HUD ouvre l'écran du marchand ambulant (avec « Montrer le chemin ») ; le comptoir de la base et l'autel d'éveil ont été retirés en v3.4 (doublons du marchand ambulant et du stand FAIRE ÉVOLUER du hub), comme l'Aimant à Pièces (remboursé). Les **reliques** et leurs autels ont été retirés en v3.3 (autels achetés remboursés) : la machine ROULER est la seule source de persos.
 - ✅ **Roulette sur l'estrade** (v3.4, UI/RollSpin) : des persos de l'univers défilent sur la case du perso tiré puis s'arrêtent dessus ; le vrai perso est caché côté client pendant ce temps, le serveur retarde les lumières de l'estrade et l'annonce (Formulas.rollSpinTime). Plus de cartes « Collecter » : la collecte se fait de près, avec l'invite du perso sur l'estrade.
+- ✅ **Persos v3.4** : coiffures en mèches (Modules/HairBuilder : calotte lisse, mèches en losange, mèches lisses et nappe pour les cheveux longs, hasard adouci et symétrie, cheveux sous les chapeaux), manches de haori à plat sur le bras et flammes peintes en langues (Painter.flames), ombres douces des vêtements, yeux plus grands ; budgets tenus (≤ 165 pièces par perso). Lumière baissée (Config/Universes, WorldBuilder.setupLighting, cinématique Céleste).
 
 ## 4. Le combat ✅
 
@@ -88,7 +90,7 @@ Les persos sont de **vrais avatars Roblox R6** aux proportions classiques, avec 
 
 - ✅ **Boutique Robux** : 8 passes (Roulage x2 / x3, x2 Argent, x2 Chance, Lancer AFK 29, Roulement automatique + 500, +2 Cases, VIP), packs de pièces et de gemmes, boosts de 15 min, **Pack de départ** (un seul achat). Boutons « x2 Argent », « Roulage x3 »… à droite de l'écran. Les numéros des passes et produits sont à coller dans `src/shared/Config/Robux.luau`.
 - ✅ **Défis** : défis à paliers par univers (« Tue 200 Kakashu » → au moins 1 000 pièces), combat, entraînement, collection, 4 défis du jour + un coffre bonus. Les pièces suivent le revenu du joueur. Rivaux d'univers (environ 1 ennemi sur 4).
-- ✅ **Zone anti-AFK** : 3 punching-balls (un par joueur), aucune attaque ; tous les 1 000 coups d'épée = 20 gemmes de trait.
+- ✅ **Zone AFK** (panneaux « ZONE AFK » depuis la v3.4) : 3 punching-balls (un par joueur), aucune attaque ; tous les 1 000 coups d'épée = 20 gemmes de trait.
 - ✅ **3 tableaux de classement** : Robux dépensés, plus riches, perso le plus fort.
 
 ## 6. Les échanges ✅
@@ -144,7 +146,7 @@ Pourquoi c'est la bonne pépite :
 | Marchand ambulant | change de coin et de stock toutes les 8 min |
 | Punching-ball | 1 000 coups = 20 gemmes de trait |
 | Cases d'unités | 6 au départ, jusqu'à 24 |
-| Arbre de compétences | 56 cases, de 150 à 15 000 000 pièces |
+| Arbre de compétences | 57 cases, de 150 à 15 000 000 pièces |
 | Constructions de la base | 28, de 400 à 3 000 000 pièces |
 | Boss | toutes les 8 min (80 000 PV) |
 | Événement céleste | toutes les 11 min (pendant 2 min 30) |
