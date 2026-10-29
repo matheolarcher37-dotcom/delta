@@ -783,7 +783,7 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 		Nature.tree("Cedre", ring, p + UP * TOP_RING, { rng = rng, height = rng:NextNumber(32, 44), detail = "normal" })
 	end)
 	-- bosquets de bambous serrés dans la bande libre 234-245
-	Core.scatter(rng, 10, Vector3.zero, 236, 243, function(p)
+	Core.scatter(rng, 8, Vector3.zero, 236, 243, function(p)
 		return Common.ringFree(p, 10)
 	end, function(center)
 		for _ = 1, rng:NextInteger(3, 6) do
@@ -795,7 +795,8 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 		end
 	end)
 	-- (hors de la ville : les maisons commencent vers 284)
-	Core.scatter(rng, 60, Vector3.zero, Layout.RingInner + 6, 262, function(p)
+	-- (rochers, buissons et lys sont aussi regroupés dans les petites scènes plus bas)
+	Core.scatter(rng, 40, Vector3.zero, Layout.RingInner + 6, 262, function(p)
 		return Common.ringFree(p, 4)
 	end, function(p)
 		local roll = rng:NextNumber()
@@ -807,17 +808,51 @@ function Pourfendeur.build(decor: Instance, rng: Random, _theme)
 			Nature.stump(ring, p + UP * TOP_RING, rng:NextNumber(2, 3), rng)
 		end
 	end)
-	Core.scatter(rng, 36, Vector3.zero, Layout.RingInner + 3, 262, function(p)
+	Core.scatter(rng, 14, Vector3.zero, Layout.RingInner + 3, 262, function(p)
 		return Common.ringFree(p, 2)
 	end, function(p)
 		lilyClump(ring, p + UP * TOP_RING, rng)
 	end)
-	Common.ringGround(ring, rng, { patches = 24, tufts = 300, flowers = 70, flowerColors = { WISTERIA[2], WISTERIA[4], rgb(240, 240, 250) }, patchRole = "herbe" })
+	-- Petites scènes dans la plaine de combat (rien de solide : voir Common.ringVignettes).
+	local style = { rock = STONE, moss = rgb(80, 120, 64), flowers = { WISTERIA[2], WISTERIA[4], rgb(240, 240, 250) } }
+	local scenes: { Common.VignetteBuilder } = {
+		Common.Vignettes.rocks(style),
+		Common.Vignettes.bushes(style),
+		Common.Vignettes.logs(style),
+		-- lys araignées rouges autour d'un rocher
+		function(scene, cf, r)
+			Nature.rock(scene, cf.Position, r:NextNumber(2.2, 3.2), { rng = r, color = STONE, moss = style.moss })
+			lilyClump(scene, (cf * CFrame.new(3.4, 0, 0.6)).Position, r)
+			Nature.flowerBed(scene, (cf * CFrame.new(-3.2, 0, -1)).Position, 2.2, { LILY_RED, WISTERIA[3] }, r, 4)
+		end,
+		-- mannequins de paille d'entraînement des pourfendeurs
+		function(scene, cf, r)
+			for k = -1, 1, 2 do
+				local m = cf * CFrame.new(k * 3, 0, r:NextNumber(-0.6, 0.6)) * CFrame.Angles(0, r:NextNumber(-0.3, 0.3), 0)
+				Core.vcyl(scene, "Pieu", m, 5.6, 0.35, DARK_WOOD, Enum.Material.Wood)
+				Core.ellipsoid(scene, "Paille", Vector3.new(1.6, 3, 1.4), m * CFrame.new(0, 3.6, 0), rgb(214, 182, 110), Enum.Material.Fabric)
+				Core.ball(scene, "TetePaille", 1.2, (m * CFrame.new(0, 5.6, 0)).Position, rgb(222, 190, 120), Enum.Material.Fabric)
+				Build.deco(scene, "Bras", Vector3.new(3.4, 0.3, 0.3), m * CFrame.new(0, 4.4, 0), DARK_WOOD, { Material = Enum.Material.Wood })
+				Build.deco(scene, "Entaille", Vector3.new(0.08, 1.6, 1.42), m * CFrame.new(0, 3.6, 0) * CFrame.Angles(0, 0, 0.6), rgb(120, 90, 50))
+			end
+		end,
+		-- touffe de bambous et lanterne de pierre éteinte
+		function(scene, cf, r)
+			for k = 1, 2 do
+				Nature.tree("Bambou", scene, cf * CFrame.new(math.cos(k * 3.1) * 1.6, 0, math.sin(k * 3.1) * 1.6), { rng = r, height = r:NextNumber(10, 15), detail = "low" })
+			end
+			Props.stoneLantern(scene, (cf * CFrame.new(4, 0, 1)).Position, 0.7, WARM)
+		end,
+	}
+	Common.ringVignettes(ring, rng, 34, scenes)
+	Common.ringGround(ring, rng, { patches = 24, tufts = 220, flowers = 70, flowerColors = { WISTERIA[2], WISTERIA[4], rgb(240, 240, 250) }, patchRole = "herbe" })
 
 	-- 7) Île : forêt de bambous, cèdres et glycines, forêt aux toiles, sanctuaires de renards.
 	local spiderAt = polar(150, 600)
 	local free = Common.islandFree({ { polar(MOUNT_ANGLE, 650), 110 }, { spiderAt, 26 } })
 	free = Common.dressIsland(island, rng, {
+		scenes = scenes,
+		sceneCount = 18,
 		fillSpacing = 28,
 		wood = rgb(110, 76, 54),
 		stone = rgb(160, 156, 150),

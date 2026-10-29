@@ -602,6 +602,44 @@ function Saiyan.build(decor: Instance, rng: Random, _theme)
 			Nature.rock(ring, p + UP * TOP_RING, rng:NextNumber(2.5, 6), { rng = rng, color = SAND, material = Enum.Material.Sandstone })
 		end
 	end)
+	-- Petites scènes dans la plaine de combat (rien de solide : voir Common.ringVignettes).
+	local style = { rock = SAND, moss = rgb(110, 160, 110), flowers = { rgb(250, 250, 240), rgb(250, 200, 90) }, water = rgb(70, 170, 190) }
+	local scenes: { Common.VignetteBuilder } = {
+		Common.Vignettes.rocks(style),
+		Common.Vignettes.bushes(style, "guerrier"),
+		Common.Vignettes.puddle(style),
+		-- petit cratère de combat (bord de rochers, fissures)
+		function(scene, cf, r)
+			battleCrater(scene, cf.Position, r:NextNumber(4.5, 6), r)
+		end,
+		-- piton de grès bas et ses éboulis
+		function(scene, cf, r)
+			spire(scene, cf.Position, r:NextNumber(7, 10), r:NextNumber(5, 7), r, true)
+			for k = 1, 3 do
+				Nature.rock(scene, (cf * CFrame.new(math.cos(k * 2) * 5.5, 0, math.sin(k * 2) * 5.5)).Position, r:NextNumber(1.2, 2.2), {
+					rng = r,
+					color = SAND,
+					material = Enum.Material.Sandstone,
+				})
+			end
+		end,
+		-- débris de capsule (morceaux de coque blanche, pièce orange, fumée retirée)
+		function(scene, cf, r)
+			for k = 1, 4 do
+				local piece = Core.ellipsoid(
+					scene,
+					"Debris",
+					Vector3.new(r:NextNumber(1.6, 2.8), r:NextNumber(0.6, 1.2), r:NextNumber(1.2, 2.2)),
+					cf * CFrame.new(r:NextNumber(-3, 3), 0.4, r:NextNumber(-3, 3)) * CFrame.Angles(r:NextNumber(-0.4, 0.4), r:NextNumber(0, 3), r:NextNumber(-0.4, 0.4)),
+					k == 1 and ORANGE or WHITE,
+					Enum.Material.Metal
+				)
+				piece.CastShadow = false
+			end
+			Core.flatDisc(scene, "Brulure", (cf * CFrame.new(0, 0, 0)).Position, 9, 0.12, rgb(120, 92, 70), Enum.Material.Ground)
+		end,
+	}
+	Common.ringVignettes(ring, rng, 56, scenes)
 	Common.ringGround(ring, rng, { patches = 30, tufts = 220, flowers = 50, flowerColors = { rgb(250, 250, 240), rgb(250, 200, 90) }, patchRole = "herbe" })
 
 	-- 4) Grande porte sur la route 270°, arches simples sur les autres routes.
@@ -623,6 +661,7 @@ function Saiyan.build(decor: Instance, rng: Random, _theme)
 	-- 5) Île : prairies, bosquets d'arbres ronds, mesas et aiguilles.
 	local free = Common.islandFree({ { polar(TOWER_ANGLE, 650), 60 } })
 	free = Common.dressIsland(island, rng, {
+		scenes = scenes,
 		wood = rgb(176, 130, 84),
 		stone = rgb(214, 200, 170),
 		rock = rgb(170, 150, 120),

@@ -1123,6 +1123,27 @@ function Nature.mountain(
 			part.CanCollide = false
 		end
 	end
+	-- Pyramide au sommet DÉCENTRÉ : les 4 coins (CornerWedge) ont chacun leur longueur (côtés -X,
+	-- +X, -Z, +Z), d'où des faces de pentes différentes, comme une vraie montagne.
+	local function skew(name: string, cf: CFrame, xn: number, xp: number, zn: number, zp: number, h: number, color: Color3, mat: Enum.Material)
+		local sizes = { { xn, zp }, { zp, xp }, { xp, zn }, { zn, xn } }
+		for k = 0, 3 do
+			local sx, sz = sizes[k + 1][1], sizes[k + 1][2]
+			local part = Instance.new("CornerWedgePart")
+			part.Name = name
+			part.Size = Vector3.new(sx, h, sz)
+			part.CFrame = cf * CFrame.Angles(0, k * math.pi / 2, 0) * CFrame.new(-sx / 2, h / 2, sz / 2)
+			part.Color = color
+			part.Material = mat
+			part.Anchored = true
+			part.CanTouch = false
+			part.CanCollide = false
+			part.CastShadow = false
+			part.TopSurface = Enum.SurfaceType.Smooth
+			part.BottomSurface = Enum.SurfaceType.Smooth
+			part.Parent = model
+		end
+	end
 	local function frame(pos: Vector3): CFrame
 		return CFrame.new(pos) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0) * CFrame.Angles(rng:NextNumber(-0.06, 0.06), 0, rng:NextNumber(-0.06, 0.06))
 	end
@@ -1132,42 +1153,55 @@ function Nature.mountain(
 			pyramid("Snow", cf * CFrame.new(0, h * (1 - k), 0), w * k * 1.05, d * k * 1.05, h * k * 1.01, o.snow, Enum.Material.Snow)
 		end
 	end
-	-- crête principale
+	-- crête principale : des sommets LARGES qui se chevauchent (base au moins 1,6 fois la
+	-- hauteur, pentes d'environ 50°) au lieu d'aiguilles ; le plus haut au milieu.
 	local axis = hdir(rng:NextNumber(0, math.pi * 2))
-	local peaks = rng:NextInteger(5, 7)
+	local peaks = rng:NextInteger(4, 6)
 	local middle = math.ceil(peaks / 2)
 	for i = 1, peaks do
 		local t = peaks > 1 and ((i - 1) / (peaks - 1) * 2 - 1) or 0
-		local falloff = 1 - math.abs(t) * rng:NextNumber(0.35, 0.55)
-		local h = i == middle and height or height * falloff * rng:NextNumber(0.8, 1)
-		local pos = base + axis * t * width * 0.34 + hdir(rng:NextNumber(0, 6.28)) * width * 0.05
-		local w = width * rng:NextNumber(0.3, 0.4) * (0.65 + 0.35 * falloff)
-		local d = w * rng:NextNumber(0.7, 1)
+		local falloff = 1 - math.abs(t) * rng:NextNumber(0.3, 0.5)
+		local h = i == middle and height or height * falloff * rng:NextNumber(0.72, 0.92)
+		local pos = base + axis * t * width * 0.36 + hdir(rng:NextNumber(0, 6.28)) * width * 0.05
+		local w = math.max(h * rng:NextNumber(1.6, 2), width * 0.34)
+		local d = w * rng:NextNumber(0.72, 0.95)
 		local tone = shade(rock, rng:NextNumber(-0.08, 0.06))
 		local cf = frame(pos)
-		pyramid("Peak", cf, w, d, h, tone, material)
-		if h > height * 0.72 then
-			snowCap(cf, w, d, h, rng:NextNumber(0.26, 0.36))
+		-- sommet décentré : un versant long et doux, l'autre court et raide
+		local xn, xp = w * rng:NextNumber(0.32, 0.5), w * rng:NextNumber(0.5, 0.7)
+		local zn, zp = d * rng:NextNumber(0.35, 0.55), d * rng:NextNumber(0.45, 0.65)
+		skew("Peak", cf, xn, xp, zn, zp, h, tone, material)
+		-- facette éclairée sur les plus hauts sommets (même sommet, versants plus courts, plus clair)
+		if h > height * 0.8 then
+			skew("Facet", cf * CFrame.new(0, 0, -0.6), xn * 0.86, xp * 0.7, zn * 0.9, zp * 0.62, h * 0.99, shade(tone, 0.1), material)
 		end
-		-- arêtes secondaires (épaulements)
-		for _ = 1, 2 do
-			local sh = h * rng:NextNumber(0.45, 0.68)
-			local scf = frame(pos + hdir(rng:NextNumber(0, 6.28)) * w * 0.3)
-			local sw = w * rng:NextNumber(0.5, 0.7)
-			pyramid("Shoulder", scf, sw, sw * rng:NextNumber(0.7, 1), sh, shade(tone, rng:NextNumber(-0.06, 0.04)), material)
+		if h > height * 0.7 then
+			snowCap(cf, w, d, h, rng:NextNumber(0.24, 0.32))
 		end
+		-- arête qui descend du sommet (contrefort allongé, plus bas ; deux pour le sommet principal)
+		for _ = 1, i == middle and 2 or 1 do
+			local a = rng:NextNumber(0, math.pi * 2)
+			local rh = h * rng:NextNumber(0.5, 0.68)
+			local rcf = CFrame.new(pos + hdir(a) * w * 0.18) * CFrame.Angles(0, -a, 0)
+			skew("Ridge", rcf, rh * 0.5, rh * rng:NextNumber(1.6, 2.2), rh * 0.45, rh * 0.5, rh, shade(tone, rng:NextNumber(-0.07, 0.03)), material)
+		end
+		-- épaulement (sommet secondaire plus bas, lui aussi décentré)
+		local sh = h * rng:NextNumber(0.42, 0.6)
+		local scf = frame(pos + hdir(rng:NextNumber(0, 6.28)) * w * 0.34)
+		local sw = sh * rng:NextNumber(1.9, 2.4)
+		skew("Shoulder", scf, sw * rng:NextNumber(0.35, 0.6), sw * rng:NextNumber(0.4, 0.65), sw * 0.4, sw * 0.5, sh, shade(tone, rng:NextNumber(-0.06, 0.04)), material)
 	end
 	-- contreforts verts (pyramides basses et larges) au pied
 	local slopes = rng:NextInteger(5, 7)
 	for i = 1, slopes do
 		local a = i / slopes * math.pi * 2 + rng:NextNumber(-0.3, 0.3)
 		local pos = base + hdir(a) * width * rng:NextNumber(0.24, 0.38) - UP * height * 0.04
-		local s = width * rng:NextNumber(0.34, 0.48)
-		pyramid("Slope", frame(pos), s, s * rng:NextNumber(0.7, 1), height * rng:NextNumber(0.22, 0.38), shade(grass, rng:NextNumber(-0.1, 0.05)), LEAF)
+		local s = width * rng:NextNumber(0.4, 0.56)
+		pyramid("Slope", frame(pos), s, s * rng:NextNumber(0.7, 1), height * rng:NextNumber(0.2, 0.32), shade(grass, rng:NextNumber(-0.1, 0.05)), LEAF)
 	end
 	-- forêt de conifères au pied (cônes sombres de tailles variées)
 	local treeColor = o.trees or shade(grass, -0.28)
-	for _ = 1, rng:NextInteger(10, 15) do
+	for _ = 1, rng:NextInteger(4, 7) do
 		local a = rng:NextNumber(0, math.pi * 2)
 		local pos = base + hdir(a) * width * rng:NextNumber(0.4, 0.56)
 		local s = width * rng:NextNumber(0.035, 0.065)

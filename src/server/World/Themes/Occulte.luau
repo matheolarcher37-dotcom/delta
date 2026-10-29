@@ -522,12 +522,75 @@ function Occulte.build(decor: Instance, rng: Random, _theme)
 			{ CastShadow = false }
 		)
 	end)
+	-- Petites scènes dans la plaine de combat (rien de solide : voir Common.ringVignettes).
+	local style = { rock = rgb(96, 92, 104), moss = rgb(70, 90, 64), flowers = { rgb(200, 40, 50), rgb(140, 100, 200) }, water = rgb(70, 60, 96) }
+	local scenes: { Common.VignetteBuilder } = {
+		Common.Vignettes.rocks(style),
+		Common.Vignettes.bushes(style, "nuit"),
+		Common.Vignettes.logs(style),
+		Common.Vignettes.puddle(style),
+		-- petit cimetière : deux ou trois tombes et des lys rouges
+		function(scene, cf, r)
+			for k = 1, r:NextInteger(2, 3) do
+				grave(scene, cf * CFrame.new((k - 2) * 5, 0, r:NextNumber(-1, 1)) * CFrame.Angles(0, r:NextNumber(-0.15, 0.15), 0), r)
+			end
+			Nature.flowerBed(scene, (cf * CFrame.new(0, 0, -4)).Position, 3, { rgb(200, 30, 40), rgb(170, 20, 30) }, r, 8)
+		end,
+		-- lanterne de pierre debout, sa voisine renversée en morceaux, talismans au sol
+		function(scene, cf, r)
+			Props.stoneLantern(scene, (cf * CFrame.new(-2.2, 0, 0)).Position, 0.75, CURSE)
+			for _ = 1, 4 do
+				Archi.block(
+					scene,
+					"LanterneBrisee",
+					Vector3.new(r:NextNumber(0.8, 1.6), r:NextNumber(0.6, 1.2), r:NextNumber(0.8, 1.6)),
+					cf * CFrame.new(2 + r:NextNumber(-1.4, 1.4), 0, r:NextNumber(-1.4, 1.4)) * CFrame.Angles(0, r:NextNumber(0, 3), r:NextNumber(-0.3, 0.3)),
+					shade(STONE, r:NextNumber(-0.1, 0.05)),
+					Enum.Material.Slate
+				)
+			end
+			for k = 1, 3 do
+				Build.deco(
+					scene,
+					"Talisman",
+					Vector3.new(0.8, 0.06, 1.6),
+					cf * CFrame.new(k - 2, 0.06, 2.6) * CFrame.Angles(0, r:NextNumber(0, 3), 0),
+					rgb(245, 235, 200),
+					{ CastShadow = false }
+				)
+			end
+		end,
+		-- poteaux maudits entourés d'une corde et de papiers de sceau
+		function(scene, cf, r)
+			local posts = {}
+			for k = 0, 2 do
+				local p = cf * CFrame.new(math.cos(k * 2.1) * 3.2, 0, math.sin(k * 2.1) * 3.2)
+				Archi.block(
+					scene,
+					"PoteauMaudit",
+					Vector3.new(0.8, r:NextNumber(3.6, 4.6), 0.8),
+					p * CFrame.Angles(0, r:NextNumber(0, 1), r:NextNumber(-0.08, 0.08)),
+					DARK_WOOD,
+					Enum.Material.Wood
+				)
+				Build.deco(scene, "Sceau", Vector3.new(0.6, 1.4, 0.06), p * CFrame.new(0, 2.6, -0.44), rgb(245, 235, 200))
+				table.insert(posts, p.Position + UP * 3.2)
+			end
+			for k = 1, 3 do
+				local a, b = posts[k], posts[k % 3 + 1]
+				Build.deco(scene, "Corde", Vector3.new(0.18, 0.18, (b - a).Magnitude), CFrame.lookAt((a + b) / 2, b), rgb(230, 210, 150), { Material = Enum.Material.Fabric })
+			end
+			Core.ball(scene, "Malediction", 1.1, (cf * CFrame.new(0, 1.3, 0)).Position, CURSE, Enum.Material.Neon, false)
+		end,
+	}
+	Common.ringVignettes(ring, rng, 56, scenes)
 	Common.ringGround(ring, rng, { patches = 44, tufts = 300, flowers = 40, flowerColors = { rgb(200, 40, 50), rgb(140, 100, 200) }, patchRole = "herbe" })
 
 	-- 6) Île : forêt de cèdres sombres, érables rouges, arbres morts, torii perdus.
 	local shrineCF = facing(SHRINE_ANGLE, SHRINE_RADIUS)
 	local free = Common.islandFree({ { polar(SHRINE_ANGLE, 650), 110 } })
 	free = Common.dressIsland(island, rng, {
+		scenes = scenes,
 		wood = rgb(70, 58, 62),
 		stone = rgb(120, 112, 124),
 		rock = rgb(96, 90, 100),

@@ -584,7 +584,51 @@ function Ninja.build(decor: Instance, rng: Random, _theme)
 			Nature.stump(ring, p + UP * TOP_RING, rng:NextNumber(2, 3), rng)
 		end
 	end)
-	Common.ringGround(ring, rng, { patches = 26, tufts = 380, flowers = 110, flowerColors = { rgb(240, 110, 140), rgb(250, 210, 80), rgb(250, 250, 246) } })
+	-- Petites scènes dans la plaine de combat (rien de solide : voir Common.ringVignettes).
+	local style = { rock = rgb(140, 134, 126), moss = rgb(86, 130, 60), flowers = { rgb(240, 110, 140), rgb(250, 210, 80), rgb(250, 250, 246) } }
+	local scenes: { Common.VignetteBuilder } = {
+		Common.Vignettes.rocks(style),
+		Common.Vignettes.bushes(style),
+		Common.Vignettes.logs(style),
+		Common.Vignettes.puddle(style),
+		-- coin d'entraînement : deux poteaux, cible de kunais, herbes hautes
+		function(scene, cf, r)
+			for k = -1, 1, 2 do
+				Props.trainingPost(scene, (cf * CFrame.new(k * 3.2, 0, r:NextNumber(-0.8, 0.8))).Position, r)
+			end
+			local stand = cf * CFrame.new(0, 0, 4)
+			Core.vcyl(scene, "TargetLeg", stand * CFrame.new(-0.9, 0, 0), 3.2, 0.3, WOOD_DARK, Enum.Material.Wood)
+			Core.vcyl(scene, "TargetLeg", stand * CFrame.new(0.9, 0, 0), 3.2, 0.3, WOOD_DARK, Enum.Material.Wood)
+			for k, d in { 3.2, 2.3, 1.4, 0.6 } do
+				local disc = Build.deco(
+					scene,
+					"Target",
+					Vector3.new(0.12 + k * 0.01, d, d),
+					stand * CFrame.new(0, 3.4, -0.05 * k) * CFrame.Angles(0, math.rad(90), 0),
+					k % 2 == 1 and RED or CREAM,
+					{
+						Shape = Enum.PartType.Cylinder,
+					}
+				)
+				disc.CastShadow = false
+			end
+			for k = 1, 4 do
+				Nature.tallGrass(scene, (cf * CFrame.new(math.cos(k * 1.6) * 5, 0, math.sin(k * 1.6) * 4)).Position, r:NextNumber(1.6, 2.4), rgb(96, 140, 64), r)
+			end
+		end,
+		-- stèle gravée « 忍 » avec offrandes et fleurs
+		function(scene, cf, r)
+			Archi.block(scene, "SteleBase", Vector3.new(4.4, 0.7, 3), cf, rgb(120, 116, 110), Enum.Material.Slate)
+			local stele = Archi.block(scene, "Stele", Vector3.new(2.8, 4.6, 0.9), cf * CFrame.new(0, 0.7, 0), rgb(150, 146, 138), Enum.Material.Slate)
+			Build.surfaceText(stele, Enum.NormalId.Front, "忍", rgb(70, 60, 54), { TextStrokeTransparency = 1, Font = Enum.Font.GothamBlack })
+			Build.surfaceText(stele, Enum.NormalId.Back, "忍", rgb(70, 60, 54), { TextStrokeTransparency = 1, Font = Enum.Font.GothamBlack })
+			Core.ball(scene, "Offrande", 0.6, (cf * CFrame.new(-0.9, 1.0, -1.1)).Position, rgb(250, 240, 220))
+			Core.ball(scene, "Offrande", 0.6, (cf * CFrame.new(0.9, 1.0, -1.1)).Position, rgb(250, 240, 220))
+			Nature.flowerBed(scene, (cf * CFrame.new(0, 0, -3)).Position, 2.4, style.flowers, r, 6)
+		end,
+	}
+	Common.ringVignettes(ring, rng, 40, scenes)
+	Common.ringGround(ring, rng, { patches = 26, tufts = 300, flowers = 110, flowerColors = { rgb(240, 110, 140), rgb(250, 210, 80), rgb(250, 250, 246) } })
 
 	-- 5) Grande porte du village sur la route de la base à 270°.
 	villageGate(ring, facing(270, Layout.RingFenceRadius + 3, TOP_RING))
@@ -602,6 +646,8 @@ function Ninja.build(decor: Instance, rng: Random, _theme)
 	end
 	local free = Common.islandFree({ { polar(MOUNTAIN_ANGLE, 640), 240 }, { shrineAt, 22 } })
 	free = Common.dressIsland(island, rng, {
+		scenes = scenes,
+		sceneCount = 20,
 		fillSpacing = 23,
 		wood = rgb(140, 98, 64),
 		stone = rgb(178, 170, 156),

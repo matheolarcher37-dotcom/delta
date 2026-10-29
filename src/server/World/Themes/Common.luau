@@ -207,6 +207,126 @@ function Common.forest(folder: Instance, rng: Random, spec: ForestSpec): number
 	return planted
 end
 
+-- PETITES SCÈNES DE L'ANNEAU DE COMBAT : la grande plaine où apparaissent les ennemis restait
+-- vide. On y pose, bien espacées, de petites scènes fournies par l'univers (rochers moussus,
+-- buissons, souches, flaques, poteaux d'entraînement, lanternes renversées...). Règles du jeu :
+--   * hors chemins, arène du boss et rangée des bâtiments (Layout.RingBuildInner) ;
+--   * RIEN de solide (les ennemis vont tout droit vers leur cible : ils ne doivent pas se coincer)
+--     et rien de cliquable (le clic sur un ennemi reste précis) ;
+--   * pas de lumière en plus (performances) : seules les pièces Neon brillent.
+-- `builders` : fonctions (dossier, cf au sol, rng) ; -Z local du cf est tiré au hasard.
+export type VignetteBuilder = (Instance, CFrame, Random) -> ()
+
+-- Pose UNE petite scène au sol en `pos` (tirée au hasard dans `builders`), sans collision ni clic
+-- ni lumière.
+local function buildScene(group: Instance, pos: Vector3, rng: Random, builders: { VignetteBuilder })
+	local scene = Build.model(group, "Scene")
+	local cf = CFrame.new(pos) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+	builders[rng:NextInteger(1, #builders)](scene, cf, rng)
+	for _, d in scene:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+		elseif d:IsA("Light") then
+			d:Destroy()
+		end
+	end
+end
+
+function Common.ringVignettes(folder: Instance, rng: Random, count: number, builders: { VignetteBuilder }, spacing: number?): number
+	local group = Build.folder(folder, "Scenes")
+	local spots: { Vector3 } = {}
+	local gap = spacing or 20
+	local placed = Core.scatter(rng, count, Vector3.zero, Layout.RingInner + 14, Layout.RingBuildInner - 14, function(p)
+		if not Common.ringFree(p, 10) then
+			return false
+		end
+		for _, q in spots do
+			if (q - p).Magnitude < gap then
+				return false
+			end
+		end
+		return true
+	end, function(p)
+		table.insert(spots, p)
+		buildScene(group, Vector3.new(p.X, Common.TOP_RING, p.Z), rng, builders)
+	end)
+	return placed
+end
+
+-- Scènes de base, à composer par chaque univers (couleurs de `style`).
+export type VignetteStyle = { rock: Color3, moss: Color3, leaves: Color3?, flowers: { Color3 }?, water: Color3?, wood: Color3? }
+Common.Vignettes = {}
+
+-- Rochers moussus (2 à 4) avec fougères et quelques fleurs.
+function Common.Vignettes.rocks(style: VignetteStyle): VignetteBuilder
+	return function(scene, cf, rng)
+		local big = rng:NextNumber(3.5, 5.5)
+		Nature.rock(scene, cf.Position, big, { rng = rng, color = style.rock, moss = style.moss })
+		for _ = 1, rng:NextInteger(1, 2) do
+			local q = (cf * CFrame.new(rng:NextNumber(-1, 1) * big * 1.4, 0, rng:NextNumber(-1, 1) * big * 1.4)).Position
+			Nature.rock(scene, q, big * rng:NextNumber(0.3, 0.55), { rng = rng, color = style.rock })
+		end
+		Nature.fern(scene, (cf * CFrame.new(big * 0.9, 0, big * 0.4)).Position, rng:NextNumber(2, 3.2), style.moss, rng)
+		if style.flowers then
+			for k = 1, 2 do
+				local q = (cf * CFrame.new(math.cos(k * 1.7) * big * 1.3, 0, math.sin(k * 1.7) * big * 1.3)).Position
+				Nature.flower(scene, q, style.flowers[rng:NextInteger(1, #style.flowers)], rng)
+			end
+		end
+	end
+end
+
+-- Bosquet bas : 2 ou 3 buissons et un massif de fleurs.
+function Common.Vignettes.bushes(style: VignetteStyle, palette: any?): VignetteBuilder
+	return function(scene, cf, rng)
+		for k = 1, 2 do
+			local q = (cf * CFrame.new((k - 1.5) * 3.8, 0, rng:NextNumber(-1.5, 1.5))).Position
+			Nature.bush(
+				scene,
+				q,
+				{ height = rng:NextNumber(2.6, 4), palette = palette, rng = rng, flowers = style.flowers and style.flowers[rng:NextInteger(1, #style.flowers)] or nil }
+			)
+		end
+		if style.flowers then
+			Nature.flowerBed(scene, (cf * CFrame.new(0, 0, 4.5)).Position, 2.6, style.flowers, rng, 4)
+		end
+	end
+end
+
+-- Souche, tronc couché, champignons et herbes hautes.
+function Common.Vignettes.logs(style: VignetteStyle): VignetteBuilder
+	return function(scene, cf, rng)
+		Nature.stump(scene, (cf * CFrame.new(-2.5, 0, 0)).Position, rng:NextNumber(2, 2.8), rng)
+		Nature.log(scene, cf * CFrame.new(2, 0.7, 1) * CFrame.Angles(0, rng:NextNumber(-0.5, 0.5), 0), rng:NextNumber(6, 9), rng:NextNumber(1.1, 1.5), rng)
+		for k = 1, 2 do
+			Nature.mushroom(scene, (cf * CFrame.new(-1 + k * 0.9, 0, -1.6)).Position, rng:NextNumber(0.5, 0.9), rng)
+		end
+		for k = 1, 2 do
+			Nature.tallGrass(scene, (cf * CFrame.new(math.cos(k * 2.6) * 4.5, 0, math.sin(k * 2.6) * 3.5)).Position, rng:NextNumber(1.6, 2.6), style.moss, rng)
+		end
+	end
+end
+
+-- Flaque : eau peu profonde (plate), cailloux au bord, roseaux.
+function Common.Vignettes.puddle(style: VignetteStyle): VignetteBuilder
+	return function(scene, cf, rng)
+		local len, wid = rng:NextNumber(8, 12), rng:NextNumber(5, 7.5)
+		local water = Core.ellipsoid(scene, "Flaque", Vector3.new(len, 0.1, wid), cf * CFrame.new(0, 0.07, 0), style.water or Color3.fromRGB(86, 150, 196), Enum.Material.Glass)
+		water.Reflectance = 0.2
+		water.CastShadow = false
+		local rim = Core.ellipsoid(scene, "BordFlaque", Vector3.new(len + 1.4, 0.08, wid + 1.4), cf * CFrame.new(0, 0.05, 0), Core.shade(style.rock, -0.08), Enum.Material.Mud)
+		rim.CastShadow = false
+		for k = 1, 4 do
+			local a = k / 4 * math.pi * 2 + rng:NextNumber(-0.3, 0.3)
+			local q = (cf * CFrame.new(math.cos(a) * (len / 2 + 0.4), 0, math.sin(a) * (wid / 2 + 0.4))).Position
+			Nature.rock(scene, q, rng:NextNumber(0.6, 1.3), { rng = rng, color = style.rock })
+		end
+		Nature.reeds(scene, (cf * CFrame.new(len * 0.42, 0, -wid * 0.2)).Position, rng:NextNumber(2.4, 3.4), rng)
+	end
+end
+
 -- Couronne de montagnes d'horizon (dans la mer). `skip` = { { angle, demi-largeur } } à éviter.
 function Common.horizon(
 	folder: Instance,
@@ -485,6 +605,8 @@ export type DressStyle = {
 	arch: Color3?, -- couleur du grand portique (sinon la pierre)
 	archCap: Color3?,
 	fillSpacing: number?, -- écart du semis de remplissage (≈ 22 studs)
+	scenes: { VignetteBuilder }?, -- petites scènes de l'univers (les mêmes que dans l'anneau)
+	sceneCount: number?, -- combien sur l'île (26 par défaut)
 }
 
 -- Ruine : socle de dalles, colonnes brisées (hauteurs différentes, sommets éclatés), une colonne
@@ -833,6 +955,17 @@ function Common.dressIsland(folder: Instance, rng: Random, style: DressStyle, ba
 		end, function(p)
 			Nature.flowerBed(dress, Common.ground(p), rng:NextNumber(2.2, 3.6), style.flowers, rng, rng:NextInteger(6, 9))
 			take(p, 4)
+			placed += 1
+		end)
+	end
+	-- 4 bis) petites scènes de l'univers dans les grands champs (les forêts les évitent ensuite)
+	if style.scenes and #style.scenes > 0 then
+		local group = Build.folder(dress, "Scenes")
+		Core.scatter(rng, style.sceneCount or 26, Vector3.zero, Layout.WalkwayOuter + 18, Layout.IslandRadius - 18, function(p)
+			return free(p, 8)
+		end, function(p)
+			buildScene(group, Common.ground(p), rng, style.scenes :: { VignetteBuilder })
+			take(p, 9)
 			placed += 1
 		end)
 	end

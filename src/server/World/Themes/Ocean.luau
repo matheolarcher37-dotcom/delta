@@ -501,6 +501,62 @@ function Ocean.build(decor: Instance, rng: Random, _theme)
 		Core.ellipsoid(ring, "Shell", Vector3.new(0.8, 0.35, 0.7), CFrame.new(p + UP * (TOP_RING + 0.1)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0), shells[rng:NextInteger(1, 3)]).CastShadow =
 			false
 	end)
+	-- Petites scènes dans la plaine de combat (rien de solide : voir Common.ringVignettes).
+	local style = { rock = rgb(150, 140, 128), moss = rgb(96, 150, 70), flowers = { rgb(230, 40, 70), rgb(250, 200, 60) }, water = rgb(40, 170, 200) }
+	local scenes: { Common.VignetteBuilder } = {
+		Common.Vignettes.rocks(style),
+		Common.Vignettes.bushes(style),
+		-- flaque de marée avec étoiles de mer
+		function(scene, cf, r)
+			Common.Vignettes.puddle(style)(scene, cf, r)
+			for _ = 1, 3 do
+				Core.vcyl(scene, "EtoileDeMer", cf * CFrame.new(r:NextNumber(-3, 3), 0.1, r:NextNumber(-2, 2)), 0.12, 1.2, rgb(240, 110, 70), Enum.Material.SmoothPlastic, false)
+			end
+		end,
+		-- épave : bois flotté, tonneau couché, caisses, sac
+		function(scene, cf, r)
+			Nature.log(scene, cf * CFrame.new(0, 0.3, 0) * CFrame.Angles(0, r:NextNumber(-0.4, 0.4), 0), r:NextNumber(7, 9), 1.2, r)
+			Props.barrel(scene, cf * CFrame.new(3, 0, 2.6), 0.9, HULL, true)
+			Props.crate(scene, cf * CFrame.new(-3.2, 0, 2.4) * CFrame.Angles(0, r:NextNumber(0, 1), 0), 2.2)
+			Props.crate(scene, cf * CFrame.new(-3.2, 2.2, 2.4) * CFrame.Angles(0, r:NextNumber(0, 1), 0), 1.6)
+			Props.sack(scene, cf * CFrame.new(1, 0, -2.4), r)
+		end,
+		-- ancre plantée dans le sable avec sa chaîne
+		function(scene, cf, r)
+			local tilt = cf * CFrame.Angles(0, 0, math.rad(r:NextNumber(-14, 14)))
+			Build.deco(scene, "AncreTige", Vector3.new(0.8, 6.5, 0.8), tilt * CFrame.new(0, 3, 0), rgb(70, 72, 80), { Material = Enum.Material.Metal })
+			Build.deco(scene, "AncreJas", Vector3.new(4.4, 0.6, 0.6), tilt * CFrame.new(0, 5.6, 0), HULL_DARK, { Material = Enum.Material.Wood })
+			for _, side in { -1, 1 } do
+				Build.deco(scene, "AncreBras", Vector3.new(0.7, 2.6, 0.7), tilt * CFrame.new(side * 1.2, 0.6, 0) * CFrame.Angles(0, 0, side * math.rad(50)), rgb(70, 72, 80), {
+					Material = Enum.Material.Metal,
+				})
+			end
+			local eye = Build.deco(scene, "AncreAnneau", Vector3.new(0.3, 1.6, 1.6), tilt * CFrame.new(0, 6.7, 0) * CFrame.Angles(0, math.rad(90), 0), rgb(70, 72, 80), {
+				Material = Enum.Material.Metal,
+				Shape = Enum.PartType.Cylinder,
+			})
+			eye.CastShadow = false
+			for k = 1, 6 do
+				Core.ellipsoid(
+					scene,
+					"Chaine",
+					Vector3.new(0.9, 0.35, 0.55),
+					cf * CFrame.new(1 + k * 0.8, 0.2, math.sin(k) * 0.6) * CFrame.Angles(0, k * 0.7, 0),
+					rgb(90, 90, 96),
+					Enum.Material.Metal
+				)
+			end
+		end,
+		-- jeune palmier et coquillages
+		function(scene, cf, r)
+			Nature.tree("Palmier", scene, cf, { rng = r, height = r:NextNumber(9, 12), detail = "normal" })
+			for k = 1, 4 do
+				Core.ellipsoid(scene, "Shell", Vector3.new(0.8, 0.35, 0.7), cf * CFrame.new(math.cos(k * 1.5) * 3, 0.15, math.sin(k * 1.5) * 3), rgb(250, 230, 210)).CastShadow =
+					false
+			end
+		end,
+	}
+	Common.ringVignettes(ring, rng, 56, scenes)
 	Common.ringGround(ring, rng, { patches = 20, tufts = 160, flowers = 30, flowerColors = { rgb(230, 40, 70), rgb(250, 200, 60) }, patchRole = "herbe" })
 
 	-- 5) Arche pirate sur la route 270°, drapeaux sur les autres routes.
@@ -529,6 +585,7 @@ function Ocean.build(decor: Instance, rng: Random, _theme)
 	local portCenter = polar(PORT_ANGLE, 650)
 	local free = Common.islandFree({ { portCenter, 50 } })
 	free = Common.dressIsland(island, rng, {
+		scenes = scenes,
 		wood = rgb(186, 156, 120),
 		stone = rgb(214, 204, 180),
 		rock = rgb(196, 184, 160),
