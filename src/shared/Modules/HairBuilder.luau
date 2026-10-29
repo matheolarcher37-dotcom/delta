@@ -687,7 +687,8 @@ end
 -- sous une casquette (look.sideburns).
 function HairBuilder.underHat(ctx, c: Color3, look, hairTones)
 	local colors, rand = HairBuilder.colors(c, look, hairTones), calmRng(seedOf(c, "underHat"))
-	ctx.ball("Head", "HairNape", Vector3.new(1.3, 0.75, 1.0), CFrame.new(0, -0.05, 0.24), colors.mid)
+	-- nuque « soignée » (look.napeTidy) : de la couleur des cheveux
+	ctx.ball("Head", "HairNape", Vector3.new(1.3, 0.75, 1.0), CFrame.new(0, -0.05, 0.24), ctx.napeTidy and ctx.napeTidy.color or colors.mid)
 	HairBuilder.ring(ctx, colors, {
 		n = 12,
 		h0 = 0.62,
