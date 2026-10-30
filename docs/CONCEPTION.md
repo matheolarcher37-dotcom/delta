@@ -139,7 +139,7 @@ Pourquoi c'est la bonne pépite :
 | Élément | Valeur |
 |---|---|
 | Durée d'un univers | 30 min |
-| Raretés de la machine (chance) | Commun 70 % · Rare 22 % · Épique 6,5 % · Légendaire 1,3 % · Mythique 0,2 % · Secret 0,02 % |
+| Raretés de la machine (chance) | Commun 80 % · Rare 15 % · Épique 4 % · Légendaire 0,85 % · Mythique 0,15 % · Secret 0,02 % (depuis la v3.4) |
 | Variétés | environ 15 % des tirages (Or 3,5 % … Arc-en-ciel 0,15 %), ×1,5 à ×6 |
 | Pitié (garantie) | Mythique seulement, au bout de 1 000 persos tirés |
 | Persos par roulage | 1 (2 ou 3 avec les passes Robux) |
