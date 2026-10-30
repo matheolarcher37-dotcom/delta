@@ -350,6 +350,9 @@ test("Marchand : écran, achat sur place, objet requis à l'Évolution, onglet O
 	local Shop = Harness.require(Harness.find("StarterPlayer.StarterPlayerScripts.Client.UI.Shop"))
 	local firstId = Shop._state().items[1].id
 	local owned = data.Items[firstId] or 0
+	-- Le stock (et donc le prix du 1er objet) dépend de l'univers et de l'heure : de quoi le payer
+	local firstItem = EvolutionItems.get(firstId)
+	data.coins = math.max(data.coins, (firstItem and firstItem.price or 0) + 1000)
 	signalFor(buyButton, "Activated"):Fire()
 	-- Réponse du serveur : on attend jusqu'à 3 s (machine chargée pendant les tests).
 	local deadline = os.clock() + 3
