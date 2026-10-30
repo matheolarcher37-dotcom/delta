@@ -153,7 +153,8 @@ local function itemBox(parent: Instance, need, data, order: number)
 		status = "Tu en as " .. have .. " · EN VENTE au Marchand !"
 		statusColor = C.Gold
 	else
-		status = "Tu en as " .. have .. " · chez le Marchand"
+		-- (v3.4) : les ennemis de la zone de combat en lâchent, surtout au centre
+		status = "Tu en as " .. have .. " · ennemis du centre ou Marchand"
 		statusColor = Color3.fromRGB(255, 160, 160)
 	end
 	Theme.label({

@@ -203,7 +203,8 @@ test("Machine ROULER : probabilités, prix, pitié", function()
 			assert(pools[id] and #pools[id] > 0, "rareté tirable sans perso dans l'univers : " .. id)
 		end
 	end
-	assert(math.abs(base.common - 0.7) < 1e-6 and math.abs(base.mythic - 0.002) < 1e-6, "chances de base inattendues")
+	-- v3.4 : 80 % de Commun à chance x1 (demande du joueur), Mythique 0,15 %
+	assert(math.abs(base.common - 0.8) < 1e-6 and math.abs(base.mythic - 0.0015) < 1e-6, "chances de base inattendues")
 	local last = 0
 	for _, id in Economy.RollOrder do
 		local price = Formulas.rollPrice(id)
@@ -2020,6 +2021,79 @@ test("Base : panneaux d'achat dégagés, sans chevauchement (entrée, coffre)", 
 		print("   ! " .. line)
 	end
 	assert(#problems == 0, "panneaux qui se recouvrent :\n  " .. table.concat(problems, "\n  "))
+end)
+
+test("Persos importés de la Boîte à outils : rigs R6 complets, habillés, sans script (v3.4)", function()
+	local folder = find("ReplicatedStorage.ModelesPersos")
+	assert(folder, "dossier ModelesPersos absent (assets/ModelesPersos)")
+	local CharacterFactory = requireModule(Shared.Modules.CharacterFactory)
+	local expected = { ninja_maruto = 1, ninja_maruto_2 = 2, ninja_maruto_3 = 3, ninja_sakoura = 1, ninja_sasuki = 1 }
+	for name in expected do
+		local model = folder:FindFirstChild(name)
+		assert(model and model:IsA("Model"), "perso importé absent : " .. name)
+		local humanoid = model:FindFirstChildOfClass("Humanoid")
+		assert(humanoid and humanoid.RigType == Enum.HumanoidRigType.R6, name .. " : pas un rig R6")
+		for _, part in { "HumanoidRootPart", "Torso", "Head", "Left Arm", "Right Arm", "Left Leg", "Right Leg" } do
+			assert(model:FindFirstChild(part), name .. " : membre R6 manquant " .. part)
+		end
+		local motors = {}
+		for _, d in model:GetDescendants() do
+			assert(not d:IsA("LuaSourceContainer"), name .. " : script laissé dans le modèle (" .. d.Name .. ")")
+			if d:IsA("Motor6D") then
+				motors[d.Name] = true
+			elseif d:IsA("BasePart") and d.Parent and d.Parent.Name == "Tenue" then
+				local weld = d:FindFirstChild("Soudure")
+				assert(weld and weld.Part0 and weld.Part0.Parent == model, name .. " : pièce de tenue non soudée à un membre (" .. d.Name .. ")")
+			end
+		end
+		for _, joint in CharacterBuilder.JointNames do
+			assert(motors[joint], name .. " : articulation R6 manquante " .. joint)
+		end
+		assert(model:FindFirstChildOfClass("Shirt") and model:FindFirstChildOfClass("Pants"), name .. " : vêtements perdus")
+	end
+	-- La fabrique les prend à la bonne étoile (Maruto : un modèle par étoile ; Sakoura et Sasuki :
+	-- le même pour toutes les étoiles)
+	for _, e in
+		{
+			{ "ninja_maruto", 1, "ninja_maruto" },
+			{ "ninja_maruto", 2, "ninja_maruto_2" },
+			{ "ninja_maruto", 3, "ninja_maruto_3" },
+			{ "ninja_sakoura", 3, "ninja_sakoura" },
+			{ "ninja_sasuki", 2, "ninja_sasuki" },
+		}
+	do
+		local template = CharacterFactory.templateFor(e[1], e[2])
+		assert(template and template.Name == e[3], e[1] .. " ★" .. e[2] .. " : modèle importé non utilisé")
+		local m = CharacterFactory.build(e[1], e[2], Formulas.describe({ id = e[1], level = 1, stars = e[2] }).look, { scale = 1 })
+		assert(m:GetAttribute("CustomModel") and math.abs(CharacterFactory.rootHeight(m) - 3) < 0.3, e[1] .. " : hauteur de racine anormale")
+		m:Destroy()
+	end
+end)
+
+test("Objets d'évolution lâchés par les ennemis (plus souvent et plus rares au centre, boss)", function()
+	local EvolutionItems = requireModule(Shared.Config.EvolutionItems)
+	local drops = EvolutionItems.Drops
+	assert(drops[1].chance < drops[2].chance and drops[2].chance < drops[3].chance, "les ennemis du centre doivent lâcher plus d'objets")
+	assert(drops.boss and drops.boss.count >= 1, "le boss doit lâcher des objets")
+	for _, universe in Universes.List do
+		local set = EvolutionItems.Universe[universe.id]
+		assert(set, universe.id .. " : objets de base manquants")
+		-- palier 1 en bordure, palier 3 ou signature au centre
+		assert(EvolutionItems.dropFor(universe.id, drops[1].picks, 0.5, 0.5) == set[1], universe.id .. " : bordure sans objet de palier 1")
+		local seen = {}
+		for i = 0, 19 do
+			local id = EvolutionItems.dropFor(universe.id, drops[3].picks, i / 20, (i * 7 % 20) / 20)
+			assert(id and EvolutionItems.get(id), universe.id .. " : objet lâché inconnu")
+			assert(EvolutionItems.get(id).universe == universe.id or EvolutionItems.get(id).universe == nil, universe.id .. " : objet d'un autre univers")
+			seen[id] = true
+		end
+		local count = 0
+		for _ in seen do
+			count += 1
+		end
+		assert(count >= 2, universe.id .. " : le centre lâche toujours le même objet")
+	end
+	assert(EvolutionItems.dropFor("inconnu", drops[1].picks, 0.5, 0.5) == nil, "univers inconnu")
 end)
 
 test("Boutique Robux : configuration (passes, produits, aides)", function()

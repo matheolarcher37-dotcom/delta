@@ -28,6 +28,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local AttackFx = require(Shared.Config.AttackFx)
 local Characters = require(Shared.Config.Characters)
 local Universes = require(Shared.Config.Universes)
+local EvolutionItems = require(Shared.Config.EvolutionItems)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 
@@ -3790,6 +3791,20 @@ local function onReward(kind: string, amount: number, position: Vector3?, extra:
 		light.Parent = gem
 		flyTo(gem, 0.8, function() end)
 		floatingText(origin + Vector3.new(0, 4, 0), "+" .. amount .. " " .. (material and material.name or ""), lighten(color, 0.3), 1, 1.4)
+	elseif kind == "item" then
+		-- Objet d'évolution lâché par un ennemi : petit coffret de la couleur de son palier
+		local item = extra and EvolutionItems.get(extra)
+		local tier = item and EvolutionItems.Tiers[item.tier]
+		local color = tier and tier.color or Color3.fromRGB(214, 92, 255)
+		local box = newPart(Vector3.new(1, 1, 1), CFrame.new(origin + Vector3.new(0, 2.5, 0)) * CFrame.Angles(0, math.rad(45), 0), color, 2, { Material = Enum.Material.Neon })
+		local light = Instance.new("PointLight")
+		light.Color = color
+		light.Range = 10
+		light.Brightness = 1.5
+		light.Parent = box
+		flyTo(box, 1, function() end)
+		floatingText(origin + Vector3.new(0, 5.5, 0), "+" .. amount .. " " .. (item and item.name or "objet d'évolution") .. " 📦", lighten(color, 0.35), 1.3, 1.8)
+		playAt("coin", nil, 0.2)
 	elseif kind == "crystal" then
 		local color = Color3.fromRGB(120, 230, 255)
 		local gem = newPart(Vector3.new(0.9, 1.6, 0.9), CFrame.new(origin + Vector3.new(0, 2, 0)), color, 2, { Transparency = 0.1 })

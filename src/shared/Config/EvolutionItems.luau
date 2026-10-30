@@ -1,4 +1,5 @@
--- OBJETS D'ÉVOLUTION, vendus par le MARCHAND ambulant (pièces ¥).
+-- OBJETS D'ÉVOLUTION, lâchés par les ENNEMIS de la zone de combat (surtout au centre, voir
+-- `Drops`) et vendus par le MARCHAND ambulant (pièces ¥).
 -- Ils servent EXCLUSIVEMENT à faire évoluer les persos (★ → ★★ → ★★★), en plus du niveau, des
 -- pièces et des matériaux que l'évolution demandait déjà.
 --
@@ -344,6 +345,52 @@ EvolutionItems.Universe = {
 	pourfendeur = { "pou_garde", "pou_marque", "pou_lys" },
 }
 EvolutionItems.Fallback = "pierre_eveil"
+
+-- BUTIN DES ENNEMIS (v3.4) : les ennemis de la zone de combat lâchent les objets d'évolution de
+-- l'univers actif (le Marchand ambulant en vend toujours). Plus on va vers le centre, plus ils en
+-- lâchent et plus ils sont rares ; le boss en donne à coup sûr.
+--   chance = probabilité par ennemi vaincu ; picks = poids des paliers d'objets (1, 2, 3) et des
+--   objets signature de l'univers (« signature »).
+EvolutionItems.Drops = {
+	[1] = { chance = 0.05, picks = { [1] = 1 } },
+	[2] = { chance = 0.1, picks = { [1] = 0.5, [2] = 0.5 } },
+	[3] = { chance = 0.18, picks = { [2] = 0.35, [3] = 0.4, signature = 0.25 } },
+	boss = { count = 2, picks = { [3] = 0.5, signature = 0.5 } },
+}
+
+-- Objet lâché par un ennemi de l'univers `universeId` : `roll` et `pick` sont deux nombres tirés
+-- dans [0, 1[ (le premier choisit le palier, le second l'objet signature).
+function EvolutionItems.dropFor(universeId: string?, picks, roll: number, pick: number): string?
+	local set = universeId and EvolutionItems.Universe[universeId]
+	if not set or type(picks) ~= "table" then
+		return nil
+	end
+	local total = 0
+	for _, w in picks do
+		total += w
+	end
+	local x = roll * total
+	local choice = nil
+	for _, key in { 1, 2, 3, "signature" } do
+		local w = picks[key]
+		if w then
+			if x < w then
+				choice = key
+				break
+			end
+			x -= w
+		end
+	end
+	choice = choice or 1
+	if choice == "signature" then
+		local signatures = EvolutionItems.signatures(universeId)
+		if #signatures > 0 then
+			return signatures[math.clamp(math.floor(pick * #signatures) + 1, 1, #signatures)]
+		end
+		choice = 3
+	end
+	return set[choice :: number]
+end
 
 -- Objets SIGNATURE : { [idDuPerso] = { [étoile visée] = { item, amount } } }.
 EvolutionItems.ByCharacter = {

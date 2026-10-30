@@ -22,6 +22,10 @@ Le jeu marche sur **PC, mobile et console (Xbox / PlayStation)**.
 | 🌤️ **Lumière** | Le jeu est **moins éblouissant** : soleil, halo et reflets baissés dans les 5 univers, et la cinématique du trait **Céleste** (« Béni par les cieux ») est beaucoup plus douce (ailes translucides, plus de flash blanc). |
 | 👟 **Course** | Dans l'arbre de compétences, les **Pas Légers** font courir **bien plus vite** (+5, +7, +9) et une nouvelle case **Vent Divin** (+12) s'ajoute : jusqu'à **+33 de vitesse**. Ton équipe suit toujours ton rythme. Nouveau passe Robux **« Course x2 » (53 Robux)** : ta vitesse de base est doublée. |
 | 🥊 **Zone AFK** | Le panneau dit maintenant **« ZONE AFK »** (sans « anti »). |
+| 🧑‍🤝‍🧑 **Persos de la boutique** | Tes modèles de la Boîte à outils sont dans le jeu : **Maruto** ★ (Naruto), ★★ (cape rouge) et ★★★ (mode Six Chemins), **Sakoura** et **Sasuki**. Ils étaient en R15 : ils ont été convertis en R6 en gardant exactement leurs habits, cheveux et accessoires, pour marcher avec les animations, les épées et les attaques du jeu. |
+| 🎲 **Chances** | **80 % de Commun** à la machine (Rare 15 %, Épique 4 %, Légendaire 0,85 %, Mythique 0,15 %). |
+| 📦 **Objets d'évolution** | Les **ennemis de la zone de combat** lâchent maintenant les objets d'évolution de l'univers : un peu en bordure, plus souvent et des plus rares **au centre**, et **le boss en donne 2 à coup sûr**. Le Marchand ambulant en vend toujours. |
+| 🌳 **Arbres** | Feuillage en vraie matière « feuilles » de Roblox au lieu de boules d'herbe lisses. |
 
 ---
 
@@ -109,11 +113,11 @@ Ensuite, une **variété** peut s'ajouter par-dessus (environ 15 % des tirages).
 
 | Rareté | Chance | Prix de base |
 |---|---|---|
-| Commun | 70 % | 90 ¥ |
-| Rare | 22 % | 900 ¥ |
-| Épique | 6,5 % | 6 000 ¥ |
-| Légendaire | 1,3 % | 45 000 ¥ |
-| Mythique | 0,2 % | 350 000 ¥ |
+| Commun | 80 % | 90 ¥ |
+| Rare | 15 % | 900 ¥ |
+| Épique | 4 % | 6 000 ¥ |
+| Légendaire | 0,85 % | 45 000 ¥ |
+| Mythique | 0,15 % | 350 000 ¥ |
 | Secret (1 perso par univers) | 0,02 % | 2 000 000 ¥ |
 
 | Variété | Multiplicateur (puissance et prix) | Ce qu'on voit |
@@ -241,6 +245,9 @@ Le fichier contient le jeu **déjà construit**. Dans l'*Explorateur* de Studio 
   la place du perso intégré. « Naruto Sage » et « Naruto Kurama » remplacent les évolutions ★★ et ★★★.
   Les scripts des modèles gratuits sont supprimés automatiquement. La liste des noms reconnus est dans
   `src/shared/Config/NomsOriginaux.luau`. Prends de préférence un modèle **R6**.
+- **Pour qu'ils restent dans toutes les versions** (même en R15) : envoie-moi ton fichier avec les persos posés
+  dans le Workspace. Ils sont convertis en R6 (habits, cheveux et accessoires gardés tels quels) par
+  `tools/import_persos.luau` et rangés dans `assets/ModelesPersos` (un fichier par perso et par étoile).
 - **Par ton propre modèle** : mets un rig **R6** (avec `HumanoidRootPart`, `Torso`, `Head`, `Left Arm`…) dans
   `GaleriePersos › ModelesPersos` et donne-lui le nom du perso : `ninja_maruto` pour le ★, `ninja_maruto_2` / `ninja_maruto_3` pour ses évolutions.
   Un modèle ne sert qu'à son étoile ; pour qu'un seul modèle serve à toutes les étoiles, ajoute-lui l'attribut

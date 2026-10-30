@@ -391,8 +391,21 @@ test("Boss : apparition et récompense partagée", function()
 	CombatService:SpawnBoss()
 	local boss = CombatService:GetBoss()
 	assert(boss and boss.alive, "pas de boss")
+	local data = DataService:Get(alice)
+	local function itemCount()
+		local n = 0
+		for _, count in data.Items or {} do
+			n += count
+		end
+		return n
+	end
+	local itemsBefore = itemCount()
 	CombatService:DamageEnemy(alice, boss, 1e9, {})
 	assert(not boss.alive, "boss vivant")
+	-- v3.4 : le boss lâche à coup sûr des objets d'évolution de l'univers
+	task.wait(0.1)
+	local EvolutionItems = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.EvolutionItems"))
+	assert(itemCount() >= itemsBefore + EvolutionItems.Drops.boss.count, "le boss n'a pas lâché d'objets d'évolution")
 end)
 
 test("IA de l'équipe : le perso attaque un ennemi proche", function()

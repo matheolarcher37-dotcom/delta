@@ -99,17 +99,17 @@ local function rarityInfo(id: string, order: number, odds: number, price: number
 end
 
 Economy.RollRarities = {
-	common = rarityInfo("common", 1, 70, 90),
+	common = rarityInfo("common", 1, 80, 90), -- v3.4 : 80 % de Commun (chance x1)
 	uncommon = rarityInfo("uncommon", 2, 15, 260, {
 		name = "Peu commun",
 		color = Color3.fromRGB(90, 220, 100),
 		gradient = { Color3.fromRGB(160, 255, 150), Color3.fromRGB(40, 170, 70) },
 		optional = true,
 	}),
-	rare = rarityInfo("rare", 3, 22, 900),
-	epic = rarityInfo("epic", 4, 6.5, 6000),
-	legendary = rarityInfo("legendary", 5, 1.3, 45000),
-	mythic = rarityInfo("mythic", 6, 0.2, 350000),
+	rare = rarityInfo("rare", 3, 15, 900),
+	epic = rarityInfo("epic", 4, 4, 6000),
+	legendary = rarityInfo("legendary", 5, 0.85, 45000),
+	mythic = rarityInfo("mythic", 6, 0.15, 350000),
 	secret = rarityInfo("secret", 7, 0.02, 2000000, {
 		name = "Secret",
 		color = Color3.fromRGB(246, 240, 255), -- blanc nacré (même couleur unie que Rarities.secret)

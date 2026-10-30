@@ -13,6 +13,7 @@ local Layout = require(Shared.Config.Layout)
 local QuestsConfig = require(Shared.Config.Quests)
 local Formulas = require(Shared.Modules.Formulas)
 local Robux = require(Shared.Config.Robux)
+local EvolutionItems = require(Shared.Config.EvolutionItems)
 local SkillTree = require(Shared.Config.SkillTree)
 local Remotes = require(Shared.Modules.Remotes)
 local CharacterFactory = require(Shared.Modules.CharacterFactory)
@@ -472,6 +473,15 @@ function CombatService:_reward(player: Player, record, universe, position: Vecto
 		DataService:AddMaterial(player, universe.material.id, amount)
 		Reward:FireClient(player, "material", amount, position, universe.material.id)
 	end
+	-- Objets d'évolution de l'univers (v3.4) : plus souvent et plus rares vers le centre
+	local drop = universe and (record.rival and EvolutionItems.Drops[3] or EvolutionItems.Drops[record.tier])
+	if drop and rng:NextNumber() < drop.chance then
+		local itemId = EvolutionItems.dropFor(universe.id, drop.picks, rng:NextNumber(), rng:NextNumber())
+		if itemId then
+			DataService:AddItem(player, itemId, 1)
+			Reward:FireClient(player, "item", 1, position, itemId)
+		end
+	end
 	-- Gemmes de trait (= Cristaux de Trait) : chance et quantité selon la force de l'ennemi.
 	local quests = self.services.QuestService
 	local gemRule = record.rival and QuestsConfig.Gems.Rival or QuestsConfig.Gems.Tiers[record.tier]
@@ -512,6 +522,15 @@ function CombatService:_rewardBoss(record, universe, position: Vector3)
 				local amount = rng:NextInteger(stats.materials[1], stats.materials[2]) * materialMult
 				DataService:AddMaterial(player, universe.material.id, amount)
 				Reward:FireClient(player, "material", amount, position, universe.material.id)
+				-- objets d'évolution rares garantis
+				local bossDrop = EvolutionItems.Drops.boss
+				for _ = 1, bossDrop.count do
+					local itemId = EvolutionItems.dropFor(universe.id, bossDrop.picks, rng:NextNumber(), rng:NextNumber())
+					if itemId then
+						DataService:AddItem(player, itemId, 1)
+						Reward:FireClient(player, "item", 1, position, itemId)
+					end
+				end
 			end
 			local crystals = rng:NextInteger(QuestsConfig.Gems.Boss.min, QuestsConfig.Gems.Boss.max)
 			local quests = self.services.QuestService

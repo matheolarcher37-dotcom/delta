@@ -1,6 +1,7 @@
 -- Évolution (Éveil) : quand un perso atteint son niveau max, on le fait évoluer à l'Autel d'Éveil
 -- avec les matériaux de SON univers (qu'on ne trouve que quand cet univers est actif !) ET
--- l'OBJET D'ÉVOLUTION qu'il demande (vendu par le Marchand ambulant, voir Config/EvolutionItems) :
+-- l'OBJET D'ÉVOLUTION qu'il demande (lâché par les ennemis de la zone de combat, surtout au centre,
+-- et vendu par le Marchand ambulant, voir Config/EvolutionItems) :
 -- par exemple une Boule du Dragon pour que Goko passe Super Guerrier.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -51,7 +52,12 @@ function EvolutionService:Evolve(player: Player, uid: any)
 	if need and item then
 		local owned = type(data.Items) == "table" and (data.Items[need.item] or 0) or 0
 		if owned < need.amount then
-			return false, "Il te manque " .. (need.amount - owned) .. " × " .. item.name .. " (en vente chez le Marchand ambulant)"
+			return false,
+				"Il te manque "
+					.. (need.amount - owned)
+					.. " × "
+					.. item.name
+					.. " (lâché par les ennemis du centre de la zone de combat, ou en vente chez le Marchand ambulant)"
 		end
 	end
 	if not DataService:SpendCoins(player, cost.coins) then

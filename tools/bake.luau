@@ -278,6 +278,30 @@ local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
 if remotes then
 	remotes:Destroy() -- recréés au lancement
 end
+-- Persos importés de la Boîte à outils (assets/ModelesPersos, voir tools/import_persos.luau) :
+-- recopiés tels quels depuis leurs fichiers .rbxm, sans passer par Rojo qui perd certaines
+-- propriétés des unions (AssetId des orbes de Maruto ★★★, par exemple).
+do
+	local folder = game:GetService("ReplicatedStorage"):FindFirstChild("ModelesPersos")
+	local ok, files = pcall(fs.readDir, "assets/ModelesPersos")
+	if folder and ok then
+		local count = 0
+		for _, file in files do
+			local name = string.match(file, "^(.+)%.rbxm$")
+			if name then
+				local old = folder:FindFirstChild(name)
+				if old then
+					old:Destroy()
+				end
+				local model = roblox.deserializeModel(fs.readFile("assets/ModelesPersos/" .. file))[1]
+				model.Name = name
+				model.Parent = folder
+				count += 1
+			end
+		end
+		print("persos importés recopiés :", count)
+	end
+end
 local bytes = roblox.serializePlace(game)
 fs.writeFile(OUT, bytes)
 print(string.format("écrit %s (%.1f Mo)", OUT, #bytes / 1e6))

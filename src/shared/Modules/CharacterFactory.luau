@@ -13,6 +13,8 @@
 --      à elle reprend la version de l'étoile en dessous (voir Config/Avatars.luau).
 --   3) CharacterBuilder : le perso R6 "peint" intégré.
 -- Les modèles perso doivent être des rigs R6 (Torso, Head, "Left Arm"...) avec un HumanoidRootPart.
+-- Les persos de la Boîte à outils importés une fois pour toutes (tools/import_persos.luau, qui
+-- convertit aussi les R15 en R6) sont rangés dans assets/ModelesPersos (-> ModelesPersos).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 

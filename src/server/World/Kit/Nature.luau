@@ -24,7 +24,9 @@ local shade = Core.shade
 local cylinder = Core.cylinder
 
 local WOOD = Enum.Material.Wood
-local LEAF = Enum.Material.Grass
+-- Feuillage (v3.4) : matériau « feuilles » de Roblox (vrai feuillage texturé) au lieu de l'herbe
+-- lisse, pour des arbres plus réalistes sans pièce en plus
+local LEAF = Enum.Material.LeafyGrass
 
 -- Palettes de feuillage : { profond, sombre, moyen, clair, pointe }.
 Nature.Palettes = {
