@@ -23,6 +23,7 @@ Les persos sont de **vrais avatars Roblox R6** aux proportions classiques, avec 
 ## 1. Les persos ✅
 
 - ✅ **66 persos** répartis dans 5 univers (Communs, Rares, Épiques, Légendaires, Mythiques et **un Secret par univers** : Radama, Sukana, Gojita, Kaydo, Muzon), des ennemis et **5 boss**.
+- ✅ **v3.5 : 98 persos de plus** venus des modèles du joueur (Config/PersosImportes, `importe = true`), répartis par ressemblance (Bleach et L'Attaque des Titans chez les Pourfendeurs, JoJo et Fairy Tail sur l'Océan, My Hero Academia, One Punch Man et Hunter x Hunter chez les Guerriers, Fate, Death Note et Yu Yu Hakusho à l'Occulte), et 33 persos du jeu repris de ces modèles. Apparence = rigs R6 de ReplicatedStorage.ModelesPersos (tools/import_persos.luau + tools/plan_persos.luau : R15 convertis, kits Morph, rigs sur mesure, taille normale, particules plafonnées, seules les pièces et habillages copiés). **Chaînes** : une forme par étoile (objets d'évolution), puis un perso plus rare pour les formes suivantes (Goko → Goko Divin, Loffy → Loffy Nika, Maruto Ermite → Maruto Hokage…) ; un perso à un seul modèle prend une aura à ★★ / ★★★. Nouvelle rareté **Divin** (au-dessus du Secret, 0,004 %, un perso par univers).
 - ✅ Tous construits comme un **avatar R6 classique** : tête ronde classique, torse 2×2, bras et jambes 1×2, articulations et animations officielles de Roblox.
 - ✅ **Maruto ★1 recopie le Kid Naruto** (visage, veste, bandeau). C'est le modèle de référence de tous les styles de persos.
 - ✅ Très détaillés : vêtements dessinés comme des habits Roblox classiques (plis, ombres, coutures), mèches à base arrondie avec reflets, cols, ceintures et semelles en relief, visages et formes de tête variés, accessoires propres à chacun (Susanoo de Radama, massue et forme dragon de Kaydo, sable de Gaaro…).
@@ -71,7 +72,7 @@ Les persos sont de **vrais avatars Roblox R6** aux proportions classiques, avec 
 ## 4. Le combat ✅
 
 - ✅ Les persos équipés (3 places, jusqu'à 5) **suivent le joueur** et attaquent tout seuls dans l'anneau ; clic sur un ennemi = cible prioritaire.
-- ✅ Le joueur se bat aussi, avec une épée achetée au **Forgeron** (8 épées avec effets).
+- ✅ Le joueur se bat aussi, avec une épée achetée au **Forgeron** (8 épées avec effets, plus 6 armes de légende en v3.5).
 - ✅ **Attaques signature détaillées** (comme *Defeat Anime Bosses*) : chaque attaque spéciale commence par une **charge** (cercle au sol, aura, énergie qui se rassemble). Le nom de l'attaque s'affiche en grand, puis viennent l'explosion, l'onde de choc, le cratère, les fissures et les roches projetées.
   - **8 attaques uniques** : Rasengan, Chidori, Kamehameha, Violet Imaginaire, Découpe, Gatling + Red Hawk, Santoryu Oni Giri, Hinokami Kagura.
   - Les autres persos utilisent **9 familles d'effets** déclinées en variantes.
@@ -84,7 +85,7 @@ Les persos sont de **vrais avatars Roblox R6** aux proportions classiques, avec 
 - ✅ **Évolution** au stand FAIRE ÉVOLUER du hub (Autel d'Éveil) avec le niveau, des pièces et **un objet d'évolution** (ex. Goko ★★ demande une **Boule du Dragon**).
 - ✅ **Marchand ambulant** : il s'installe dans un coin de la carte et change de coin toutes les 8 minutes ; un **rayon violet** monte dans le ciel à côté de son échoppe (repère, pas une attaque) avec l'étiquette MARCHAND. Il vend toujours l'objet signature de l'univers en cours. Ses objets servent **uniquement** à faire évoluer les persos. Pastille « Marchand : mm:ss » et flèche sur l'écran, bouton « Montrer le chemin ».
 - ✅ **Traits** : bonus aléatoires (de Vigueur I à **Monarque**), relancés avec des **gemmes de trait** (gagnées en battant des ennemis, le boss, au punching-ball, en défis, ou en packs Robux ; jamais avec des pièces). Écran animé (rouleau à suspense, révélation selon la rareté) et **cinématiques** pour Monarque (une cour de persos s'agenouille devant ton unité), Céleste, Midas et Vampire.
-- ✅ **Forgeron** : 8 épées détaillées (lame, garde, poignée tressée, ornements), chacune avec son effet, qui **grandit avec la maîtrise** (tous les 500 ennemis vaincus, jusqu'au niveau 4). En main, lame levée ; rangée, à la hanche ou dans le dos.
+- ✅ **Forgeron** : 8 épées détaillées (lame, garde, poignée tressée, ornements), chacune avec son effet, qui **grandit avec la maîtrise** (tous les 500 ennemis vaincus, jusqu'au niveau 4). En main, lame levée ; rangée, à la hanche ou dans le dos. **v3.5** : 6 armes importées du fichier du joueur (style « modele » de SwordBuilder, ReplicatedStorage.ModelesArmes via tools/import_armes.luau) : sabres de Zoro, Éventail de Madara (porté l'éventail en haut), Tensa Zangetsu (prise reprise de la main d'Ichigo).
 
 ## 5 bis. Boutique Robux, défis, zone anti-AFK, classements ✅
 
@@ -139,7 +140,7 @@ Pourquoi c'est la bonne pépite :
 | Élément | Valeur |
 |---|---|
 | Durée d'un univers | 30 min |
-| Raretés de la machine (chance) | Commun 80 % · Rare 15 % · Épique 4 % · Légendaire 0,85 % · Mythique 0,15 % · Secret 0,02 % (depuis la v3.4) |
+| Raretés de la machine (chance) | Commun 80 % · Rare 15 % · Épique 4 % · Légendaire 0,85 % · Mythique 0,15 % · Secret 0,02 % (depuis la v3.4) · Divin 0,004 % (v3.5) |
 | Variétés | environ 15 % des tirages (Or 3,5 % … Arc-en-ciel 0,15 %), ×1,5 à ×6 |
 | Pitié (garantie) | Mythique seulement, au bout de 1 000 persos tirés |
 | Persos par roulage | 1 (2 ou 3 avec les passes Robux) |

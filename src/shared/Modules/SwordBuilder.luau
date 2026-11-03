@@ -30,6 +30,8 @@ end
 SwordBuilder.GRIP_ANGLES = { pitch = 30, yaw = 25, roll = 40 }
 SwordBuilder.GRIP = SwordBuilder.gripFrom(SwordBuilder.GRIP_ANGLES.pitch, SwordBuilder.GRIP_ANGLES.yaw, SwordBuilder.GRIP_ANGLES.roll)
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local rgb = Color3.fromRGB
 local WHITE = Color3.new(1, 1, 1)
 local IRON = rgb(44, 42, 48)
@@ -712,7 +714,7 @@ local function swingTrails(ctx: Ctx, handle: BasePart)
 end
 
 ------------------------------------------------------------------------
--- Les 8 épées
+-- Les 8 épées forgées par le jeu (les armes importées : style « modele », plus bas)
 ------------------------------------------------------------------------
 
 type Style = {
@@ -725,6 +727,7 @@ type Style = {
 	backTop: number?, -- port dans le dos : hauteur du haut de la poignée (sinon BACK_CARRY.top)
 	backX: number?, -- port dans le dos : décalage latéral du milieu (sinon BACK_CARRY.centerX)
 	backGap: number?, -- port dans le dos : écart avec le dos (sinon BACK_CARRY.gap)
+	backAngle: number?, -- port dans le dos : inclinaison minimale (degrés, sinon BACK_CARRY.minAngle)
 }
 
 local STYLES: { [string]: Style } = {}
@@ -1220,6 +1223,59 @@ STYLES.celestial = {
 
 STYLES.classic = STYLES.steel
 
+-- Armes importées d'un fichier (v3.5, tools/import_armes.luau) : sabres de Zoro, Tensa Zangetsu,
+-- éventail de Madara... Le modèle de ReplicatedStorage.ModelesArmes (look.modele) est soudé à la
+-- poignée : sa pièce « Prise » est la main, la lame part vers -Z. L'effet permanent et la gerbe du
+-- coup sont ceux d'une épée du jeu (look.effet : "wind", "thunder", "sun", "mist", "abyss"...).
+local function weaponModel(name: string?): Model?
+	local folder = ReplicatedStorage:FindFirstChild("ModelesArmes")
+	local found = folder and name and folder:FindFirstChild(name)
+	return found and found:IsA("Model") and found or nil
+end
+SwordBuilder.weaponModel = weaponModel
+
+STYLES.modele = {
+	width = 0.4,
+	carry = "back",
+	-- bien en diagonale : une lame presque verticale passerait entre les jambes qui marchent
+	backAngle = 30,
+	sheath = "none",
+	handle = Vector3.new(0.24, 0.24, 0.9),
+	hilt = function(ctx)
+		local source = weaponModel(ctx.look.modele)
+		if not source then
+			-- modèle absent : une Lame d'Acier aux couleurs de l'arme
+			STYLES.steel.hilt(ctx)
+			STYLES.steel.blade(ctx)
+			return
+		end
+		ctx.handle.Transparency = 1
+		local prise = source:FindFirstChild("Prise") :: BasePart?
+		for _, src in source:GetChildren() do
+			if src:IsA("BasePart") and src ~= prise then
+				local copy = src:Clone()
+				copy.CFrame = ctx.handle.CFrame * (if prise then prise.CFrame:ToObjectSpace(src.CFrame) else src.CFrame)
+				copy.Anchored = ctx.handle.Anchored
+				copy.CanCollide = false
+				copy.CanTouch = false
+				copy.CanQuery = false
+				copy.Massless = true
+				local weld = Instance.new("WeldConstraint")
+				weld.Part0 = ctx.handle
+				weld.Part1 = copy
+				weld.Parent = copy
+				copy.Parent = ctx.parent
+				ctx.count += 1
+				table.insert(ctx.parts, copy)
+			end
+		end
+		ctx.tip = Vector3.new(0, 0, source:GetAttribute("Pointe") or -4)
+		ctx.back = source:GetAttribute("Arriere") or 0.6
+		ctx.bladeStart = source:GetAttribute("DebutLame") or -0.7
+	end,
+	blade = function(_ctx) end,
+}
+
 ------------------------------------------------------------------------
 -- Fourreaux (épée rangée)
 ------------------------------------------------------------------------
@@ -1324,11 +1380,11 @@ function SwordBuilder.buildTool(sword, level: number?): Tool
 	style.hilt(ctx)
 	style.blade(ctx)
 	local vol = auraVolume(ctx, style.width, 0.1)
-	local effect = EFFECTS[sword.look.style]
+	local effect = EFFECTS[sword.look.effet or sword.look.style]
 	if effect then
 		effect(ctx, vol, ctx.k)
 	end
-	local burst = BURSTS[sword.look.style]
+	local burst = BURSTS[sword.look.effet or sword.look.style]
 	if burst then
 		local spec = table.clone(burst)
 		spec.name = "SwingBurst"
@@ -1507,7 +1563,15 @@ end
 
 -- Repère de la poignée (dans le repère du torse) pour une épée portée dans le dos : diagonale
 -- poignée en haut à droite, plat contre le dos. `rel` = repères des pièces dans celui de la poignée.
-local function backFrame(rel: { { cf: CFrame, half: Vector3, loose: boolean } }, torsoHalfZ: number, yShift: number, top: number?, centerX: number?, gap: number?): CFrame
+local function backFrame(
+	rel: { { cf: CFrame, half: Vector3, loose: boolean } },
+	torsoHalfZ: number,
+	yShift: number,
+	top: number?,
+	centerX: number?,
+	gap: number?,
+	minAngle: number?
+): CFrame
 	local function extents(frame: CFrame, all: boolean?): (Vector3, Vector3)
 		local lo, hi = Vector3.new(math.huge, math.huge, math.huge), Vector3.new(-math.huge, -math.huge, -math.huge)
 		for _, r in rel do
@@ -1529,7 +1593,7 @@ local function backFrame(rel: { { cf: CFrame, half: Vector3, loose: boolean } },
 	local vertical = top - BACK_CARRY.bottom
 	local frame, lo, hi
 	-- Angle le plus proche de la verticale qui fait tenir l'épée entre le haut de la tête et le sol.
-	for deg = BACK_CARRY.minAngle, BACK_CARRY.maxAngle, 2 do
+	for deg = minAngle or BACK_CARRY.minAngle, BACK_CARRY.maxAngle, 2 do
 		local angle = math.rad(deg)
 		local toPommel = Vector3.new(math.sin(angle), math.cos(angle), 0)
 		-- Tranchant vers le haut et la gauche (on dégaine par-dessus l'épaule), dos vers le bas.
@@ -1599,8 +1663,16 @@ function SwordBuilder.attachSheath(sheath: Model, character: Model, sword, drawn
 				table.insert(rel, { cf = handle.CFrame:ToObjectSpace(p.CFrame), half = p.Size / 2, loose = LOOSE_PARTS[p.Name] == true })
 			end
 		end
+		-- Arme portée la tête en haut (look.portInverse : l'éventail de Madara) : on place une poignée
+		-- retournée (lame vers le haut), puis on remet la vraie poignée dans ce repère.
+		local flip = sword.look.portInverse and CFrame.Angles(0, math.pi, 0) or CFrame.new()
+		if sword.look.portInverse then
+			for _, r in rel do
+				r.cf = flip * r.cf
+			end
+		end
 		-- R15 : l'UpperTorso est centré environ 0,4 plus haut que le Torso R6.
-		target = upper.CFrame * backFrame(rel, upper.Size.Z / 2, r6 and 0 or -0.4, style.backTop, style.backX, style.backGap)
+		target = upper.CFrame * backFrame(rel, upper.Size.Z / 2, r6 and 0 or -0.4, style.backTop, style.backX, style.backGap, style.backAngle) * flip
 	else
 		anchor = torso
 		local mouthZ = sheath:GetAttribute("MouthZ") or -0.75

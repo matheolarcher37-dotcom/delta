@@ -31,7 +31,7 @@ RollSpin.Stagger = 0.3 -- x2 / x3 : écart entre les arrêts de deux cases
 RollSpin.Hold = 0.15 -- petite pause après l'arrêt avant la suite (bandeau, annonce)
 RollSpin.FolderName = "RouletteEstrade"
 -- Raretés des persos qui défilent (un peu de Légendaire / Mythique pour le suspense).
-RollSpin.FillerWeights = { common = 40, rare = 30, epic = 16, legendary = 9, mythic = 4, secret = 1 }
+RollSpin.FillerWeights = { common = 40, rare = 30, epic = 16, legendary = 9, mythic = 4, secret = 1, divin = 0.5 }
 RollSpin.TeaseChance = 0.35 -- une grosse rareté juste avant l'arrêt (« presque ! »)
 
 local tickSound = Instance.new("Sound")
@@ -208,7 +208,7 @@ local function weightedRarity(pools, rng: Random, weights): string
 		return "common"
 	end
 	local pick = rng:NextNumber() * total
-	for _, rarity in { "common", "rare", "epic", "legendary", "mythic", "secret" } do
+	for _, rarity in { "common", "rare", "epic", "legendary", "mythic", "secret", "divin" } do
 		local weight = weights[rarity]
 		if weight and pools[rarity] and #pools[rarity] > 0 then
 			pick -= weight

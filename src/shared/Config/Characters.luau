@@ -4788,6 +4788,15 @@ Characters.Enemies = {
 	},
 }
 
+-- Persos ajoutés depuis les modèles de la Boîte à outils (v3.5) : Config/PersosImportes.
+-- Leur fiche porte `importe = true` (apparence = modèles de ReplicatedStorage.ModelesPersos).
+Characters.Importes = {}
+for _, row in require(script.Parent.PersosImportes).characters() do
+	assert(Characters.List[row.id] == nil, "perso importé en double : " .. row.id)
+	Characters.List[row.id] = row.def
+	table.insert(Characters.Importes, row.id)
+end
+
 function Characters.get(id: string)
 	return Characters.List[id]
 end
@@ -4799,7 +4808,7 @@ function Characters.resolveLook(id: string, stars: number?)
 		return nil
 	end
 	local look = table.clone(def.look)
-	if def.rarity == "secret" then
+	if def.rarity == "secret" or def.rarity == "divin" then
 		-- Persos Secrets : un peu plus grands que les autres, et un éclat arc-en-ciel discret à leurs
 		-- pieds dès le ★1 (exclusivité visible de loin)
 		look.bodyScale = look.bodyScale or 1.12
@@ -4820,7 +4829,7 @@ function Characters.resolveLook(id: string, stars: number?)
 			end
 		end
 	end
-	if def.rarity == "secret" then
+	if def.rarity == "secret" or def.rarity == "divin" then
 		look.accessories = join(look.accessories or {}, { "secret_glint" })
 	end
 	return look

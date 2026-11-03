@@ -8,6 +8,9 @@
       },
       "ModelesPersos": {
         "$path": "assets/ModelesPersos"
+      },
+      "ModelesArmes": {
+        "$path": "assets/ModelesArmes"
       }
     },
     "ServerScriptService": {

@@ -191,7 +191,7 @@ local info = Build.part(decor, "Info", Vector3.new(70, 4, 1), CFrame.new(center 
 Build.surfaceText(
 	info,
 	Enum.NormalId.Front,
-	"Retouche un perso puis supprime son attribut AutoGenere : le jeu utilisera ton modèle pour cette étoile",
+	"Retouche un perso puis supprime son attribut AutoGenere : le jeu utilisera ton modèle pour cette étoile. Persos importés : ReplicatedStorage > ModelesPersos",
 	Color3.fromRGB(255, 255, 255)
 )
 
@@ -223,6 +223,11 @@ for u, universe in Universes.List do
 	Build.surfaceText(zoneSign, Enum.NormalId.Front, universe.name, Color3.fromRGB(255, 255, 255))
 	for _, id in universe.characters do
 		local def = Characters.get(id)
+		-- Persos importés (v3.5) : leurs modèles sont déjà dans ReplicatedStorage > ModelesPersos,
+		-- où on les retouche directement ; la galerie ne montre que les persos peints par le jeu.
+		if def.importe then
+			continue
+		end
 		local variants = { 1 }
 		if def.evolve then
 			for stars = 2, 3 do
@@ -232,6 +237,9 @@ for u, universe in Universes.List do
 			end
 		end
 		for _, stars in variants do
+			if CharacterFactory.templateFor(id, stars) then
+				continue -- cette étoile a son modèle importé (ReplicatedStorage > ModelesPersos)
+			end
 			local key = stars == 1 and id or (id .. "_" .. stars)
 			local title = def.name .. (stars > 1 and (" " .. string.rep("★", stars)) or "")
 			addModel(key, Characters.resolveLook(id, stars), Vector3.new(center.X + x, 0, z), title, universe.color)
@@ -244,14 +252,18 @@ end
 local ex = -96
 for _, universe in Universes.List do
 	for _, id in universe.enemies do
-		addModel(id, Characters.Enemies[id].look, Vector3.new(center.X + ex, 0, center.Z + 52), Characters.Enemies[id].name, Color3.fromRGB(200, 60, 60))
+		if not CharacterFactory.templateFor(id, 1) then
+			addModel(id, Characters.Enemies[id].look, Vector3.new(center.X + ex, 0, center.Z + 52), Characters.Enemies[id].name, Color3.fromRGB(200, 60, 60))
+			ex += 6.5
+			total += 1
+		end
+	end
+	local boss = Characters.Enemies[universe.boss]
+	if not CharacterFactory.templateFor(universe.boss, 1) then
+		addModel(universe.boss, boss.look, Vector3.new(center.X + ex, 0, center.Z + 52), "👹 " .. boss.name, Color3.fromRGB(120, 20, 30))
 		ex += 6.5
 		total += 1
 	end
-	local boss = Characters.Enemies[universe.boss]
-	addModel(universe.boss, boss.look, Vector3.new(center.X + ex, 0, center.Z + 52), "👹 " .. boss.name, Color3.fromRGB(120, 20, 30))
-	ex += 6.5
-	total += 1
 end
 print("galerie :", total, "modèles,", count(gallery), "pièces")
 
@@ -278,13 +290,15 @@ local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
 if remotes then
 	remotes:Destroy() -- recréés au lancement
 end
--- Persos importés de la Boîte à outils (assets/ModelesPersos, voir tools/import_persos.luau) :
--- recopiés tels quels depuis leurs fichiers .rbxm, sans passer par Rojo qui perd certaines
--- propriétés des unions (AssetId des orbes de Maruto ★★★, par exemple).
-do
-	local folder = game:GetService("ReplicatedStorage"):FindFirstChild("ModelesPersos")
-	local ok, files = pcall(fs.readDir, "assets/ModelesPersos")
+-- Persos et armes importés de la Boîte à outils (assets/ModelesPersos et assets/ModelesArmes, voir
+-- tools/import_persos.luau et tools/import_armes.luau) : recopiés tels quels depuis leurs fichiers
+-- .rbxm, sans passer par Rojo qui perd certaines propriétés des unions (AssetId des orbes de Maruto
+-- ★★★, du manche de l'éventail de Madara...).
+for _, folderName in { "ModelesPersos", "ModelesArmes" } do
+	local folder = game:GetService("ReplicatedStorage"):FindFirstChild(folderName)
+	local ok, files = pcall(fs.readDir, "assets/" .. folderName)
 	if folder and ok then
+		table.sort(files) -- même ordre à chaque cuisson (fichier identique d'une fois sur l'autre)
 		local count = 0
 		for _, file in files do
 			local name = string.match(file, "^(.+)%.rbxm$")
@@ -293,15 +307,33 @@ do
 				if old then
 					old:Destroy()
 				end
-				local model = roblox.deserializeModel(fs.readFile("assets/ModelesPersos/" .. file))[1]
+				local model = roblox.deserializeModel(fs.readFile("assets/" .. folderName .. "/" .. file))[1]
 				model.Name = name
 				model.Parent = folder
 				count += 1
 			end
 		end
-		print("persos importés recopiés :", count)
+		print(folderName .. " recopiés :", count)
 	end
 end
+-- Vêtements : la nouvelle adresse de texture (ShirtTemplateContent...) doit être celle de l'ancienne
+-- (ShirtTemplate...), sinon Roblox Studio refuse d'ouvrir le fichier (« Content property
+-- conflict »). Les vieux modèles de la Boîte à outils n'ont que l'ancienne.
+local CLOTHING = { Shirt = "ShirtTemplate", Pants = "PantsTemplate", ShirtGraphic = "Graphic" }
+local synced = 0
+for _, item in game:GetDescendants() do
+	local legacy = CLOTHING[item.ClassName]
+	if legacy then
+		local ok, value = pcall(function()
+			return (item :: any)[legacy]
+		end)
+		if ok and type(value) == "string" then
+			(item :: any)[legacy .. "Content"] = roblox.Content.fromUri(value)
+			synced += 1
+		end
+	end
+end
+print("vêtements (adresse de texture recopiée) :", synced)
 local bytes = roblox.serializePlace(game)
 fs.writeFile(OUT, bytes)
 print(string.format("écrit %s (%.1f Mo)", OUT, #bytes / 1e6))

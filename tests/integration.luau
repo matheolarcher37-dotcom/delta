@@ -646,10 +646,11 @@ test("Palier Secret : tire le perso Secret de chaque univers, jamais un autre", 
 	assert(Economy.RollRarities.secret.charRarity == "secret", "le palier Secret ne tire pas la rareté secret")
 	assert((Economy.EvolutionRarityMult.secret or 0) >= Economy.EvolutionRarityMult.mythic, "évolution d'un Secret trop bon marché")
 	local stats = Formulas.playerStats(DataService:Get(alice))
-	local SECRETS = { "ninja_radama", "occ_sukana", "sai_gojita", "oce_kaydo", "pou_muzon" }
+	-- (Dyo, un perso importé en v3.5, est le 2e Secret du Grand Océan)
+	local SECRETS = { "ninja_radama", "occ_sukana", "sai_gojita", "oce_kaydo", "pou_muzon", "oce_dyo" }
 	local seen = {}
 	for _, universe in Universes.List do
-		for _ = 1, 6 do
+		for _ = 1, 16 do
 			local item = services.RollService:MakeItem(universe, "secret", stats)
 			assert(table.find(SECRETS, item.id), universe.id .. " : palier Secret -> " .. tostring(item.id))
 			assert(Characters.get(item.id).rarity == "secret", item.id .. " n'est pas de rareté secret")
@@ -665,6 +666,26 @@ test("Palier Secret : tire le perso Secret de chaque univers, jamais un autre", 
 	for _, id in SECRETS do
 		assert(seen[id], "Secret jamais tiré : " .. id)
 	end
+end)
+
+test("Palier Divin (v3.5) : le perso Divin de l'univers, plus rare que le Secret", function()
+	local Universes = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Universes"))
+	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
+	local Economy = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Economy"))
+	local Formulas = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.Formulas"))
+	local divin = Economy.RollRarities.divin
+	assert(divin and divin.charRarity == "divin" and divin.odds < Economy.RollRarities.secret.odds, "palier Divin manquant ou trop fréquent")
+	assert(divin.price > Economy.RollRarities.secret.price, "un Divin coûte plus cher qu'un Secret")
+	local stats = Formulas.playerStats(DataService:Get(alice))
+	local DIVINS = { ninja = "ninja_maruto_hokage", occulte = "occ_sukana_ultime", saiyan = "sai_goko_divin", ocean = "oce_loffy_nika", pourfendeur = "pou_ichiga_mugetsu" }
+	for _, universe in Universes.List do
+		local item = services.RollService:MakeItem(universe, "divin", stats)
+		assert(item.id == DIVINS[universe.id], universe.id .. " : palier Divin -> " .. tostring(item.id))
+		assert(Characters.get(item.id).rarity == "divin" and item.rarity == "divin", item.id .. " : rareté Divin")
+	end
+	-- les chances affichées comptent le Divin (univers qui en ont un)
+	local odds = Formulas.rollOdds(1, Formulas.rollPools("saiyan"))
+	assert(odds.divin and odds.divin > 0 and odds.divin < odds.secret, "chance du Divin à la machine")
 end)
 
 test("Pitié : seul le Mythique est garanti, le reste est du pur hasard", function()

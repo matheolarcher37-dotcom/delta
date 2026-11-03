@@ -353,6 +353,11 @@ test("Marchand : écran, achat sur place, objet requis à l'Évolution, onglet O
 	-- Le stock (et donc le prix du 1er objet) dépend de l'univers et de l'heure : de quoi le payer
 	local firstItem = EvolutionItems.get(firstId)
 	data.coins = math.max(data.coins, (firstItem and firstItem.price or 0) + 1000)
+	-- Le bouton achète l'objet SÉLECTIONNÉ : on sélectionne le 1er (un écran ouvert plus tôt dans
+	-- la série peut avoir gardé un autre objet sélectionné, encore en stock).
+	Menus.open("Shop", firstId)
+	task.wait(0.2)
+	buyButton = find("BuyButton", shopWindow)
 	signalFor(buyButton, "Activated"):Fire()
 	-- Réponse du serveur : on attend jusqu'à 3 s (machine chargée pendant les tests).
 	local deadline = os.clock() + 3
@@ -416,17 +421,40 @@ test("Marchand : écran, achat sur place, objet requis à l'Évolution, onglet O
 	local after = find("After", evoWindow)
 	assert(after and after:GetAttribute("Stars") == 2, "aperçu ★★ absent")
 	local Characters = Harness.require(Harness.find("ReplicatedStorage.Shared.Config.Characters"))
-	local gold = Characters.resolveLook("sai_goko", 2).hairColor
-	local golden = false
-	for _, d in after:GetDescendants() do
-		if d:IsA("BasePart") then
-			local c = d.Color
-			if math.abs(c.R - gold.R) + math.abs(c.G - gold.G) + math.abs(c.B - gold.B) < 0.06 then
-				golden = true
+	local Factory = Harness.require(Harness.find("ReplicatedStorage.Shared.Modules.CharacterFactory"))
+	local super = Factory.templateFor("sai_goko", 2)
+	if super then
+		-- (v3.5) Goko ★★ a son modèle importé : l'aperçu montre ses cheveux de Super Guerrier,
+		-- pièce qui n'existe pas sur le modèle ★
+		local only = {}
+		for _, d in super:GetDescendants() do
+			if d:IsA("BasePart") then
+				only[d.Name] = true
 			end
 		end
+		for _, d in Factory.templateFor("sai_goko", 1):GetDescendants() do
+			only[d.Name] = nil
+		end
+		local found = false
+		for _, d in after:GetDescendants() do
+			if d:IsA("BasePart") and only[d.Name] then
+				found = true
+			end
+		end
+		assert(next(only) and found, "l'aperçu ★★ de Goko n'a pas les cheveux de Super Guerrier (modèle importé)")
+	else
+		local gold = Characters.resolveLook("sai_goko", 2).hairColor
+		local golden = false
+		for _, d in after:GetDescendants() do
+			if d:IsA("BasePart") then
+				local c = d.Color
+				if math.abs(c.R - gold.R) + math.abs(c.G - gold.G) + math.abs(c.B - gold.B) < 0.06 then
+					golden = true
+				end
+			end
+		end
+		assert(golden, "l'aperçu ★★ de Goko n'a pas les cheveux de Super Guerrier")
 	end
-	assert(golden, "l'aperçu ★★ de Goko n'a pas les cheveux de Super Guerrier")
 	local merchantButton = find("MerchantButton", box)
 	assert(merchantButton, "pas de lien vers le marchand")
 	signalFor(merchantButton, "Activated"):Fire()
@@ -1220,10 +1248,15 @@ test("Traits : cinématique MONARQUE dans le monde (persos à genoux, couronne, 
 	local heroLow, heroHigh = math.huge, -math.huge
 	for _, part in hero:GetDescendants() do
 		if part:IsA("BasePart") and part.Transparency < 1 then
-			local ok, v = onScreen(part.CFrame.Position)
+			local ok = onScreen(part.CFrame.Position)
 			assert(ok, "unité coupée par le cadre : " .. part.Name)
-			local y = 0.5 - (v.Y / -v.Z) / tanV * 0.5
-			heroLow, heroHigh = math.min(heroLow, y), math.max(heroHigh, y)
+			-- hauteur à l'écran : haut et bas de chaque pièce (pas seulement son centre : un modèle
+			-- importé a peu de grosses pièces, un perso peint beaucoup de petites)
+			for _, sy in { -1, 1 } do
+				local _, v = onScreen(part.CFrame:PointToWorldSpace(Vector3.new(0, sy * part.Size.Y * 0.5, 0)))
+				local y = 0.5 - (v.Y / -v.Z) / tanV * 0.5
+				heroLow, heroHigh = math.min(heroLow, y), math.max(heroHigh, y)
+			end
 		end
 	end
 	assert(heroHigh - heroLow > 0.3, "l'unité couronnée est trop petite dans le plan final (" .. (heroHigh - heroLow) .. ")")

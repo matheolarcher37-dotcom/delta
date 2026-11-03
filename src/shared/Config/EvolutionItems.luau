@@ -62,7 +62,7 @@ EvolutionItems.Merchant = {
 }
 
 -- Groupes de rareté des persos : « bas » (Commun, Rare) ou « haut » (Épique et plus).
-local HIGH_RARITY = { epic = true, legendary = true, mythic = true, secret = true, crossover = true }
+local HIGH_RARITY = { epic = true, legendary = true, mythic = true, secret = true, divin = true, crossover = true }
 
 ------------------------------------------------------------------------
 -- Catalogue
@@ -420,6 +420,19 @@ EvolutionItems.ByCharacter = {
 	oce_kaydo = { [2] = { item = "oce_fruit", amount = 2 }, [3] = { item = "oce_haki", amount = 2 } },
 	pou_muzon = { [2] = { item = "pou_lys", amount = 2 }, [3] = { item = "pou_soleil", amount = 2 } },
 	pou_doma = { [2] = { item = "pou_lys", amount = 1 }, [3] = { item = "pou_lys", amount = 2 } },
+	-- v3.5 : chaînes des grands persos (le perso plus rare reprend les formes suivantes, avec des
+	-- objets plus précieux). Les autres persos importés prennent les objets de base de leur univers.
+	ninja_maruto_ermite = { [2] = { item = "ninja_ermite", amount = 1 }, [3] = { item = "ninja_renard", amount = 1 } },
+	ninja_maruto_hokage = { [2] = { item = "ninja_renard", amount = 2 }, [3] = { item = "ninja_renard", amount = 3 } },
+	ninja_sasuki_vengeur = { [2] = { item = "ninja_oeil", amount = 2 }, [3] = { item = "ninja_oeil_eternel", amount = 1 } },
+	ninja_paine = { [2] = { item = "ninja_oeil", amount = 2 }, [3] = { item = "ninja_oeil_eternel", amount = 2 } },
+	occ_sukana_ultime = { [2] = { item = "occ_doigt", amount = 6 }, [3] = { item = "occ_doigt", amount = 10 } },
+	sai_goko_divin = { [2] = { item = "sai_boule_divine", amount = 1 }, [3] = { item = "sai_ki_divin", amount = 2 } },
+	sai_goko_noir = { [2] = { item = "sai_dragon", amount = 1 }, [3] = { item = "sai_ki_divin", amount = 1 } },
+	sai_goko_noir_manga = { [2] = { item = "sai_boule_divine", amount = 1 }, [3] = { item = "sai_ki_divin", amount = 2 } },
+	sai_vegito = { [2] = { item = "sai_dragon", amount = 2 }, [3] = { item = "sai_ki_divin", amount = 2 } },
+	oce_loffy_nika = { [2] = { item = "oce_fruit", amount = 2 }, [3] = { item = "oce_haki", amount = 3 } },
+	pou_ichiga_mugetsu = { [2] = { item = "pou_soleil", amount = 2 }, [3] = { item = "pou_soleil", amount = 3 } },
 }
 
 function EvolutionItems.get(id: string?)

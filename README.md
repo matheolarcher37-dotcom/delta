@@ -1,4 +1,4 @@
-# 🌀 ANIME TYCOON (version 3.4)
+# 🌀 ANIME TYCOON (version 3.5)
 
 **Un jeu Roblox de type Tycoon** inspiré de *Grow a Chicken Fighter* et des jeux d'animé récents
 (*Defeat Anime Bosses*…). Tu fais tourner la **machine à persos « ROULER »** de ta base pour obtenir
@@ -7,6 +7,22 @@ tu les emmènes combattre dans l'anneau, et tu améliores tout : ta chance, tes 
 tes persos (évolutions avec les objets du marchand, traits, variétés)…
 
 Le jeu marche sur **PC, mobile et console (Xbox / PlayStation)**.
+
+---
+
+## ✨ Les nouveautés de la version 3.5
+
+| Domaine | Ce qui change |
+|---|---|
+| 🧑‍🤝‍🧑 **Tes persos dans le jeu** | Les modèles de ton fichier sont dans le jeu : **98 nouveaux persos** (Akatsuki, Piliers, Bleach, JoJo, Fate, My Hero Academia, Hunter x Hunter, L'Attaque des Titans, Death Note, One Punch Man…) et **33 persos du jeu** qui prennent ton modèle (Goko, Vejeta, Loffy, Zoru, Itochi, Radama, Sukana, Goju, Rengoko, Muzon…). Les R15 sont convertis en R6 sans rien perdre (habits, cheveux, accessoires, armes tenues). Tous ont la même taille, sauf les géants (Titans, Barbe Neige, Loffy Gear 4) un peu plus grands. |
+| ⛓️ **Chaînes de persos** | Comme tu l'as demandé pour Goku : **Goko** se tire à la machine (Mythique) et évolue avec des objets en **Super Guerrier** (★★) puis **Super Guerrier 3** (★★★). La suite est un autre perso, **Goko Divin**, plus rare à la machine : **Dieu** (★), **Bleu** (★★), **Bleu + Kaioken** (★★★), avec des objets plus précieux. Pareil pour **Maruto** → Maruto Ermite → **Maruto Hokage** (Baryon), **Loffy** → **Loffy Nika** (Gear 4, Snakeman, Gear 5), **Sukana** → **Sukana Ultime**, **Ichiga** → **Ichiga Mugetsu**, Goko Noir → Goko Noir Manga… Un perso qui n'a qu'un modèle prend une **aura** à ★★, puis plus forte à ★★★. |
+| ✨ **Nouvelle rareté : Divin** | Au-dessus du Secret, en **or blanc** : **1 chance sur 25 000** à la machine (8 000 000 ¥). Un perso Divin par univers : Maruto Hokage, Sukana Ultime, Goko Divin, Loffy Nika, Ichiga Mugetsu. |
+| 🌍 **Invités dans les univers** | Les persos d'autres séries rejoignent l'univers qui leur ressemble : **Bleach** et **L'Attaque des Titans** chez les Pourfendeurs, **JoJo** et **Fairy Tail** sur le Grand Océan, **My Hero Academia**, **One Punch Man** et **Hunter x Hunter** sur la Planète des Guerriers, **Fate**, **Death Note** et **Yu Yu Hakusho** à l'Académie Occulte. Chacun a son **attaque spéciale** (Getsuga Tenshô, Detroit Smash, Ora Ora…). |
+| ⚔️ **Armes au Forgeron** | 6 armes de ton fichier s'ajoutent après l'Épée Céleste : **Yubashiri**, **Wado Ichimonji**, **Sandai Kitetsu**, **Shusui** (les sabres de Zoro), l'**Éventail de Madara** (porté dans le dos, l'éventail en haut) et **Tensa Zangetsu** (tenue comme Ichigo la tient dans son modèle). Elles ont les effets des épées du jeu (vent, flammes, fumée noire…). |
+| 🌀 **Fusions** | Une fusion prend le **modèle** du premier perso (s'il en a un), avec une cape aux couleurs du crossover. |
+| 🛡️ **Sécurité** | Ton fichier contenait des **scripts cachés** (« Runtime », « ScreenBuilder ») dans une quarantaine de modèles de la Boîte à outils : ils s'activent seulement dans Studio et ouvrent une fausse fenêtre qui demande de copier du code. **Aucun n'est entré dans le jeu** : seules les pièces, habits et effets sont copiés, et un test le vérifie à chaque fois. Dans ton propre fichier, supprime ces modèles (ou leurs scripts) et ne colle jamais un code qu'une fenêtre te demande de coller. |
+
+Persos du fichier pas utilisés : les doublons d'une même forme (3 Goku de base, Buu Saga Goku, Luffy2, ptsLuffy, le Luffy au chapeau R15, un 2e Yuta, un 2e Hisoka, Jotaro Rig, Eren de l'Anime Pack, le Sasuke de « Naruto And Sasuke », Stone Free sans aura, le Vegeta en armure de l'Anime Pack), **Speed Guy** (220 pièces, trop lourd), et 5 modèles que je n'ai pas pu reconnaître (« StarterCharacter » R15, « StarterCharacter » à cheveux, deux modèles sans nom, « Open Me :D »). Les dossiers « Goku manga limited color skin », « pts sasuke skin pack », « Denji_manga » et « Goku [Buu Saga] Super Kaioken » sont arrivés **vides**. Côté armes, la **hache d'Escanor** n'est pas encore au Forgeron : rien dans le fichier ne dit de quel côté est son manche (elle n'est tenue par personne) ; les deux objets « Sketchfab » et « tripo » n'ont pas pu être reconnus.
 
 ---
 
@@ -118,7 +134,8 @@ Ensuite, une **variété** peut s'ajouter par-dessus (environ 15 % des tirages).
 | Épique | 4 % | 6 000 ¥ |
 | Légendaire | 0,85 % | 45 000 ¥ |
 | Mythique | 0,15 % | 350 000 ¥ |
-| Secret (1 perso par univers) | 0,02 % | 2 000 000 ¥ |
+| Secret | 0,02 % | 2 000 000 ¥ |
+| Divin (v3.5, 1 perso par univers) | 0,004 % | 8 000 000 ¥ |
 
 | Variété | Multiplicateur (puissance et prix) | Ce qu'on voit |
 |---|---|---|
@@ -188,6 +205,7 @@ Tant qu'un numéro vaut 0, le bouton affiche « Bientôt disponible ». Dans Stu
 ### ⚔️ Les épées du Forgeron
 
 - 8 épées détaillées (lame, garde, poignée tressée, ornements) avec leur propre effet : rouille, reflets, vent, foudre, flammes, brume, fumée noire, étoiles. Elles sont exposées sur le présentoir du Forgeron, au hub.
+- 6 **armes de légende** (v3.5), les modèles de ton fichier : Yubashiri (25 M), Wado Ichimonji (50 M), Sandai Kitetsu (100 M), Shusui (200 M), Éventail de Madara (400 M) et Tensa Zangetsu (800 M). Elles se portent dans le dos.
 - L'effet **grandit avec la maîtrise** : tous les 500 ennemis vaincus, ton épée devient plus forte (jusqu'au niveau 4).
 - En main, l'épée est levée devant toi. Rangée, une lame courte pend à la hanche, une lame longue se porte dans le dos.
 
@@ -246,8 +264,12 @@ Le fichier contient le jeu **déjà construit**. Dans l'*Explorateur* de Studio 
   Les scripts des modèles gratuits sont supprimés automatiquement. La liste des noms reconnus est dans
   `src/shared/Config/NomsOriginaux.luau`. Prends de préférence un modèle **R6**.
 - **Pour qu'ils restent dans toutes les versions** (même en R15) : envoie-moi ton fichier avec les persos posés
-  dans le Workspace. Ils sont convertis en R6 (habits, cheveux et accessoires gardés tels quels) par
-  `tools/import_persos.luau` et rangés dans `assets/ModelesPersos` (un fichier par perso et par étoile).
+  dans le Workspace (des packs entiers marchent aussi). Ils sont convertis en R6 (habits, cheveux et accessoires
+  gardés tels quels, scripts retirés) par `tools/import_persos.luau` selon le plan `tools/plan_persos.luau` (quel
+  modèle va sur quel perso, à quelle étoile) et rangés dans `assets/ModelesPersos` (un fichier par perso et par
+  étoile, visibles dans Studio sous **ReplicatedStorage › ModelesPersos**). Les fiches des nouveaux persos (nom,
+  rareté, univers, attaque) sont dans `src/shared/Config/PersosImportes.luau`. Les armes passent par
+  `tools/import_armes.luau` et `tools/plan_armes.luau` (→ **ReplicatedStorage › ModelesArmes**).
 - **Par ton propre modèle** : mets un rig **R6** (avec `HumanoidRootPart`, `Torso`, `Head`, `Left Arm`…) dans
   `GaleriePersos › ModelesPersos` et donne-lui le nom du perso : `ninja_maruto` pour le ★, `ninja_maruto_2` / `ninja_maruto_3` pour ses évolutions.
   Un modèle ne sert qu'à son étoile ; pour qu'un seul modèle serve à toutes les étoiles, ajoute-lui l'attribut
@@ -290,7 +312,7 @@ téléportation, et les plus grands monuments restent visibles de loin en versio
 
 ---
 
-## 👥 Les 66 personnages
+## 👥 Les 164 personnages
 
 Les noms sont légèrement changés pour respecter les droits d'auteur (Naruto → **Maruto**, Gojo → **Goju**…).
 Chaque perso a **sa rareté de base** ; la variété tirée (Or, Diamant…) s'ajoute par-dessus.
@@ -304,6 +326,22 @@ Chaque perso a **sa rareté de base** ; la variété tirée (Or, Diamant…) s'a
 | **Ère des Pourfendeurs** | Genyo, Kanoa | Zenitso, Inosoke | Tanjiru, Nezoko, Shinobo | Rengoko, Giyo, Tengan | Yoriichu, Doma | **Muzon** | Akazo |
 
 L'apparence change à **chaque** évolution : Yuzi ★2 avec les marques de Sukana puis la tenue blanche, Goko en super guerrier, Radama ★2 avec son Susanoo, Kaydo ★2 en dragon, Brolo ★3 massif…
+
+**Les 98 persos ajoutés en v3.5** (modèles de ton fichier) :
+
+| Univers | Communs | Rares | Épiques | Légendaires | Mythiques | Secret | Divin |
+|---|---|---|---|---|---|---|---|
+| **Village Ninja** | Maruto Genin, Sasuki Genin, Zetsou | Néju, Kakuzou, Hidane, Sasora | Kisamé, Deidaro, Konone | Gaï, Obéto, Maruto Ermite, Sasuki Vengeur | Paine | — | **Maruto Hokage** |
+| **Académie Occulte** | — | Rikka, Maître Korô, Laïte, Kiritsougou, Rine, Shirô | Lô, Yousouké, Hiéi, Iskandare, Lanceur, Archeur | Ryouk, Denjo, Gétou, Sabeur | Gilgamèche | — | **Sukana Ultime** |
+| **Planète des Guerriers** | — | Lémilio, Isagui, Irumi | Caulifa, Bakougo, Todoroko, Gonne, Kirua | Garô, Hisoca, Dékou, Endéavor, Accélérato, Goko Noir | Goko Noir Manga, Végito, All Mighto, Saïtamo | — | **Goko Divin** |
+| **Grand Océan** | Chiko | Kazouma, Jonatane | Natsou, Graï, Josèphe, Josouké | Kizaro, Platine Étoilée, Kirô, Diavolô, Jolyn | Barbe Neige, Jotarô, Giorna, Poutchi | Dyo | **Loffy Nika** |
+| **Ère des Pourfendeurs** | Sacha | Roukia, Shinjô, Ginne, Erwine | Muichirô, Mitsouri, Sanémi, Igourô, Byakoya, Toshirou, Kisouké, Starrke, Grimjô, Yorouichi, Mikaza, Anni, Afro Samouraï | Gyômé, Shunsoui, Ulkiorra, Ichiga, Érène | Kokoushibo, Yamamoro, Aizène | — | **Ichiga Mugetsu** |
+
+Persos du jeu qui ont pris ton modèle : Rok Li, Kakashu, Itochi, Jiriya, Gaaro, Minatu, Radama (Village Ninja) ; Yuzi,
+Sukana, Goju, Toja, Nanamo, Yuuto (Occulte) ; Goko, Vejeta, Gohon, Trunk, Piccola, Krilin, Brolo (Guerriers) ; Loffy,
+Zoru, Sanjo, Lao, Shonks, Ase (Océan) ; Rengoko, Tengan, Giyo, Shinobo, Muzon, Yoriichu, Zenitso, Tanjiru
+(Pourfendeurs), plus Maruto, Sakoura et Sasuki (v3.4). Les ennemis **Zabouza** et **Mahitto** et le boss **Akaino**
+aussi.
 
 ---
 

@@ -65,7 +65,8 @@ local ENUM_TO_FACE = {
 ------------------------------------------------------------------------
 -- Raretés (communes à tout le jeu)
 -- Commun gris · Peu commun vert · Rare bleu · Épique violet · Légendaire or · Mythique rouge
--- · Secret blanc nacré/arc-en-ciel · Crossover (fusions) turquoise/arc-en-ciel.
+-- · Secret blanc nacré/arc-en-ciel · Divin or blanc rayonnant (v3.5) · Crossover (fusions)
+-- turquoise/arc-en-ciel.
 ------------------------------------------------------------------------
 
 local RARITY = {
@@ -76,9 +77,12 @@ local RARITY = {
 	legendary = { name = "Légendaire", order = 5, color = rgb(255, 190, 40), dark = rgb(150, 86, 6) },
 	mythic = { name = "Mythique", order = 6, color = rgb(255, 52, 64), dark = rgb(130, 10, 26) },
 	secret = { name = "Secret", order = 7, color = rgb(246, 240, 255), dark = rgb(40, 30, 64), rainbow = true },
-	crossover = { name = "Crossover", order = 8, color = rgb(80, 255, 220), dark = rgb(20, 90, 110), rainbow = true },
+	divin = { name = "Divin", order = 8, color = rgb(255, 236, 150), dark = rgb(120, 76, 10), divine = true },
+	crossover = { name = "Crossover", order = 9, color = rgb(80, 255, 220), dark = rgb(20, 90, 110), rainbow = true },
 }
-Theme.RarityOrder = { "common", "uncommon", "rare", "epic", "legendary", "mythic", "secret", "crossover" }
+Theme.RarityOrder = { "common", "uncommon", "rare", "epic", "legendary", "mythic", "secret", "divin", "crossover" }
+-- Dégradé du Divin : or blanc qui rayonne (les écrans qui animent l'arc-en-ciel l'animent aussi).
+Theme.DivineColors = { rgb(255, 255, 236), rgb(255, 222, 110), rgb(255, 170, 60), rgb(255, 222, 110), rgb(255, 250, 224) }
 Theme.RainbowColors = { rgb(255, 80, 80), rgb(255, 210, 60), rgb(80, 255, 120), rgb(70, 170, 255), rgb(220, 90, 255) }
 
 -- Infos d'une rareté (nom, couleur, couleur sombre, arc-en-ciel ?). Les raretés de la machine
@@ -93,6 +97,9 @@ function Theme.rarityGradient(id: string?): { Color3 }
 	local info = Theme.rarity(id)
 	if info.rainbow then
 		return Theme.RainbowColors
+	end
+	if info.divine then
+		return Theme.DivineColors
 	end
 	return { info.color:Lerp(WHITE, 0.35), info.color, info.dark }
 end

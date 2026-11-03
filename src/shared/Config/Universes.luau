@@ -430,6 +430,17 @@ Universes.List = {
 	},
 }
 
+-- Persos importés (Config/PersosImportes, v3.5) : ajoutés à la table de tirage de leur univers,
+-- dans l'ordre de leur fiche.
+for _, row in require(script.Parent.PersosImportes).List do
+	local id, universeId = row[1], row[3]
+	for _, universe in Universes.List do
+		if universe.id == universeId then
+			table.insert(universe.characters, id)
+		end
+	end
+end
+
 Universes.ById = {}
 for index, universe in Universes.List do
 	universe.index = index

@@ -78,10 +78,21 @@ Rarities.List = {
 		basePower = 700,
 		sellValue = 400000,
 	},
+	-- Divin (v3.5) : au-dessus du Secret, les formes ultimes des grands persos (Goko Divin, Loffy
+	-- Nika, Maruto Hokage...). Or blanc rayonnant.
+	divin = {
+		id = "divin",
+		name = "Divin",
+		order = 7,
+		color = Color3.fromRGB(255, 236, 150),
+		gradient = { Color3.fromRGB(255, 255, 235), Color3.fromRGB(255, 214, 90), Color3.fromRGB(255, 160, 60), Color3.fromRGB(255, 250, 220) },
+		basePower = 1500,
+		sellValue = 1000000,
+	},
 	crossover = {
 		id = "crossover",
 		name = "Crossover",
-		order = 7,
+		order = 8,
 		color = Color3.fromRGB(80, 255, 220),
 		gradient = { Color3.fromRGB(120, 255, 200), Color3.fromRGB(90, 120, 255), Color3.fromRGB(255, 90, 230) },
 		basePower = 1000,
@@ -89,7 +100,7 @@ Rarities.List = {
 	},
 } :: { [string]: Rarity }
 
-Rarities.Order = { "common", "rare", "epic", "legendary", "mythic", "secret", "crossover" }
+Rarities.Order = { "common", "rare", "epic", "legendary", "mythic", "secret", "divin", "crossover" }
 
 function Rarities.get(id: string): Rarity
 	return Rarities.List[id] or Rarities.List.common

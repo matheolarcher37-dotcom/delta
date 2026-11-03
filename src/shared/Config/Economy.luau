@@ -40,6 +40,7 @@ Economy.EvolutionRarityMult = {
 	legendary = 4,
 	mythic = 8,
 	secret = 16,
+	divin = 24,
 	crossover = 12,
 }
 
@@ -77,8 +78,9 @@ Economy.IncomeFactor = 0.15
 -- Raretés de la machine (de la plus commune à la plus rare) = raretés des persos.
 --   odds     = chance en % (avant la chance du joueur) ; price = prix de base en ¥ (pièces)
 --   optional = rareté qui ne compte que si l'univers a des persos de cette rareté
---              (Peu commun : aucun perso du jeu ne l'a pour l'instant ; Secret : 1 perso par univers)
-Economy.RollOrder = { "common", "uncommon", "rare", "epic", "legendary", "mythic", "secret" }
+--              (Peu commun : aucun perso du jeu ne l'a pour l'instant ; Secret et Divin (v3.5) : les plus
+--              grands persos de chaque univers, Divin = les formes ultimes comme Goko Divin)
+Economy.RollOrder = { "common", "uncommon", "rare", "epic", "legendary", "mythic", "secret", "divin" }
 
 local function rarityInfo(id: string, order: number, odds: number, price: number, extra: { [string]: any }?)
 	local base = Rarities.List[id]
@@ -123,6 +125,8 @@ Economy.RollRarities = {
 		rainbow = true,
 		optional = true,
 	}),
+	-- Divin (v3.5) : 1 chance sur 25 000 (avant la chance du joueur).
+	divin = rarityInfo("divin", 8, 0.004, 8000000, { optional = true }),
 }
 
 Economy.Roll = {

@@ -336,7 +336,7 @@ function TraitCinematic.fitsCourt(id: string?, look): boolean
 		return false
 	end
 	local def = id and Characters.get(id)
-	return not (def and def.rarity == "secret")
+	return not (def and (def.rarity == "secret" or def.rarity == "divin"))
 end
 
 -- `spare` (facultatif) : candidats de réserve ajoutés au bout de la liste (count + spare au plus),

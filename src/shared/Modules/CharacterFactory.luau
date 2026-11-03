@@ -30,6 +30,24 @@ CharacterFactory.Folders = { "ModelesPersos", "AvatarsCatalogue" }
 -- Attribut d'un modèle de ModelesPersos qui sert à toutes les étoiles du perso.
 CharacterFactory.AllStarsAttribute = "ToutesEtoiles"
 
+-- Aura d'évolution d'un modèle importé (v3.5, tools/import_persos.luau) : attributs AuraCouleur
+-- (Color3) et AuraEtoiles (force à chaque étoile, ex. "0,1,2"). Un modèle dont AuraEtoiles donne une
+-- force pour une étoile plus haute que la sienne sert aussi à cette étoile (avec son aura).
+function CharacterFactory.auraForce(template: Instance?, stars: number?): number?
+	local list = template and template:GetAttribute("AuraEtoiles")
+	if type(list) ~= "string" then
+		return nil
+	end
+	local i = 0
+	for value in string.gmatch(list, "[^,]+") do
+		i += 1
+		if i == (stars or 1) then
+			return tonumber(value)
+		end
+	end
+	return nil
+end
+
 local function lookup(folder: Instance, id: string, stars: number): Instance?
 	if folder.Name == "ModelesPersos" then
 		-- Modèle de CETTE étoile ; le modèle sans suffixe est celui du ★1, sauf s'il est marqué
@@ -37,6 +55,13 @@ local function lookup(folder: Instance, id: string, stars: number): Instance?
 		local exact = folder:FindFirstChild(id .. "_" .. stars)
 		if exact then
 			return exact
+		end
+		-- modèle d'une étoile plus basse qui sert aussi celle-ci (aura d'évolution, v3.5)
+		for k = stars - 1, 2, -1 do
+			local lower = folder:FindFirstChild(id .. "_" .. k)
+			if lower and CharacterFactory.auraForce(lower, stars) ~= nil then
+				return lower
+			end
 		end
 		local base = folder:FindFirstChild(id)
 		if base and (stars <= 1 or base:GetAttribute(CharacterFactory.AllStarsAttribute) == true) then
@@ -69,6 +94,80 @@ function CharacterFactory.templateFor(id: string?, stars: number?): Model?
 		end
 	end
 	return nil
+end
+
+-- Modèle d'un perso, ou celui du perso qui « prête » son corps (fusions : look.modele = perso A).
+local function templateOrBase(id: string?, stars: number?, look): Model?
+	return CharacterFactory.templateFor(id, stars) or (type(look) == "table" and type(look.modele) == "string" and CharacterFactory.templateFor(look.modele, stars) or nil)
+end
+
+-- Cape d'une fusion construite sur un modèle importé (le perso intégré a déjà la sienne).
+local function fusionCape(model: Model, look)
+	local torso = model:FindFirstChild("Torso") :: BasePart?
+	if not torso or type(look) ~= "table" or typeof(look.capeColor) ~= "Color3" or model:FindFirstChild("CapeFusion") then
+		return
+	end
+	local k = torso.Size.Y / 2
+	local cape = Instance.new("Part")
+	cape.Name = "CapeFusion"
+	cape.Size = Vector3.new(1.9, 2.7, 0.12) * k
+	cape.Color = look.capeColor
+	cape.Material = Enum.Material.Fabric
+	cape.CanCollide = false
+	cape.CanTouch = false
+	cape.CanQuery = false
+	cape.Massless = true
+	cape.CFrame = torso.CFrame * CFrame.new(0, -0.3 * k, 0.58 * k) * CFrame.Angles(math.rad(-8), 0, 0)
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = torso
+	weld.Part1 = cape
+	weld.Parent = cape
+	cape.Parent = model
+end
+
+-- Aura d'évolution (halo et étincelles autour du corps, lumière) de force 1 ou 2.
+function CharacterFactory.addAura(model: Model, color: Color3, force: number)
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if not root or force <= 0 or root:FindFirstChild("AuraHalo") then
+		return
+	end
+	local light = color:Lerp(Color3.new(1, 1, 1), 0.5)
+	local function emitter(name: string, rate: number, size: number, life: number, speed: number, transparency: number)
+		local e = Instance.new("ParticleEmitter")
+		e.Name = name
+		e.Color = ColorSequence.new(light, color)
+		e.LightEmission = 0.8
+		e.LightInfluence = 0
+		e.Rate = rate
+		e.Lifetime = NumberRange.new(life * 0.7, life)
+		e.Speed = NumberRange.new(speed * 0.5, speed)
+		e.SpreadAngle = Vector2.new(12, 12)
+		e.EmissionDirection = Enum.NormalId.Top
+		e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, size), NumberSequenceKeypoint.new(1, 0) })
+		e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.2, transparency), NumberSequenceKeypoint.new(1, 1) })
+		e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		e.Parent = root
+	end
+	emitter("AuraHalo", 10 + 14 * force, 1.3 + 0.5 * force, 0.9, 3 + 2 * force, 0.55)
+	if force >= 2 then
+		emitter("AuraEtincelles", 12, 0.35, 1.2, 6, 0.2)
+	end
+	local glow = Instance.new("PointLight")
+	glow.Name = "AuraLumiere"
+	glow.Color = color
+	glow.Brightness = 0.6 + 0.5 * force
+	glow.Range = 6 + 2 * force
+	glow.Shadows = false
+	glow.Parent = root
+	model:SetAttribute("Aura", force)
+end
+
+local function evolutionAura(model: Model, template: Instance, stars: number?)
+	local force = CharacterFactory.auraForce(template, stars)
+	local color = template:GetAttribute("AuraCouleur")
+	if force and force > 0 and typeof(color) == "Color3" then
+		CharacterFactory.addAura(model, color, force)
+	end
 end
 
 -- Hauteur du HumanoidRootPart au-dessus des pieds.
@@ -172,11 +271,13 @@ end
 -- options.variety : variété tirée de l'unité (ex. { variety = unit.variety }).
 function CharacterFactory.build(id: string?, stars: number?, look, options)
 	local opts = options or {}
-	local template = CharacterFactory.templateFor(id, stars)
+	local template = templateOrBase(id, stars, look)
 	local model
 	if template then
 		model = template:Clone()
 		model.Name = opts.name or model.Name
+		fusionCape(model, look)
+		evolutionAura(model, template, stars)
 		model = CharacterFactory.prepare(model, opts)
 	elseif CreatureBuilder.kindOf(look) then
 		model = CreatureBuilder.build(look, opts)
@@ -197,7 +298,7 @@ end
 -- Modèle ancré pour les aperçus des menus.
 -- `variety` (facultatif) : variété de l'unité, appliquée à l'aperçu.
 function CharacterFactory.buildPreview(id: string?, stars: number?, look, variety: string?): Model
-	local template = CharacterFactory.templateFor(id, stars)
+	local template = templateOrBase(id, stars, look)
 	if not template then
 		local preview
 		if CreatureBuilder.kindOf(look) then
@@ -210,6 +311,7 @@ function CharacterFactory.buildPreview(id: string?, stars: number?, look, variet
 	end
 	local model = template:Clone()
 	model.Name = "Preview"
+	fusionCape(model, look)
 	local root = model:FindFirstChild("HumanoidRootPart") :: BasePart
 	model.PrimaryPart = root
 	local guis = {}

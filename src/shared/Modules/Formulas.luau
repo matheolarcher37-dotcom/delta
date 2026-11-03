@@ -142,6 +142,8 @@ function Formulas.fusionLook(aId: string, bId: string, stars: number?)
 		table.insert(accessories, "cape")
 		look.capeColor = a.hairColor
 	end
+	-- Corps de A s'il a un modèle importé (Modules/CharacterFactory, v3.5), avec la cape ci-dessus.
+	look.modele = aId
 	return look
 end
 

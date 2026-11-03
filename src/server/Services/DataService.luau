@@ -59,7 +59,7 @@ local function template()
 		RollMulti = 0, -- persos par roulage choisis (0 = le maximum des passes Roulage x2 / x3)
 		-- Réglages de la fenêtre « Roulement automatique » (booléens explicites : faux = désactivé).
 		AutoRollSettings = {
-			pauseRarities = { common = false, uncommon = false, rare = false, epic = false, legendary = true, mythic = true, secret = true },
+			pauseRarities = { common = false, uncommon = false, rare = false, epic = false, legendary = true, mythic = true, secret = true, divin = true },
 			pauseMutations = {}, -- { [mutation] = vrai } : l'AFK s'arrête sur ces mutations
 			buyCharacters = {}, -- { [id du perso] = vrai } : cibles de l'achat automatique
 			buyRarities = {}, -- { [rareté] = vrai }

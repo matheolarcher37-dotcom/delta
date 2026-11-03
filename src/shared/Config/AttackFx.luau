@@ -902,6 +902,35 @@ AttackFx.Characters = {
 	pou_muzon = "flesh_whips",
 }
 
+-- Persos importés (v3.5) : leur effet signature est décrit dans Config/PersosImportes (famille,
+-- variante, couleurs, nom) ; charge, secousse et flash grandissent avec la rareté.
+local PUNCH = {
+	common = { 0.35, 0.6, 0 },
+	rare = { 0.35, 0.7, 0.04 },
+	epic = { 0.4, 0.8, 0.08 },
+	legendary = { 0.45, 0.9, 0.12 },
+	mythic = { 0.5, 1, 0.16 },
+	secret = { 0.55, 1.1, 0.2 },
+	divin = { 0.6, 1.2, 0.24 },
+}
+for _, row in require(script.Parent.PersosImportes).List do
+	local id, rarity, sig = row[1], row[4], row[5]
+	local feel = PUNCH[rarity] or PUNCH.epic
+	local key = "imp_" .. id
+	AttackFx.Signatures[key] = {
+		name = sig.name,
+		family = sig.family,
+		variant = sig.variant,
+		color = sig.color,
+		color2 = sig.color2,
+		size = sig.size,
+		charge = feel[1],
+		shake = feel[2],
+		flash = feel[3],
+	}
+	AttackFx.Characters[id] = key
+end
+
 -- Effet par défaut selon le type d'attaque (persos ajoutés plus tard, fusions...).
 AttackFx.Kinds = {
 	punch = "basic_punch",

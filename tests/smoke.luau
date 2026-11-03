@@ -458,7 +458,11 @@ test("Persos R6 classiques : proportions, tête, visage, budgets", function()
 		return parts, frames, previewParts
 	end
 	local maxParts, maxFrames, maxPreview = 0, 0, 0
-	for id in Characters.List do
+	-- (persos peints par le jeu ; les persos importés ont leurs modèles, test « Persos importés v3.5 »)
+	for id, def in Characters.List do
+		if def.importe then
+			continue
+		end
 		for stars = 1, 3 do
 			local p, f, v = check(id .. " ★" .. stars, Formulas.describe({ id = id, level = 1, stars = stars }).look)
 			maxParts, maxFrames, maxPreview = math.max(maxParts, p), math.max(maxFrames, f), math.max(maxPreview, v)
@@ -598,8 +602,10 @@ test("Boss lisibles (liseré, lumières, aura) et variétés des persos", functi
 	}
 	local AURAS = { energy_aura = true, ssj_aura = true, steam = true }
 	local ids = {}
-	for id in Characters.List do
-		table.insert(ids, id)
+	for id, def in Characters.List do
+		if not def.importe then -- (persos importés : un modèle par étoile, test « Persos importés v3.5 »)
+			table.insert(ids, id)
+		end
 	end
 	table.sort(ids)
 	for _, id in ids do
@@ -821,15 +827,19 @@ test("Roster v3.2 : 16 persos de plus, raretés de base, signatures, noms d'orig
 	end
 	local total = 0
 	for _, universe in Universes.List do
-		local count = {}
+		-- Roster intégré v3.2 (les persos importés en v3.5 viennent en plus, voir plus loin)
+		local count, builtin = {}, {}
 		for _, id in universe.characters do
-			local r = Characters.get(id).rarity
-			count[r] = (count[r] or 0) + 1
+			local def = Characters.get(id)
+			if not def.importe then
+				count[def.rarity] = (count[def.rarity] or 0) + 1
+				table.insert(builtin, id)
+			end
 		end
-		assert(#universe.characters >= 13 and #universe.characters <= 14, universe.id .. " : 13 ou 14 persos attendus (" .. #universe.characters .. ")")
+		assert(#builtin >= 13 and #builtin <= 14, universe.id .. " : 13 ou 14 persos intégrés attendus (" .. #builtin .. ")")
 		assert((count.common or 0) >= 2, universe.id .. " : au moins 2 Communs (persos secondaires)")
 		assert(count.secret == 1 and (count.mythic or 0) >= 1 and (count.mythic or 0) <= 2, universe.id .. " : un Secret et 1 ou 2 Mythiques")
-		for _, id in universe.characters do
+		for _, id in builtin do
 			if Characters.get(id).rarity == "secret" then
 				assert(SECRETS[id], id .. " : Secret inattendu")
 			end
@@ -1417,7 +1427,7 @@ end)
 test("Construction de fusions (toutes les paires Légendaire/Mythique)", function()
 	local ids = {}
 	for id, def in Characters.List do
-		if def.rarity == "legendary" or def.rarity == "mythic" then
+		if (def.rarity == "legendary" or def.rarity == "mythic") and not def.importe then
 			table.insert(ids, id)
 		end
 	end
@@ -2023,51 +2033,163 @@ test("Base : panneaux d'achat dégagés, sans chevauchement (entrée, coffre)", 
 	assert(#problems == 0, "panneaux qui se recouvrent :\n  " .. table.concat(problems, "\n  "))
 end)
 
-test("Persos importés de la Boîte à outils : rigs R6 complets, habillés, sans script (v3.4)", function()
+test("Persos importés de la Boîte à outils : rigs R6 complets, sans script, une version par étoile (v3.5)", function()
 	local folder = find("ReplicatedStorage.ModelesPersos")
 	assert(folder, "dossier ModelesPersos absent (assets/ModelesPersos)")
 	local CharacterFactory = requireModule(Shared.Modules.CharacterFactory)
-	local expected = { ninja_maruto = 1, ninja_maruto_2 = 2, ninja_maruto_3 = 3, ninja_sakoura = 1, ninja_sasuki = 1 }
-	for name in expected do
-		local model = folder:FindFirstChild(name)
-		assert(model and model:IsA("Model"), "perso importé absent : " .. name)
+	local Rarities = requireModule(Shared.Config.Rarities)
+	local Economy = requireModule(Shared.Config.Economy)
+	local EvolutionItems = requireModule(Shared.Config.EvolutionItems)
+	-- Seules les pièces et leurs habillages sont gardés (les modèles de la Boîte à outils cachent
+	-- parfois des scripts « Runtime » / « ScreenBuilder » : rien de tel ne doit passer).
+	local ALLOWED = {
+		Model = true,
+		Part = true,
+		MeshPart = true,
+		UnionOperation = true,
+		WedgePart = true,
+		CornerWedgePart = true,
+		Humanoid = true,
+		Animator = true,
+		Motor6D = true,
+		Weld = true,
+		Shirt = true,
+		Pants = true,
+		ShirtGraphic = true,
+		BodyColors = true,
+		SpecialMesh = true,
+		BlockMesh = true,
+		CylinderMesh = true,
+		FileMesh = true,
+		Decal = true,
+		Texture = true,
+		SurfaceAppearance = true,
+		Attachment = true,
+		ParticleEmitter = true,
+		Beam = true,
+		Trail = true,
+		PointLight = true,
+		SpotLight = true,
+		SurfaceLight = true,
+		Fire = true,
+		Smoke = true,
+		Sparkles = true,
+	}
+	local models = 0
+	for _, model in folder:GetChildren() do
+		models += 1
+		local name = model.Name
+		assert(model:IsA("Model"), name .. " : pas un modèle")
 		local humanoid = model:FindFirstChildOfClass("Humanoid")
 		assert(humanoid and humanoid.RigType == Enum.HumanoidRigType.R6, name .. " : pas un rig R6")
 		for _, part in { "HumanoidRootPart", "Torso", "Head", "Left Arm", "Right Arm", "Left Leg", "Right Leg" } do
 			assert(model:FindFirstChild(part), name .. " : membre R6 manquant " .. part)
 		end
-		local motors = {}
+		local motors, parts = {}, 0
 		for _, d in model:GetDescendants() do
-			assert(not d:IsA("LuaSourceContainer"), name .. " : script laissé dans le modèle (" .. d.Name .. ")")
+			assert(ALLOWED[d.ClassName], name .. " : objet non autorisé dans le modèle (" .. d.ClassName .. " « " .. d.Name .. " »)")
 			if d:IsA("Motor6D") then
 				motors[d.Name] = true
-			elseif d:IsA("BasePart") and d.Parent and d.Parent.Name == "Tenue" then
-				local weld = d:FindFirstChild("Soudure")
-				assert(weld and weld.Part0 and weld.Part0.Parent == model, name .. " : pièce de tenue non soudée à un membre (" .. d.Name .. ")")
+			elseif d:IsA("BasePart") then
+				parts += 1
+				if d.Parent and d.Parent.Name == "Tenue" then
+					local weld = d:FindFirstChild("Soudure")
+					assert(weld and weld.Part0 and weld.Part0.Parent == model, name .. " : pièce de tenue non soudée à un membre (" .. d.Name .. ")")
+				end
 			end
 		end
+		assert(parts <= 180, name .. " : " .. parts .. " pièces (au plus 180)")
 		for _, joint in CharacterBuilder.JointNames do
 			assert(motors[joint], name .. " : articulation R6 manquante " .. joint)
 		end
-		assert(model:FindFirstChildOfClass("Shirt") and model:FindFirstChildOfClass("Pants"), name .. " : vêtements perdus")
+		-- même gabarit que les autres persos (torse de 2 de haut), sauf les géants (Titans, Barbe Neige...)
+		local torsoY = model.Torso.Size.Y
+		assert(torsoY > 1.9 and torsoY < 3.1, name .. string.format(" : taille anormale (torse de %.2f)", torsoY))
 	end
-	-- La fabrique les prend à la bonne étoile (Maruto : un modèle par étoile ; Sakoura et Sasuki :
-	-- le même pour toutes les étoiles)
-	for _, e in
-		{
-			{ "ninja_maruto", 1, "ninja_maruto" },
-			{ "ninja_maruto", 2, "ninja_maruto_2" },
-			{ "ninja_maruto", 3, "ninja_maruto_3" },
-			{ "ninja_sakoura", 3, "ninja_sakoura" },
-			{ "ninja_sasuki", 2, "ninja_sasuki" },
-		}
-	do
-		local template = CharacterFactory.templateFor(e[1], e[2])
-		assert(template and template.Name == e[3], e[1] .. " ★" .. e[2] .. " : modèle importé non utilisé")
+	-- (un modèle par forme ; les auras d'évolution n'ont pas de fichier à elles)
+	assert(models >= 220, "persos importés attendus : au moins 220 modèles (" .. models .. ")")
+	-- Vêtements de tout le jeu : l'ancienne et la nouvelle adresse de texture sont les mêmes
+	-- (sinon Roblox Studio refuse d'ouvrir le fichier : « Content property conflict »).
+	local CLOTHING = { Shirt = "ShirtTemplate", Pants = "PantsTemplate", ShirtGraphic = "Graphic" }
+	local clothes = 0
+	for _, d in game:GetDescendants() do
+		local legacy = CLOTHING[d.ClassName]
+		if legacy then
+			clothes += 1
+			local okOld, old = pcall(function()
+				return d[legacy]
+			end)
+			local okNew, new = pcall(function()
+				return d[legacy .. "Content"]
+			end)
+			if okOld and type(old) == "string" and old ~= "" then
+				assert(okNew and new and new.Uri == old, d:GetFullName() .. " : adresses de texture différentes (" .. old .. ")")
+			end
+			assert(okNew and new and new.Uri ~= "", d:GetFullName() .. " : vêtement sans texture")
+		end
+	end
+	assert(clothes >= 400, "vêtements des persos importés vérifiés : " .. clothes)
+	-- Chaque perso importé (et chaque perso du jeu repris d'un modèle) a sa version à CHAQUE étoile
+	local function hasAll(id)
+		for stars = 1, 3 do
+			if not CharacterFactory.templateFor(id, stars) then
+				return false, stars
+			end
+		end
+		return true
+	end
+	assert(#Characters.Importes >= 95, "une centaine de nouveaux persos attendus (" .. #Characters.Importes .. ")")
+	for _, id in Characters.Importes do
+		local ok, missing = hasAll(id)
+		assert(ok, id .. " : pas de modèle importé pour ★" .. tostring(missing))
+	end
+	for _, id in { "sai_goko", "sai_vejeta", "oce_loffy", "oce_zoru", "pou_rengoko", "ninja_itochi", "occ_sukana", "ninja_radama", "pou_muzon" } do
+		local ok, missing = hasAll(id)
+		assert(ok, id .. " : le modèle du fichier doit servir à toutes les étoiles (★" .. tostring(missing) .. ")")
+	end
+	-- Une étoile = un modèle à elle (Goko : normal, Super Guerrier, SS3) ; un perso sans formes en plus
+	-- garde son modèle avec une aura à ★★ et ★★★
+	assert(CharacterFactory.templateFor("sai_goko", 2).Name == "sai_goko_2" and CharacterFactory.templateFor("sai_goko", 3).Name == "sai_goko_3", "Goko : un modèle par étoile")
+	-- (un seul fichier : l'aura est notée sur le modèle et ajoutée à la construction)
+	assert(CharacterFactory.templateFor("ninja_jiriya", 3).Name == "ninja_jiriya", "Jiriya : un seul modèle pour ses 3 étoiles")
+	local jiriya = Formulas.describe({ id = "ninja_jiriya", level = 1, stars = 3 }).look
+	local j1 = CharacterFactory.build("ninja_jiriya", 1, jiriya, { scale = 1 })
+	local j3 = CharacterFactory.build("ninja_jiriya", 3, jiriya, { scale = 1 })
+	assert(not j1.HumanoidRootPart:FindFirstChild("AuraHalo") and j3:GetAttribute("Aura") == 2, "Jiriya : pas d'aura à ★, aura forte à ★★★")
+	assert(j3.HumanoidRootPart:FindFirstChild("AuraHalo") and j3.HumanoidRootPart:FindFirstChild("AuraEtincelles"), "Jiriya ★★★ : halo et étincelles")
+	-- ★★★ = le modèle de ★★ avec une aura (Rok Li : Portes ouvertes)
+	assert(CharacterFactory.templateFor("ninja_rokli", 3).Name == "ninja_rokli_2", "Rok Li ★★★ : modèle de ★★ repris")
+	local rokli = CharacterFactory.build("ninja_rokli", 3, Formulas.describe({ id = "ninja_rokli", level = 1, stars = 3 }).look, { scale = 1 })
+	assert(rokli:GetAttribute("Aura") == 2, "Rok Li ★★★ : aura forte")
+	-- Les persos du jeu gardent leur taille de racine
+	for _, e in { { "ninja_maruto", 1 }, { "sai_goko", 2 }, { "pou_rengoko", 3 }, { "occ_goju", 2 }, { "oce_loffy", 1 } } do
 		local m = CharacterFactory.build(e[1], e[2], Formulas.describe({ id = e[1], level = 1, stars = e[2] }).look, { scale = 1 })
-		assert(m:GetAttribute("CustomModel") and math.abs(CharacterFactory.rootHeight(m) - 3) < 0.3, e[1] .. " : hauteur de racine anormale")
+		assert(m:GetAttribute("CustomModel"), e[1] .. " : modèle importé non utilisé")
+		local h = CharacterFactory.rootHeight(m)
+		assert(h > 2.4 and h < 4.2, e[1] .. string.format(" ★%d : hauteur de racine anormale (%.2f)", e[2], h))
 		m:Destroy()
 	end
+	-- Chaînes : Goko (Mythique) puis Goko Divin (rareté Divin, au-dessus du Secret), avec des objets
+	local divin = Rarities.get("divin")
+	assert(divin.id == "divin" and divin.order > Rarities.get("secret").order and divin.order < Rarities.get("crossover").order, "rareté Divin entre Secret et Crossover")
+	assert(table.find(Rarities.Order, "divin") == table.find(Rarities.Order, "secret") + 1, "Divin juste après Secret")
+	local odds = Economy.RollRarities
+	assert(odds.divin and odds.divin.odds < odds.secret.odds and odds.divin.order > odds.secret.order, "Divin plus rare que Secret à la machine")
+	assert(Characters.get("sai_goko").rarity == "mythic" and Characters.get("sai_goko_divin").rarity == "divin", "Goko Mythique, Goko Divin")
+	for _, universe in Universes.List do
+		local n = 0
+		for _, id in universe.characters do
+			if Characters.get(id).rarity == "divin" then
+				n += 1
+			end
+		end
+		assert(n == 1, universe.id .. " : un perso Divin attendu (" .. n .. ")")
+	end
+	assert(EvolutionItems.requirement({ id = "sai_goko_divin", stars = 1 }).item == "sai_boule_divine", "Goko Divin ★★ : Boule Divine")
+	assert(EvolutionItems.requirement({ id = "oce_loffy_nika", stars = 2 }).amount == 3, "Loffy Nika ★★★ : 3 Haki")
+	-- Fusion : le corps du perso A (modèle importé) avec une cape
+	local fused = CharacterFactory.build("fusion", 2, Formulas.fusionLook("sai_goko", "oce_loffy", 2), { scale = 1 })
+	assert(fused:GetAttribute("CustomModel") and fused:FindFirstChild("CapeFusion"), "fusion d'un perso importé : son modèle avec une cape")
 end)
 
 test("Objets d'évolution lâchés par les ennemis (plus souvent et plus rares au centre, boss)", function()
@@ -2158,14 +2280,25 @@ test("Épées du Forgeron : détaillées, effet propre, fourreau", function()
 	local Swords = requireModule(Shared.Config.Swords)
 	local SwordBuilder = requireModule(Shared.Modules.SwordBuilder)
 	local styles = {}
+	local imported = 0
 	for _, sword in Swords.List do
-		assert(not styles[sword.look.style], "deux épées ont la même forme : " .. sword.look.style)
-		styles[sword.look.style] = true
+		-- Armes importées (v3.5) : leur forme = leur modèle (ReplicatedStorage.ModelesArmes)
+		local shape = sword.look.style == "modele" and ("modele:" .. tostring(sword.look.modele)) or sword.look.style
+		assert(not styles[shape], "deux épées ont la même forme : " .. shape)
+		styles[shape] = true
+		local fromModel = sword.look.style == "modele"
+		if fromModel then
+			imported += 1
+			assert(SwordBuilder.weaponModel(sword.look.modele), sword.id .. " : modèle d'arme absent (" .. tostring(sword.look.modele) .. ")")
+		end
 		local tool = SwordBuilder.buildTool(sword)
 		local handle = tool:FindFirstChild("Handle")
 		assert(handle and handle:FindFirstChild("SwingTrail") and handle:FindFirstChild("TrailTip"), sword.id .. " : traînée manquante")
 		local parts = countParts(tool)
-		assert(parts >= 25 and parts <= 80, sword.id .. " : " .. parts .. " pièces (attendu 25 à 80)")
+		assert(parts >= (fromModel and 3 or 25) and parts <= 80, sword.id .. " : " .. parts .. " pièces")
+		if fromModel then
+			assert(handle.Transparency == 1, sword.id .. " : la poignée de l'outil doit laisser voir le modèle")
+		end
 		-- Lame orientée vers -Z de la poignée.
 		assert(tool:GetAttribute("SwordTip") < -sword.look.length * 0.8, sword.id .. " : lame mal orientée")
 		local volume = tool:FindFirstChild("AuraVolume")
@@ -2194,12 +2327,16 @@ test("Épées du Forgeron : détaillées, effet propre, fourreau", function()
 				end
 			end
 		end
-		assert(hilt >= 5, sword.id .. " : poignée rangée manquante")
+		assert(hilt >= (fromModel and 2 or 5), sword.id .. " : poignée rangée manquante")
 		assert(sheath:GetAttribute("Carry") == "back" or other >= 3, sword.id .. " : fourreau manquant")
 		print(string.format("   %-22s %2d pièces · fourreau %d", sword.name, parts, hilt + other))
 	end
 	-- Effet plus intense pour les meilleures épées.
 	assert(Swords.power(Swords.List[1]) == 0 and Swords.power(Swords.List[#Swords.List]) == 1, "intensité des effets")
+	-- Armes de ton fichier au Forgeron (v3.5) : sabres de Zoro, éventail de Madara, Tensa Zangetsu
+	assert(imported == 6, "6 armes importées attendues au Forgeron (" .. imported .. ")")
+	local last = Swords.List[#Swords.List]
+	assert(last.id == "zangetsu" and last.price > Swords.get("celeste").price and last.damage > Swords.get("celeste").damage, "armes de légende après l'Épée Céleste")
 end)
 
 local Vector3 = Harness.roblox.Vector3
